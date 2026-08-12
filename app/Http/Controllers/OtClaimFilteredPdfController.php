@@ -4,30 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarEvent;
 use App\Models\Company;
-use App\Models\Employee;
 use App\Models\OvertimeClaim;
 use App\Services\Hr\OtClaimFilter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 /**
- * An overtime statement for whatever the Overtime Claims screen is currently
- * showing.
+ * The Overtime Claims list, printed as it appears on screen.
  *
  * THE SECOND OF TWO EXPORTS, deliberately alongside the first rather than
- * replacing it. OtClaimPdfController prints APPROVED claims for a date range
- * and is what gets signed and filed; people rely on it meaning exactly that.
- * This one answers a different question — "print what I am looking at" —
- * including statuses the approved-only document will never show: the pending
- * queue, the rejected ones, or everything at once.
+ * replacing it. OtClaimPdfController prints a per-employee CLAIM FORM of
+ * approved hours — one page each, signature blocks, the thing that gets filed.
+ * This one prints the LIST: the same rows, the same columns, the same order,
+ * for whatever the screen is currently filtered to. Two different documents
+ * answering two different questions.
  *
- * Same shape as the existing statement: grouped per employee, one page each,
- * so the two documents read alike and nobody has to learn a second layout.
+ * Because it reproduces a list rather than certifying hours, it carries what
+ * the list carries and the claim form has no room for — who submitted each
+ * claim and when, and the status of every row.
  *
- * The filters come from OtClaimFilter, the same object the screen itself
- * applies. That is the whole point — a document headed "matches your current
- * filter" that used its own rules would be worse than no document, because
- * somebody would sign it believing it was the list on screen.
+ * Not paginated. The screen shows a page at a time; the export is the whole
+ * filtered set, because printing page three of nine is nobody's intention.
  */
 class OtClaimFilteredPdfController extends Controller
 {
@@ -38,66 +35,39 @@ class OtClaimFilteredPdfController extends Controller
 
         $filter    = OtClaimFilter::fromRequest($request);
         $outletIds = $user->accessibleOutletIds();
-        $scoped    = $filter->outletScope($outletIds);
 
-        // One query for every matching claim, then grouped in memory. The
-        // alternative — a query per employee, as the approved-only export does
-        // — is a query per head for a document that may cover the whole
-        // company once the status filter is widened.
-        $claims = $filter
-            ->apply(
-                OvertimeClaim::with(['employee.section', 'employee.outlet', 'submitter', 'approver']),
-                $outletIds,
-            )
-            ->orderBy('claim_date')
-            ->get();
+        $query = OvertimeClaim::with(['employee.section', 'employee.outlet', 'submitter', 'approver']);
 
-        $grouped = $claims
-            ->filter(fn ($c) => $c->employee !== null)
-            ->groupBy('employee_id')
-            ->map(fn ($rows) => [
-                'employee'    => $rows->first()->employee,
-                'claims'      => $rows,
-                'totalHours'  => $rows->sum('total_ot_hours'),
-                'hoursByType' => $rows->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours')),
-                // Money or time off. Both are approved overtime and both belong
-                // on the record, but only one half reaches a payslip, and a
-                // total that mixes them is the figure somebody checks their pay
-                // against.
-                'hoursBySettlement' => $rows->groupBy('settlement')->map(fn ($g) => $g->sum('total_ot_hours')),
-                // Broken out because this document can span statuses: a single
-                // "total hours" across approved and rejected claims would be a
-                // number that means nothing.
-                'hoursByStatus' => $rows->groupBy('status')->map(fn ($g) => $g->sum('total_ot_hours')),
-                'submitters'  => $rows->pluck('submitter')->filter()->unique('id'),
-                'approvers'   => $rows->pluck('approver')->filter()->unique('id'),
-            ])
-            ->sortBy(fn ($g) => $g['employee']->name)
-            ->values()
-            ->all();
+        $filter->apply($query, $outletIds);
+        $filter->applySort($query);
 
+        $claims = $query->get();
+
+        // Holidays and events for the date column, exactly as the screen
+        // annotates it. Scoped to the outlets in view.
         $calendarEvents = CalendarEvent::coveringRange(
-            $scoped,
+            $filter->outletScope($outletIds),
             $filter->from ?: $claims->min('claim_date')?->toDateString(),
             $filter->to   ?: $claims->max('claim_date')?->toDateString(),
         );
 
         $pdf = Pdf::loadView('pdf.ot-claims-filtered', [
             'company'        => $company,
-            'grouped'        => $grouped,
+            'claims'         => $claims,
             'calendarEvents' => $calendarEvents,
             'filter'         => $filter,
             'filterSummary'  => $filter->describe(),
-            // Shown per claim only when the document spans more than one
-            // status — a status column on a single-status statement is a
-            // column of the same word repeated.
-            'showStatus'     => $filter->status === null,
+            // Broken out because this document can span statuses, and one
+            // total mixing approved with rejected hours is a number that means
+            // nothing to whoever reads it.
+            'hoursByStatus'  => $claims->groupBy('status')->map(fn ($g) => $g->sum('total_ot_hours')),
             'totalHours'     => $claims->sum('total_ot_hours'),
-            'claimCount'     => $claims->count(),
-            'from'           => $filter->from,
-            'to'             => $filter->to,
-        ])->setPaper('a4', 'portrait');
+            'generatedBy'    => $user->name,
+        ])
+            // Landscape: seven columns including a reason, which is the column
+            // that gets squeezed into unreadability on portrait.
+            ->setPaper('a4', 'landscape');
 
-        return $pdf->download('ot-statement-' . now()->format('Ymd-His') . '.pdf');
+        return $pdf->download('ot-claims-' . now()->format('Ymd-His') . '.pdf');
     }
 }

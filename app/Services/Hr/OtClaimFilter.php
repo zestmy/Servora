@@ -28,7 +28,12 @@ final class OtClaimFilter
         public readonly ?int $sectionId = null,
         public readonly ?string $employmentStatus = null,
         public readonly ?int $outletId = null,
+        public readonly string $sortField = 'claim_date',
+        public readonly string $sortDirection = 'desc',
     ) {}
+
+    /** Columns the list can be ordered by. Anything else is ignored. */
+    private const SORTABLE = ['claim_date', 'total_ot_hours', 'employee', 'status', 'created_at'];
 
     /** Built from the screen's own properties. */
     public static function fromScreen(
@@ -39,6 +44,8 @@ final class OtClaimFilter
         string $sectionId,
         string $employmentStatus,
         string $outletId,
+        string $sortField = 'claim_date',
+        string $sortDirection = 'desc',
     ): self {
         return new self(
             $status ?: null,
@@ -48,6 +55,10 @@ final class OtClaimFilter
             $sectionId !== '' ? (int) $sectionId : null,
             $employmentStatus !== '' ? $employmentStatus : null,
             $outletId !== '' ? (int) $outletId : null,
+            // Whitelisted rather than trusted: this reaches orderBy() and
+            // arrives from a query string on the export.
+            in_array($sortField, self::SORTABLE, true) ? $sortField : 'claim_date',
+            strtolower($sortDirection) === 'asc' ? 'asc' : 'desc',
         );
     }
 
@@ -62,7 +73,25 @@ final class OtClaimFilter
             (string) $request->query('section', ''),
             (string) $request->query('employment', ''),
             (string) $request->query('outlet', ''),
+            (string) $request->query('sort', 'claim_date'),
+            (string) $request->query('dir', 'desc'),
         );
+    }
+
+    /**
+     * Order the list the way the screen is ordering it, so the printed table
+     * reads top-to-bottom the same as the one it was printed from.
+     */
+    public function applySort(Builder $query): Builder
+    {
+        if ($this->sortField === 'employee') {
+            return $query
+                ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+                ->orderBy('employees.name', $this->sortDirection)
+                ->select('overtime_claims.*');
+        }
+
+        return $query->orderBy($this->sortField, $this->sortDirection);
     }
 
     /** The same values back as a query string, for the export link. */
@@ -76,6 +105,8 @@ final class OtClaimFilter
             'section'    => $this->sectionId,
             'employment' => $this->employmentStatus,
             'outlet'     => $this->outletId,
+            'sort'       => $this->sortField,
+            'dir'        => $this->sortDirection,
         ], fn ($v) => $v !== null && $v !== '');
     }
 

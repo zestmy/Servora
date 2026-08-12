@@ -6,27 +6,13 @@
        $pendingHours   — OT hours awaiting approval, excluded from this
        approved-only document; shown as a footer note when > 0.
        $rejectedClaims — Rejected claims in range, excluded; listed in a
-       footer block with rejector + reason when non-empty.
-       $docStatus      — What this document IS, printed under the title.
-       Defaults to "Approved", which is what the signed-and-filed export has
-       always been; the filtered export passes what it was filtered to.
-       $showStatus     — Print each claim's own status in a column. Only for
-       a document that spans more than one, where a single total would
-       otherwise mix approved and rejected hours into a meaningless figure.
-       $filterSummary  — Lines describing how the list was narrowed. --}}
+       footer block with rejector + reason when non-empty. --}}
 @php
     $pendingHours   = $pendingHours ?? 0;
     $rejectedClaims = $rejectedClaims ?? collect();
     // Keyed 'payroll' / 'time_off'. Defaulted so an older caller that does not
     // pass it renders exactly as before rather than fataling.
     $hoursBySettlement = $hoursBySettlement ?? collect();
-
-    // Every one of these defaults to the approved-only document's behaviour,
-    // so the existing export renders byte-for-byte as it did.
-    $docStatus     = $docStatus ?? 'Approved';
-    $showStatus    = $showStatus ?? false;
-    $filterSummary = $filterSummary ?? [];
-    $hoursByStatus = $hoursByStatus ?? collect();
 @endphp
 
 {{-- Header --}}
@@ -45,14 +31,7 @@
     </div>
     <div class="hr">
         <div class="doc-title">Overtime Claim Form</div>
-        <div class="doc-status">{{ $docStatus }}</div>
-        {{-- What was filtered, on the document itself. A filtered statement
-             that does not say how it was narrowed is unreadable the moment it
-             leaves the browser, and somebody will read it as the complete
-             record of that person's overtime. --}}
-        @foreach ($filterSummary as $line)
-            <div class="company-detail" style="text-align: right;">{{ $line }}</div>
-        @endforeach
+        <div class="doc-status">Approved</div>
     </div>
 </div>
 
@@ -167,14 +146,11 @@
             {{-- Only when the page actually has both kinds. A column reading
                  "Payroll" on every row of an ordinary claim sheet is a column
                  that costs width and says nothing. --}}
-            @if ($showStatus)
-                <th class="center" style="width: 10%;">Status</th>
-            @endif
             @if (($hoursBySettlement['time_off'] ?? 0) > 0)
                 <th style="width: 10%;">Settled As</th>
-                <th style="width: {{ $showStatus ? 8 : 12 }}%;">Reason</th>
+                <th style="width: 12%;">Reason</th>
             @else
-                <th style="width: {{ $showStatus ? 14 : 22 }}%;">Reason</th>
+                <th style="width: 22%;">Reason</th>
             @endif
         </tr>
     </thead>
@@ -201,19 +177,6 @@
                         default          => ucfirst(str_replace('_', ' ', $claim->ot_type)),
                     } }}
                 </td>
-                @if ($showStatus)
-                    {{-- Colour-coded because on a mixed statement the status is
-                         the difference between hours somebody is owed and hours
-                         they are not, and that must survive a glance. --}}
-                    <td class="center" style="font-size: 8pt; font-weight: 600; color: {{ match($claim->status) {
-                        'approved'  => '#15803d',
-                        'rejected'  => '#b91c1c',
-                        'submitted' => '#a16207',
-                        default     => '#666',
-                    } }};">
-                        {{ ucfirst($claim->status) }}
-                    </td>
-                @endif
                 @if (($hoursBySettlement['time_off'] ?? 0) > 0)
                     <td style="font-size: 8pt; {{ $claim->settlement === 'time_off' ? 'color: #104d4f; font-weight: 600;' : 'color: #666;' }}">
                         {{ $claim->settlement === 'time_off' ? 'Time Off' : 'Payroll' }}
@@ -227,18 +190,7 @@
         <tr>
             <td colspan="5" style="text-align: right; font-weight: bold;">Total Overtime Hours</td>
             <td class="center" style="font-weight: bold;">{{ number_format($totalHours, 2) }}</td>
-            <td colspan="{{ (($hoursBySettlement['time_off'] ?? 0) > 0 ? 3 : 2) + ($showStatus ? 1 : 0) }}">
-                {{-- On a mixed statement the single total above spans statuses
-                     and on its own means very little, so it is broken down
-                     rather than left to be misread as hours owed. --}}
-                @if ($showStatus && $hoursByStatus->count() > 1)
-                    <span style="font-size: 7.5pt; color: #666;">
-                        @foreach ($hoursByStatus as $status => $hrs)
-                            {{ ucfirst($status) }} {{ number_format($hrs, 2) }}@if (! $loop->last) · @endif
-                        @endforeach
-                    </span>
-                @endif
-            </td>
+            <td colspan="{{ ($hoursBySettlement['time_off'] ?? 0) > 0 ? 3 : 2 }}"></td>
         </tr>
     </tfoot>
 </table>

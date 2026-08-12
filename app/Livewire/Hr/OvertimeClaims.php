@@ -201,6 +201,8 @@ class OvertimeClaims extends Component
             $this->sectionFilter,
             $this->employmentStatusFilter,
             $this->outletFilter,
+            $this->sortField,
+            $this->sortDirection,
         );
     }
 
@@ -517,13 +519,9 @@ class OvertimeClaims extends Component
         $this->currentFilter()->apply($query, $availableOutletIds);
 
         // Sorting
-        if ($this->sortField === 'employee') {
-            $query->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
-                ->orderBy('employees.name', $this->sortDirection)
-                ->select('overtime_claims.*');
-        } else {
-            $query->orderBy($this->sortField, $this->sortDirection);
-        }
+        // Ordered through the same object as the filters, so the printed table
+        // reads top-to-bottom exactly as this one does.
+        $this->currentFilter()->applySort($query);
 
         $claims = $query->paginate($this->perPage);
 
