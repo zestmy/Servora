@@ -210,6 +210,73 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
         $this->assertDatabaseMissing('employees', ['id' => $emp->id]);
     }
 
+    // ── Deleting the child records on their own ───────────────────────────
+
+    /** A discarded face capture takes its photograph with it, wherever from. */
+    public function test_deleting_a_face_capture_removes_its_photo(): void
+    {
+        $emp  = $this->employee();
+        $path = $this->writeFile('face/bad-capture.jpg');
+
+        $descriptor = EmployeeFaceDescriptor::create([
+            'company_id' => $this->company->id, 'employee_id' => $emp->id,
+            'photo_path' => $path, 'descriptor' => json_encode([0.1]),
+        ]);
+
+        $descriptor->delete();
+
+        Storage::disk('local')->assertMissing($path);
+    }
+
+    /**
+     * A SOFT-deleted punch KEEPS its selfie, and this is the correct
+     * behaviour rather than an oversight.
+     *
+     * ClockEvent soft-deletes and the screen can restore one. The selfie is
+     * the evidence of that punch: destroying it on delete would make the
+     * restore hollow, hand back a record whose photograph had gone, and throw
+     * away the one thing an audit of a disputed punch would want to see.
+     */
+    public function test_a_soft_deleted_punch_keeps_its_selfie(): void
+    {
+        $emp  = $this->employee();
+        $path = $this->writeFile('clock/disputed.jpg');
+
+        $event = ClockEvent::create([
+            'company_id' => $this->company->id, 'employee_id' => $emp->id,
+            'outlet_id' => $this->outlet->id, 'type' => 'in',
+            'work_date' => '2026-07-01', 'happened_at' => '2026-07-01 09:00:00',
+            'selfie_path' => $path,
+        ]);
+
+        $event->delete();
+
+        $this->assertSoftDeleted('clock_events', ['id' => $event->id]);
+        Storage::disk('local')->assertExists($path);
+
+        // And the restore is whole, not a record with a hole in it.
+        $event->restore();
+        Storage::disk('local')->assertExists($path);
+    }
+
+    /** Once it genuinely will not come back, the selfie goes. */
+    public function test_force_deleting_a_punch_removes_its_selfie(): void
+    {
+        $emp  = $this->employee();
+        $path = $this->writeFile('clock/gone-for-good.jpg');
+
+        $event = ClockEvent::create([
+            'company_id' => $this->company->id, 'employee_id' => $emp->id,
+            'outlet_id' => $this->outlet->id, 'type' => 'in',
+            'work_date' => '2026-07-01', 'happened_at' => '2026-07-01 09:00:00',
+            'selfie_path' => $path,
+        ]);
+
+        $event->forceDelete();
+
+        Storage::disk('local')->assertMissing($path);
+    }
+
     /** A path already gone from disk must not derail the delete. */
     public function test_a_missing_file_does_not_block_the_delete(): void
     {

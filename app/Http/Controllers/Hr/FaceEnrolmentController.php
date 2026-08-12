@@ -92,10 +92,8 @@ class FaceEnrolmentController extends Controller
 
         abort_unless($employee, 403);
 
-        if ($descriptor->photo_path) {
-            Storage::disk('local')->delete($descriptor->photo_path);
-        }
-
+        // The image is removed by the model's `deleted` hook, so it goes from
+        // wherever a descriptor is deleted rather than only from here.
         $descriptor->delete();
 
         return redirect()

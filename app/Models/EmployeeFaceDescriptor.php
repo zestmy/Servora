@@ -36,6 +36,31 @@ class EmployeeFaceDescriptor extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        /*
+         * The capture is the record, so the image goes with it.
+         *
+         * The same rule EmployeeDocument follows, and here for a stronger
+         * reason: this is a photograph of somebody's face held for biometric
+         * matching. A row deleted while its file stays leaves that image on
+         * disk with nothing pointing at it — unreachable through the product
+         * and therefore never reviewed, never exported on a data request, and
+         * never deleted.
+         *
+         * NOT soft-deleted, unlike ClockEvent — a bad capture is discarded and
+         * re-taken, never restored — so `deleted` is the right hook and there
+         * is nothing left to need the file afterwards.
+         *
+         * This lives on the model rather than at the one call site that used
+         * to do it by hand: a second place that deletes a descriptor would
+         * otherwise have to remember, and the whole point of putting it here
+         * is that it cannot be forgotten.
+         */
+        static::deleted(function (self $descriptor) {
+            if (filled($descriptor->photo_path)) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($descriptor->photo_path);
+            }
+        });
     }
 
     public function employee(): BelongsTo

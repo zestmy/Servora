@@ -153,6 +153,32 @@ class ClockEvent extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        /*
+         * `forceDeleted`, NOT `deleted`, and the difference is the whole point.
+         *
+         * A deleted punch is SOFT deleted here — the row survives, ClockEvents
+         * can restore it, and `deleted_by` records who removed it. The selfie
+         * is the evidence of that punch: destroying it when somebody presses
+         * Delete would make the restore hollow, hand back a record whose
+         * photograph had gone, and throw away the one thing an audit of a
+         * disputed punch would actually want to look at.
+         *
+         * So the file stays for as long as the row can come back, and goes
+         * only when the row genuinely will not.
+         *
+         * Nothing force-deletes a clock event today. This is here so that the
+         * day something does — a retention job, a tenant purge — it does not
+         * quietly start leaving selfies on disk with no row pointing at them.
+         * Employee deletion is handled separately and has to be: the foreign
+         * key cascades in MySQL, which removes the row outright without
+         * raising this event at all. See Employee::ownedFilePaths().
+         */
+        static::forceDeleted(function (self $event) {
+            if (filled($event->selfie_path)) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($event->selfie_path);
+            }
+        });
     }
 
     public function employee(): BelongsTo
