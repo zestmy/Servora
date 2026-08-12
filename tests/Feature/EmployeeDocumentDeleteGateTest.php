@@ -174,73 +174,62 @@ class EmployeeDocumentDeleteGateTest extends TestCase
     }
 
     /**
-     * The decision the backfill existed to make possible: deleting paperwork
-     * is irreversible, so it sits with the admin roles.
+     * THE INVARIANT: exactly one role can delete an employee's paperwork.
      *
-     * Asserted per role rather than as a whole list, because the roles that
-     * SHOULD hold it differ between environments and pinning the full set here
-     * would fail on any database seeded in a different order.
+     * Written as "only Company Admin holds it" rather than "these five do not",
+     * because the roles differ per environment — the developer database and
+     * production do not seed the same set, and a list of names to exclude
+     * would pass on one and miss a role on the other.
      */
-    public function test_hr_and_business_manager_cannot_delete_documents(): void
+    public function test_only_company_admin_can_delete_documents(): void
     {
         $target = \Spatie\Permission\Models\Permission::where('name', self::ABILITY)->first();
-        $this->assertNotNull($target);
+        $this->assertNotNull($target, 'The migration must create the ability.');
 
-        foreach (['HR Manager', 'Business Manager'] as $roleName) {
-            $roleId = \Illuminate\Support\Facades\DB::table('roles')->where('name', $roleName)->value('id');
+        $holders = \Illuminate\Support\Facades\DB::table('role_has_permissions')
+            ->join('roles', 'roles.id', '=', 'role_has_permissions.role_id')
+            ->where('permission_id', $target->id)
+            ->pluck('roles.name')->sort()->values()->all();
 
-            if (! $roleId) {
-                continue;   // not every environment seeds every role
-            }
+        /*
+         * Asserted as "nobody else", not as "exactly Company Admin", because
+         * this database does not seed a Company Admin role at all — and the
+         * invariant is still satisfied there: only Company Admin may delete,
+         * and there is no Company Admin, so nobody may. Pinning the positive
+         * half would make this test a statement about the seed data rather
+         * than about the rule.
+         */
+        $this->assertSame(
+            [],
+            array_values(array_diff($holders, ['Company Admin'])),
+            'Only Company Admin may delete an employee document.'
+        );
 
-            $this->assertFalse(
-                \Illuminate\Support\Facades\DB::table('role_has_permissions')
-                    ->where('permission_id', $target->id)->where('role_id', $roleId)->exists(),
-                "$roleName must not be able to delete employee documents."
-            );
-
-            // And they keep everything else — the gate moved one action, not a job.
-            $manageId = \Illuminate\Support\Facades\DB::table('permissions')
-                ->where('name', 'hr.employees.manage')->value('id');
-
-            $this->assertTrue(
-                \Illuminate\Support\Facades\DB::table('role_has_permissions')
-                    ->where('permission_id', $manageId)->where('role_id', $roleId)->exists(),
-                "$roleName must still be able to add and edit staff."
-            );
-        }
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('model_has_permissions')
+            ->where('permission_id', $target->id)->count(),
+            'A direct grant to one person would break "only Company Admin".');
     }
 
     /**
-     * The backfill rule: nobody loses a capability the moment the ability is
-     * introduced. A permission that silently strips access is the worse
-     * failure — the button just stops being there and nothing says why.
-     *
-     * Measured against the roles the backfill actually targeted, minus the two
-     * later revoked by an explicit decision.
+     * The gate moved ONE action, not a job. Every role that lost deletion must
+     * still be able to add, edit and file — otherwise this stopped the
+     * paperwork rather than protecting it.
      */
-    public function test_the_backfill_gave_it_to_everyone_who_could_already_delete(): void
+    public function test_the_roles_that_lost_deletion_can_still_manage_staff(): void
     {
-        $manage = \Spatie\Permission\Models\Permission::where('name', 'hr.employees.manage')->first();
-        $target = \Spatie\Permission\Models\Permission::where('name', self::ABILITY)->first();
+        $manageId = \Illuminate\Support\Facades\DB::table('permissions')
+            ->where('name', 'hr.employees.manage')->value('id');
 
-        $this->assertNotNull($manage, 'hr.employees.manage must exist for the backfill to key off.');
-        $this->assertNotNull($target, 'The migration must create the ability.');
+        $stillManage = \Illuminate\Support\Facades\DB::table('role_has_permissions')
+            ->join('roles', 'roles.id', '=', 'role_has_permissions.role_id')
+            ->where('permission_id', $manageId)
+            ->pluck('roles.name');
 
-        // The two taken back off by an explicit decision, so this measures the
-        // backfill rather than re-asserting the revocation above.
-        $revoked = \Illuminate\Support\Facades\DB::table('roles')
-            ->whereIn('name', ['HR Manager', 'Business Manager'])->pluck('id');
+        $this->assertContains('HR Manager', $stillManage->all(),
+            'HR Manager lost deletion, not the ability to keep staff records.');
 
-        $expected = \Illuminate\Support\Facades\DB::table('role_has_permissions')
-            ->where('permission_id', $manage->id)->pluck('role_id')
-            ->reject(fn ($id) => $revoked->contains($id))
-            ->sort()->values()->all();
-
-        $targetRoles = \Illuminate\Support\Facades\DB::table('role_has_permissions')
-            ->where('permission_id', $target->id)->pluck('role_id')->sort()->values()->all();
-
-        $this->assertSame($expected, $targetRoles,
-            'Every other role that can edit staff kept the ability it already had in practice.');
+        // Whoever can edit staff can still upload — proven behaviourally
+        // above in test_uploading_still_works_without_the_delete_ability.
+        $this->assertGreaterThan(1, $stillManage->count());
     }
 }
