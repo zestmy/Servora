@@ -71,25 +71,40 @@
 @endphp
 
 <div x-data="{ tab: @js($openTab) }">
-    {{-- Header --}}
+    {{-- Header.
+
+         THE ACTION ROW USED TO BE `flex items-center gap-2` WITH NO WRAP, and
+         on a phone that is not a cosmetic problem: four buttons carrying
+         `whitespace-nowrap` measured 566px inside a 390px viewport, so Cancel
+         and Save sat entirely OFF-SCREEN. They were reachable only by
+         discovering that the page could be dragged sideways — `main` is
+         `overflow-y-auto`, and CSS computes the other axis of a scroll
+         container to `auto` as well, so the whole form scrolled horizontally
+         instead of visibly breaking. Somebody filling this in on the floor
+         could not save it.
+
+         min-w-0 on the title block is the other half. A flex item defaults to
+         min-width:auto, which refuses to shrink below its content, so a long
+         name — and Malaysian names on this system run to five and six words —
+         pushed the row wider still rather than wrapping inside it. --}}
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div class="flex items-start gap-3">
+        <div class="flex min-w-0 items-start gap-3">
             @canDo('hr.view')
             <a data-back href="{{ route('hr.employees', $this->returnParams()) }}" title="Back to Employees"
-               class="mt-0.5 p-1.5 rounded-control text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">
+               class="mt-0.5 flex-shrink-0 p-1.5 rounded-control text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
             </a>
             @endcanDo
-            <div>
+            <div class="min-w-0">
                 <p class="text-xs text-gray-600">HR / Employees</p>
-                <h2 class="text-lg font-semibold text-gray-700 mt-1">
+                <h2 class="text-lg font-semibold text-gray-700 mt-1 break-words">
                     {{ $employeeId ? ($f_name ?: 'Edit Employee') : 'Add Employee' }}
                 </h2>
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
             @if ($employeeId && $canViewPay)
                 <a href="{{ route('hr.compensation.employee', $employeeId) }}" class="btn-secondary">
                     Allowances &amp; salary history
