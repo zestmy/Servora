@@ -8,6 +8,7 @@ use App\Models\Outlet;
 use App\Models\SalaryRevision;
 use App\Models\Section;
 use App\Services\Hr\CompensationSummary;
+use App\Traits\RemembersOutletFilter;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -22,6 +23,8 @@ use Livewire\Component;
  */
 class Compensation extends Component
 {
+    use RemembersOutletFilter;
+
     public string $month        = '';
     public string $outletFilter = '';
     public string $sectionFilter = '';
@@ -34,11 +37,35 @@ class Compensation extends Component
 
     public function mount(): void
     {
-        $this->month = now()->format('Y-m');
+        /*
+         * Come back on the outlet AND the month this screen was left on.
+         *
+         * Opening someone's compensation and pressing "<" returned a list
+         * reset to the user's own outlet and to the current month — the same
+         * fault reported on Employees, on a screen where the month matters
+         * more, because a payroll list showing a different period than the one
+         * you were working through is not obviously the same list.
+         *
+         * The month is remembered beside the outlet rather than threaded
+         * through the form, for the reason RemembersOutletFilter gives: the
+         * form should not have to know it is part of somebody's place in a
+         * list.
+         */
+        $this->month = (string) session(self::MONTH_KEY, now()->format('Y-m'));
+
+        // "All outlets" is a real choice, so this asks whether anything was
+        // STORED, not whether the value is empty — an empty string means All
+        // and must not be overruled by the default below.
+        if ($this->bootRememberedOutlet()) {
+            return;
+        }
 
         $activeOutletId = Auth::user()?->activeOutletId();
         if ($activeOutletId) $this->outletFilter = (string) $activeOutletId;
     }
+
+    /** Where the month above is kept. Per screen, like the outlet. */
+    private const MONTH_KEY = 'compensation.month';
 
     protected function accessibleOutletIds(): array
     {
@@ -125,6 +152,9 @@ class Compensation extends Component
 
     public function render()
     {
+        $this->rememberOutlet();
+        session([self::MONTH_KEY => $this->month]);
+
         $user       = Auth::user();
         $companyId  = $user->company_id;
         $accessible = $this->accessibleOutletIds();
