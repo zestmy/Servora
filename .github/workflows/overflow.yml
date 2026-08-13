@@ -119,4 +119,19 @@ jobs:
             fi
             sleep 1
           done
-          npm run test:overflow || { echo "::group::server log"; cat /tmp/serve.log; echo "::endgroup::"; exit 1; }
+          set +e
+          npm run test:overflow 2>&1 | tee /tmp/check.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            # LAST 40 LINES, and the check's own output repeated AFTER it.
+            # `artisan serve` logs every request, so dumping the whole thing
+            # buried the actual failure a thousand lines above the end of the
+            # job log — which is the part anyone reads first.
+            echo "::group::server log (tail)"
+            tail -40 /tmp/serve.log
+            echo "::endgroup::"
+            echo "──────── overflow check said ────────"
+            tail -60 /tmp/check.log
+            exit "$status"
+          fi
