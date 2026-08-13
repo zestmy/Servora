@@ -177,7 +177,7 @@ final class NavMenu
                     ['route' => 'settings.recipe-categories',   'label' => 'Recipe Categories',  'permission' => 'recipes.manage'],
                     ['route' => 'recipes.index',                'label' => 'Prep Items',         'permission' => 'recipes.view', 'query' => 'tab=prep-items'],
                     ['route' => 'settings.price-classes',       'label' => 'Price Classes',      'permission' => 'recipes.price'],
-                    ['route' => 'inventory.index',              'label' => 'Stocks Management',  'permission' => 'inventory.view'],
+                    ['route' => 'inventory.index',              'label' => 'Stock Management',  'permission' => 'inventory.view'],
                     ['route' => 'settings.par-levels',          'label' => 'Par Levels',         'permission' => 'inventory.view'],
                     ['route' => 'ingredients.review-documents', 'label' => 'Review Documents',   'permission' => 'ingredients.import'],
                     ['route' => 'settings.index', 'query' => 'module=kitchen-production', 'label' => 'Kitchen Settings',

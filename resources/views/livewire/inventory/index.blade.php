@@ -8,7 +8,7 @@
     @endif
 
     {{-- Header --}}
-    <x-page-header title="Stocks Management"
+    <x-page-header title="Stock Management"
                    eyebrow="Inventory"
                    subtitle="Counts, wastage, staff meals, transfers and captured purchases.">
         <x-slot:actions>

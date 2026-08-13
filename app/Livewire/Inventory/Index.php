@@ -568,6 +568,6 @@ class Index extends Component
             'canDelete'         => $canDelete,
             // Drafts stay deletable for stock takes and transfers regardless.
             'canDeleteRecords'  => $canDelete['stock_takes'],
-        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stocks Management']);
+        ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Management']);
     }
 }

@@ -242,7 +242,7 @@ class CostSummaryService
             ->groupBy('dept_id')
             ->pluck('total', 'dept_id');
 
-        // Blend in manually captured purchases (Stocks Management → Purchases).
+        // Blend in manually captured purchases (Stock Management → Purchases).
         // These are added on top of PO/GRN-based PurchaseRecords.
         foreach ($this->getCapturedPurchasesByDepartment($from, $to, $outletId) as $deptId => $amount) {
             $purchases[$deptId] = (float) ($purchases[$deptId] ?? 0) + (float) $amount;
