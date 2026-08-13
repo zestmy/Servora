@@ -54,6 +54,26 @@ class Employees extends Component
         ?string $employment = null,
         ?string $status = null,
     ): void {
+        /*
+         * READ OFF THE QUERY STRING, because the arguments above never arrive.
+         *
+         * A full-page Livewire component resolves its mount arguments from
+         * ROUTE parameters, and /hr/employees has none — outlet, section,
+         * employment and status are all query string. So every one of these
+         * was null on a real request and the whole round trip was dead:
+         * saving, Cancel and the "<" all landed on a list that had reverted to
+         * the user's own outlet.
+         *
+         * It passed its tests because they call Livewire::test(Employees,
+         * ['outlet' => …]), which hands mount() the arguments directly — the
+         * one path a browser never takes. EmployeeListFilterRoundTripTest now
+         * drives it over HTTP instead.
+         */
+        $outlet     ??= request()->query('outlet');
+        $section    ??= request()->query('section');
+        $employment ??= request()->query('employment');
+        $status     ??= request()->query('status');
+
         if ($outlet !== null) {
             $this->outletFilter = $outlet === 'all' ? '' : $outlet;
         }

@@ -247,10 +247,14 @@ class EmployeeForm extends Component
         ?string $employment = null,
         ?string $status = null,
     ): void {
-        $this->returnOutlet     = $outlet ?? '';
-        $this->returnSection    = $section ?? '';
-        $this->returnEmployment = $employment ?? '';
-        $this->returnStatus     = $status ?? '';
+        // Same reason as Employees::mount() — {id} is a route parameter and
+        // reaches us, the four filters are query string and do not. Without
+        // this they were always '', so Back and Cancel had nothing to carry
+        // and Save fell through to the employee's own outlet.
+        $this->returnOutlet     = $outlet     ?? (string) request()->query('outlet', '');
+        $this->returnSection    = $section    ?? (string) request()->query('section', '');
+        $this->returnEmployment = $employment ?? (string) request()->query('employment', '');
+        $this->returnStatus     = $status     ?? (string) request()->query('status', '');
 
         $this->f_phone_code = $this->defaultPhoneCode();
 

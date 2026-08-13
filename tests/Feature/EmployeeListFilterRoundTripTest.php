@@ -95,6 +95,110 @@ class EmployeeListFilterRoundTripTest extends TestCase
         return $c->viewData('employees')->getCollection()->pluck('name')->sort()->values()->all();
     }
 
+    // ── 0. Over HTTP, which is the only way a browser arrives ─────────────
+
+    /*
+     * REPORTED AS: leaving the employee details page returns to a list that
+     * has forgotten the outlet you filtered to.
+     *
+     * The tests below drive mount() by handing Livewire::test() the arguments
+     * directly. A browser never does that: a full-page Livewire component
+     * takes its mount arguments from ROUTE parameters, and /hr/employees has
+     * none — outlet, section, employment and status are query string, so every
+     * one of them arrived null and the entire round trip was dead in
+     * production while passing here.
+     *
+     * These four go over real HTTP. They fail against the old code.
+     */
+
+    public function test_the_list_honours_an_outlet_named_in_the_url(): void
+    {
+        $other = Outlet::create([
+            'company_id' => $this->company->id, 'name' => 'IOI', 'code' => 'IOI', 'is_active' => true,
+        ]);
+
+        $this->employee('AAA AT KLCC', 'confirmed');
+        Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $other->id,
+            'name' => 'BBB AT IOI', 'is_active' => true, 'join_date' => '2025-01-01',
+            'employment_status' => 'confirmed', 'employment_status_date' => '2025-06-01',
+        ]);
+
+        // The user's own outlet is KLCC, so asking for IOI must override it.
+        $html = $this->actingAs($this->user)
+            ->get(route('hr.employees', ['outlet' => (string) $other->id]))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('BBB AT IOI', $html,
+            'The outlet named in the URL is the one that must be listed.');
+        $this->assertStringNotContainsString('AAA AT KLCC', $html,
+            'Falling back to the user\'s own outlet is the reported bug.');
+    }
+
+    /** "All" is a real choice and must survive the trip, not revert. */
+    public function test_the_list_honours_all_outlets_named_in_the_url(): void
+    {
+        $other = Outlet::create([
+            'company_id' => $this->company->id, 'name' => 'IOI', 'code' => 'IOI', 'is_active' => true,
+        ]);
+
+        $this->employee('AAA AT KLCC', 'confirmed');
+        Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $other->id,
+            'name' => 'BBB AT IOI', 'is_active' => true, 'join_date' => '2025-01-01',
+            'employment_status' => 'confirmed', 'employment_status_date' => '2025-06-01',
+        ]);
+
+        $html = $this->actingAs($this->user)
+            ->get(route('hr.employees', ['outlet' => 'all']))->assertOk()->getContent();
+
+        $this->assertStringContainsString('AAA AT KLCC', $html);
+        $this->assertStringContainsString('BBB AT IOI', $html);
+    }
+
+    /** With nothing in the URL the old default stands: the user's own outlet. */
+    public function test_a_bare_url_still_defaults_to_the_users_own_outlet(): void
+    {
+        $other = Outlet::create([
+            'company_id' => $this->company->id, 'name' => 'IOI', 'code' => 'IOI', 'is_active' => true,
+        ]);
+
+        $this->employee('AAA AT KLCC', 'confirmed');
+        Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $other->id,
+            'name' => 'BBB AT IOI', 'is_active' => true, 'join_date' => '2025-01-01',
+            'employment_status' => 'confirmed', 'employment_status_date' => '2025-06-01',
+        ]);
+
+        $html = $this->actingAs($this->user)->get(route('hr.employees'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('AAA AT KLCC', $html);
+        $this->assertStringNotContainsString('BBB AT IOI', $html);
+    }
+
+    /**
+     * And the form picks the filters up, so its Back and Cancel links have
+     * something to carry. This is what "exit the details page" runs through.
+     */
+    public function test_the_form_carries_the_filters_back_out_again(): void
+    {
+        $emp = $this->employee('AAA AGENCY', 'outsourcing');
+
+        $html = $this->actingAs($this->user)->get(route('hr.employees.edit', [
+            'id'         => $emp->id,
+            'outlet'     => 'all',
+            'section'    => (string) $this->kitchen->id,
+            'employment' => 'outsourcing',
+            'status'     => 'inactive',
+        ]))->assertOk()->getContent();
+
+        // The Back and Cancel links are built from returnParams().
+        $this->assertStringContainsString('outlet=all', $html);
+        $this->assertStringContainsString('employment=outsourcing', $html);
+        $this->assertStringContainsString('status=inactive', $html);
+        $this->assertStringContainsString('section=' . $this->kitchen->id, $html);
+    }
+
     // ── 1. The filters survive the round trip ─────────────────────────────
 
     public function test_saving_an_employee_returns_to_the_filtered_list(): void

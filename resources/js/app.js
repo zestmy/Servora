@@ -121,6 +121,21 @@ document.addEventListener('click', (event) => {
     if (previous.origin !== window.location.origin) return;
     if (previous.href === window.location.href) return;
 
+    // The href wins when it is the SAME PAGE you came from carrying state that
+    // page could not put in its own URL.
+    //
+    // The employee list keeps its outlet, section, employment and status in
+    // Livewire properties, so its address stays a bare /hr/employees however
+    // it is filtered. Going back to that address reverts to the default
+    // filter, which reads as the button having lost your place. The href on
+    // these links is built from the filters deliberately, so it is the same
+    // destination, only truthful — follow it.
+    //
+    // Only when the paths match: a different page means you genuinely came
+    // from somewhere else, and returning there is the whole point of this.
+    const target = new URL(link.href, window.location.origin);
+    if (target.pathname === previous.pathname && target.search && ! previous.search) return;
+
     event.preventDefault();
     window.history.back();
 });
