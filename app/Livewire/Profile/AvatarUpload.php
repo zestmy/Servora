@@ -43,9 +43,9 @@ class AvatarUpload extends Component
          * page in the sidebar.
          */
         $this->validate([
-            'photo' => 'mimes:jpg,jpeg,png,gif,bmp,webp,heic,heif|max:5120',
+            'photo' => ImageStorageService::uploadRule(5120),
         ], [
-            'photo.mimes' => 'The file must be an image (JPG, PNG, GIF, WebP or HEIC).',
+            'photo.mimes' => ImageStorageService::uploadMessage(),
             'photo.max'   => 'The image may not be larger than 5 MB.',
         ]);
 

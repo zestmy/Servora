@@ -18,6 +18,37 @@ class ImageStorageService
     /** Formats browsers can't display; converted to JPEG at upload time. */
     public const CONVERTIBLE = ['heic', 'heif'];
 
+    /**
+     * What an image upload may be, expressed where the answer is actually
+     * known: this class is the one that has to read the file.
+     *
+     * NOT Laravel's `image` rule. That asks getimagesize(), which does not
+     * know HEIC — so an iPhone with "Keep Originals" on was refused with
+     * "must be an image" and no way to comply short of converting the file by
+     * hand, even though Imagick here reads HEIC and CONVERTIBLE above says so.
+     * Validation that disagrees with the storage layer about what is readable
+     * is a rule nobody can satisfy.
+     *
+     * SVG is deliberately absent, though `image` allowed it: an SVG carries
+     * script, and these files are rendered back into pages.
+     */
+    public const UPLOADABLE = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic', 'heif'];
+
+    /**
+     * The validation rule for an image upload, so callers cannot drift from
+     * what storeCompressed() can process.
+     */
+    public static function uploadRule(int $maxKilobytes): string
+    {
+        return 'mimes:' . implode(',', self::UPLOADABLE) . '|max:' . $maxKilobytes;
+    }
+
+    /** The words to use when someone uploads the wrong sort of file. */
+    public static function uploadMessage(): string
+    {
+        return 'The file must be an image (JPG, PNG, GIF, WebP or HEIC).';
+    }
+
     /** Longest image side after compression (px). */
     public const MAX_DIMENSION = 1600;
 

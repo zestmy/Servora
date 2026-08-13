@@ -916,8 +916,11 @@ class EmployeeForm extends Component
         // behind, and the one it replaces is only deleted once it has.
         $replacedPhoto = null;
         if ($this->photo) {
-            $this->validate(['photo' => 'image|max:5120'], [
-                'photo.image' => 'The photo must be an image.',
+            // Whatever ImageStorageService can actually read, which includes
+            // HEIC — the `image` rule did not, so an iPhone sending originals
+            // was refused with "must be an image" and no way to comply.
+            $this->validate(['photo' => ImageStorageService::uploadRule(5120)], [
+                'photo.mimes' => ImageStorageService::uploadMessage(),
                 'photo.max'   => 'The photo may not be larger than 5 MB.',
             ]);
             $replacedPhoto      = $this->photoPath;

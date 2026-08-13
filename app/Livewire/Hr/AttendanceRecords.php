@@ -496,14 +496,62 @@ class AttendanceRecords extends Component
             return [];
         }
 
+        // Same reach as the panel that offers the tickbox: a pool member
+        // posted to another branch is on this list, so excluding them has to
+        // be possible or the tick silently does nothing.
+        $outletId = $this->outletFilter !== '' ? (int) $this->outletFilter : null;
+
         $allowed = Employee::whereIn('id', $ticked)
-            ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+            ->where(function ($q) use ($outletId) {
+                $q->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+                    ->when($outletId !== null, fn ($q) => $q->orWhere('service_charge_outlet_id', $outletId));
+            })
             ->where('employment_status', 'resigned')
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
 
         return array_values(array_intersect($ticked, array_unique(array_merge($allowed, $savedIds))));
+    }
+
+    /**
+     * Who this POOL pays — which is not who works at this outlet.
+     *
+     * REPORTED AS: three people set to be paid from KLCC's pool were not in
+     * KLCC's service charge list. They were in the payout report and in the
+     * distribution, each taking a share; they were missing from THIS screen,
+     * because the grid behind it selects on home outlet_id and they are posted
+     * to HQ and the Central Kitchen.
+     *
+     * That left the panel drawing its rows from one set and its divisor from
+     * another: serviceChargeTotalPoints() has always used
+     * forServiceChargeOutlet(), so the redirected staff were in the divisor
+     * while being absent from the rows. Employee::forServiceChargeOutlet()
+     * names this as the failure the feature can most easily cause — the
+     * visible shares stop adding up to the pool, and the people who are
+     * missing are exactly the ones nobody thinks to check.
+     *
+     * Written to match ServiceChargeDistribution line for line, including the
+     * accessible-outlet OR: a manager who can see this pool must be able to
+     * see everybody it pays, including somebody posted to a branch they do not
+     * otherwise have access to.
+     */
+    protected function serviceChargeEmployees(): \Illuminate\Support\Collection
+    {
+        [$periodFrom, $periodTo] = $this->period();
+
+        $outletId   = $this->outletFilter !== '' ? (int) $this->outletFilter : null;
+        $accessible = $this->accessibleOutletIds();
+
+        return Employee::with(['outlet', 'section'])
+            ->where(function ($q) use ($accessible, $outletId) {
+                $q->whereIn('outlet_id', $accessible ?: [0])
+                    ->when($outletId !== null, fn ($q) => $q->orWhere('service_charge_outlet_id', $outletId));
+            })
+            ->forServiceChargeOutlet($outletId)
+            ->employedDuring($periodFrom->toDateString(), $periodTo->toDateString())
+            ->inListOrder()
+            ->get();
     }
 
     protected function serviceChargeTotalPoints(array $excludedIds = []): float
@@ -523,9 +571,18 @@ class AttendanceRecords extends Component
         // person redirected to another outlet's pool takes no share here, so
         // their points must leave the divisor too — otherwise the pool
         // under-allocates and everybody else is quietly short-changed.
-        $query = Employee::whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
+        $outletId   = $this->outletFilter !== '' ? (int) $this->outletFilter : null;
+        $accessible = $this->accessibleOutletIds();
+
+        // Same OR as serviceChargeEmployees() above — the divisor and the rows
+        // have to be the same set of people or the RM/point is wrong for
+        // everybody, not just the ones who are missing.
+        $query = Employee::where(function ($q) use ($accessible, $outletId) {
+                $q->whereIn('outlet_id', $accessible ?: [0])
+                    ->when($outletId !== null, fn ($q) => $q->orWhere('service_charge_outlet_id', $outletId));
+            })
             ->employedDuring($periodFrom->toDateString(), $periodTo->toDateString())
-            ->forServiceChargeOutlet($this->outletFilter !== '' ? (int) $this->outletFilter : null);
+            ->forServiceChargeOutlet($outletId);
 
         // Resolved by the caller and passed in, so the divisor and the rows
         // are computed from one list rather than two that could drift.
@@ -888,13 +945,26 @@ class AttendanceRecords extends Component
 
         $employees = $this->employeesQuery()->get();
 
+        /*
+         * The attendance grid and the service charge panel are about different
+         * people, and were sharing one list. The grid is who works here, which
+         * is what you mark attendance for. The pool is who is paid from here.
+         * A person redirected in belongs on the second and not the first.
+         */
+        $scEmployees = ($this->showServiceCharge && $this->canManageServiceCharge())
+            ? $this->serviceChargeEmployees()
+            : collect();
+
         // All codes (inactive included) so cells keep rendering codes that
         // were deactivated after use; the palette shows active ones only.
         $codes       = AttendanceCode::orderBy('sort_order')->orderBy('code')->get();
         $activeCodes = $codes->where('is_active', true);
         $codesById   = $codes->keyBy('id');
 
-        $records = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
+        // Both lists: a pool member who is not on the grid still has MC and
+        // absence days, and those drive their deduction.
+        $records = AttendanceRecord::whereIn('employee_id',
+            $employees->pluck('id')->merge($scEmployees->pluck('id'))->unique()->all())
             ->whereBetween('work_date', [$from, $to])
             ->get();
 
@@ -966,7 +1036,7 @@ class AttendanceRecords extends Component
                 // same as the one that happens to have been saved: an outlet
                 // with no figure typed into it yet still has its own pool, and
                 // redirected staff still belong to somebody else's.
-                $scRow, $this->serviceChargeOutletId(), $employees, $codes, $cellMap,
+                $scRow, $this->serviceChargeOutletId(), $scEmployees, $codes, $cellMap,
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
                 is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
                 $this->serviceChargeTotalPoints($scExcludedIds),
