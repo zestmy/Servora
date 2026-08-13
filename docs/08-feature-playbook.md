@@ -15,6 +15,7 @@ Step-by-step recipes for common feature work. Skip to the pattern you need.
 - [11. Extend the supplier portal](#11-extend-the-supplier-portal)
 - [12. Debug common issues](#12-debug-common-issues)
 - [13. Code style & conventions](#13-code-style--conventions)
+- [13a. Add a delete action](#13a-add-a-delete-action)
 - [14. Run / test locally](#14-run--test-locally)
 - [15. Deploy](#15-deploy)
 - [16. Add a cross-outlet role](#16-add-a-cross-outlet-role-process-submissions-from-all-outlets-without-switching)
@@ -190,6 +191,43 @@ Supplier portal routes live under `/supplier/*` with a separate `supplier` guard
 - **Dates** — user-entered dates are in the user's timezone (see `users.timezone`); DB stores UTC. `SetDisplayTimezone` middleware handles display conversion.
 - **Never write comments that describe WHAT code does** — let the name speak. Comments for WHY only.
 - **Prefer services over fat Livewire** — if a flow touches >2 tables or has side-effects, it belongs in a service.
+
+---
+
+## 13a. Add a delete action
+
+Any control that destroys a saved record goes through the shared confirmation
+gate. There is nothing to wire up — add one attribute:
+
+```blade
+<button wire:click="delete({{ $thing->id }})"
+        data-confirm-delete="Delete {{ $thing->name }}? What goes with it, said plainly.">
+    Delete
+</button>
+```
+
+`<x-confirm-delete />` is already rendered in every authenticated layout. It
+intercepts the click, shows the message, and asks the user to type a word
+generated fresh for that dialog before the Delete button becomes clickable.
+
+- **Do NOT use `wire:confirm` for deletions.** It is `window.confirm()`, whose
+  OK button lands under the thumb that just tapped the icon — which is how a
+  member of staff was destroyed from a phone. `wire:confirm` is still right for
+  "submit this?", "approve?", "import 40 rows?".
+- **Write the message for the person about to lose something.** Name the record
+  and say what leaves with it. "Delete this employee?" was the entire warning on
+  the delete that caused this.
+- **Form-state edits are exempt** — removing an unsaved line from a form,
+  clearing a filter, emptying a calculator row. Those change nothing until Save,
+  and a typed word on each would make the forms unusable. List them in
+  `DeleteConfirmationGateTest::NOT_DESTRUCTIVE` with the reason; that test fails
+  until every new delete-shaped action is one or the other.
+- **Prefer soft deletes** for anything with children. `employees` cascades into
+  fifteen tables, so its hard delete destroyed attendance, leave, payroll and
+  documents in one tap, with no Eloquent event to observe or log it. `use
+  SoftDeletes` plus a `deleted_by` column, purge files on `forceDeleted` (never
+  `deleted`, or a restore comes back hollow), and offer the way back on the list
+  screen. See `Employee`, `ClockEvent`.
 
 ---
 

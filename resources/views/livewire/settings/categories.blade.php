@@ -145,7 +145,7 @@
                                     </svg>
                                 </button>
                                 <button wire:click="delete({{ $cat->id }})"
-                                        wire:confirm="Delete '{{ $cat->name }}'?"
+                                        data-confirm-delete="Delete '{{ $cat->name }}'?"
                                         title="Delete"
                                         class="text-danger-400 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -196,7 +196,7 @@
                                             </svg>
                                         </button>
                                         <button wire:click="delete({{ $sub->id }})"
-                                                wire:confirm="Delete '{{ $sub->name }}'?"
+                                                data-confirm-delete="Delete '{{ $sub->name }}'?"
                                                 title="Delete"
                                                 class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

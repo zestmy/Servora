@@ -79,7 +79,7 @@
                             <button wire:click="openEdit({{ $cpu->id }})"
                                     class="text-sm text-brand-600 hover:text-brand-800 transition">Edit</button>
                             <button wire:click="delete({{ $cpu->id }})"
-                                    wire:confirm="Are you sure you want to delete this CPU?"
+                                    data-confirm-delete="Are you sure you want to delete this CPU?"
                                     class="text-sm text-danger-500 hover:text-danger-700 transition">Delete</button>
                         </div>
                     </div>

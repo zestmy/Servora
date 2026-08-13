@@ -91,7 +91,7 @@
                                             {{ $company->is_active ? 'Suspend' : 'Reactivate' }}
                                         </button>
                                         <button wire:click="deleteCompany({{ $company->id }})"
-                                                wire:confirm="DELETE {{ $company->name }}? The company and all its data disappear from the app immediately. Members whose only company this is lose their account; multi-company users keep their other companies. Only the platform team can restore it."
+                                                data-confirm-delete="DELETE {{ $company->name }}? The company and all its data disappear from the app immediately. Members whose only company this is lose their account; multi-company users keep their other companies. Only the platform team can restore it."
                                                 class="px-2.5 py-1 text-xs font-medium text-danger-500 border border-danger-200 rounded-lg hover:bg-danger-50 transition">
                                             Delete
                                         </button>

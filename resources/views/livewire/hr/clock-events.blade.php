@@ -429,7 +429,7 @@
                                 $charge = $this->canViewPay() ? (float) $viewing->penalty_amount : 0.0;
                             @endphp
                             <button wire:click="deleteEvent({{ $viewing->id }})"
-                                    wire:confirm="Delete this punch?{{ $charge > 0
+                                    data-confirm-delete="Delete this punch?{{ $charge > 0
                                         ? ' It carries an RM' . number_format($charge, 2) . ' late charge, which will stop applying to the service charge.'
                                         : '' }} It stops counting everywhere. You can bring it back with the Deleted filter."
                                     class="mr-auto px-3 py-2 text-sm font-medium text-danger-700 hover:underline">

@@ -130,7 +130,7 @@
                         <td class="px-5 py-3 text-center">
                             <button wire:click="openEdit({{ $u->id }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium mr-1">Edit</button>
                             @if ($u->id !== Auth::id())
-                                <button wire:click="delete({{ $u->id }})" wire:confirm="Delete {{ $u->name }}?" class="text-danger-500 hover:text-danger-700 text-xs">Delete</button>
+                                <button wire:click="delete({{ $u->id }})" data-confirm-delete="Delete {{ $u->name }}?" class="text-danger-500 hover:text-danger-700 text-xs">Delete</button>
                             @endif
                         </td>
                     </tr>

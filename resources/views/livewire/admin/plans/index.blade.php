@@ -112,7 +112,7 @@
                             </svg>
                         </a>
                         <button wire:click="delete({{ $plan->id }})"
-                                wire:confirm="Delete '{{ $plan->name }}'? Only possible if no subscribers."
+                                data-confirm-delete="Delete '{{ $plan->name }}'? Only possible if no subscribers."
                                 title="Delete"
                                 class="text-danger-400 hover:text-danger-600 transition">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

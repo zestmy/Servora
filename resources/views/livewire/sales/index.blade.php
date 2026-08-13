@@ -516,7 +516,7 @@
                     Clear Selection
                 </button>
                 <button wire:click="bulkDelete"
-                        wire:confirm="Delete {{ count($selected) }} selected sales record(s)? This cannot be undone."
+                        data-confirm-delete="Delete {{ count($selected) }} selected sales record(s)? This cannot be undone."
                         class="btn-danger btn-sm">
                     Delete Selected
                 </button>
@@ -649,7 +649,7 @@
                                 </a>
                                 @if ($canDelete)
                                     <button wire:click="delete({{ $record->id }})"
-                                            wire:confirm="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
+                                            data-confirm-delete="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
                                             title="Delete"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -773,7 +773,7 @@
                     <div class="px-6 py-3 bg-gray-50 rounded-b-xl flex items-center justify-between">
                         <div>
                             @if ($editingClosureId)
-                                <button wire:click="removeClosure({{ $editingClosureId }})" wire:confirm="Remove this closure reason?"
+                                <button wire:click="removeClosure({{ $editingClosureId }})" data-confirm-delete="Remove this closure reason?"
                                         class="text-xs text-danger-500 hover:text-danger-700 transition">
                                     Remove Reason
                                 </button>

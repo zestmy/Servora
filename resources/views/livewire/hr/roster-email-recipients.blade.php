@@ -86,7 +86,7 @@
                                         Edit
                                     </button>
                                     <button wire:click="delete({{ $recipient->id }})"
-                                            wire:confirm="Delete this recipient?"
+                                            data-confirm-delete="Delete this recipient?"
                                             class="text-danger-600 hover:text-danger-800 text-xs font-medium">
                                         Delete
                                     </button>

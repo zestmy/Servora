@@ -202,7 +202,7 @@
                                 <img src="{{ \Illuminate\Support\Facades\Storage::url($img['file_path']) }}"
                                      class="h-20 w-20 rounded-lg object-cover border border-gray-200" alt="" />
                                 <button type="button" wire:click="deletePresentationImage({{ $img['id'] }})"
-                                        wire:confirm="Remove this photo?"
+                                        data-confirm-delete="Remove this photo?"
                                         class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger-500 text-white rounded-full text-xs leading-none hover:bg-danger-600">×</button>
                             </div>
                         @endforeach

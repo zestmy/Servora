@@ -109,7 +109,7 @@
                                         Rename
                                     </button>
                                     <button wire:click="delete({{ $t->id }})"
-                                            wire:confirm="Delete template '{{ addslashes($t->name) }}'?"
+                                            data-confirm-delete="Delete template '{{ addslashes($t->name) }}'?"
                                             class="px-2 py-1 text-xs text-danger-500 hover:text-danger-700 hover:bg-danger-50 rounded transition">
                                         Delete
                                     </button>

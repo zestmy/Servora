@@ -55,7 +55,7 @@
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <button wire:click="openEdit({{ $tr->id }})" class="text-sm text-brand-600 hover:text-brand-800">Edit</button>
-                                <button wire:click="delete({{ $tr->id }})" wire:confirm="Delete this tax rate?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
+                                <button wire:click="delete({{ $tr->id }})" data-confirm-delete="Delete this tax rate?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
                             </td>
                         </tr>
                     @endforeach

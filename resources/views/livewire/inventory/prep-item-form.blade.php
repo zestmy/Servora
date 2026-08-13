@@ -673,7 +673,7 @@
                              class="w-full h-32 object-cover" />
                         <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                             <button type="button" wire:click="removeExistingPresentationImage({{ $img['id'] }})"
-                                    wire:confirm="Remove this photo?"
+                                    data-confirm-delete="Remove this photo?"
                                     class="btn-danger btn-sm">
                                 Remove
                             </button>

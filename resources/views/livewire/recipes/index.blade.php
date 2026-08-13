@@ -306,7 +306,7 @@
                     Clear
                 </button>
                 <button wire:click="bulkDelete"
-                        wire:confirm="Delete {{ count($selectedIds) }} selected {{ $isPrep ? 'prep item' : 'recipe' }}{{ count($selectedIds) > 1 ? 's' : '' }}? This cannot be undone."
+                        data-confirm-delete="Delete {{ count($selectedIds) }} selected {{ $isPrep ? 'prep item' : 'recipe' }}{{ count($selectedIds) > 1 ? 's' : '' }}? This cannot be undone."
                         class="btn-danger btn-sm">
                     Delete Selected
                 </button>
@@ -536,7 +536,7 @@
                                 @endif
                                 @canDo('recipes.delete')
                                 <button wire:click="delete({{ $recipe->id }})"
-                                        wire:confirm="Delete '{{ $recipe->name }}'? This cannot be undone."
+                                        data-confirm-delete="Delete '{{ $recipe->name }}'? This cannot be undone."
                                         title="Delete"
                                         class="text-danger-400 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

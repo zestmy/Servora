@@ -26,7 +26,7 @@
                 <span wire:loading wire:target="photo">Uploading…</span>
             </label>
             @if (auth()->user()->avatar)
-                <button wire:click="removeAvatar" wire:confirm="Remove your profile picture?"
+                <button wire:click="removeAvatar" data-confirm-delete="Remove your profile picture?"
                         class="block text-xs text-danger-500 hover:text-danger-700 underline">Remove picture</button>
             @endif
             @error('photo') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror

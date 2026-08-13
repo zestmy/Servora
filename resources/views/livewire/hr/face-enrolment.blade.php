@@ -325,10 +325,14 @@
                                             </div>
                                         @endif
                                         {{-- A form post: removing a bad capture
-                                             must work with no JavaScript too. --}}
+                                             must work with no JavaScript too.
+                                             The confirmation gate is on the
+                                             FORM rather than the button, so it
+                                             catches an Enter press as well as
+                                             the click. --}}
                                         <form method="POST"
                                               action="{{ route('hr.face-enrolment.delete', $capture) }}"
-                                              onsubmit="return confirm('Delete this capture?')"
+                                              data-confirm-delete="Delete this face capture? The photograph is removed from disk and cannot be recovered — the employee would have to be enrolled again."
                                               class="absolute -top-1.5 -right-1.5">
                                             @csrf
                                             @method('DELETE')

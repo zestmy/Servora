@@ -221,6 +221,7 @@
                         </label>
                         @if ($photoPath || $photo)
                             <button type="button" wire:click="removePhoto"
+                            data-confirm-delete="Remove this employee's photograph? The image file is deleted from disk and cannot be recovered — it would have to be taken and uploaded again."
                                     class="text-xs font-medium text-danger-600 hover:text-danger-800">Remove</button>
                         @endif
                         <span class="text-[11px] text-gray-500">
@@ -1271,7 +1272,7 @@
                                              the accident. --}}
                                         @canDo('hr.employees.documents.delete')
                                         <button type="button" wire:click="deleteDocument({{ $doc->id }})"
-                                                wire:confirm="Delete this document? The file is removed for good."
+                                                data-confirm-delete="Delete this document? The file is removed for good."
                                                 class="text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
                                         @endcanDo
                                     </li>

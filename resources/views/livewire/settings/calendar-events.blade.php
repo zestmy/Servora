@@ -133,7 +133,7 @@
                         <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
                             <button wire:click="openEditGroup({{ \Illuminate\Support\Js::from($row['ids']) }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium">Edit</button>
                             <button wire:click="deleteGroup({{ \Illuminate\Support\Js::from($row['ids']) }})"
-                                    wire:confirm="Delete this event{{ $row['count'] > 1 ? ' for all ' . $row['count'] . ' outlets' : '' }}?"
+                                    data-confirm-delete="Delete this event{{ $row['count'] > 1 ? ' for all ' . $row['count'] . ' outlets' : '' }}?"
                                     class="text-danger-500 hover:text-danger-700 text-xs font-medium">Delete</button>
                         </td>
                     </tr>

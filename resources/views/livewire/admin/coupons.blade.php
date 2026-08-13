@@ -70,7 +70,7 @@
                                 {{ $c->is_active ? 'Disable' : 'Enable' }}
                             </button>
                             <button wire:click="openEdit({{ $c->id }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium mr-1">Edit</button>
-                            <button wire:click="delete({{ $c->id }})" wire:confirm="Delete {{ $c->code }}? This also removes redemption records."
+                            <button wire:click="delete({{ $c->id }})" data-confirm-delete="Delete {{ $c->code }}? This also removes redemption records."
                                     class="text-danger-500 hover:text-danger-700 text-xs">Delete</button>
                         </td>
                     </tr>

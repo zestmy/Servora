@@ -260,7 +260,7 @@
                                     {{ $type->is_active ? 'Switch off' : 'Switch on' }}
                                 </button>
                                 @if ($type->requests_count === 0)
-                                    <button wire:click="delete({{ $type->id }})" wire:confirm="Delete this leave type?"
+                                    <button wire:click="delete({{ $type->id }})" data-confirm-delete="Delete this leave type?"
                                             class="ml-3 text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
                                 @endif
                             </td>

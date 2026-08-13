@@ -227,5 +227,10 @@
     }
 
 </script>
+
+{{-- The delete confirmation gate. Inert until something on the page
+     carries data-confirm-delete. See components/confirm-delete.blade.php. --}}
+<x-confirm-delete />
+
 </body>
 </html>

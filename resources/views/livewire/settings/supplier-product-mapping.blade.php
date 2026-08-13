@@ -70,7 +70,7 @@
                             </td>
                             <td class="px-4 py-3 text-center">
                                 @if ($mapping)
-                                    <button wire:click="removeMapping({{ $mapping->id }})" wire:confirm="Remove this mapping?"
+                                    <button wire:click="removeMapping({{ $mapping->id }})" data-confirm-delete="Remove this mapping?"
                                             class="text-xs text-danger-500 hover:text-danger-700">Remove</button>
                                 @endif
                             </td>

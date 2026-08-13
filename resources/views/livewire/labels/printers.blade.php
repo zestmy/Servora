@@ -80,7 +80,7 @@
                                         title="Print a ruler to measure what this printer clips">Calibrate</button>
                                 <button wire:click="openEdit({{ $printer->id }})" class="ml-2 text-brand-600 hover:text-brand-800 text-xs">Edit</button>
                                 <button wire:click="delete({{ $printer->id }})"
-                                        wire:confirm="Remove this printer?"
+                                        data-confirm-delete="Remove this printer?"
                                         class="ml-2 text-danger-500 hover:text-danger-700 text-xs">Remove</button>
                             </td>
                         </tr>

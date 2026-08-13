@@ -122,7 +122,7 @@
                    wire:key="line-{{ $line->id }}">
                 @if ($editing)
                     <button type="button" wire:click="removeItem({{ $line->id }})"
-                            wire:confirm="Remove {{ $line->displayName() }} from this set?"
+                            data-confirm-delete="Remove {{ $line->displayName() }} from this set?"
                             class="icon-btn icon-btn-danger relative mt-0.5 h-6 w-6 shrink-0 rounded-full bg-danger-50 text-danger-700 text-lg leading-none"
                             aria-label="Remove {{ $line->displayName() }}">&minus;</button>
                 @else

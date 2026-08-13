@@ -278,7 +278,7 @@
                                     {{ $holiday->is_active ? 'Switch off' : 'Switch on' }}
                                 </button>
                                 @if ($holiday->requests_count === 0)
-                                    <button wire:click="delete({{ $holiday->id }})" wire:confirm="Remove this holiday from the register?"
+                                    <button wire:click="delete({{ $holiday->id }})" data-confirm-delete="Remove this holiday from the register?"
                                             class="ml-3 text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
                                 @endif
                             </td>

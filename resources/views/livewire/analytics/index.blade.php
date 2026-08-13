@@ -589,7 +589,7 @@
                                 View
                             </button>
                             <button wire:click="deleteReport({{ $report->id }})"
-                                    wire:confirm="Delete this report? This cannot be undone."
+                                    data-confirm-delete="Delete this report? This cannot be undone."
                                     class="px-3 py-1.5 text-xs font-medium text-danger-500 bg-danger-50 rounded-lg hover:bg-danger-100 transition">
                                 Delete
                             </button>

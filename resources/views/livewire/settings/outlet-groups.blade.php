@@ -54,7 +54,7 @@
                             <button wire:click="edit({{ $group->id }})"
                                     class="text-sm text-brand-600 hover:text-brand-800 transition">Edit</button>
                             <button wire:click="delete({{ $group->id }})"
-                                    wire:confirm="Delete this outlet group? Recipes tagged through it remain tagged to individual outlets."
+                                    data-confirm-delete="Delete this outlet group? Recipes tagged through it remain tagged to individual outlets."
                                     class="text-sm text-danger-500 hover:text-danger-700 transition">Delete</button>
                         </div>
                     </div>
