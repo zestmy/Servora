@@ -1,7 +1,7 @@
 <section>
     <header>
         <h2 class="text-lg font-medium text-gray-900">Profile Picture</h2>
-        <p class="mt-1 text-sm text-gray-600">Shown in the navigation panel. JPG, PNG, GIF or WebP, up to 2 MB.</p>
+        <p class="mt-1 text-sm text-gray-600">Shown in the navigation panel. JPG, PNG, GIF, WebP or HEIC, up to 5 MB. Large photos are resized automatically.</p>
     </header>
 
     @if (session()->has('avatar_success'))
