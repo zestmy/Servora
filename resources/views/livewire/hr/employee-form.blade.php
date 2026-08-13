@@ -4,6 +4,7 @@
     // not save with nothing visibly wrong on it.
     $tabFields = [
         'personal'   => ['f_name', 'f_ic_number', 'f_date_of_birth', 'f_email', 'f_phone', 'f_phone_code',
+                         'f_passport_number', 'f_passport_expired_on', 'f_visa_number', 'f_visa_expired_on',
                          'f_home_address', 'f_mailing_address',
                          'photo', 'f_gender', 'f_nationality', 'f_race', 'f_religion', 'f_marital_status',
                          'f_education_level', 'f_emergency_contact_name', 'f_emergency_contact_relationship',
@@ -232,7 +233,7 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-xs font-semibold text-gray-600">IC / Passport No.</label>
+                    <label class="text-xs font-semibold text-gray-600">IC No.</label>
                     <input type="text" maxlength="20" wire:model="f_ic_number"
                            class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. 880101-10-5555" />
                     <p class="mt-1 text-[11px] text-gray-500">Identifies the employee on CP39, KWSP, SOCSO and the EA form.</p>
@@ -243,6 +244,51 @@
                     <input type="date" wire:model="f_date_of_birth" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                     <p class="mt-1 text-[11px] text-gray-500">EPF and SOCSO rates change at 60, and EIS stops.</p>
                     <x-input-error :messages="$errors->get('f_date_of_birth')" class="mt-1" />
+                </div>
+            </div>
+
+            {{-- Passport and visa.
+
+                 ALWAYS SHOWN, not revealed by nationality. A field that hides
+                 itself hides whatever was already typed into it, and plenty of
+                 local staff hold a passport too. Both are optional, and a blank
+                 one is not reported as missing — only a date that is running
+                 out gets a reminder. --}}
+            <div class="rounded-surface border border-gray-200 p-4 space-y-3">
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-700">Passport &amp; Visa</h4>
+                    <p class="text-[11px] text-gray-500">
+                        For foreign staff. Both expiries are watched on the Employees screen
+                        alongside the certification reminders, so a permit running out shows up
+                        before the day it does.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Passport No.</label>
+                        <input type="text" maxlength="50" wire:model="f_passport_number"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="e.g. A12345678" />
+                        <x-input-error :messages="$errors->get('f_passport_number')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Passport Expiry</label>
+                        <input type="date" wire:model="f_passport_expired_on"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_passport_expired_on')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Visa / Work Permit No.</label>
+                        <input type="text" maxlength="50" wire:model="f_visa_number"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_visa_number')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Visa / Work Permit Expiry</label>
+                        <input type="date" wire:model="f_visa_expired_on"
+                               class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('f_visa_expired_on')" class="mt-1" />
+                    </div>
                 </div>
             </div>
 

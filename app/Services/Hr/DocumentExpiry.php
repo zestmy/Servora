@@ -186,9 +186,13 @@ class DocumentExpiry
                 'held'       => $doc['held'],
                 'expires'    => $doc['expires'],
                 'has_expiry' => true,
-                // Of the documents that DO expire, not holding one at all is
-                // itself the finding, so it is reported as missing.
-                'required'   => true,
+                /*
+                 * Of the documents asked of everybody, not holding one at all
+                 * is itself the finding. A passport is not asked of everybody
+                 * — most staff are local — so it reports only once somebody
+                 * has one, which is the point at which it can expire.
+                 */
+                'required'   => $doc['required'] ?? true,
             ];
         }
 

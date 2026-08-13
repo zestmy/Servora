@@ -56,6 +56,10 @@ class EmployeeForm extends Component
 
     public string $f_join_date      = '';
     public string $f_ic_number      = '';
+    public string $f_passport_number      = '';
+    public string $f_passport_expired_on  = '';
+    public string $f_visa_number          = '';
+    public string $f_visa_expired_on      = '';
     public string $f_date_of_birth  = '';
 
     /*
@@ -294,6 +298,10 @@ class EmployeeForm extends Component
         $this->f_mailing_address = $emp->mailing_address ?? '';
         $this->f_join_date     = $emp->join_date?->format('Y-m-d') ?? '';
         $this->f_ic_number     = $emp->ic_number ?? '';
+        $this->f_passport_number     = $emp->passport_number ?? '';
+        $this->f_passport_expired_on = $emp->passport_expired_on?->toDateString() ?? '';
+        $this->f_visa_number         = $emp->visa_number ?? '';
+        $this->f_visa_expired_on     = $emp->visa_expired_on?->toDateString() ?? '';
         $this->f_date_of_birth = $emp->date_of_birth?->format('Y-m-d') ?? '';
 
         foreach (self::PARTICULARS as $type => $prop) {
@@ -484,6 +492,10 @@ class EmployeeForm extends Component
             'f_mailing_address' => [$this->f_mailing_same ? 'nullable' : 'required', 'string', 'max:500'],
             'f_join_date'      => 'nullable|date',
             'f_ic_number'      => 'nullable|string|max:20',
+            'f_passport_number'     => 'nullable|string|max:50',
+            'f_passport_expired_on' => 'nullable|date',
+            'f_visa_number'         => 'nullable|string|max:50',
+            'f_visa_expired_on'     => 'nullable|date',
             'f_date_of_birth'  => 'nullable|date|before:today',
             'f_emergency_contact_name'      => 'nullable|string|max:120',
             'f_emergency_contact_phone'     => 'nullable|string|max:50',
@@ -788,6 +800,10 @@ class EmployeeForm extends Component
             // step with this one.
             'mailing_address' => $this->f_mailing_same ? null : (trim($this->f_mailing_address) ?: null),
             'ic_number'     => $this->f_ic_number ?: null,
+            'passport_number'     => $this->f_passport_number ?: null,
+            'passport_expired_on' => $this->f_passport_expired_on ?: null,
+            'visa_number'         => $this->f_visa_number ?: null,
+            'visa_expired_on'     => $this->f_visa_expired_on ?: null,
             'date_of_birth' => $this->f_date_of_birth ?: null,
             'emergency_contact_name'      => $this->f_emergency_contact_name ?: null,
             'emergency_contact_phone'     => $this->f_emergency_contact_phone ?: null,

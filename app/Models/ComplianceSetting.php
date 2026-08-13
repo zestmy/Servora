@@ -59,6 +59,10 @@ class ComplianceSetting extends Model
             'typhoid'      => $this->typhoid_expires,
             'food_handler' => $this->food_handler_expires,
             'halal'        => $this->halal_training_expires,
+            // Not a company choice: a passport and a visa carry an expiry
+            // date by their nature, and one that never lapsed would not be
+            // either of them.
+            'passport', 'visa' => true,
             default        => false,
         };
     }

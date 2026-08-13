@@ -20,6 +20,7 @@ class Employee extends Model
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no', 'bank_account_name',
+        'passport_number', 'passport_expired_on', 'visa_number', 'visa_expired_on',
         'daily_working_hours', 'reports_to_id', 'allow_byod', 'allow_anywhere',
         'service_charge_outlet_id', 'overtime_as_time_off',
         // Particulars — each picked from a managed list, see HrOption::TYPES.
@@ -327,20 +328,44 @@ class Employee extends Model
      * views for the three places that would otherwise disagree.
      */
     public const COMPLIANCE_DOCUMENTS = [
+        /*
+         * `required` says whether NOT HOLDING one is itself a finding.
+         *
+         * The three certifications are asked of everybody, so a blank is worth
+         * reporting. A passport is not: most staff are local and have neither
+         * it nor a visa, and reporting the whole payroll as missing a passport
+         * would bury the handful of dates that actually matter. They are
+         * reported only once somebody has one, which is when it can expire.
+         */
         'typhoid' => [
-            'label'   => 'Typhoid Card',
-            'held'    => 'typhoid_card',
-            'expires' => 'typhoid_expired_on',
+            'label'    => 'Typhoid Card',
+            'held'     => 'typhoid_card',
+            'expires'  => 'typhoid_expired_on',
+            'required' => true,
         ],
         'food_handler' => [
-            'label'   => 'Food Handler',
-            'held'    => 'food_handler_certified',
-            'expires' => 'food_handler_expired_on',
+            'label'    => 'Food Handler',
+            'held'     => 'food_handler_certified',
+            'expires'  => 'food_handler_expired_on',
+            'required' => true,
         ],
         'halal' => [
-            'label'   => 'Halal Training',
-            'held'    => 'halal_training',
-            'expires' => 'halal_training_expired_on',
+            'label'    => 'Halal Training',
+            'held'     => 'halal_training',
+            'expires'  => 'halal_training_expired_on',
+            'required' => true,
+        ],
+        'passport' => [
+            'label'    => 'Passport',
+            'held'     => 'passport_number',
+            'expires'  => 'passport_expired_on',
+            'required' => false,
+        ],
+        'visa' => [
+            'label'    => 'Visa / Work Permit',
+            'held'     => 'visa_number',
+            'expires'  => 'visa_expired_on',
+            'required' => false,
         ],
     ];
 
@@ -378,6 +403,8 @@ class Employee extends Model
         'halal_training'         => 'boolean',
         'halal_training_date'    => 'date',
         'halal_training_expired_on' => 'date',
+        'passport_expired_on'    => 'date',
+        'visa_expired_on'        => 'date',
         'service_points_entitlement' => 'decimal:2',
         'daily_working_hours'    => 'decimal:2',
         'break_minutes'              => 'integer',
