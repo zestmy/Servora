@@ -836,9 +836,24 @@ class Users extends Component
             $q->where('company_id', $currentUser->company_id)
         )->whereNotNull('outlet_id')->pluck('outlet_id')->toArray();
         $regularOutlets = $outlets->reject(fn ($o) => in_array($o->id, $kitchenOutletIds));
+        /*
+         * EVERY kitchen, including the ones stood down.
+         *
+         * $regularOutlets above removes the base outlet of ANY kitchen, active
+         * or not, so filtering this list to active ones left a deactivated
+         * kitchen's outlet in neither list: invisible on the outlet
+         * checkboxes and absent from the kitchen block, so nobody could be
+         * given access to it at all without reactivating the kitchen.
+         *
+         * The two queries have to be asking about the same set — the outlets
+         * are partitioned between them, and a partition with a gap is a
+         * missing outlet nobody can grant. Dormant ones are labelled rather
+         * than hidden, so "All Central Kitchens" no longer quietly grants
+         * something the list refused to show.
+         */
         $kitchens = \App\Models\CentralKitchen::when(! $isSuperAdmin, fn ($q) =>
             $q->where('company_id', $currentUser->company_id)
-        )->where('is_active', true)->orderBy('name')->get();
+        )->orderByDesc('is_active')->orderBy('name')->get();
 
         // Presets plus this company's own roles, keyed by ID throughout — see
         // RoleCatalogue for why name is a label here and not an identity.

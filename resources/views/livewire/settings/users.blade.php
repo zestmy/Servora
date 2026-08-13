@@ -427,6 +427,12 @@
                                     <input type="checkbox" wire:model="kitchenIds" value="{{ $k->id }}"
                                            class="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
                                     <span class="text-sm text-gray-700">{{ $k->name }}</span>
+                                    {{-- Shown rather than hidden: its base outlet is kept out of
+                                         the outlet checkboxes either way, so hiding the kitchen
+                                         would leave that outlet ungrantable. --}}
+                                    @unless ($k->is_active)
+                                        <span class="text-[10px] uppercase tracking-wider text-gray-500">stood down</span>
+                                    @endunless
                                 </label>
                             @endforeach
                         </div>
