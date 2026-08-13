@@ -377,6 +377,10 @@ final class NavMenu
                     // Kitchen keeps its own production category list, so it
                     // needs a way in that isn't the outlet sidebar.
                     ['route' => 'settings.recipe-categories', 'label' => 'Production Categories', 'permission' => 'recipes.manage'],
+                    // The kitchen's own price classes. Same screen as the
+                    // outlet's, showing the kitchen list because the workspace
+                    // decides which one it edits.
+                    ['route' => 'settings.price-classes',     'label' => 'Production Price Classes', 'permission' => 'recipes.price'],
                     ['route' => 'settings.index',             'label' => 'Settings'],
                 ],
             ],

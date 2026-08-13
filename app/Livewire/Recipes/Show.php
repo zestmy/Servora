@@ -77,7 +77,7 @@ class Show extends Component
         $costPerServing = $grandCost / $yieldQty;
 
         // Price class analysis
-        $priceClasses = RecipePriceClass::ordered()->get();
+        $priceClasses = RecipePriceClass::outletScope()->ordered()->get();
         $priceMap = $recipe->prices->keyBy('recipe_price_class_id');
 
         $pricingAnalysis = [];

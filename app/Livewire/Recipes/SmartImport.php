@@ -1108,8 +1108,8 @@ PROMPT;
                 // Create default price class entry if price classes exist
                 $sellingPrice = floatval($recipeData['selling_price'] ?? 0);
                 if ($sellingPrice > 0) {
-                    $defaultPriceClass = RecipePriceClass::where('is_default', true)->first()
-                        ?? RecipePriceClass::ordered()->first();
+                    $defaultPriceClass = RecipePriceClass::outletScope()->where('is_default', true)->first()
+                        ?? RecipePriceClass::outletScope()->ordered()->first();
 
                     if ($defaultPriceClass) {
                         $recipe->prices()->create([

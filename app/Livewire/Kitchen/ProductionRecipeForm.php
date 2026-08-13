@@ -145,7 +145,7 @@ class ProductionRecipeForm extends Component
     {
         // A row per price class, so the form shows every class the company
         // defined rather than only the ones this recipe happens to price.
-        foreach (\App\Models\RecipePriceClass::ordered()->get() as $class) {
+        foreach (\App\Models\RecipePriceClass::kitchenScope()->ordered()->get() as $class) {
             $this->classPrices[$class->id] = '0';
         }
 
@@ -491,7 +491,7 @@ class ProductionRecipeForm extends Component
 
     private function defaultClassPrice(): string
     {
-        $classes = \App\Models\RecipePriceClass::ordered()->get();
+        $classes = \App\Models\RecipePriceClass::kitchenScope()->ordered()->get();
 
         $default = $classes->firstWhere('is_default', true) ?? $classes->first();
 
@@ -922,7 +922,7 @@ class ProductionRecipeForm extends Component
         }
 
         // The outlet recipes' classes, not a second set.
-        $priceClasses = \App\Models\RecipePriceClass::ordered()->get();
+        $priceClasses = \App\Models\RecipePriceClass::kitchenScope()->ordered()->get();
 
         $pageTitle = $this->recipeId
             ? 'Edit: ' . $this->name

@@ -120,7 +120,7 @@ class Form extends Component
     public function mount(?int $id = null): void
     {
         // Initialise class prices for all price classes
-        $priceClasses = RecipePriceClass::ordered()->get();
+        $priceClasses = RecipePriceClass::outletScope()->ordered()->get();
         foreach ($priceClasses as $pc) {
             $this->classPrices[$pc->id] = '0';
         }
@@ -827,7 +827,7 @@ class Form extends Component
         $categories = IngredientCategory::roots()->active()->ordered()->get();
 
         $departments = \App\Models\Department::active()->ordered()->get();
-        $priceClasses = RecipePriceClass::ordered()->get();
+        $priceClasses = RecipePriceClass::outletScope()->ordered()->get();
 
         // Central kitchen outlets are selectable too, so recipes can be tagged
         // as visible to the central kitchen. Their ids are passed along so the

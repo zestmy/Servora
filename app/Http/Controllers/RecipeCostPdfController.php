@@ -227,7 +227,7 @@ class RecipeCostPdfController extends Controller
 
         $recipes = $this->applyCostFilter($recipes, $request);
 
-        $priceClasses = RecipePriceClass::ordered()->get();
+        $priceClasses = RecipePriceClass::outletScope()->ordered()->get();
 
         $summaryRows = $recipes->map(function ($recipe) use ($priceClasses, $isPrep) {
             $data = $this->buildRecipeData($recipe);
@@ -372,7 +372,7 @@ class RecipeCostPdfController extends Controller
         $costPerServing = $grandCost / $yieldQty;
 
         // Price class analysis
-        $priceClasses = RecipePriceClass::ordered()->get();
+        $priceClasses = RecipePriceClass::outletScope()->ordered()->get();
         $priceMap = $recipe->prices->keyBy('recipe_price_class_id');
 
         $pricingAnalysis = [];

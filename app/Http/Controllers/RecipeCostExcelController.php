@@ -58,7 +58,7 @@ class RecipeCostExcelController extends RecipeCostPdfController
         $this->applyDashboardSort($query, $isPrep);
         $recipes = $this->applyCostFilter($query->get(), $request);
 
-        $priceClasses = $isPrep ? collect() : RecipePriceClass::ordered()->get();
+        $priceClasses = $isPrep ? collect() : RecipePriceClass::outletScope()->ordered()->get();
 
         $spreadsheet = new Spreadsheet();
         $spreadsheet->getProperties()

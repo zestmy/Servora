@@ -312,7 +312,7 @@ class Index extends Component
         }
 
         // Class must belong to this company (global scope enforces it).
-        $class = \App\Models\RecipePriceClass::findOrFail($priceClassId);
+        $class = \App\Models\RecipePriceClass::outletScope()->findOrFail($priceClassId);
 
         if ($price <= 0) {
             $recipe->prices()->where('recipe_price_class_id', $class->id)->delete();
@@ -603,7 +603,7 @@ class Index extends Component
         // columns on the recipes tab. Empty for prep items (no selling price).
         $priceClasses = $isPrep
             ? collect()
-            : \App\Models\RecipePriceClass::ordered()->take(2)->get();
+            : \App\Models\RecipePriceClass::outletScope()->ordered()->take(2)->get();
 
         $categoryStats = $isPrep ? [] : $this->buildCategoryStats();
 

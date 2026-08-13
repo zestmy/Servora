@@ -9,6 +9,17 @@ use Livewire\Component;
 
 class PriceClasses extends Component
 {
+    /**
+     * Outlet menu price classes and Central Kitchen ones are separate lists.
+     * This screen always edits the one belonging to the workspace the user is
+     * currently in — the same rule Recipe Categories follows, and the reason
+     * the kitchen stopped borrowing the outlet's classes.
+     */
+    protected function scope(): string
+    {
+        return RecipePriceClass::currentScope();
+    }
+
     public bool $showModal = false;
     public ?int $editingId = null;
 
@@ -32,7 +43,7 @@ class PriceClasses extends Component
 
     public function openEdit(int $id): void
     {
-        $pc = RecipePriceClass::findOrFail($id);
+        $pc = RecipePriceClass::inScope($this->scope())->findOrFail($id);
 
         $this->editingId  = $pc->id;
         $this->name       = $pc->name;
@@ -53,14 +64,16 @@ class PriceClasses extends Component
         ];
 
         if ($this->is_default) {
-            RecipePriceClass::where('is_default', true)->update(['is_default' => false]);
+            // Per list: a kitchen default must not unset the outlet's.
+            RecipePriceClass::inScope($this->scope())->where('is_default', true)->update(['is_default' => false]);
         }
 
         if ($this->editingId) {
-            RecipePriceClass::findOrFail($this->editingId)->update($data);
+            RecipePriceClass::inScope($this->scope())->findOrFail($this->editingId)->update($data);
             session()->flash('success', 'Price class updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
+            $data['scope']      = $this->scope();
             RecipePriceClass::create($data);
             session()->flash('success', 'Price class created.');
         }
@@ -70,9 +83,11 @@ class PriceClasses extends Component
 
     public function delete(int $id): void
     {
-        $pc = RecipePriceClass::findOrFail($id);
+        $pc = RecipePriceClass::inScope($this->scope())->findOrFail($id);
 
-        $usedCount = RecipePrice::where('recipe_price_class_id', $pc->id)->count();
+        $usedCount = $this->scope() === RecipePriceClass::SCOPE_KITCHEN
+            ? \App\Models\ProductionRecipePrice::where('recipe_price_class_id', $pc->id)->count()
+            : RecipePrice::where('recipe_price_class_id', $pc->id)->count();
         if ($usedCount > 0) {
             session()->flash('error', "Cannot delete \"{$pc->name}\" — it has {$usedCount} recipe " . ($usedCount === 1 ? 'price' : 'prices') . ' assigned.');
             return;
@@ -90,9 +105,12 @@ class PriceClasses extends Component
 
     public function render()
     {
-        $priceClasses = RecipePriceClass::ordered()->get();
+        $priceClasses = RecipePriceClass::inScope($this->scope())->ordered()->get();
 
-        $usage = RecipePrice::selectRaw('recipe_price_class_id, count(*) as total')
+        $usage = ($this->scope() === RecipePriceClass::SCOPE_KITCHEN
+                ? \App\Models\ProductionRecipePrice::query()
+                : RecipePrice::query())
+            ->selectRaw('recipe_price_class_id, count(*) as total')
             ->groupBy('recipe_price_class_id')
             ->pluck('total', 'recipe_price_class_id');
 
