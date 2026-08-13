@@ -97,8 +97,17 @@
                 <option value="none">No Status</option>
             </select>
 
-            {{-- Period picker --}}
-            <div class="flex items-center gap-2 lg:ml-auto">
+            {{-- Period picker.
+
+                 IT WRAPS, and on a phone that is what keeps the whole filter
+                 bar inside the screen. The row above is `flex-col` there, and
+                 a column flex line takes its cross size from its widest item —
+                 so this one control, 425px at its narrowest with two date
+                 inputs in Custom mode, was stretching the search box and all
+                 three dropdowns to 425px with it and pushing the page sideways.
+                 min-w-0 on the inputs for the same reason: a date field will
+                 not shrink below its intrinsic width without it. --}}
+            <div class="flex flex-wrap items-center gap-2 min-w-0 lg:ml-auto lg:flex-nowrap">
                 <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
                     <button wire:click="$set('periodMode', 'month')"
                             class="px-3 py-2 {{ $periodMode === 'month' ? 'bg-brand-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}">
@@ -109,22 +118,38 @@
                         Custom
                     </button>
                 </div>
-                <button wire:click="previousPeriod" title="Previous period"
-                        class="p-2 text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                </button>
-                @if ($periodMode === 'month')
-                    <input type="month" wire:model.live="month"
-                           class="text-sm rounded-lg border-gray-300 shadow-sm" />
-                @else
-                    <input type="date" wire:model.live="rangeFrom" class="text-sm rounded-lg border-gray-300 shadow-sm" />
-                    <span class="text-gray-600 text-sm">–</span>
-                    <input type="date" wire:model.live="rangeTo" class="text-sm rounded-lg border-gray-300 shadow-sm" />
-                @endif
-                <button wire:click="nextPeriod" title="Next period"
-                        class="p-2 text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </button>
+                {{-- Back, the field, forward — one group, so on a phone the
+                     wrap falls between the mode toggle and the navigator
+                     rather than between the two arrows. They are a pair, and
+                     one on each line reads as a fault.
+
+                     It still wraps INTERNALLY, because it has to: in Custom
+                     mode this holds two date inputs, and a date input has an
+                     intrinsic minimum width that min-w-0 cannot argue with —
+                     pinned to one line the group measured 468px and put the
+                     page back over the edge. Month mode, which is the default
+                     and the common case, fits on one line and keeps the
+                     arrows together. --}}
+                <div class="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+                    <button wire:click="previousPeriod" title="Previous period"
+                            class="flex-shrink-0 p-2 text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    @if ($periodMode === 'month')
+                        <input type="month" wire:model.live="month"
+                               class="text-sm rounded-lg border-gray-300 shadow-sm" />
+                    @else
+                        <input type="date" wire:model.live="rangeFrom" class="text-sm rounded-lg border-gray-300 shadow-sm" />
+                        {{-- Hidden once the two dates stack, where a dash trailing the end
+                             of a row separates a field from nothing. --}}
+                        <span class="hidden flex-shrink-0 text-gray-600 text-sm sm:inline">–</span>
+                        <input type="date" wire:model.live="rangeTo" class="text-sm rounded-lg border-gray-300 shadow-sm" />
+                    @endif
+                    <button wire:click="nextPeriod" title="Next period"
+                            class="flex-shrink-0 p-2 text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
