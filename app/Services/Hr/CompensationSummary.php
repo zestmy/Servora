@@ -400,6 +400,7 @@ class CompensationSummary
             return [
                 'employee_id' => $employee->id,
                 'name'        => $employee->name,
+                'photo_path'  => $employee->photo_path,
                 'staff_id'    => $employee->staff_id,
                 'outlet'      => $employee->outlet?->name,
                 'section'     => $employee->section?->name,

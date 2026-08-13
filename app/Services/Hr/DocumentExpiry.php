@@ -59,7 +59,7 @@ class DocumentExpiry
      */
     public static function columns(): array
     {
-        $columns = ['id', 'company_id', 'outlet_id', 'name', 'staff_id', 'is_active'];
+        $columns = ['id', 'company_id', 'outlet_id', 'name', 'staff_id', 'is_active', 'photo_path'];
 
         foreach (Employee::COMPLIANCE_DOCUMENTS as $doc) {
             $columns[] = $doc['held'];
@@ -125,6 +125,7 @@ class DocumentExpiry
                 $rows->push([
                     'employee_id'  => $employee->id,
                     'name'         => $employee->name,
+                    'photo_path'   => $employee->photo_path,
                     'staff_id'     => $employee->staff_id,
                     'outlet'       => $employee->outlet?->name,
                     'document'     => $def['label'],

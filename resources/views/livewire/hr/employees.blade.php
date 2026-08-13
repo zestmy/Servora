@@ -143,6 +143,7 @@
                            title="{{ collect([$fhEmp->outlet?->name, $fhEmp->section?->name])->filter()->join(' · ') ?: 'Open employee' }}"
                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
                                   bg-danger-50 text-danger-700 border border-danger-200 hover:bg-danger-100 transition">
+                            <x-employee-avatar :employee="$fhEmp" size="h-5 w-5" textSize="text-[9px]" />
                             {{ $fhEmp->name }}
                             @if ($fhEmp->staff_id)
                                 <span class="font-mono text-[10px] text-danger-500">{{ $fhEmp->staff_id }}</span>
@@ -241,6 +242,9 @@
                             @endphp
                             <div wire:key="comp-{{ $row['employee_id'] }}-{{ $row['document_key'] }}"
                                  class="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50">
+                                <x-employee-avatar :id="$row['employee_id']" :name="$row['name']"
+                                                   :photo="$row['photo_path'] ?? null"
+                                                   size="h-7 w-7" textSize="text-[10px]" />
                                 <a href="{{ route('hr.employees.edit', ['id' => $row['employee_id']] + $returnFilters) }}"
                                    class="text-sm font-medium text-gray-800 hover:text-brand-600 hover:underline">
                                     {{ $row['name'] }}

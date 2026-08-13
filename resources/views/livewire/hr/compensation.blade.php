@@ -143,11 +143,17 @@
                 @forelse ($summary['rows'] as $row)
                     <tr wire:key="comp-{{ $row['employee_id'] }}" class="hover:bg-gray-50">
                         <td class="px-4 py-3">
-                            <a href="{{ route('hr.compensation.employee', $row['employee_id']) }}"
-                               class="font-medium text-gray-800 hover:text-brand-600 hover:underline">{{ $row['name'] }}</a>
-                            @if ($row['outlet'])
-                                <div class="text-[11px] text-gray-500">{{ $row['outlet'] }}</div>
-                            @endif
+                            <div class="flex items-center gap-3">
+                                <x-employee-avatar :id="$row['employee_id']" :name="$row['name']"
+                                                   :photo="$row['photo_path'] ?? null" />
+                                <div class="min-w-0">
+                                    <a href="{{ route('hr.compensation.employee', $row['employee_id']) }}"
+                                       class="font-medium text-gray-800 hover:text-brand-600 hover:underline">{{ $row['name'] }}</a>
+                                    @if ($row['outlet'])
+                                        <div class="text-[11px] text-gray-500">{{ $row['outlet'] }}</div>
+                                    @endif
+                                </div>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-gray-600 text-sm">{{ $row['section'] ?? '—' }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">

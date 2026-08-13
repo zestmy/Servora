@@ -21,6 +21,11 @@ use Tests\TestCase;
  *
  * Staff without a photo get initials rather than a gap, so the column keeps
  * its shape and rows stay the same height whoever is in them.
+ *
+ * FOUR PLACES, one component. The main list, the two compliance panels on the
+ * same screen, and Compensation. The panels build plain arrays rather than
+ * hydrating models, so the component takes either — demanding a model would
+ * have meant hydrating one per row to draw a 28px circle.
  */
 class EmployeeListAvatarTest extends TestCase
 {
@@ -108,6 +113,76 @@ class EmployeeListAvatarTest extends TestCase
 
         $this->assertStringContainsString('text-gray-600', $html);
         $this->assertStringNotContainsString('text-gray-400 leading-none', $html);
+    }
+
+    // ── The other three placements ────────────────────────────────────────
+
+    /**
+     * The compliance panel lists people with a lapsing document. Its rows are
+     * arrays, so this also pins that photo_path is carried through
+     * DocumentExpiry — without it the avatar silently falls back to initials
+     * for everyone and nobody notices.
+     */
+    public function test_the_compliance_panel_shows_photos(): void
+    {
+        $emp = $this->employee('AZMAN COMPLIANCE', 'employees/photos/azman.jpg');
+        $emp->update([
+            'food_handler_certified'  => true,
+            // Already lapsed, so the row is actionable whatever the warning
+            // window is set to.
+            'food_handler_expired_on' => now()->subDays(5)->toDateString(),
+        ]);
+
+        // A document the company has not said expires is left out of the
+        // report entirely, so the fixture has to opt in.
+        \App\Models\ComplianceSetting::forCompany($this->company->id)
+            ->fill(['food_handler_expires' => true])->save();
+
+        $summary = app(\App\Services\Hr\DocumentExpiry::class)
+            ->summarise(Employee::query()->where('id', $emp->id), $this->company->id);
+
+        $rows = collect($summary['rows']);
+        $this->assertNotEmpty($rows, 'A lapsed document should produce a compliance row to draw.');
+
+        $this->assertSame('employees/photos/azman.jpg', $rows->first()['photo_path'] ?? null,
+            'The compliance row must carry the photo, or every avatar falls back to initials.');
+    }
+
+    /** The food-handler chips carry models, so they take the model directly. */
+    public function test_the_food_handler_panel_shows_photos(): void
+    {
+        $missing = $this->employee('CHONG NOCARD', 'employees/photos/chong.jpg');
+        $missing->update(['food_handler_certified' => false]);
+
+        $html = $this->listHtml();
+
+        // The chip is a small circle, and h-5 w-5 is used nowhere else on this
+        // screen — asserting the photo URL alone would match the main list row
+        // and pass whether or not the panel ever rendered one.
+        $this->assertStringContainsString('fh-' . $missing->id, $html, 'The chip should be in the panel.');
+        $this->assertStringContainsString('h-5 w-5 flex-shrink-0 rounded-full', $html);
+    }
+
+    /** And Compensation, whose rows are arrays built by CompensationSummary. */
+    public function test_the_compensation_list_shows_photos(): void
+    {
+        $emp = $this->employee('DEVI PAYROLL', 'employees/photos/devi.jpg');
+        $emp->update(['pay_type' => 'monthly', 'basic_salary' => 3000]);
+
+        setPermissionsTeamId($this->company->id);
+        foreach (['hr.compensation', 'reports.view'] as $ability) {
+            \Spatie\Permission\Models\Permission::findOrCreate($ability, 'web');
+        }
+        $this->user->givePermissionTo(['hr.compensation', 'reports.view']);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $html = \Livewire\Livewire::actingAs($this->user->fresh())
+            ->test(\App\Livewire\Hr\Compensation::class)
+            ->set('outletFilter', (string) $this->outlet->id)
+            ->html();
+
+        $this->assertStringContainsString(route('hr.employees.photo', $emp->id), $html,
+            'Compensation rows must carry photo_path through CompensationSummary.');
     }
 
     /** A one-letter name must not break the initials. */
