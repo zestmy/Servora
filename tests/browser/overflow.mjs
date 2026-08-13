@@ -224,8 +224,25 @@ function describeOverflow() {
     return { tooWide: tooWide.slice(0, 3), pushedOut: pushedOut.slice(0, 2) };
 }
 
+/**
+ * Navigate, surviving a server that has just gone away.
+ *
+ * The dev server behind this in CI is supervised and restarts within a
+ * second, so a single ERR_CONNECTION_REFUSED means "try again", not "the
+ * screen is broken". Without this the whole run ends on one blip.
+ */
+async function goto(page, url) {
+    try {
+        return await page.goto(url, { waitUntil: 'domcontentloaded' });
+    } catch (e) {
+        if (!/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE/.test(e.message)) throw e;
+        await new Promise((r) => setTimeout(r, 3000));
+        return page.goto(url, { waitUntil: 'domcontentloaded' });
+    }
+}
+
 async function signIn(page) {
-    await page.goto(`${APP_URL}/login`, { waitUntil: 'domcontentloaded' });
+    await goto(page, `${APP_URL}/login`);
     await page.fill('input[type=email]', EMAIL);
     await page.fill('input[type=password]', PASSWORD);
     await page.click('button[type=submit]');
@@ -256,19 +273,31 @@ async function main() {
     let checked = 0;
     let skipped = 0;
 
+    /*
+     * Signed in ONCE and the session reused for every width. Three logins
+     * against a single-threaded dev server is three chances to hit it while
+     * it is restarting, for no benefit — the layout does not care how the
+     * cookie got there.
+     */
+    const authContext = await browser.newContext();
+    const authPage = await authContext.newPage();
+    await signIn(authPage);
+    const storageState = await authContext.storageState();
+    await authContext.close();
+
     for (const width of WIDTHS) {
         const context = await browser.newContext({
             viewport: { width, height: 900 },
             isMobile: width < 768,
             hasTouch: width < 768,
+            storageState,
         });
         const page = await context.newPage();
-        await signIn(page);
 
         for (const screen of SCREENS) {
             const name = screen.label ? `${screen.path} (${screen.label})` : screen.path;
 
-            const response = await page.goto(APP_URL + screen.path, { waitUntil: 'domcontentloaded' });
+            const response = await goto(page, APP_URL + screen.path);
             const status = response ? response.status() : 0;
 
             if (status !== 200) {
@@ -296,6 +325,18 @@ async function main() {
                 } else {
                     failures.push({ width, name, reason: `HTTP ${status} — is this path still right?` });
                 }
+                continue;
+            }
+
+            /*
+             * A LAPSED SESSION WOULD MAKE EVERY SCREEN PASS. The login page
+             * returns 200 and is narrow, so if the cookie stops working the
+             * sweep quietly measures 43 copies of it and reports success —
+             * the worst failure mode a check can have. Caught by looking at
+             * where we actually landed.
+             */
+            if (page.url().includes('/login')) {
+                failures.push({ width, name, reason: 'redirected to /login — the session was lost mid-run' });
                 continue;
             }
 
