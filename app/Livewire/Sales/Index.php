@@ -24,6 +24,8 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
+    use \App\Traits\RequiresActiveOutlet;
+
     use RemembersOutletFilter;
 
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
@@ -169,8 +171,9 @@ class Index extends Component
 
         // Check if closure already exists for this date
         if ($date) {
-            $user    = Auth::user();
-            $outletId = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+            // Must match saveClosure() below: this lookup is what decides
+            // whether the save edits an existing closure or creates a new one.
+            $outletId = $this->requireActiveOutlet();
 
             $existing = SalesClosure::where('closure_date', $date)
                 ->where(fn ($q) => $q->where('outlet_id', $outletId)->orWhereNull('outlet_id'))
@@ -216,7 +219,7 @@ class Index extends Component
 
         $user      = Auth::user();
         $companyId = $user->company_id;
-        $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $companyId)->value('id');
+        $outletId  = $this->requireActiveOutlet();
 
         if ($this->editingClosureId) {
             $closure = SalesClosure::findOrFail($this->editingClosureId);
@@ -316,11 +319,26 @@ class Index extends Component
     {
         $user    = Auth::user();
         $company = Company::find($user->company_id);
-        $outletId = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
-        $outlet  = $outletId ? Outlet::find($outletId) : null;
+
+        /*
+         * NO ABORT HERE — an export is a read, and refusing to draw a report
+         * because of an unset outlet would be worse than the bug.
+         *
+         * But it must not NAME an outlet it is not showing either. The header
+         * used to read the user's default outlet, falling back to whichever
+         * outlet came first; the rows came from scopeByOutlet(), which is
+         * every outlet the user can see. So a multi-outlet user got a PDF
+         * headed "ALPHA" containing every branch's takings.
+         *
+         * Both ends follow the page's own outlet filter now, so the export
+         * matches the table it was printed from. With no filter set the
+         * header simply names no outlet, rather than picking one.
+         */
+        $outletId = $this->selectedOutletId($this->outletFilter);
+        $outlet   = $outletId ? Outlet::find($outletId) : null;
 
         $query = SalesRecord::with('lines.salesCategory');
-        $this->scopeByOutlet($query);
+        $this->scopeByOutletFilter($query, $this->outletFilter);
 
         if ($this->dateFrom) {
             $query->where('sale_date', '>=', $this->dateFrom);
@@ -400,7 +418,16 @@ class Index extends Component
             $user     = Auth::user();
             $outletId = $this->outletFilter
                 ? (int) $this->outletFilter
-                : ($user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id'));
+                : $user?->activeOutletId();
+
+            // A forecast attributed to an arbitrary branch is worse than no
+            // forecast. Thrown, not aborted: the catch below puts it in the
+            // panel's own error line and the finally clears the spinner.
+            if (! $outletId) {
+                throw new \RuntimeException(
+                    'Choose an outlet first — a forecast has to be for somewhere in particular.'
+                );
+            }
 
             // Target month follows the page's date filter (most recent month in range)
             $filterDate  = $this->dateTo ?: $this->dateFrom;

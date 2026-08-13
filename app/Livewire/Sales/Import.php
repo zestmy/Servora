@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Sales;
 
-use App\Models\Outlet;
 use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +12,8 @@ use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
 class Import extends Component
 {
+    use \App\Traits\RequiresActiveOutlet;
+
     use WithFileUploads;
 
     public $file = null;
@@ -161,8 +162,13 @@ class Import extends Component
         $this->categoryNames = [];
 
         // Pre-load existing records for duplicate detection
-        $user     = Auth::user();
-        $outletId = $user->activeOutletId() ?: Outlet::where('company_id', $user->company_id)->value('id');
+        /*
+         * The SAME outlet import() writes to, necessarily. This is the
+         * duplicate check; if it reads one outlet's records and the import
+         * files against another, it is checking nothing. Both used to fall
+         * back to whichever outlet came first in the company.
+         */
+        $outletId = $this->requireActiveOutlet();
         $existingRecords = SalesRecord::where('outlet_id', $outletId)
             ->select('sale_date', 'meal_period')
             ->get()
@@ -345,7 +351,8 @@ class Import extends Component
 
         $user      = Auth::user();
         $companyId = $user->company_id;
-        $outletId  = $user->activeOutletId() ?: Outlet::where('company_id', $companyId)->value('id');
+        // Sales records are money against a branch — refuse rather than guess.
+        $outletId  = $this->requireActiveOutlet();
         $imported  = 0;
         $skipped   = 0;
 
