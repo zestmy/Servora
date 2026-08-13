@@ -105,7 +105,11 @@
 
     {{-- Filter Bar --}}
     <div class="card p-4 mb-4">
-        <div class="flex flex-col sm:flex-row gap-3">
+        {{-- flex-wrap, because sm:flex-row turns this into a single row at
+             640px and the filters in it need more than a tablet gives:
+             at 768px, where the sidebar is showing, they measured 840px
+             inside a 430px card and pushed the page sideways. --}}
+        <div class="flex flex-col flex-wrap gap-3 sm:flex-row">
             <div class="flex-1">
                 <input type="text"
                        wire:model.live.debounce.300ms="search"

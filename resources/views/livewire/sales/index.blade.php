@@ -137,7 +137,12 @@
                     @endforeach
                 </select>
             </div>
-            <div class="flex items-center gap-1">
+            {{-- Wraps and shrinks. A date input has an intrinsic minimum width,
+                 and this pair sits in a column-flex filter row whose line
+                 takes its cross size from the widest item — so on a 360px
+                 phone the pair stretched every other filter with it and
+                 pushed the page over the edge. --}}
+            <div class="flex min-w-0 flex-wrap items-center gap-1">
                 <input type="date" wire:model.live="dateFrom"
                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                 <span class="text-gray-600 text-xs">to</span>

@@ -7,18 +7,21 @@
         <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">{{ session('error') }}</div>
     @endif
 
-    <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
-            <a data-back href="{{ route('settings.index') }}" class="text-gray-600 hover:text-gray-900 transition">
+    {{-- Wraps, or the two buttons run off the side of a phone: the row could
+         not break, so "+ Add User" sat 11px past the right edge and the whole
+         page became draggable sideways rather than visibly breaking. --}}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div class="flex min-w-0 items-center gap-4">
+            <a data-back href="{{ route('settings.index') }}" class="flex-shrink-0 text-gray-600 hover:text-gray-900 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <div>
+            <div class="min-w-0">
                 <p class="page-eyebrow">Settings</p>
                 <h2 class="page-title mt-1">Roles &amp; Access</h2>
             </div>
         </div>
         @unless ($showModal)
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
                 <button wire:click="toggleAllAccessTags" class="btn-secondary btn-sm">
                     {{ $accessTagsOpen ? 'Hide access tags' : 'Show access tags' }}
                 </button>

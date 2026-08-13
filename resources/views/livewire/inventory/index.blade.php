@@ -42,13 +42,22 @@
          different accent colours — the colour used to change with the tab,
          which made the accent mean "which tab" instead of "this is the
          action". --}}
-    <div class="seg mb-4 overflow-x-auto">
-        @foreach ($tabs as $key => $label)
-            <button wire:click="$set('tab', '{{ $key }}')"
-                    class="seg-item whitespace-nowrap {{ $tab === $key ? 'seg-item-on' : '' }}">
-                {{ $label }}
-            </button>
-        @endforeach
+    {{-- THE SCROLLER HAS TO BE A SEPARATE, BLOCK-LEVEL WRAPPER. `.seg` is
+         `inline-flex`, so it shrink-to-fits its content and `overflow-x-auto`
+         on it could never engage — five tabs measured 486px inside a 358px
+         card and simply pushed the page sideways, taking the stock-take table
+         out past the right edge with them. Scrolling belongs to a block box
+         that fills the width; the pill strip inside it stays its natural
+         size and slides. --}}
+    <div class="mb-4 overflow-x-auto">
+        <div class="seg">
+            @foreach ($tabs as $key => $label)
+                <button wire:click="$set('tab', '{{ $key }}')"
+                        class="seg-item whitespace-nowrap {{ $tab === $key ? 'seg-item-on' : '' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
     </div>
 
     {{-- Stats: about the tab you are on, under the filters you have set.
@@ -163,7 +172,12 @@
                 </select>
             @endif
 
-            <div class="flex items-center gap-1">
+            {{-- Wraps and shrinks. A date input has an intrinsic minimum width,
+                 and this pair sits in a column-flex filter row whose line
+                 takes its cross size from the widest item — so on a 360px
+                 phone the pair stretched every other filter with it and
+                 pushed the page over the edge. --}}
+            <div class="flex min-w-0 flex-wrap items-center gap-1">
                 <input type="date" wire:model.live="dateFrom" class="input" aria-label="From date" />
                 <span class="text-xs text-gray-600">to</span>
                 <input type="date" wire:model.live="dateTo" class="input" aria-label="To date" />
