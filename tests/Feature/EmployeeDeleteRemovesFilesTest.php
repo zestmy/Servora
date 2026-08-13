@@ -33,6 +33,16 @@ use Tests\TestCase;
  *
  * Production had zero orphans when this was found, so it is fixed before it
  * cost anything.
+ *
+ * NOW HUNG ON forceDelete(), NOT delete(). Employee started soft-deleting
+ * after somebody removed a member of staff by accident from a phone, and an
+ * ordinary delete leaves every row in place so it can be undone from the staff
+ * list. Shredding the passport scan on the way out would hand back a hollow
+ * employee on restore — a record with no documents, no photograph and no
+ * enrolment, and nothing to say anything had ever been there. The files go
+ * when the record genuinely will not come back, which is the same answer
+ * ClockEvent reached, and the two tests at the bottom of this file pin it in
+ * both directions.
  */
 class EmployeeDeleteRemovesFilesTest extends TestCase
 {
@@ -83,7 +93,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
             'original_name' => 'ic.pdf', 'mime_type' => 'application/pdf', 'size_bytes' => 5,
         ]);
 
-        $emp->delete();
+        $emp->forceDelete();
 
         Storage::disk('local')->assertMissing($path);
         $this->assertDatabaseMissing('employee_documents', ['file_path' => $path]);
@@ -95,7 +105,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
         $path = $this->writeFile('employee-photos/face.jpg');
         $emp->update(['photo_path' => $path]);
 
-        $emp->delete();
+        $emp->forceDelete();
 
         Storage::disk('local')->assertMissing($path);
     }
@@ -111,7 +121,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
             'photo_path' => $path, 'descriptor' => json_encode(array_fill(0, 4, 0.1)),
         ]);
 
-        $emp->delete();
+        $emp->forceDelete();
 
         Storage::disk('local')->assertMissing($path);
     }
@@ -132,7 +142,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
             ]);
         }
 
-        $emp->delete();
+        $emp->forceDelete();
 
         foreach ($paths as $p) {
             Storage::disk('local')->assertMissing($p);
@@ -168,7 +178,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
 
         $this->assertCount(4, $emp->ownedFilePaths());
 
-        $emp->delete();
+        $emp->forceDelete();
 
         foreach ([$doc, $photo, $face, $selfie] as $p) {
             Storage::disk('local')->assertMissing($p);
@@ -192,7 +202,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
             ]);
         }
 
-        $going->delete();
+        $going->forceDelete();
 
         Storage::disk('local')->assertMissing($theirs);
         Storage::disk('local')->assertExists($mine);
@@ -205,7 +215,7 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
 
         $this->assertSame([], $emp->ownedFilePaths());
 
-        $emp->delete();
+        $emp->forceDelete();
 
         $this->assertDatabaseMissing('employees', ['id' => $emp->id]);
     }
@@ -288,8 +298,46 @@ class EmployeeDeleteRemovesFilesTest extends TestCase
             'original_name' => 'x.pdf', 'mime_type' => 'application/pdf', 'size_bytes' => 5,
         ]);
 
-        $emp->delete();
+        $emp->forceDelete();
 
         $this->assertDatabaseMissing('employees', ['id' => $emp->id]);
+    }
+
+    // ── Soft delete keeps everything ──────────────────────────────────────
+
+    /**
+     * An ordinary delete from the staff list KEEPS the files, and this is the
+     * correct behaviour rather than the bug this file was opened for.
+     *
+     * The employee can be restored from that screen. Destroying their IC scan
+     * and their photograph on the way out would make the restore a lie — the
+     * record comes back, the paperwork does not, and nothing on screen says
+     * why. Identical reasoning to the soft-deleted punch keeping its selfie,
+     * two tests up.
+     */
+    public function test_a_soft_deleted_employee_keeps_their_files(): void
+    {
+        $emp   = $this->employee();
+        $doc   = $this->writeFile('employee-documents/ic.pdf');
+        $photo = $this->writeFile('employee-photos/face.jpg');
+
+        $emp->update(['photo_path' => $photo]);
+        EmployeeDocument::create([
+            'company_id' => $this->company->id, 'employee_id' => $emp->id,
+            'type' => 'identity', 'file_path' => $doc,
+            'original_name' => 'ic.pdf', 'mime_type' => 'application/pdf', 'size_bytes' => 5,
+        ]);
+
+        $emp->delete();
+
+        $this->assertSoftDeleted('employees', ['id' => $emp->id]);
+        Storage::disk('local')->assertExists($doc);
+        Storage::disk('local')->assertExists($photo);
+
+        // And the restore is whole, not a record with a hole in it.
+        $emp->restore();
+        Storage::disk('local')->assertExists($doc);
+        Storage::disk('local')->assertExists($photo);
+        $this->assertDatabaseHas('employee_documents', ['file_path' => $doc]);
     }
 }

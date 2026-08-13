@@ -762,7 +762,7 @@
                     {{-- Names the hours explicitly. This one DOES clear both
                          tables, and deleting a part-timer's month of hours is a
                          different order of loss from clearing some ticks. --}}
-                    wire:confirm="Remove EVERY attendance mark in the visible period ({{ $from->format('d M Y') }} – {{ $to->format('d M Y') }})?{{ $hourlyEmployees->isNotEmpty() ? ' This includes all hours entered for hourly staff.' : '' }} This cannot be undone."
+                    data-confirm-delete="Remove EVERY attendance mark in the visible period ({{ $from->format('d M Y') }} – {{ $to->format('d M Y') }})?{{ $hourlyEmployees->isNotEmpty() ? ' This includes all hours entered for hourly staff.' : '' }} This cannot be undone."
                     class="text-xs text-danger-500 hover:text-danger-700 underline">
                 Clear all marks in this period
             </button>
@@ -870,7 +870,7 @@
                                     </button>
                                     @canDo('hr.attendance.record')
                                     <button wire:click="deleteCode({{ $code->id }})"
-                                            wire:confirm="Delete code {{ $code->code }} ({{ $code->label }})?"
+                                            data-confirm-delete="Delete code {{ $code->code }} ({{ $code->label }})?"
                                             class="text-xs text-danger-500 hover:text-danger-700">Delete</button>
                                     @endcanDo
                                 @endunless

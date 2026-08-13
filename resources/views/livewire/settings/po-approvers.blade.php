@@ -118,7 +118,7 @@
                                 </td>
                                 <td class="px-5 py-3 text-center">
                                     <button wire:click="openEdit('po', {{ $userId }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium mr-2">Edit</button>
-                                    <button wire:click="removeApprover('po', {{ $userId }})" wire:confirm="Remove this PO approver?" class="text-danger-500 hover:text-danger-700 text-xs">Remove</button>
+                                    <button wire:click="removeApprover('po', {{ $userId }})" data-confirm-delete="Remove this PO approver?" class="text-danger-500 hover:text-danger-700 text-xs">Remove</button>
                                 </td>
                             </tr>
                         @endforeach
@@ -174,7 +174,7 @@
                                 </td>
                                 <td class="px-5 py-3 text-center">
                                     <button wire:click="openEdit('pr', {{ $userId }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium mr-2">Edit</button>
-                                    <button wire:click="removeApprover('pr', {{ $userId }})" wire:confirm="Remove this PR approver?" class="text-danger-500 hover:text-danger-700 text-xs">Remove</button>
+                                    <button wire:click="removeApprover('pr', {{ $userId }})" data-confirm-delete="Remove this PR approver?" class="text-danger-500 hover:text-danger-700 text-xs">Remove</button>
                                 </td>
                             </tr>
                         @endforeach

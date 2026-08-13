@@ -583,7 +583,7 @@
                                     @endif
                                     @if (in_array($claim->status, ['draft', 'rejected']) || $canDeleteAny)
                                         <button wire:click="deleteClaim({{ $claim->id }})"
-                                                wire:confirm="Delete this OT claim? This cannot be undone."
+                                                data-confirm-delete="Delete this OT claim? This cannot be undone."
                                                 class="text-danger-400 hover:text-danger-600 text-xs font-medium">Delete</button>
                                     @endif
                                 </div>

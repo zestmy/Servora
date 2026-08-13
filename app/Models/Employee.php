@@ -7,9 +7,25 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
+    /*
+     * SOFT DELETES, ADDED AFTER SOMEBODY WAS DELETED BY ACCIDENT FROM A PHONE.
+     *
+     * Fifteen tables cascade off this one — attendance, punches, leave,
+     * salary history, statutory profile, scanned identity documents — and
+     * that cascade runs in the database, where no Eloquent event can see it
+     * and nothing can log it. A hard delete here was never "remove this
+     * person from the list"; it was destroying every record the company held
+     * about them, irrecoverably, from a 36px icon.
+     *
+     * A soft delete does not fire the cascade, so all of it stays.
+     *
+     * See the migration (2026_08_13_000060) for the full table list.
+     */
+    use SoftDeletes;
     protected $fillable = [
         'company_id', 'outlet_id', 'section_id', 'staff_id',
         'name', 'designation',
@@ -428,7 +444,7 @@ class Employee extends Model
         static::addGlobalScope(new CompanyScope());
 
         /*
-         * DELETING AN EMPLOYEE MUST TAKE THEIR FILES WITH THEM.
+         * DESTROYING AN EMPLOYEE MUST TAKE THEIR FILES WITH THEM.
          *
          * Four tables hang files off an employee — scanned paperwork, their
          * photograph, face enrolment images and clock-in selfies — and every
@@ -443,18 +459,27 @@ class Employee extends Model
          * prevent — "the file is the record" — reached by the one route that
          * bypassed it.
          *
-         * Collected in `deleting` and removed in `deleted`, and the split is
-         * the point: the paths can only be read while the rows are still
-         * there, but the files must not be destroyed until the delete has
-         * actually succeeded. Doing both before would leave somebody with no
-         * documents and an employee record still on file if the delete then
-         * failed.
+         * ON `forceDeleting`/`forceDeleted`, NOT `deleting`/`deleted`, since
+         * this model started soft-deleting. An ordinary delete now leaves
+         * every row in place and can be undone from the staff list, so
+         * shredding somebody's passport scan on the way out would hand back a
+         * hollow employee on restore — a record with no documents, no
+         * photograph and no enrolment, and no way to tell that anything was
+         * ever there. ClockEvent settled the identical question the same way
+         * and for the same reason: a restore has to come back whole.
+         *
+         * Collected in `forceDeleting` and removed in `forceDeleted`, and the
+         * split is the point: the paths can only be read while the rows are
+         * still there, but the files must not be destroyed until the delete
+         * has actually succeeded. Doing both before would leave somebody with
+         * no documents and an employee record still on file if the delete
+         * then failed.
          */
-        static::deleting(function (self $employee) {
+        static::forceDeleting(function (self $employee) {
             $employee->filesToPurge = $employee->ownedFilePaths();
         });
 
-        static::deleted(function (self $employee) {
+        static::forceDeleted(function (self $employee) {
             // Batched: a long-serving employee has a selfie per punch, which
             // is thousands of paths after a few years.
             foreach (array_chunk($employee->filesToPurge, 200) as $chunk) {

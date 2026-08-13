@@ -259,7 +259,7 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-center">
                                     <button wire:click="deletePayment({{ $payment->id }})"
-                                            wire:confirm="Remove this payment? The invoice balance will be restored."
+                                            data-confirm-delete="Remove this payment? The invoice balance will be restored."
                                             class="text-xs text-danger-500 hover:text-danger-700 transition">
                                         Remove
                                     </button>

@@ -758,7 +758,7 @@
                                  class="w-full h-32 object-cover" />
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                                 <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
-                                        wire:confirm="Remove this image?"
+                                        data-confirm-delete="Remove this image?"
                                         class="btn-danger btn-sm">
                                     Remove
                                 </button>
@@ -814,7 +814,7 @@
                                  class="w-full h-32 object-cover" />
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                                 <button type="button" wire:click="removeExistingImage({{ $img['id'] }})"
-                                        wire:confirm="Remove this image?"
+                                        data-confirm-delete="Remove this image?"
                                         class="btn-danger btn-sm">
                                     Remove
                                 </button>

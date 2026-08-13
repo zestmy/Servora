@@ -71,7 +71,7 @@
                                 @else
                                     <button wire:click="editRole({{ $role['id'] }})" class="btn-secondary btn-sm">Edit</button>
                                     <button wire:click="deleteRole({{ $role['id'] }})"
-                                            wire:confirm="Delete the role “{{ $role['label'] }}”?"
+                                            data-confirm-delete="Delete the role “{{ $role['label'] }}”?"
                                             class="btn-ghost btn-sm text-danger-600">Delete</button>
                                 @endif
                                 @if ($role['users'] > 0)

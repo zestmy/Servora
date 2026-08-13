@@ -121,7 +121,7 @@
                                             {{ $recipe->is_active ? 'Deactivate' : 'Activate' }}
                                         </button>
                                         <button wire:click="deleteRecipe({{ $recipe->id }})"
-                                                wire:confirm="Delete this recipe? This cannot be undone."
+                                                data-confirm-delete="Delete this recipe? This cannot be undone."
                                                 class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-danger-500 border border-danger-200 text-xs font-semibold rounded-lg hover:bg-danger-50 transition ml-3">Delete</button>
                                     </div>
                                 </td>

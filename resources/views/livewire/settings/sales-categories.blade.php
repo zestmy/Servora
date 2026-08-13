@@ -111,7 +111,7 @@
                                         </svg>
                                     </button>
                                     <button wire:click="delete({{ $cat->id }})"
-                                            wire:confirm="Delete '{{ $cat->name }}'? Sales lines using this category will be unlinked."
+                                            data-confirm-delete="Delete '{{ $cat->name }}'? Sales lines using this category will be unlinked."
                                             title="Delete"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

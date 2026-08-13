@@ -139,7 +139,7 @@
                                     {{ $option->is_active ? 'Switch off' : 'Switch on' }}
                                 </button>
                                 @if ($count === 0)
-                                    <button wire:click="delete({{ $option->id }})" wire:confirm="Remove {{ $option->name }} from this list?"
+                                    <button wire:click="delete({{ $option->id }})" data-confirm-delete="Remove {{ $option->name }} from this list?"
                                             class="ml-3 text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
                                 @endif
                             </td>

@@ -247,7 +247,7 @@
                                        class="text-xs font-medium text-brand-600 hover:text-brand-800">Open</a>
                                     @if ($run->isEditable())
                                         <button wire:click="deleteRun({{ $run->id }})"
-                                                wire:confirm="Delete this draft payroll run?"
+                                                data-confirm-delete="Delete this draft payroll run?"
                                                 class="ml-3 text-xs font-medium text-danger-600 hover:text-danger-800">Delete</button>
                                     @endif
                                 </td>

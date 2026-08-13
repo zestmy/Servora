@@ -316,6 +316,10 @@
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="">All</option>
+                {{-- Where a deleted member of staff is found again. The flash
+                     message on delete names this option, so the two have to
+                     keep saying the same word. --}}
+                <option value="deleted">Deleted</option>
             </select>
             <a href="{{ route('settings.sections') }}"
                class="text-xs text-brand-600 hover:text-brand-800 underline self-center">
@@ -471,9 +475,15 @@
                             </td>
                         @endif
                         <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->is_active ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500' }}">
-                                {{ $emp->is_active ? 'Active' : 'Inactive' }}
-                            </span>
+                            @if ($emp->trashed())
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-700">
+                                    Deleted
+                                </span>
+                            @else
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $emp->is_active ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500' }}">
+                                    {{ $emp->is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            @endif
                         </td>
                         <td class="px-4 py-3 sticky right-0 z-10 bg-white group-hover:bg-gray-50 border-l border-gray-100">
                             <div class="flex items-center justify-center gap-1">
@@ -482,18 +492,36 @@
                                    class="px-2 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100">
                                     Edit
                                 </a>
+                                @if ($emp->trashed())
+                                    {{-- A deleted row offers the way back and
+                                         nothing else. Edit and Deactivate on a
+                                         record that is not in the list are
+                                         answers to questions nobody asked. --}}
+                                    @canDo('hr.employees.delete')
+                                    <button wire:click="restore({{ $emp->id }})"
+                                            class="px-2 py-1 text-xs font-medium rounded-md bg-success-50 text-success-700 hover:bg-success-100">
+                                        Restore
+                                    </button>
+                                    @endcanDo
+                                @else
                                 <button wire:click="toggleActive({{ $emp->id }})"
                                         title="{{ $emp->is_active ? 'Deactivate' : 'Activate' }}"
                                         class="text-warning-500 hover:text-warning-700 p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                                 </button>
                                 @canDo('hr.employees.delete')
-                                <button wire:click="delete({{ $emp->id }})" wire:confirm="Delete this employee?"
+                                {{-- The message names the person and what
+                                     leaves with them. "Delete this employee?"
+                                     was the whole warning when somebody
+                                     deleted one by accident from a phone. --}}
+                                <button wire:click="delete({{ $emp->id }})"
+                                        data-confirm-delete="Delete {{ $emp->name }}{{ $emp->staff_id ? ' (' . $emp->staff_id . ')' : '' }} from the staff list? Their attendance, punches, leave, salary history and documents come off the screens with them. You can put them back with the Status filter set to Deleted."
                                         title="Delete"
                                         class="text-danger-400 hover:text-danger-600 p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3"/></svg>
                                 </button>
                                 @endcanDo
+                                @endif
                             </div>
                         </td>
                     </tr>

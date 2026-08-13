@@ -70,7 +70,7 @@
                         </p>
                     </div>
                     <button wire:click="resetTemperatures"
-                            wire:confirm="Clear your own wording and go back to the standard figures?"
+                            data-confirm-delete="Clear your own wording and go back to the standard figures? Every temperature you have typed is deleted."
                             class="shrink-0 text-xs text-gray-600 hover:text-gray-900 whitespace-nowrap">
                         Reset all
                     </button>
@@ -127,7 +127,7 @@
             <x-input-error :messages="$errors->get('printnode_api_key')" class="mt-1" />
 
             @if ($hasApiKey)
-                <button wire:click="clearApiKey" wire:confirm="Remove the stored PrintNode key?"
+                <button wire:click="clearApiKey" data-confirm-delete="Remove the stored PrintNode key? Printing stops until a new key is entered, and this one cannot be read back — it has to come from PrintNode again."
                         class="mt-1 text-xs text-danger-500 hover:underline">Remove stored key</button>
             @endif
 

@@ -53,7 +53,7 @@
                                 <button wire:click="openEdit({{ $pc->id }})"
                                         class="text-brand-600 hover:text-brand-800 text-xs font-medium">Edit</button>
                                 <button wire:click="delete({{ $pc->id }})"
-                                        wire:confirm="Delete &quot;{{ $pc->name }}&quot;?"
+                                        data-confirm-delete="Delete &quot;{{ $pc->name }}&quot;?"
                                         class="text-danger-500 hover:text-danger-700 text-xs font-medium">Delete</button>
                             </td>
                         </tr>

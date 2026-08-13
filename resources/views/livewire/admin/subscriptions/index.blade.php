@@ -131,7 +131,7 @@
                                     </button>
                                 @endif
                                 <button wire:click="deleteSubscription({{ $sub->id }})"
-                                        wire:confirm="Delete this subscription record for {{ $sub->companyName() }}? With no subscription the company is treated as grandfathered (unlimited access). This cannot be undone."
+                                        data-confirm-delete="Delete this subscription record for {{ $sub->companyName() }}? With no subscription the company is treated as grandfathered (unlimited access). This cannot be undone."
                                         title="Delete subscription record"
                                         class="text-gray-500 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

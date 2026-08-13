@@ -62,7 +62,7 @@
                                 @unless ($template->is_default)
                                     <button wire:click="makeDefault({{ $template->id }})"
                                             class="text-xs text-brand-600 hover:underline">Make default</button>
-                                    <button wire:click="delete({{ $template->id }})" wire:confirm="Delete this template?"
+                                    <button wire:click="delete({{ $template->id }})" data-confirm-delete="Delete this template?"
                                             class="text-xs text-danger-500 hover:underline">Delete</button>
                                 @endunless
                             </div>

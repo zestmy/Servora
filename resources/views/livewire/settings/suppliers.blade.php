@@ -104,7 +104,7 @@
                                     </svg>
                                 </button>
                                 <button wire:click="delete({{ $supplier->id }})"
-                                        wire:confirm="Delete '{{ $supplier->name }}'? This cannot be undone."
+                                        data-confirm-delete="Delete '{{ $supplier->name }}'? This cannot be undone."
                                         title="Delete"
                                         class="text-danger-400 hover:text-danger-600 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

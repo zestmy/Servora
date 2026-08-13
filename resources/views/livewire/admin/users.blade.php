@@ -171,7 +171,7 @@
                                             {{ $u->suspended_at ? 'Reinstate' : 'Suspend' }}
                                         </button>
                                         <button wire:click="deleteUser({{ $u->id }})"
-                                                wire:confirm="Delete {{ $u->name }} ({{ $u->email }}) PERMANENTLY? This removes their account and access to ALL companies and cannot be undone."
+                                                data-confirm-delete="Delete {{ $u->name }} ({{ $u->email }}) PERMANENTLY? This removes their account and access to ALL companies and cannot be undone."
                                                 title="Delete account across all companies"
                                                 class="px-2.5 py-1 text-xs font-medium text-danger-500 border border-danger-200 rounded-lg hover:bg-danger-50 transition">
                                             Delete

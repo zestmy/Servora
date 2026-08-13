@@ -77,7 +77,7 @@
                             <td class="px-4 py-3 text-gray-500">{{ $approver->created_at->format('M d, Y') }}</td>
                             <td class="px-4 py-3 text-center">
                                 <button wire:click="removeApprover({{ $approver->id }})"
-                                        wire:confirm="Remove this approver?"
+                                        data-confirm-delete="Remove this approver?"
                                         class="text-danger-600 hover:text-danger-800 text-xs font-medium">
                                     Remove
                                 </button>

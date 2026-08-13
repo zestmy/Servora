@@ -89,7 +89,7 @@
                         <td class="px-4 py-3 text-gray-600">{{ $a->outlet?->name ?? 'All Outlets' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $a->section?->name ?? 'All Sections' }}</td>
                         <td class="px-4 py-3 text-center">
-                            <button wire:click="removeApprover({{ $a->id }})" wire:confirm="Remove this approver?"
+                            <button wire:click="removeApprover({{ $a->id }})" data-confirm-delete="Remove this approver?"
                                     class="text-danger-400 hover:text-danger-600 text-xs font-medium">
                                 Remove
                             </button>

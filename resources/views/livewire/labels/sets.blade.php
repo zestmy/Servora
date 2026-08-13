@@ -73,7 +73,7 @@
                                 <div class="flex gap-1 text-xs">
                                     <button wire:click="showQr({{ $row->id }})" class="text-brand-600 hover:underline">QR</button>
                                     <button wire:click="openRename({{ $row->id }})" class="text-gray-600 hover:text-gray-900">Edit</button>
-                                    <button wire:click="deleteSet({{ $row->id }})" wire:confirm="Delete this set?"
+                                    <button wire:click="deleteSet({{ $row->id }})" data-confirm-delete="Delete this set?"
                                             class="text-gray-600 hover:text-danger-500">Delete</button>
                                 </div>
                             </div>
@@ -191,6 +191,7 @@
                                     </div>
 
                                     <button wire:click="removeLine({{ $line->id }})"
+                                    data-confirm-delete="Remove this item from the print set?"
                                             class="text-gray-500 hover:text-danger-500 text-sm leading-none pt-1">×</button>
                                 </div>
                             </div>

@@ -161,7 +161,7 @@
                                             <button wire:click="editAdjustment({{ $a->id }})"
                                                     class="text-xs font-medium text-brand-600 hover:text-brand-800">Edit</button>
                                             <button wire:click="removeAdjustment({{ $a->id }})"
-                                                    wire:confirm="Remove this adjustment and recalculate the run?"
+                                                    data-confirm-delete="Remove this adjustment and recalculate the run?"
                                                     class="ml-3 text-xs font-medium text-danger-600 hover:text-danger-800">Remove</button>
                                         </td>
                                     @endif

@@ -85,7 +85,7 @@
                                 <button wire:click="toggleActive({{ $shift->id }})" title="{{ $shift->is_active ? 'Deactivate' : 'Activate' }}" class="text-warning-500 hover:text-warning-700 p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                                 </button>
-                                <button wire:click="delete({{ $shift->id }})" wire:confirm="Delete this shift?" title="Delete" class="text-danger-400 hover:text-danger-600 p-1">
+                                <button wire:click="delete({{ $shift->id }})" data-confirm-delete="Delete this shift?" title="Delete" class="text-danger-400 hover:text-danger-600 p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3"/></svg>
                                 </button>
                             </div>

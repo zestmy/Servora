@@ -229,8 +229,41 @@ class Employees extends Component
             session()->flash('error', 'You do not have access to this employee.');
             return;
         }
+
+        // Written BEFORE the delete: an update() afterwards would have to go
+        // looking for the row it had just removed. Same shape as deleteEvent()
+        // on the punch review screen, which solved this first.
+        $emp->forceFill(['deleted_by' => Auth::id()])->saveQuietly();
         $emp->delete();
-        session()->flash('success', 'Employee deleted.');
+
+        // Says where it went. A message that only says "deleted" is what sends
+        // somebody to look for a backup.
+        session()->flash('success', $emp->name . ' removed from the staff list. '
+            . 'Their records are kept — switch the Status filter to "Deleted" to put them back.');
+    }
+
+    /**
+     * Put a deleted employee back.
+     *
+     * `deleted_by` is cleared rather than kept, following the punch screen: a
+     * live record carrying "deleted by Aisha" reads as a record that is still
+     * deleted. Who removed them and who put them back both survive in the
+     * audit log, which the observer writes for deleted and restored alike.
+     */
+    public function restore(int $id): void
+    {
+        abort_unless(Auth::user()?->canDo('hr.employees.delete'), 403);
+
+        $emp = Employee::withTrashed()->findOrFail($id);
+        if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
+            session()->flash('error', 'You do not have access to this employee.');
+            return;
+        }
+
+        $emp->restore();
+        $emp->forceFill(['deleted_by' => null])->saveQuietly();
+
+        session()->flash('success', $emp->name . ' restored, with their attendance, leave and pay records.');
     }
 
     // ── CSV import ─────────────────────────────────────────────────────────
@@ -738,6 +771,24 @@ class Employees extends Component
         }
         if ($this->statusFilter === 'active')   $query->where('is_active', true);
         if ($this->statusFilter === 'inactive') $query->where('is_active', false);
+
+        /*
+         * "Deleted" is a value ON the status filter rather than a filter of
+         * its own, which is where this diverges from the punch review screen.
+         * There, deleted and status are genuinely independent — a deleted
+         * punch is still flagged or still clean, and folding the two together
+         * would make "deleted AND flagged" unaskable. Here the second question
+         * does not exist: nobody needs the deleted-and-inactive staff as
+         * distinct from the deleted-and-active ones, and one dropdown with the
+         * answer in it is what somebody hunting for a person they just removed
+         * will actually find. The flash message on delete points straight at
+         * this option by name.
+         *
+         * Everything else in the list is unaffected: Laravel's SoftDeletingScope
+         * keeps deleted staff out of Active, Inactive and All without a single
+         * call site here or anywhere else having to remember to exclude them.
+         */
+        if ($this->statusFilter === 'deleted') $query->onlyTrashed();
         if ($this->employmentStatusFilter === 'none') {
             $query->whereNull('employment_status');
         } elseif ($this->employmentStatusFilter === 'exclude_outsourcing') {

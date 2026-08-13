@@ -95,7 +95,7 @@
                                         Edit
                                     </button>
                                     <button wire:click="delete({{ $station->id }})"
-                                            wire:confirm="Are you sure you want to delete this station?"
+                                            data-confirm-delete="Are you sure you want to delete this station?"
                                             class="text-danger-600 hover:text-danger-800 text-xs font-medium">
                                         Delete
                                     </button>

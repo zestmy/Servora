@@ -232,7 +232,7 @@
                                     </a>
                                     @if ($record->status === 'draft' || $canDeleteRecords)
                                         <button wire:click="deleteStockTake({{ $record->id }})"
-                                                wire:confirm="{{ $record->status === 'draft' ? 'Delete this stock take? This cannot be undone.' : 'Delete this COMPLETED stock take? This cannot be undone.' }}"
+                                                data-confirm-delete="{{ $record->status === 'draft' ? 'Delete this stock take? This cannot be undone.' : 'Delete this COMPLETED stock take? This cannot be undone.' }}"
                                                 title="{{ $record->status === 'draft' ? 'Delete' : 'Delete completed stock take' }}"
                                                 class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -306,7 +306,7 @@
                                     </a>
                                     @if ($canDelete['purchases'])
                                     <button wire:click="deletePurchase({{ $record->id }})"
-                                            wire:confirm="Delete this purchase record? This cannot be undone."
+                                            data-confirm-delete="Delete this purchase record? This cannot be undone."
                                             title="Delete"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -378,7 +378,7 @@
                                     </a>
                                     @if ($canDelete['staff_meals'])
                                     <button wire:click="deleteStaffMeal({{ $record->id }})"
-                                            wire:confirm="Delete this staff meal record? This cannot be undone."
+                                            data-confirm-delete="Delete this staff meal record? This cannot be undone."
                                             title="Delete"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -479,7 +479,7 @@
                                     </a>
                                     @if ($transfer->status === 'draft' || $canDelete['transfers'])
                                         <button wire:click="deleteTransfer({{ $transfer->id }})"
-                                                wire:confirm="{{ $transfer->status === 'draft' ? 'Delete this transfer? This cannot be undone.' : 'Delete this ' . str_replace('_', ' ', $transfer->status) . ' transfer? This cannot be undone.' }}"
+                                                data-confirm-delete="{{ $transfer->status === 'draft' ? 'Delete this transfer? This cannot be undone.' : 'Delete this ' . str_replace('_', ' ', $transfer->status) . ' transfer? This cannot be undone.' }}"
                                                 title="{{ $transfer->status === 'draft' ? 'Delete' : 'Delete transfer' }}"
                                                 class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -565,7 +565,7 @@
                                     </a>
                                     @if ($canDelete['wastage'])
                                     <button wire:click="deleteWastage({{ $record->id }})"
-                                            wire:confirm="Delete this wastage record? This cannot be undone."
+                                            data-confirm-delete="Delete this wastage record? This cannot be undone."
                                             title="Delete"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

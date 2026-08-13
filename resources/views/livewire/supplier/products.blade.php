@@ -62,7 +62,7 @@
                         </td>
                         <td class="px-4 py-3 text-center">
                             <button wire:click="openEdit({{ $p->id }})" class="text-sm text-brand-600 hover:text-brand-800">Edit</button>
-                            <button wire:click="delete({{ $p->id }})" wire:confirm="Delete?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
+                            <button wire:click="delete({{ $p->id }})" data-confirm-delete="Delete?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
                         </td>
                     </tr>
                 @empty
