@@ -306,12 +306,14 @@
         </div>
 
         <div class="mt-5">
-            <div class="flex items-center justify-between gap-3 mb-2">
-                <div>
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <div class="min-w-0">
                     <p class="text-xs font-semibold text-gray-600">Resident tax bands</p>
                     <p class="text-[11px] text-gray-500">Read in order. The last band must be open-ended.</p>
                 </div>
-                <div class="flex items-center gap-2">
+                {{-- Wraps: the caption plus both buttons need more than a
+                     narrow phone gives, and neither row could break. --}}
+                <div class="flex flex-wrap items-center justify-end gap-2">
                     <button type="button" wire:click="resetBands" class="btn-secondary">Reset to defaults</button>
                     <button type="button" wire:click="addBand" class="btn-secondary">+ Band</button>
                 </div>

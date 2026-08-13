@@ -1,0 +1,115 @@
+name: Layout
+
+# Nothing may run off the side of the screen.
+#
+# Seven screens shipped horizontally overflowing on a phone, and one of them
+# put Save and Cancel outside the viewport on the employee form. None of it
+# presented as broken — `main` is `overflow-y-auto`, so CSS computes the other
+# axis to `auto` too and an over-wide page silently becomes draggable sideways
+# instead of visibly failing. Nobody could have caught that by reading a diff,
+# which is why it is measured in a browser here.
+#
+# Separate from deploy.yml on purpose: that workflow ships to production on a
+# push to main and must not gain a browser, a database or a build step it does
+# not need.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: layout-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  overflow:
+    name: No horizontal overflow
+    runs-on: ubuntu-latest
+
+    # MySQL rather than SQLite, because production is MySQL and two screens
+    # (/hr/overtime-claims, /reports/cost-summary) use MySQL-only SQL — YEAR()
+    # and DATE_SUB(… INTERVAL …). Under SQLite they 500, the check reports them
+    # as unmeasurable, and the coverage is quietly lost on exactly the kind of
+    # dense screen most likely to overflow.
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: servora_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, gd, zip, bcmath, intl
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Set up the environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          {
+            echo "DB_CONNECTION=mysql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=3306"
+            echo "DB_DATABASE=servora_test"
+            echo "DB_USERNAME=root"
+            echo "DB_PASSWORD=password"
+          } >> .env
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      # The check drives real pages, and every layout calls @vite — without a
+      # manifest each one throws ViteManifestNotFoundException and the run
+      # fails on something that is not a layout problem.
+      - name: Build assets
+        run: npm run build
+
+      - name: Migrate and seed
+        run: |
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      # Serving and checking are ONE step so the server is guaranteed to
+      # outlive the shell that started it — a background process handed off
+      # between steps is at the mercy of how the runner tears each one down.
+      #
+      # ubuntu-latest ships Google Chrome, which is why the dependency is
+      # playwright-core: it downloads no browser on install, so `npm ci` stays
+      # cheap here and on the 2GB production box that runs the same command.
+      - name: Check every screen at phone and tablet widths
+        env:
+          APP_URL: http://127.0.0.1:8000
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+        run: |
+          nohup php artisan serve --port=8000 > /tmp/serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/login > /dev/null && break
+            if [ "$i" = "30" ]; then
+              echo "The app did not come up on :8000"
+              cat /tmp/serve.log
+              exit 1
+            fi
+            sleep 1
+          done
+          npm run test:overflow

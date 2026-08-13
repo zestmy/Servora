@@ -16,6 +16,7 @@ Step-by-step recipes for common feature work. Skip to the pattern you need.
 - [12. Debug common issues](#12-debug-common-issues)
 - [13. Code style & conventions](#13-code-style--conventions)
 - [13a. Add a delete action](#13a-add-a-delete-action)
+- [13b. Keep a screen inside the screen](#13b-keep-a-screen-inside-the-screen)
 - [14. Run / test locally](#14-run--test-locally)
 - [15. Deploy](#15-deploy)
 - [16. Add a cross-outlet role](#16-add-a-cross-outlet-role-process-submissions-from-all-outlets-without-switching)
@@ -228,6 +229,47 @@ generated fresh for that dialog before the Delete button becomes clickable.
   SoftDeletes` plus a `deleted_by` column, purge files on `forceDeleted` (never
   `deleted`, or a restore comes back hollow), and offer the way back on the list
   screen. See `Employee`, `ClockEvent`.
+
+---
+
+## 13b. Keep a screen inside the screen
+
+Every screen is measured in a real browser at 360px, 390px and 768px. Run it
+against any instance:
+
+```
+php artisan serve &
+npm run test:overflow
+```
+
+It asserts one thing — `main.scrollWidth === main.clientWidth` — and names the
+element responsible when that fails. A wide table inside an `overflow-x-auto`
+wrapper passes, because it scrolls in its own box and never widens the page.
+
+**Why it is not obvious you have broken this.** `main` is `overflow-y-auto`,
+and CSS computes the other axis of a scroll container to `auto` as well. An
+over-wide page therefore does not visibly break — it silently becomes
+draggable sideways, and controls sitting past the edge are reachable only by
+somebody who thinks to swipe. That is how Save and Cancel ended up off-screen
+on the employee form.
+
+The four shapes that caused every instance of it so far:
+
+- **A row of controls that cannot wrap.** A header action row with three or
+  four buttons is wider than a phone. `flex-wrap` on the row.
+- **A flex child that will not shrink.** Flex items default to
+  `min-width: auto` and refuse to go below their content, so a long name or a
+  date input pushes the row wider. `min-w-0` on the child.
+- **A column flex line takes its cross size from its widest item**, so ONE
+  oversized control silently stretches every sibling to match. Fix the wide
+  one; the rest follow.
+- **A scroll wrapper that is not a block box.** `.seg` is `inline-flex`, so it
+  shrink-to-fits and `overflow-x-auto` on it never engages. The scroller has to
+  be a block-level wrapper *around* it.
+
+New screens go in the `SCREENS` list in `tests/browser/overflow.mjs`. If a
+state only exists after a click — a tab, a mode toggle — give it an `actions`
+entry, because two of the bugs this found were hiding behind one.
 
 ---
 
