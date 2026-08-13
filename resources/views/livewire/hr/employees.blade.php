@@ -373,6 +373,9 @@
                             <span class="align-middle">{{ $employees->firstItem() + $loop->index }}</span>
                         </td>
                         <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                <x-employee-avatar :employee="$emp" />
+                                <div class="min-w-0">
                             <a href="{{ route('hr.employees.edit', ['id' => $emp->id] + $returnFilters) }}" title="Edit employee"
                                class="font-medium text-gray-800 text-left hover:text-brand-600 hover:underline">
                                 {{ $emp->name }}
@@ -388,6 +391,8 @@
                                     Pay &amp; bank details
                                 </a>
                             @endif
+                                </div>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $emp->staff_id ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600">{{ $emp->designation ?? '—' }}</td>
