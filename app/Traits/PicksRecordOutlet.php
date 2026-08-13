@@ -37,11 +37,20 @@ trait PicksRecordOutlet
         return $user->accessibleOutletIds();
     }
 
-    /** Active outlets the user can choose from, for the form selector. */
+    /**
+     * Outlets the user can choose from, for the form selector.
+     *
+     * Includes whatever this record is already filed against, even if that
+     * outlet has since closed: editing a stock take from last quarter should
+     * not silently re-file it somewhere still trading.
+     */
     protected function outletOptions()
     {
-        return Outlet::whereIn('id', $this->creatableOutletIds())
-            ->where('is_active', true)
+        return Outlet::whereIn('id', array_unique(array_merge(
+                $this->creatableOutletIds(),
+                $this->outlet_id ? [(int) $this->outlet_id] : [],
+            )))
+            ->selectable($this->outlet_id)
             ->orderBy('name')
             ->get(['id', 'name']);
     }

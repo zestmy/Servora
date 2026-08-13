@@ -294,13 +294,18 @@ class TransferForm extends Component
          * transfer, which admits anyone who can see EITHER end: a transfer
          * legitimately spans an outlet you do not otherwise work in.
          */
-        $sourceOutlets = Outlet::whereIn('id', Auth::user()->accessibleOutletIds())
-            ->where('is_active', true)
+        // selectable() keeps whichever outlets THIS transfer already names, so
+        // reopening one raised before a branch closed still shows both ends.
+        $sourceOutlets = Outlet::whereIn('id', array_unique(array_merge(
+                Auth::user()->accessibleOutletIds(),
+                $this->from_outlet_id ? [(int) $this->from_outlet_id] : [],
+            )))
+            ->selectable($this->from_outlet_id)
             ->orderBy('name')
             ->get();
 
         $destinationOutlets = Outlet::where('company_id', Auth::user()->company_id)
-            ->where('is_active', true)
+            ->selectable($this->to_outlet_id)
             ->orderBy('name')
             ->get();
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));

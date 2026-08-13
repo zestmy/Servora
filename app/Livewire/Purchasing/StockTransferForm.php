@@ -148,7 +148,8 @@ class StockTransferForm extends Component
     public function render()
     {
         $cpus = CentralPurchasingUnit::where('is_active', true)->get();
-        $outlets = Outlet::where('company_id', Auth::user()->company_id)->where('is_active', true)->orderBy('name')->get();
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->selectable($this->to_outlet_id)->orderBy('name')->get();
         $taxRates = TaxRate::active()->orderBy('name')->get();
         $uoms = UnitOfMeasure::orderBy('name')->get();
 

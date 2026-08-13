@@ -125,6 +125,38 @@ class Outlet extends Model
      * production rather than retail sales, so they should not appear in sales
      * analytics or emailed sales reports (AI Analytics, scheduled reports).
      */
+    /**
+     * Outlets a picker may offer: the open ones, plus whatever this record
+     * already points at.
+     *
+     * A dropdown filtered to `is_active` stops containing the value of the
+     * record it is editing the moment that outlet is closed. The select then
+     * renders with the wrong row highlighted — browsers fall back to the first
+     * option — so the form shows an employee posted somewhere they are not,
+     * and one touch of the field moves them there for real.
+     *
+     * Closing an outlet is a statement about NEW work, not a retraction of the
+     * records already filed against it. So the shut ones stay offered wherever
+     * they are already the answer, and nowhere else.
+     *
+     * @param  array<int, int|string|null>|int|string|null  $keep  ids already on the record
+     */
+    public function scopeSelectable($query, $keep = [])
+    {
+        $keep = collect(is_array($keep) ? $keep : [$keep])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $query->where(function ($q) use ($keep) {
+            $q->where('is_active', true);
+
+            if ($keep) {
+                $q->orWhereIn('id', $keep);
+            }
+        });
+    }
+
     public function scopeExcludingCentralKitchens($query)
     {
         return $query->whereNotIn('id', function ($sub) {

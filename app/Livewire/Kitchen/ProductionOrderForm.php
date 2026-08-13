@@ -271,22 +271,15 @@ class ProductionOrderForm extends Component
      */
     private function destinationOutlets($kitchens)
     {
-        $outlets = Outlet::where('company_id', Auth::user()->company_id)
-            ->where('is_active', true)
-            ->get();
-
         $chosen = collect($this->lines)->pluck('to_outlet_id')
             ->filter()->map(fn ($id) => (int) $id)->unique();
 
-        if ($chosen->isNotEmpty()) {
-            $missing = $chosen->diff($outlets->pluck('id')->map(fn ($id) => (int) $id));
-            if ($missing->isNotEmpty()) {
-                $outlets = $outlets->concat(
-                    Outlet::where('company_id', Auth::user()->company_id)
-                        ->whereIn('id', $missing)->get()
-                );
-            }
-        }
+        // Outlet::selectable() is the shared rule — active ones, plus whatever
+        // this record already names. It was written out by hand here first;
+        // one implementation cannot drift from itself.
+        $outlets = Outlet::where('company_id', Auth::user()->company_id)
+            ->selectable($chosen->all())
+            ->get();
 
         // Never the kitchen's own outlet — unless a line already names it, in
         // which case hiding it would make an existing order unreadable.

@@ -1077,8 +1077,10 @@ class EmployeeForm extends Component
         $companyId = $user->company_id;
 
         // Only offer outlets the current user can actually access.
+        // Plus wherever this employee already is, so a closed outlet does
+        // not leave the picker showing somebody posted where they are not.
         $outlets = Outlet::where('company_id', $companyId)
-            ->where('is_active', true)
+            ->selectable($this->f_outlet_id)
             ->whereIn('id', $this->accessibleOutletIds())
             ->orderBy('name')
             ->get();

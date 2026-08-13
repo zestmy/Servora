@@ -435,7 +435,7 @@ class PurchaseRequestForm extends Component
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
         $outlets = Outlet::whereIn('id', $this->accessibleOutletIds() ?: [0])
-            ->where('is_active', true)
+            ->selectable($this->outlet_id)
             ->orderBy('name')
             ->get();
 
