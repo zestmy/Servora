@@ -6,7 +6,6 @@ use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\IngredientParLevel;
-use App\Models\Outlet;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\TaxRate;
@@ -18,7 +17,18 @@ use Livewire\Component;
 
 class OrderForm extends Component
 {
+    use \App\Traits\RequiresActiveOutlet;
+
     public ?int $orderId = null;
+
+    /**
+     * The outlet an EXISTING order belongs to.
+     *
+     * Par levels are per outlet, so suggesting quantities from whoever opened
+     * the form rather than from the branch the order is for gives the wrong
+     * numbers to anyone who works across more than one.
+     */
+    public ?int $orderOutletId = null;
 
     /** Raising a new order and amending an existing one are separate abilities. */
     private function authorizeWrite(): void
@@ -123,6 +133,7 @@ class OrderForm extends Component
         }
 
         $this->orderId                = $po->id;
+        $this->orderOutletId          = $po->outlet_id;
         $this->poNumber               = $po->po_number;
         $this->status                 = $po->status;
         $this->supplier_id            = $po->supplier_id;
@@ -368,9 +379,15 @@ class OrderForm extends Component
 
         $this->validate();
 
-        $user     = Auth::user();
-        $taxPct   = floatval($user->company?->tax_percent ?? 0);
-        $outletId = $user->activeOutletId() ?? Outlet::where('company_id', $user->company_id)->value('id');
+        $user   = Auth::user();
+        $taxPct = floatval($user->company?->tax_percent ?? 0);
+
+        /*
+         * Only the create path needs an outlet, and only the create path sets
+         * one — an edit leaves outlet_id alone, which is correct, so deriving
+         * it here would be asking a question nobody uses the answer to.
+         */
+        $outletId = $this->orderId ? null : $this->requireActiveOutlet();
 
         $requiresApproval = $user->company?->require_po_approval ?? true;
 
@@ -670,8 +687,8 @@ class OrderForm extends Component
 
     private function getParLevel(int $ingredientId): float
     {
-        $user = Auth::user();
-        $outletId = $user->activeOutletId() ?? Outlet::where('company_id', $user->company_id)->value('id');
+        // No abort here — a missing par level is advisory, not a failure.
+        $outletId = $this->orderOutletId ?? Auth::user()?->activeOutletId();
 
         if (!$outletId) return 0;
 

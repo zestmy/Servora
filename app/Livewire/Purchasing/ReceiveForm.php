@@ -5,7 +5,6 @@ namespace App\Livewire\Purchasing;
 use App\Models\DeliveryOrder;
 use App\Models\Ingredient;
 use App\Models\IngredientPriceHistory;
-use App\Models\Outlet;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRecord;
 use App\Models\Supplier;
@@ -17,6 +16,11 @@ use Livewire\Component;
 
 class ReceiveForm extends Component
 {
+    use \App\Traits\RequiresActiveOutlet;
+
+    /** The outlet the order being received was raised for. */
+    public ?int $poOutletId = null;
+
     // PO context (null = standalone delivery)
     public ?int    $poId         = null;
     public ?string $poNumber     = null;
@@ -77,6 +81,7 @@ class ReceiveForm extends Component
         }
 
         $this->poId       = $po->id;
+        $this->poOutletId = $po->outlet_id;
         $this->poNumber   = $po->po_number;
         $this->poSupplier = $po->supplier->name;
         $this->supplier_id = $po->supplier_id;
@@ -141,8 +146,22 @@ class ReceiveForm extends Component
 
         DB::transaction(function () {
             $companyId = Auth::user()->company_id;
-            $outletId  = Auth::user()->activeOutletId()
-                ?: Outlet::where('company_id', $companyId)->value('id');
+
+            /*
+             * THE ORDER'S OUTLET, not the receiver's.
+             *
+             * This read the active outlet and fell back to whichever outlet
+             * came first in the company. Both are wrong for a delivery
+             * against a PO: mount() already loads the order and checks access
+             * to $po->outlet_id, then the goods were filed wherever the person
+             * clicking happened to be attached. Receive a KLCC order while
+             * your own outlet is IOI and the stock landed in IOI.
+             *
+             * A direct receipt has no order to inherit from, so that one still
+             * belongs to the receiver's outlet — and refuses rather than
+             * guessing when they have none.
+             */
+            $outletId = $this->poOutletId ?? $this->requireActiveOutlet();
 
             // 1. Create Delivery Order
             $deliverySeq = $this->poId

@@ -359,9 +359,18 @@ class Dashboard extends Component
             default    => 'Good evening',
         };
 
-        $first = Str::before(trim((string) $user->name), ' ');
+        /*
+         * The WHOLE name, not the first word of it.
+         *
+         * Malaysian names are not given-name-first. Cutting at the first space
+         * turns "MOHD AFFANDY BIN ZULKARNAIN" into "MOHD" and "NURIN QASRINA
+         * BINTI MOHD FAIZAL" into "NURIN" — for many staff here the first word
+         * is an honorific or a shared element, so the friendly shortening
+         * greets people by a name that is not theirs.
+         */
+        $name = trim((string) $user->name);
 
-        return $first !== '' ? "{$part}, {$first}" : $part;
+        return $name !== '' ? "{$part}, {$name}" : $part;
     }
 
     /** The delta label every tile on the page shares, so they cannot disagree. */

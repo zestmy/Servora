@@ -30,7 +30,7 @@
 
          The x-page-header component emits a real h1 and is already used on
          eleven other screens. --}}
-    {{-- The greeting is the eyebrow, not the title. "Good morning, Affandy" is
+    {{-- The greeting is the eyebrow, not the title. "Good morning, MOHD AFFANDY BIN ZULKARNAIN" is
          a warmer thing to land on, but it does not tell a screen-reader user
          navigating by heading which page they are on — and that is the one job
          an h1 has. --}}

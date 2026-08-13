@@ -6,7 +6,6 @@ use App\Models\CreditNote;
 use App\Models\CreditNoteLine;
 use App\Models\GoodsReceivedNote;
 use App\Models\Ingredient;
-use App\Models\Outlet;
 use App\Models\ProcurementInvoice;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
@@ -16,6 +15,8 @@ use Livewire\Component;
 
 class CreditNoteForm extends Component
 {
+    use \App\Traits\RequiresActiveOutlet;
+
     public ?int $creditNoteId = null;
 
     // Header
@@ -70,9 +71,9 @@ class CreditNoteForm extends Component
     {
         $this->issued_date = now()->toDateString();
 
-        $user = Auth::user();
-        $this->outlet_id = $user->activeOutletId()
-            ?? Outlet::where('company_id', $user->company_id)->value('id');
+        // A new note belongs to the raiser's outlet; an existing one keeps its
+        // own, set below. Never "whichever outlet came first".
+        $this->outlet_id = Auth::user()->activeOutletId();
 
         if (! $id) {
             $this->credit_note_number = CreditNote::generateNumber($this->type);
@@ -239,11 +240,16 @@ class CreditNoteForm extends Component
 
         $status = $action === 'issue' ? 'issued' : ($this->status ?: 'draft');
 
+        // An existing note keeps the outlet it was raised against; a new one
+        // needs the raiser to have one, and refuses rather than filing the
+        // credit against an arbitrary branch.
+        $outletId = $this->outlet_id ?? $this->requireActiveOutlet();
+
         $data = [
             'type'                     => $this->type,
             'direction'                => $this->direction,
             'supplier_id'              => $this->supplier_id,
-            'outlet_id'                => $this->outlet_id,
+            'outlet_id'                => $outletId,
             'issued_date'              => $this->issued_date,
             'procurement_invoice_id'   => $this->procurement_invoice_id ?: null,
             'goods_received_note_id'   => $this->goods_received_note_id ?: null,
