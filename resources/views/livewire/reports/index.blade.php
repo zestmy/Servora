@@ -4,10 +4,13 @@
 
 <div>
     {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
+    {{-- Wraps. The export buttons only render once there is data to export,
+         which is why an empty database never showed this and MySQL in CI did:
+         under SQLite this screen 500s before it can be measured at all. --}}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 class="page-title">Reports</h2>
         @if (!empty($summary['categories']))
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
                 <button wire:click="exportPdf"
                         class="btn-danger">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
