@@ -142,20 +142,49 @@ class SalesOutletFallbackTest extends TestCase
     }
 
     /**
-     * And it must not put a branch's name on a report of everything. The
-     * header follows the page's own filter now, both for the name and the
-     * rows, so the PDF matches the table it was printed from.
+     * The export is everything the user can see, by choice. So the header may
+     * only name a branch when there is exactly one — it used to print the
+     * user's default outlet over rows from every outlet they can access.
+     *
+     * The page filter is deliberately NOT consulted: narrowing the export to
+     * it would change what the button gives you.
      */
-    public function test_the_pdf_names_the_outlet_it_is_actually_showing(): void
+    public function test_a_multi_outlet_export_is_not_headed_with_one_branch(): void
     {
         $seller = $this->seller([$this->first->id, $this->second->id]);
 
-        $c = Livewire::actingAs($seller)->test(SalesIndex::class)->set('outletFilter', (string) $this->second->id);
-        $this->assertSame((string) $this->second->id, $c->get('outletFilter'));
+        $this->assertNull($this->headerOutlet($seller),
+            'Two outlets in the export means no single branch may be named.');
 
-        // With no filter the header names nothing rather than picking one.
-        $c->set('outletFilter', '');
-        $this->assertNotNull($c->call('exportPdf'));
+        // And it still draws, with the page filter deliberately not narrowing it.
+        $this->assertNotNull(
+            Livewire::actingAs($seller)->test(SalesIndex::class)
+                ->set('outletFilter', (string) $this->second->id)
+                ->call('exportPdf')
+        );
+    }
+
+    /** One accessible outlet — naming it is correct, and still happens. */
+    public function test_a_single_outlet_export_still_names_its_branch(): void
+    {
+        $seller = $this->seller([$this->second->id]);
+
+        $this->assertSame('BETA', $this->headerOutlet($seller)?->name);
+    }
+
+    /**
+     * Asks the component itself what it will print, rather than working it
+     * out again here — a test that re-derives the rule passes even when the
+     * rule is wrong.
+     */
+    private function headerOutlet(User $user): ?Outlet
+    {
+        $this->actingAs($user);
+
+        $m = new \ReflectionMethod(SalesIndex::class, 'headerOutlet');
+        $m->setAccessible(true);
+
+        return $m->invoke(new SalesIndex());
     }
 
     /** A forecast for an arbitrary branch is worse than none — but not a 403. */

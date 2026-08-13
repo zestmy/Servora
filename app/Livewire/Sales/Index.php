@@ -315,6 +315,20 @@ class Index extends Component
         return CsvExportService::download('sales-records.csv', $headers, $rows);
     }
 
+    /**
+     * The branch to print in the PDF header, or null for "All Outlets".
+     *
+     * Named only when the export is genuinely one outlet. scopeByOutlet()
+     * below draws every outlet the user can access, so with two or more there
+     * is no single branch this report is about.
+     */
+    protected function headerOutlet(): ?Outlet
+    {
+        $accessible = $this->availableOutletIds();
+
+        return count($accessible) === 1 ? Outlet::find($accessible[0]) : null;
+    }
+
     public function exportPdf()
     {
         $user    = Auth::user();
@@ -324,21 +338,19 @@ class Index extends Component
          * NO ABORT HERE — an export is a read, and refusing to draw a report
          * because of an unset outlet would be worse than the bug.
          *
-         * But it must not NAME an outlet it is not showing either. The header
-         * used to read the user's default outlet, falling back to whichever
-         * outlet came first; the rows came from scopeByOutlet(), which is
-         * every outlet the user can see. So a multi-outlet user got a PDF
-         * headed "ALPHA" containing every branch's takings.
+         * The export is deliberately EVERYTHING THE USER CAN SEE, not the
+         * page's current outlet filter. So the header may only name a branch
+         * when there is exactly one to name: it used to print the user's
+         * default outlet, falling back to whichever outlet came first, over
+         * rows drawn from every outlet they can access — a PDF headed "ALPHA"
+         * holding every branch's takings.
          *
-         * Both ends follow the page's own outlet filter now, so the export
-         * matches the table it was printed from. With no filter set the
-         * header simply names no outlet, rather than picking one.
+         * More than one and it says "All Outlets", which is what it is.
          */
-        $outletId = $this->selectedOutletId($this->outletFilter);
-        $outlet   = $outletId ? Outlet::find($outletId) : null;
+        $outlet = $this->headerOutlet();
 
         $query = SalesRecord::with('lines.salesCategory');
-        $this->scopeByOutletFilter($query, $this->outletFilter);
+        $this->scopeByOutlet($query);
 
         if ($this->dateFrom) {
             $query->where('sale_date', '>=', $this->dateFrom);
