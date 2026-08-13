@@ -63,10 +63,9 @@ class PriceClasses extends Component
             'is_default' => $this->is_default,
         ];
 
-        if ($this->is_default) {
-            // Per list: a kitchen default must not unset the outlet's.
-            RecipePriceClass::inScope($this->scope())->where('is_default', true)->update(['is_default' => false]);
-        }
+        // Clearing the previous default is the model's job — see its booted()
+        // — so that a seeder or an import cannot leave two behind the way
+        // production's outlet list ended up with two.
 
         if ($this->editingId) {
             RecipePriceClass::inScope($this->scope())->findOrFail($this->editingId)->update($data);

@@ -58,6 +58,38 @@ class RecipePriceClass extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        /*
+         * ONE DEFAULT PER LIST, enforced here rather than on the screen.
+         *
+         * Production had two outlet classes flagged default — "Price (3/7/26)"
+         * with 317 prices against it and "KLCC" with 40 — and the callers did
+         * not agree which one won: SmartImport takes ->where('is_default')
+         * ->first(), which is primary-key order, while the recipe form reads
+         * ordered()->firstWhere(), which is sort_order then name. Same data,
+         * two answers, on two screens.
+         *
+         * The settings screen already cleared the others, so the state had to
+         * have arrived some other way — a seeder, an import, a console fix.
+         * A rule that only one entry point applies is not a rule, so it lives
+         * on the model, where a seeder and a tinker session obey it too.
+         *
+         * Global scopes are dropped and company_id matched by hand because
+         * this must also hold when nobody is signed in. update() on a query
+         * builder fires no events, so this cannot recurse.
+         */
+        static::saved(function (self $class): void {
+            if (! $class->is_default) {
+                return;
+            }
+
+            static::withoutGlobalScopes()
+                ->where('company_id', $class->company_id)
+                ->where('scope', $class->scope)
+                ->where('id', '!=', $class->id)
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
+        });
     }
 
     public function company(): BelongsTo
