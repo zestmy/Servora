@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\OutletSwitcher;
 use App\Livewire\Settings\Users as UsersScreen;
 use App\Models\CentralKitchen;
 use App\Models\Company;
@@ -140,6 +141,59 @@ class InactiveKitchenOutletAccessTest extends TestCase
 
         $this->assertContains($this->kitchenOutlet->id, $staff->fresh()->outlets->pluck('id')->all(),
             'Ticking the kitchen must attach its base outlet, which is the whole reason it is offered there.');
+    }
+
+    // ── The same shape in the outlet switcher ─────────────────────────────
+
+    /**
+     * The switcher splits the same way and had the same gap: the ordinary half
+     * rejected kitchen outlets outright while the kitchen half was gated on
+     * being a kitchen user. Somebody holding a kitchen's base outlet without
+     * the kitchen_users row had it in neither — granted an outlet they could
+     * not switch to.
+     */
+    public function test_the_switcher_offers_a_kitchen_outlet_to_whoever_holds_it(): void
+    {
+        $staff = User::factory()->create([
+            'company_id' => $this->company->id, 'can_view_all_outlets' => false,
+        ]);
+        $staff->companies()->syncWithoutDetaching([$this->company->id]);
+        $staff->outlets()->sync([$this->shop->id, $this->kitchenOutlet->id]);
+
+        $this->assertFalse($staff->isKitchenUser(), 'The fixture must be the case that broke.');
+
+        $c = Livewire::actingAs($staff)->test(OutletSwitcher::class);
+
+        $offered = $c->viewData('outlets')->pluck('name')
+            ->merge($c->viewData('kitchenOutlets')->pluck('name'))
+            ->sort()->values()->all();
+
+        $this->assertSame(['CENTRAL KITCHEN', 'KLCC'], $offered,
+            'An outlet they hold and cannot select is a grant that does nothing.');
+    }
+
+    /** And it stays a partition — nothing listed twice. */
+    public function test_the_switcher_lists_each_outlet_once(): void
+    {
+        $c = Livewire::actingAs($this->admin)->test(OutletSwitcher::class);
+
+        $ordinary = $c->viewData('outlets')->pluck('id');
+        $kitchens = $c->viewData('kitchenOutlets')->pluck('id');
+
+        $this->assertEmpty($ordinary->intersect($kitchens),
+            'An outlet in both halves would render twice.');
+    }
+
+    /** Somebody with no kitchen outlet still sees no kitchen section. */
+    public function test_the_switcher_shows_no_kitchen_section_to_someone_without_one(): void
+    {
+        $staff = User::factory()->create([
+            'company_id' => $this->company->id, 'can_view_all_outlets' => false,
+        ]);
+        $staff->companies()->syncWithoutDetaching([$this->company->id]);
+        $staff->outlets()->sync([$this->shop->id]);
+
+        $this->assertCount(0, Livewire::actingAs($staff)->test(OutletSwitcher::class)->viewData('kitchenOutlets'));
     }
 
     // ── Unchanged behaviour ───────────────────────────────────────────────
