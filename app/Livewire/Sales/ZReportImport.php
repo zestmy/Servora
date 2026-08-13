@@ -15,6 +15,8 @@ use Livewire\WithFileUploads;
 
 class ZReportImport extends Component
 {
+    use \App\Traits\ValidatesCompanyOutlet;
+
     use WithFileUploads;
 
     public bool   $showModal        = false;
@@ -168,8 +170,9 @@ class ZReportImport extends Component
 
             // Default to active outlet if no match found
             if (! $this->selectedOutletId) {
-                $this->selectedOutletId = session('active_outlet_id')
-                    ?: Outlet::where('company_id', Auth::user()->company_id)->value('id');
+                // Left unset when there is nothing to infer from, so the
+                // outlet <select> on the form asks rather than this guessing.
+                $this->selectedOutletId = session('active_outlet_id');
             }
 
             $this->allDayPax          = (int) ($summary['total_guests']       ?? 0) ?: 1;
@@ -272,6 +275,13 @@ class ZReportImport extends Component
         $hasSessions = $this->hasSessionEntries();
 
         $rules = [
+            /*
+             * The outlet these takings belong to. It had no rule at all and
+             * fell back to whichever outlet came first, so an unset picker
+             * filed a day's sales on an arbitrary branch — and a forged value
+             * would have filed them on another tenant's.
+             */
+            'selectedOutletId'                => ['required', $this->outletExistsRule()],
             'importDate'                      => 'required|date',
             'sessionEntries.*.gross_amount'   => 'required|numeric|min:0',
             'sessionEntries.*.pax'            => 'required|integer|min:1',
@@ -288,8 +298,7 @@ class ZReportImport extends Component
 
         $this->validate($rules);
 
-        $outletId  = $this->selectedOutletId
-            ?: Outlet::where('company_id', Auth::user()->company_id)->value('id');
+        $outletId  = (int) $this->selectedOutletId;
         $companyId = Auth::user()->company_id;
         $userId    = Auth::id();
         $netRatio  = $this->netRatio();

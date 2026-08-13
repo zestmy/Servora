@@ -36,9 +36,10 @@ class ParLevels extends Component
 
     public function mount(): void
     {
-        $user = Auth::user();
-        $this->outletId = $user->activeOutletId()
-            ?? Outlet::where('company_id', $user->company_id)->value('id');
+        // The picker on this screen asks when there is nothing to default to.
+        // Par levels drive purchase suggestions, so seeding an arbitrary
+        // branch's here puts a wrong number in front of whoever orders next.
+        $this->outletId = Auth::user()->activeOutletId();
         $this->loadParLevels();
     }
 

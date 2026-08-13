@@ -163,8 +163,9 @@ class Printers extends Component
     public function openCreate(): void
     {
         $this->resetForm();
-        $this->outlet_id = Auth::user()->activeOutletId()
-            ?? Outlet::where('company_id', Auth::user()->company_id)->value('id');
+        // Unset when there is nothing to default to — save() requires it, so
+        // the picker asks rather than this choosing a branch for the user.
+        $this->outlet_id = Auth::user()->activeOutletId();
         $this->showModal = true;
     }
 

@@ -73,8 +73,9 @@ class Sets extends Component
 
     public function mount(): void
     {
-        $this->outletId = Auth::user()->activeOutletId()
-            ?? Outlet::where('company_id', Auth::user()->company_id)->value('id');
+        // As with printers: unset rather than an arbitrary branch. Sets are
+        // outlet-owned, so the wrong one puts a station's labels elsewhere.
+        $this->outletId = Auth::user()->activeOutletId();
     }
 
     public function updatedOutletId(): void

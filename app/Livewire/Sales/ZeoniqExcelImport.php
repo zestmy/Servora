@@ -353,8 +353,7 @@ class ZeoniqExcelImport extends Component
         foreach ($this->parsedRecords as $idx => $record) {
             $outletCode = $record['outlet_code'] ?? '';
             $outletId   = $this->outletMapping[$outletCode]
-                ?? session('active_outlet_id')
-                ?? Outlet::where('company_id', $companyId)->value('id');
+                ?? session('active_outlet_id');
 
             if (!$outletId) {
                 continue;
@@ -522,8 +521,7 @@ class ZeoniqExcelImport extends Component
 
             $outletCode = $record['outlet_code'] ?? '';
             $outletId   = $this->outletMapping[$outletCode]
-                ?? session('active_outlet_id')
-                ?? Outlet::where('company_id', $companyId)->value('id');
+                ?? session('active_outlet_id');
 
             if (! $outletId) {
                 $errors[] = "No outlet found for {$outletCode}";

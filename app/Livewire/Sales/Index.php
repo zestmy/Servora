@@ -665,10 +665,10 @@ class Index extends Component
         $targetData = null;
         {
             $user = Auth::user();
-            // Use the selected outlet filter, fall back to active outlet or first available
-            $targetOutletId = $this->outletFilter
-                ?: $user->activeOutletId()
-                ?: Outlet::where('company_id', $user->company_id)->value('id');
+            // The filter, else the user's own outlet. No third guess: with
+            // neither, the query below still finds the company-wide target
+            // through its orWhereNull, which is the honest answer.
+            $targetOutletId = $this->outletFilter ?: $user->activeOutletId();
             $targetPeriod = now()->format('Y-m');
 
             $target = SalesTarget::where('period', $targetPeriod)
@@ -892,9 +892,9 @@ class Index extends Component
         // event applies company-wide. Mirrors the outlet scoping used by the
         // rest of the page (records, stats, sales target).
         $user     = Auth::user();
-        $outletId = $this->outletFilter
-            ?: $user->activeOutletId()
-            ?: Outlet::where('company_id', $user->company_id)->value('id');
+        // As with the sales target above — no arbitrary third choice. The
+        // orWhereNull below still surfaces company-wide events.
+        $outletId = $this->outletFilter ?: $user->activeOutletId();
 
         return CalendarEvent::where(function ($q) {
                 $q->whereBetween('event_date', [$this->dateFrom, $this->dateTo])
