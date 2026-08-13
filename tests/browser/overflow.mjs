@@ -231,14 +231,32 @@ function describeOverflow() {
  * second, so a single ERR_CONNECTION_REFUSED means "try again", not "the
  * screen is broken". Without this the whole run ends on one blip.
  */
-async function goto(page, url) {
-    try {
-        return await page.goto(url, { waitUntil: 'domcontentloaded' });
-    } catch (e) {
-        if (!/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE/.test(e.message)) throw e;
-        await new Promise((r) => setTimeout(r, 3000));
-        return page.goto(url, { waitUntil: 'domcontentloaded' });
+const TRANSIENT = /ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_SOCKET_NOT_CONNECTED/;
+
+/** Poll until something answers again, rather than guessing how long a restart takes. */
+async function waitForServer(seconds = 30) {
+    for (let i = 0; i < seconds; i++) {
+        try {
+            const r = await fetch(`${APP_URL}/login`);
+            if (r.ok) return true;
+        } catch { /* still down */ }
+        await new Promise((r) => setTimeout(r, 1000));
     }
+    return false;
+}
+
+async function goto(page, url) {
+    let last;
+    for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+            return await page.goto(url, { waitUntil: 'domcontentloaded' });
+        } catch (e) {
+            if (!TRANSIENT.test(e.message)) throw e;
+            last = e;
+            await waitForServer();
+        }
+    }
+    throw last;
 }
 
 async function signIn(page) {
@@ -246,7 +264,15 @@ async function signIn(page) {
     await page.fill('input[type=email]', EMAIL);
     await page.fill('input[type=password]', PASSWORD);
     await page.click('button[type=submit]');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('networkidle').catch(() => {});
+
+    // Logging in is the heaviest thing the dev server does in this run, and it
+    // is where it died in CI. If it went down taking the redirect with it,
+    // wait for it back and try once more rather than failing the whole sweep.
+    if (page.url().includes('/login')) {
+        await waitForServer();
+        await goto(page, `${APP_URL}/dashboard`);
+    }
 
     if (page.url().includes('/login')) {
         throw new Error(
