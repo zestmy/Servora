@@ -30,15 +30,23 @@ class LeaveSetting extends Model
         self::EXPIRY_NEVER    => 'No deadline',
     ];
 
+    /*
+     * `annual_prorated` and `annual_requires_confirmation` are NOT here.
+     *
+     * Those two moved onto leave_types as is_prorated/requires_confirmation
+     * and the columns were dropped in 2026_08_07_000036. The model kept
+     * naming them, and forCompany() passed both into firstOrCreate — so the
+     * first read for any company WITHOUT a row already tried to insert two
+     * columns that no longer exist and died with "no column named
+     * annual_prorated". Every company on production has a row, which is the
+     * only reason this never showed: it needed a brand new company to bite.
+     */
     protected $fillable = [
         'company_id', 'rph_expiry_mode', 'rph_expiry_days',
-        'annual_prorated', 'annual_requires_confirmation',
     ];
 
     protected $casts = [
-        'rph_expiry_days'              => 'integer',
-        'annual_prorated'              => 'boolean',
-        'annual_requires_confirmation' => 'boolean',
+        'rph_expiry_days' => 'integer',
     ];
 
     protected static function booted(): void
@@ -71,12 +79,6 @@ class LeaveSetting extends Model
             ->firstOrCreate(['company_id' => $companyId], [
                 'rph_expiry_mode' => self::EXPIRY_DAYS,
                 'rph_expiry_days' => 90,
-                // Spelled out for the same reason as the two above: on the
-                // create path firstOrCreate hands back the model it BUILT, so
-                // a column left out here reads as null on a company's very
-                // first request rather than as its database default.
-                'annual_prorated'              => false,
-                'annual_requires_confirmation' => false,
             ]);
     }
 

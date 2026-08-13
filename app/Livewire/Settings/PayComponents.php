@@ -8,6 +8,7 @@ use App\Models\PayComponent;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * The company's allowance and deduction catalogue, plus the overtime rates
@@ -17,6 +18,8 @@ use Livewire\Component;
  */
 class PayComponents extends Component
 {
+    use RequiresActiveCompany;
+
     public bool $showModal = false;
     public ?int $editingId = null;
 
@@ -42,7 +45,7 @@ class PayComponents extends Component
 
     public function mount(): void
     {
-        $s = CompensationSetting::forCompany(Auth::user()->company_id);
+        $s = CompensationSetting::forCompany($this->requireActiveCompany());
 
         $this->ot_normal         = (string) (float) $s->ot_normal_multiplier;
         $this->ot_rest_day       = (string) (float) $s->ot_rest_day_multiplier;

@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\LeaveType;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * Leave types: what kinds of leave this company grants, and how each behaves.
@@ -17,6 +18,8 @@ use Livewire\Component;
  */
 class LeaveTypes extends Component
 {
+    use RequiresActiveCompany;
+
     public bool   $showForm = false;
     public ?int   $editingId = null;
 
@@ -50,7 +53,7 @@ class LeaveTypes extends Component
     {
         // A company with no types at all cannot use the module, and choosing
         // seven names is not a decision worth blocking on.
-        LeaveType::seedDefaults(Auth::user()->company_id);
+        LeaveType::seedDefaults($this->requireActiveCompany());
     }
 
     public function create(): void

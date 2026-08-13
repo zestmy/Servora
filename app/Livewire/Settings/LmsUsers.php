@@ -7,9 +7,11 @@ use App\Models\Recipe;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
+use App\Traits\RequiresActiveCompany;
 
 class LmsUsers extends Component
 {
+    use RequiresActiveCompany;
     use WithPagination;
 
     public string $statusFilter = 'pending';
@@ -102,6 +104,12 @@ class LmsUsers extends Component
         $user = LmsUser::where('company_id', Auth::user()->company_id)->findOrFail($id);
         $user->update(['status' => 'rejected']);
         session()->flash('success', "{$user->name} has been rejected.");
+    }
+
+    /** No mount() of its own before this, so the null company reached render(). */
+    public function mount(): void
+    {
+        $this->requireActiveCompany();
     }
 
     public function render()

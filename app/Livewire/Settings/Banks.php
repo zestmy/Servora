@@ -6,6 +6,7 @@ use App\Models\Bank;
 use App\Models\Employee;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * Banks: the list the employee form's Bank picker offers.
@@ -21,6 +22,8 @@ use Livewire\Component;
  */
 class Banks extends Component
 {
+    use RequiresActiveCompany;
+
     public string $search = '';
     public bool   $showInactive = false;
 
@@ -35,7 +38,7 @@ class Banks extends Component
     {
         // A company with no banks at all has an empty picker on the employee
         // form, and choosing 41 names is not a decision worth blocking on.
-        Bank::seedDefaults(Auth::user()->company_id);
+        Bank::seedDefaults($this->requireActiveCompany());
     }
 
     public function create(): void

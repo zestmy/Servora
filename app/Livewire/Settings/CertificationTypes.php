@@ -8,6 +8,7 @@ use App\Models\EmployeeCertification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * The company's catalogue of certifications and training courses.
@@ -18,6 +19,8 @@ use Livewire\Component;
  */
 class CertificationTypes extends Component
 {
+    use RequiresActiveCompany;
+
     public bool $showModal = false;
     public ?int $editingId = null;
 
@@ -60,7 +63,7 @@ class CertificationTypes extends Component
 
     public function mount(): void
     {
-        $c = ComplianceSetting::forCompany(Auth::user()->company_id);
+        $c = ComplianceSetting::forCompany($this->requireActiveCompany());
 
         $this->typhoid_expires        = (bool) $c->typhoid_expires;
         $this->food_handler_expires   = (bool) $c->food_handler_expires;

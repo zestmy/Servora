@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\StatutorySetting;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * EPF, SOCSO, EIS and PCB rates.
@@ -18,6 +19,8 @@ use Livewire\Component;
  */
 class StatutoryRates extends Component
 {
+    use RequiresActiveCompany;
+
     public bool $epf_enabled   = true;
     public bool $socso_enabled = true;
     public bool $eis_enabled   = true;
@@ -77,7 +80,7 @@ class StatutoryRates extends Component
 
     public function mount(): void
     {
-        $s = StatutorySetting::forCompany(Auth::user()->company_id);
+        $s = StatutorySetting::forCompany($this->requireActiveCompany());
 
         foreach ([
             'epf_enabled', 'socso_enabled', 'eis_enabled', 'pcb_enabled', 'hrdf_enabled',
@@ -257,7 +260,7 @@ class StatutoryRates extends Component
         $data['rates_confirmed_at'] = $this->confirmed ? now() : null;
         $data['rates_confirmed_by'] = $this->confirmed ? Auth::id() : null;
 
-        StatutorySetting::updateOrCreate(['company_id' => Auth::user()->company_id], $data);
+        StatutorySetting::updateOrCreate(['company_id' => $this->requireActiveCompany()], $data);
 
         session()->flash('success', $this->confirmed
             ? 'Statutory rates saved and confirmed.'
@@ -266,7 +269,7 @@ class StatutoryRates extends Component
 
     public function render()
     {
-        $settings = StatutorySetting::forCompany(Auth::user()->company_id);
+        $settings = StatutorySetting::forCompany($this->requireActiveCompany());
 
         return view('livewire.settings.statutory-rates', compact('settings'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Statutory Rates']);

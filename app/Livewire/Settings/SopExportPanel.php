@@ -8,6 +8,7 @@ use App\Models\SopExport;
 use App\Services\Pdf\SopExportBuilder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * The full-catalogue SOP export, and the panel that watches it.
@@ -20,6 +21,8 @@ use Livewire\Component;
  */
 class SopExportPanel extends Component
 {
+    use RequiresActiveCompany;
+
     /** Matches the job's own progress writes; slower reads as laggy. */
     private const POLL_MS = 2000;
 
@@ -27,7 +30,7 @@ class SopExportPanel extends Component
 
     public function mount(): void
     {
-        $this->exportId = SopExport::forCompany(Auth::user()->company_id)
+        $this->exportId = SopExport::forCompany($this->requireActiveCompany())
             ->latest('id')
             ->value('id');
     }
@@ -77,7 +80,7 @@ class SopExportPanel extends Component
      */
     private function typicalSeconds(?SopExport $current): ?int
     {
-        $previous = SopExport::forCompany(Auth::user()->company_id)
+        $previous = SopExport::forCompany($this->requireActiveCompany())
             ->where('status', SopExport::STATUS_COMPLETED)
             ->when($current, fn ($q) => $q->whereKeyNot($current->id))
             ->whereNotNull('started_at')
@@ -97,7 +100,7 @@ class SopExportPanel extends Component
     public function render()
     {
         $export = $this->exportId
-            ? SopExport::forCompany(Auth::user()->company_id)->find($this->exportId)
+            ? SopExport::forCompany($this->requireActiveCompany())->find($this->exportId)
             : null;
 
         return view('livewire.settings.sop-export-panel', [

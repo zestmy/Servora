@@ -7,6 +7,7 @@ use App\Models\HrOption;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * The pick-lists behind the employee particulars: sex, nationality, race,
@@ -22,6 +23,8 @@ use Livewire\Component;
  */
 class EmployeeParticulars extends Component
 {
+    use RequiresActiveCompany;
+
     #[Url(as: 'list')]
     public string $type = 'gender';
 
@@ -41,7 +44,7 @@ class EmployeeParticulars extends Component
         }
 
         // Choosing forty values by hand is not a decision worth blocking on.
-        HrOption::seedDefaults(Auth::user()->company_id);
+        HrOption::seedDefaults($this->requireActiveCompany());
     }
 
     public function selectType(string $type): void

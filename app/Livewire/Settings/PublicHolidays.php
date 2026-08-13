@@ -9,6 +9,7 @@ use App\Models\PublicHoliday;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use App\Traits\RequiresActiveCompany;
 
 /**
  * The public holidays this company recognises, and what a day worked on one
@@ -28,6 +29,8 @@ use Livewire\Component;
  */
 class PublicHolidays extends Component
 {
+    use RequiresActiveCompany;
+
     public string $year = '';
 
     // Holiday form
@@ -58,14 +61,14 @@ class PublicHolidays extends Component
     {
         $this->year = (string) now()->year;
 
-        $settings = LeaveSetting::forCompany(Auth::user()->company_id);
+        $settings = LeaveSetting::forCompany($this->requireActiveCompany());
         $this->d_expiry_mode = $settings->rph_expiry_mode;
         $this->d_expiry_days = (string) $settings->rph_expiry_days;
     }
 
     private function settings(): LeaveSetting
     {
-        return LeaveSetting::forCompany(Auth::user()->company_id);
+        return LeaveSetting::forCompany($this->requireActiveCompany());
     }
 
     /**
