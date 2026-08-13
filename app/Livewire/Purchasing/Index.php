@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
-use App\Traits\RemembersOutletFilter;
+use App\Traits\RemembersListFilters;
 use App\Models\DeliveryOrder;
 use App\Models\GoodsReceivedNote;
 use App\Models\PoApprover;
@@ -22,7 +22,7 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use RemembersOutletFilter;
+    use RemembersListFilters;
 
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
@@ -82,12 +82,32 @@ class Index extends Component
 
     public function mount(): void
     {
-        // Come back on the outlet this screen was left on.
-        $this->bootRememberedOutlet();
+        // Come back on everything this tab was last left on. $tab is already
+        // settled here — it is a queryString property, so the URL has had its
+        // say before mount runs.
+        $this->bootRememberedFilters();
 
         // Same default as Stock Management, so the two modules answer "recently"
-        // with the same span when somebody compares them.
+        // with the same span when somebody compares them. A no-op when a
+        // remembered range was restored above.
         $this->bootQuickRange();
+    }
+
+    /**
+     * The filter strip, less the search box, which is how you find one record
+     * rather than a place in the list.
+     *
+     * @return array<int, string>
+     */
+    protected function rememberedFilters(): array
+    {
+        return ['outletFilter', 'supplierFilter', 'statusFilter', 'quickRange', 'dateFrom', 'dateTo'];
+    }
+
+    /** Per tab — updatedTab() clears these, so each tab keeps its own. */
+    protected function rememberedFilterScope(): string
+    {
+        return $this->tab;
     }
 
     /**
@@ -812,7 +832,7 @@ class Index extends Component
 
     public function render()
     {
-        $this->rememberOutlet();
+        $this->rememberFilters();
 
         $user = Auth::user();
         $isPurchasing = $this->isPurchasingRole();

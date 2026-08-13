@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Sales;
 
-use App\Traits\RemembersOutletFilter;
+use App\Traits\RemembersListFilters;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Outlet;
@@ -26,7 +26,7 @@ class Index extends Component
 {
     use \App\Traits\RequiresActiveOutlet;
 
-    use RemembersOutletFilter;
+    use RemembersListFilters;
 
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
@@ -102,7 +102,7 @@ class Index extends Component
          * is stored as an empty string, and testing the string rather than
          * whether anything was stored would overrule the choice every time.
          */
-        if ($this->bootRememberedOutlet()) {
+        if ($this->bootRememberedFilters()) {
             return;
         }
 
@@ -528,9 +528,19 @@ class Index extends Component
 
     // ── Render ──────────────────────────────────────────────────────────
 
+    /**
+     * The period as well as the outlet. One screen, no tabs, one bundle.
+     *
+     * @return array<int, string>
+     */
+    protected function rememberedFilters(): array
+    {
+        return ['outletFilter', 'quickRange', 'dateFrom', 'dateTo'];
+    }
+
     public function render()
     {
-        $this->rememberOutlet();
+        $this->rememberFilters();
 
         // Get available outlets for dropdown (only for users with multiple outlets)
         $availableOutletIds = $this->availableOutletIds();

@@ -8,7 +8,7 @@ use App\Models\Outlet;
 use App\Models\SalaryRevision;
 use App\Models\Section;
 use App\Services\Hr\CompensationSummary;
-use App\Traits\RemembersOutletFilter;
+use App\Traits\RemembersListFilters;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -23,7 +23,7 @@ use Livewire\Component;
  */
 class Compensation extends Component
 {
-    use RemembersOutletFilter;
+    use RemembersListFilters;
 
     public string $month        = '';
     public string $outletFilter = '';
@@ -47,7 +47,7 @@ class Compensation extends Component
          * you were working through is not obviously the same list.
          *
          * The month is remembered beside the outlet rather than threaded
-         * through the form, for the reason RemembersOutletFilter gives: the
+         * through the form, for the reason RemembersListFilters gives: the
          * form should not have to know it is part of somebody's place in a
          * list.
          */
@@ -56,7 +56,7 @@ class Compensation extends Component
         // "All outlets" is a real choice, so this asks whether anything was
         // STORED, not whether the value is empty — an empty string means All
         // and must not be overruled by the default below.
-        if ($this->bootRememberedOutlet()) {
+        if ($this->bootRememberedFilters()) {
             return;
         }
 
@@ -152,7 +152,7 @@ class Compensation extends Component
 
     public function render()
     {
-        $this->rememberOutlet();
+        $this->rememberFilters();
         session([self::MONTH_KEY => $this->month]);
 
         $user       = Auth::user();

@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
-use App\Traits\RemembersOutletFilter;
+use App\Traits\RemembersListFilters;
 use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\Outlet;
@@ -22,7 +22,7 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use RemembersOutletFilter;
+    use RemembersListFilters;
 
     use WithPagination, ScopesToActiveOutlet, \App\Traits\HasQuickDateRanges;
 
@@ -120,15 +120,45 @@ class Index extends Component
 
     public function mount(): void
     {
-        // Come back on the outlet this screen was left on.
-        $this->bootRememberedOutlet();
-
+        // The tab decides WHICH bundle to read, so it has to be settled first.
         $tab = request('tab');
         if (isset(self::TABS[$tab])) {
             $this->tab = $tab;
         }
 
+        // Come back on everything this tab was last left on.
+        $this->bootRememberedFilters();
+
+        // A no-op when a remembered range was restored above — it only fills
+        // in when both dates are still empty.
         $this->bootQuickRange();
+    }
+
+    /**
+     * The whole filter strip, less the search box.
+     *
+     * Searching is how you find one record, not a place in the list, so it is
+     * deliberately not carried. The tab is not here either: it belongs to the
+     * URL, and the forms behind this screen already redirect back with it.
+     *
+     * @return array<int, string>
+     */
+    protected function rememberedFilters(): array
+    {
+        return [
+            'outletFilter', 'departmentFilter', 'supplierFilter', 'statusFilter',
+            'quickRange', 'dateFrom', 'dateTo',
+        ];
+    }
+
+    /**
+     * Per tab, because these filters do not mean the same thing on each.
+     * updatedTab() already clears the ones a tab cannot use; restoring a
+     * supplier onto Wastage would put it straight back.
+     */
+    protected function rememberedFilterScope(): string
+    {
+        return $this->tab;
     }
 
     /**
@@ -526,7 +556,7 @@ class Index extends Component
 
     public function render()
     {
-        $this->rememberOutlet();
+        $this->rememberFilters();
 
         $config = $this->tabConfig();
 
