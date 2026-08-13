@@ -51,7 +51,10 @@
                                 <li>Create a project and enable "Google Drive API"</li>
                                 <li>Create a Service Account and download the JSON key</li>
                                 <li>Upload the JSON file to the server</li>
-                                <li>Add to .env: <code class="bg-gray-100 px-1 rounded">GOOGLE_DRIVE_CREDENTIALS=/path/to/credentials.json</code></li>
+                                <li>Add to .env: {{-- break-all, because this is one unbroken token with no space in it
+                                         to wrap at: left alone it set the width of the whole
+                                         page on a phone. --}}
+                                    <code class="bg-gray-100 px-1 rounded break-all">GOOGLE_DRIVE_CREDENTIALS=/path/to/credentials.json</code></li>
                                 <li>Share your Drive folders with the service account email</li>
                             </ol>
                         </div>

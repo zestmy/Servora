@@ -62,7 +62,10 @@
                     @endforeach
                 </select>
             @endif
-            <div class="flex items-center gap-1">
+            {{-- Wraps and shrinks — a date input has an intrinsic minimum
+                 width, and this pair sets the width of the whole filter
+                 row it sits in. --}}
+            <div class="flex min-w-0 flex-wrap items-center gap-1">
                 <input type="date" wire:model.live="dateFrom" class="rounded-lg border-gray-300 text-sm" />
                 <span class="text-gray-600 text-xs">to</span>
                 <input type="date" wire:model.live="dateTo" class="rounded-lg border-gray-300 text-sm" />
