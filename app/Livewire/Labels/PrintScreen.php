@@ -11,6 +11,7 @@ use App\Models\Recipe;
 use App\Models\ShelfLifeRule;
 use App\Services\LabelPrintService;
 use App\Services\LabelTemplateService;
+use App\Traits\ScopesToActiveOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -27,6 +28,8 @@ use Livewire\Component;
  */
 class PrintScreen extends Component
 {
+    use ScopesToActiveOutlet;
+
     public ?int $printerId = null;
 
     public ?int $employeeId = null;
@@ -44,12 +47,16 @@ class PrintScreen extends Component
 
         app(LabelTemplateService::class)->ensureDefaults($companyId);
 
-        $outletId = Auth::user()->activeOutletId();
-
-        $this->printerId = LabelPrinter::active()
-            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->value('id')
-            ?? LabelPrinter::active()->value('id');
+        /*
+         * A printer AT THIS WORKSPACE, with no company-wide fallback.
+         *
+         * This defaulted to the active outlet's printer and then fell back to
+         * any printer in the company, so a Central Kitchen with none of its
+         * own silently pre-selected a printer in a restaurant — and the list
+         * beside it offered every other outlet's too. Labels print on paper in
+         * a room; the wrong room is not a lesser version of the right one.
+         */
+        $this->printerId = $this->printersHere()->value('id');
     }
 
     public function addItem(string $type, int $id): void
@@ -120,7 +127,10 @@ class PrintScreen extends Component
             return;
         }
 
-        $printer = LabelPrinter::find($this->printerId);
+        // Re-resolved through the SAME scope the dropdown was built from,
+        // because a Livewire property is client-supplied whatever the <select>
+        // offered — and printing is a physical act in a specific room.
+        $printer = $this->printersHere()->find($this->printerId);
 
         if (! $printer) {
             $this->addError('tray', 'Choose a printer first. Add one under Label Printers if the list is empty.');
@@ -129,8 +139,12 @@ class PrintScreen extends Component
         }
 
         // Every label has to name who prepped it — that is the whole point
-        // of the audit trail.
-        if (! $this->employeeId) {
+        // of the audit trail. And it has to name SOMEBODY WHO WORKS THERE:
+        // the id was checked for presence only, so a value that was never in
+        // the dropdown would have signed the label in another outlet's name.
+        $preparedBy = $this->employees($printer)->firstWhere('id', (int) $this->employeeId);
+
+        if (! $preparedBy) {
             $this->addError('tray', 'Select who is preparing these under "Prepared by".');
 
             return;
@@ -178,7 +192,7 @@ class PrintScreen extends Component
 
         return view('livewire.labels.print-screen', [
             'results'   => $this->searchResults(),
-            'printers'  => LabelPrinter::active()->with('outlet')->orderBy('name')->get(),
+            'printers'  => $this->printersHere()->with('outlet')->get(),
             'employees' => $this->employees($printer),
             'labelTypes' => LabelTemplate::LABEL_TYPES,
             'states'    => ShelfLifeRule::STORAGE_STATES,
@@ -209,12 +223,44 @@ class PrintScreen extends Component
             ->groups(Auth::user()->company_id, $this->search);
     }
 
+    /**
+     * Printers this workspace may print on.
+     *
+     * availableOutletIds() is the existing answer to "which outlets is this
+     * screen about": in Central Kitchen mode it collapses to the kitchen's own
+     * outlet, and otherwise it is the outlets the user can reach.
+     */
+    private function printersHere()
+    {
+        return LabelPrinter::active()
+            ->whereIn('outlet_id', $this->availableOutletIds() ?: [0])
+            ->orderBy('name');
+    }
+
+    /**
+     * Who can be named as having prepared the label.
+     *
+     * Staff of the outlet the chosen printer stands in — the label says who
+     * made the food, and the food was made where the printer is.
+     *
+     * The old query also admitted anyone with NO outlet, which put an
+     * unassigned employee on every outlet's list at once. The employee form
+     * has required an outlet throughout, so that arm only ever caught records
+     * created some other way; nobody on production is in that state.
+     *
+     * Bounded by this workspace's outlets as well, so a printerId that was
+     * never in the dropdown cannot widen the list.
+     */
     private function employees(?LabelPrinter $printer)
     {
+        $allowed = $this->availableOutletIds() ?: [0];
+
+        if (! $printer?->outlet_id || ! in_array((int) $printer->outlet_id, $allowed, true)) {
+            return Employee::whereRaw('1 = 0')->get(['id', 'name']);
+        }
+
         return Employee::where('is_active', true)
-            ->when($printer?->outlet_id, fn ($q, $outletId) => $q->where(function ($inner) use ($outletId) {
-                $inner->where('outlet_id', $outletId)->orWhereNull('outlet_id');
-            }))
+            ->where('outlet_id', $printer->outlet_id)
             ->orderBy('name')
             ->get(['id', 'name']);
     }
