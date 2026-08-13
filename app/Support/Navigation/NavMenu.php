@@ -346,7 +346,9 @@ final class NavMenu
                 'label' => 'Operations',
                 'icon'  => 'clipboard',
                 'items' => [
-                    ['route' => 'inventory.index',             'label' => 'Stock Takes',  'permission' => 'inventory.view'],
+                    // Same screen the outlet workspace reaches; the kitchen used
+                    // to name it after one tab of it.
+                    ['route' => 'inventory.index',             'label' => 'Stock Management',  'permission' => 'inventory.view'],
                     ['route' => 'inventory.transfers.create',  'label' => 'New Transfer', 'permission' => 'inventory.transfers.record'],
                 ],
             ],
