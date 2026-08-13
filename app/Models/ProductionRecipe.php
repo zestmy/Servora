@@ -18,7 +18,7 @@ class ProductionRecipe extends Model
         'packaging_uom', 'per_carton_qty', 'carton_weight',
         'shelf_life_days', 'shelf_life_value', 'shelf_life_unit', 'storage_instruction',
         'storage_temperature', 'min_batch_size',
-        'packaging_cost_per_unit', 'label_cost', 'raw_material_cost',
+        'packaging_cost_per_unit', 'label_cost', 'extra_costs', 'raw_material_cost',
         'total_cost_per_unit', 'selling_price_per_unit',
         'is_active', 'created_by',
     ];
@@ -29,6 +29,7 @@ class ProductionRecipe extends Model
         'min_batch_size'          => 'decimal:4',
         'packaging_cost_per_unit' => 'decimal:4',
         'label_cost'              => 'decimal:4',
+        'extra_costs'             => 'array',
         'raw_material_cost'       => 'decimal:4',
         'total_cost_per_unit'     => 'decimal:4',
         'selling_price_per_unit'  => 'decimal:4',
@@ -85,6 +86,23 @@ class ProductionRecipe extends Model
     }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function lines(): HasMany { return $this->hasMany(ProductionRecipeLine::class); }
+
+    /** Ingredients only — packaging shares the table behind a flag. */
+    public function ingredientLines(): HasMany
+    {
+        return $this->hasMany(ProductionRecipeLine::class)->where('is_packaging', false)->orderBy('sort_order');
+    }
+
+    public function packagingLines(): HasMany
+    {
+        return $this->hasMany(ProductionRecipeLine::class)->where('is_packaging', true)->orderBy('sort_order');
+    }
+
+    /** A selling price per class, the way outlet recipes have them. */
+    public function prices(): HasMany
+    {
+        return $this->hasMany(ProductionRecipePrice::class);
+    }
 
     public function steps(): HasMany
     {

@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ProductionRecipeLine extends Model
 {
     protected $fillable = [
-        'production_recipe_id', 'ingredient_id', 'quantity',
+        'production_recipe_id', 'ingredient_id', 'is_packaging', 'quantity',
         'uom_id', 'waste_percentage', 'sort_order',
     ];
 
     protected $casts = [
         'quantity'         => 'decimal:4',
+        'is_packaging'     => 'boolean',
         'waste_percentage' => 'decimal:2',
     ];
 

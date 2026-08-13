@@ -64,6 +64,24 @@ class ProductionRecipeForm extends Component
     public array  $lines            = [];
     public string $ingredientSearch = '';
 
+    /*
+     * PACKAGING IS A LIST OF INGREDIENTS, as it is on the outlet recipe form,
+     * not a number typed into the costing panel. A box has a purchase price
+     * that moves; a figure somebody typed in March does not.
+     */
+    public array  $packagingLines   = [];
+    public string $packagingSearch  = '';
+
+    /** [['label' => 'Gas', 'type' => 'value'|'percent', 'amount' => '1.5'], …] */
+    public array  $extraCosts = [];
+
+    /** [recipe_price_class_id => 'selling price'] — one price per class. */
+    public array  $classPrices = [];
+
+    /** Derived, shown in the read-only summary. */
+    public float $packaging_cost  = 0;
+    public float $extra_cost_total = 0;
+
     // Training / SOP steps: [{id, title, instruction, image_path, new_image, remove_image}]
     public array $steps = [];
 
@@ -96,6 +114,15 @@ class ProductionRecipeForm extends Component
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
             'lines.*.uom_id'          => 'required|exists:units_of_measure,id',
             'lines.*.waste_percentage' => 'nullable|numeric|min:0|max:100',
+            // Packaging costs through the same path as any other line.
+            'packagingLines.*.ingredient_id'    => 'required|exists:ingredients,id',
+            'packagingLines.*.quantity'         => 'required|numeric|min:0.0001',
+            'packagingLines.*.uom_id'           => 'required|exists:units_of_measure,id',
+            'packagingLines.*.waste_percentage' => 'nullable|numeric|min:0|max:100',
+            'extraCosts.*.label'       => 'required|string|max:100',
+            'extraCosts.*.type'        => 'required|in:value,percent',
+            'extraCosts.*.amount'      => 'required|numeric|min:0',
+            'classPrices.*'            => 'nullable|numeric|min:0',
             'steps.*.new_image'        => 'nullable|image|max:4096',
         ];
     }
@@ -116,9 +143,15 @@ class ProductionRecipeForm extends Component
 
     public function mount(?int $id = null): void
     {
+        // A row per price class, so the form shows every class the company
+        // defined rather than only the ones this recipe happens to price.
+        foreach (\App\Models\RecipePriceClass::ordered()->get() as $class) {
+            $this->classPrices[$class->id] = '0';
+        }
+
         if (! $id) return;
 
-        $recipe = ProductionRecipe::with(['lines.ingredient', 'lines.uom', 'steps'])->findOrFail($id);
+        $recipe = ProductionRecipe::with(['lines.ingredient', 'lines.uom', 'steps', 'prices'])->findOrFail($id);
 
         $this->recipeId               = $recipe->id;
         $this->name                   = $recipe->name;
@@ -142,7 +175,7 @@ class ProductionRecipeForm extends Component
         $this->label_cost             = (string) floatval($recipe->label_cost);
         $this->selling_price_per_unit = (string) floatval($recipe->selling_price_per_unit);
 
-        $this->lines = $recipe->lines->map(fn ($l) => [
+        $mapLine = fn ($l) => [
             'ingredient_id'           => $l->ingredient_id,
             'ingredient_name'         => $l->ingredient?->name ?? '-',
             'quantity'                => (string) floatval($l->quantity),
@@ -153,7 +186,20 @@ class ProductionRecipeForm extends Component
             'waste_percentage'        => (string) floatval($l->waste_percentage),
             'unit_cost'               => '0',
             'line_cost'               => null,
+        ];
+
+        $this->lines          = $recipe->lines->where('is_packaging', false)->values()->map($mapLine)->toArray();
+        $this->packagingLines = $recipe->lines->where('is_packaging', true)->values()->map($mapLine)->toArray();
+
+        $this->extraCosts = collect($recipe->extra_costs ?? [])->map(fn ($c) => [
+            'label'  => $c['label'] ?? '',
+            'type'   => $c['type'] ?? 'value',
+            'amount' => (string) floatval($c['amount'] ?? 0),
         ])->toArray();
+
+        foreach ($recipe->prices as $price) {
+            $this->classPrices[$price->recipe_price_class_id] = (string) floatval($price->selling_price);
+        }
 
         $this->steps = $recipe->steps->map(fn ($s) => [
             'id'           => $s->id,
@@ -201,6 +247,75 @@ class ProductionRecipeForm extends Component
         ];
 
         $this->ingredientSearch = '';
+        $this->recalculate();
+    }
+
+    /** Packaging behaves exactly like an ingredient — same table, own flag. */
+    public function addPackaging(int $ingredientId): void
+    {
+        $ingredient = Ingredient::with(['baseUom', 'recipeUom'])->find($ingredientId);
+        if (! $ingredient) return;
+
+        if (! $ingredient->is_active) {
+            $this->addError('packagingLines', "'{$ingredient->name}' is inactive. Activate it in the Ingredients list first.");
+            return;
+        }
+
+        foreach ($this->packagingLines as $line) {
+            if ((int) $line['ingredient_id'] === $ingredientId) {
+                $this->packagingSearch = '';
+                return;
+            }
+        }
+
+        $this->packagingLines[] = [
+            'ingredient_id'           => $ingredient->id,
+            'ingredient_name'         => $ingredient->name,
+            'quantity'                => '1',
+            'uom_id'                  => $ingredient->recipe_uom_id ?? $ingredient->base_uom_id,
+            'uom_name'                => $ingredient->recipeUom?->abbreviation ?? $ingredient->baseUom?->abbreviation ?? '-',
+            'recipe_uom_id'           => $ingredient->recipe_uom_id,
+            'secondary_recipe_uom_id' => $ingredient->secondary_recipe_uom_id,
+            'waste_percentage'        => '0',
+            'unit_cost'               => '0',
+            'line_cost'               => null,
+        ];
+
+        $this->packagingSearch = '';
+        $this->recalculate();
+    }
+
+    public function removePackagingLine(int $idx): void
+    {
+        unset($this->packagingLines[$idx]);
+        $this->packagingLines = array_values($this->packagingLines);
+        $this->recalculate();
+    }
+
+    public function updatedPackagingLines(): void
+    {
+        $this->recalculate();
+    }
+
+    public function addExtraCostRow(): void
+    {
+        $this->extraCosts[] = ['label' => '', 'type' => 'value', 'amount' => '0'];
+    }
+
+    public function removeExtraCostRow(int $idx): void
+    {
+        unset($this->extraCosts[$idx]);
+        $this->extraCosts = array_values($this->extraCosts);
+        $this->recalculate();
+    }
+
+    public function updatedExtraCosts(): void
+    {
+        $this->recalculate();
+    }
+
+    public function updatedClassPrices(): void
+    {
         $this->recalculate();
     }
 
@@ -252,65 +367,145 @@ class ProductionRecipeForm extends Component
 
     // ── Costing Calculation (UOM-aware, same basis as the prep item form) ──
 
-    private function recalculate(): void
+    /**
+     * Cost one list of lines, writing unit_cost and line_cost back into it.
+     *
+     * Shared by ingredients and packaging so the two cannot drift: packaging
+     * used to be a number typed into the summary, which is exactly how a box
+     * ends up costed at last year's price.
+     *
+     * @param  array<int, array>  $lines  by reference — costs are written back
+     */
+    private function costLines(array &$lines): float
     {
-        $rawCost = 0;
+        if (empty($lines)) {
+            return 0.0;
+        }
 
-        if (! empty($this->lines)) {
-            $ingredientIds = collect($this->lines)->pluck('ingredient_id')->filter()->unique()->values();
-            $uomIds        = collect($this->lines)->pluck('uom_id')->filter()->unique()->values();
+        $ingredientIds = collect($lines)->pluck('ingredient_id')->filter()->unique()->values();
+        $uomIds        = collect($lines)->pluck('uom_id')->filter()->unique()->values();
 
-            $ingredientsMap = $ingredientIds->isNotEmpty()
-                ? Ingredient::with(['baseUom', 'uomConversions'])->whereIn('id', $ingredientIds)->get()->keyBy('id')
-                : collect();
-            $uomsMap = $uomIds->isNotEmpty()
-                ? UnitOfMeasure::whereIn('id', $uomIds)->get()->keyBy('id')
-                : collect();
+        $ingredientsMap = $ingredientIds->isNotEmpty()
+            ? Ingredient::with(['baseUom', 'uomConversions'])->whereIn('id', $ingredientIds)->get()->keyBy('id')
+            : collect();
+        $uomsMap = $uomIds->isNotEmpty()
+            ? UnitOfMeasure::whereIn('id', $uomIds)->get()->keyBy('id')
+            : collect();
 
-            $uomService = app(UomService::class);
+        $uomService = app(UomService::class);
+        $total      = 0.0;
 
-            foreach ($this->lines as $idx => $line) {
-                $ingredient = $ingredientsMap->get($line['ingredient_id'] ?? 0);
-                $uom        = $uomsMap->get($line['uom_id'] ?? 0);
-                $qty        = floatval($line['quantity'] ?? 0);
+        foreach ($lines as $idx => $line) {
+            $ingredient = $ingredientsMap->get($line['ingredient_id'] ?? 0);
+            $uom        = $uomsMap->get($line['uom_id'] ?? 0);
+            $qty        = floatval($line['quantity'] ?? 0);
 
-                if ($ingredient && $uom && $qty > 0) {
-                    if ($ingredient->is_prep) {
-                        $costPerUom = $uomService->convertCost($ingredient, $uom);
-                    } else {
-                        // Pre-yield basis: purchase_price / pack_size, converted
-                        // to the line's unit.
-                        $originalCost = $ingredient->current_cost;
-                        $packSize = max((float) $ingredient->pack_size, 0.0001);
-                        $ingredient->current_cost = (float) $ingredient->purchase_price / $packSize;
-                        $costPerUom = $uomService->convertCost($ingredient, $uom);
-                        $ingredient->current_cost = $originalCost;
-                    }
-
-                    $wasteFactor = 1 + (floatval($line['waste_percentage'] ?? 0) / 100);
-                    $lineCost    = $costPerUom * $wasteFactor * $qty;
-
-                    $this->lines[$idx]['unit_cost'] = (string) round($costPerUom, 4);
-                    $this->lines[$idx]['line_cost'] = round($lineCost, 4);
-                    $rawCost += $lineCost;
+            if ($ingredient && $uom && $qty > 0) {
+                if ($ingredient->is_prep) {
+                    $costPerUom = $uomService->convertCost($ingredient, $uom);
                 } else {
-                    $this->lines[$idx]['line_cost'] = null;
+                    // Pre-yield basis: purchase_price / pack_size, converted
+                    // to the line's unit.
+                    $originalCost = $ingredient->current_cost;
+                    $packSize = max((float) $ingredient->pack_size, 0.0001);
+                    $ingredient->current_cost = (float) $ingredient->purchase_price / $packSize;
+                    $costPerUom = $uomService->convertCost($ingredient, $uom);
+                    $ingredient->current_cost = $originalCost;
                 }
+
+                $wasteFactor = 1 + (floatval($line['waste_percentage'] ?? 0) / 100);
+                $lineCost    = $costPerUom * $wasteFactor * $qty;
+
+                $lines[$idx]['unit_cost'] = (string) round($costPerUom, 4);
+                $lines[$idx]['line_cost'] = round($lineCost, 4);
+                $total += $lineCost;
+            } else {
+                $lines[$idx]['line_cost'] = null;
             }
         }
 
-        $yield        = max(floatval($this->yield_quantity), 0.0001);
-        $packaging    = floatval($this->packaging_cost_per_unit);
-        $label        = floatval($this->label_cost);
-        $costPerUnit  = ($rawCost + $packaging + $label) / $yield;
-        $selling      = floatval($this->selling_price_per_unit);
-        $margin       = $selling - $costPerUnit;
-        $marginPct    = $selling > 0 ? ($margin / $selling) * 100 : 0;
+        return $total;
+    }
+
+    /**
+     * Everything the read-only summary shows.
+     *
+     * Cost/unit = (raw + packaging + extras + label) / yield. Margin is quoted
+     * against the DEFAULT price class, because a single margin figure has to
+     * be against one price and the default is the one the kitchen sells at
+     * unless told otherwise.
+     */
+    private function recalculate(): void
+    {
+        $rawCost   = $this->costLines($this->lines);
+        $packaging = $this->costLines($this->packagingLines);
+
+        // A percentage extra is a percentage OF THE RAW MATERIAL COST, the
+        // same base the outlet recipe form uses — not of the running total,
+        // which would make two extras depend on the order they were added.
+        $extras = collect($this->extraCosts)->sum(function ($c) use ($rawCost) {
+            $amount = floatval($c['amount'] ?? 0);
+
+            return ($c['type'] ?? 'value') === 'percent' ? $rawCost * ($amount / 100) : $amount;
+        });
+
+        $yield       = max(floatval($this->yield_quantity), 0.0001);
+        $label       = floatval($this->label_cost);
+        $costPerUnit = ($rawCost + $packaging + $extras + $label) / $yield;
+
+        $selling   = floatval($this->defaultClassPrice());
+        $margin    = $selling - $costPerUnit;
+        $marginPct = $selling > 0 ? ($margin / $selling) * 100 : 0;
 
         $this->raw_material_cost   = round($rawCost, 4);
+        $this->packaging_cost      = round($packaging, 4);
+        $this->extra_cost_total    = round((float) $extras, 4);
         $this->total_cost_per_unit = round($costPerUnit, 4);
         $this->margin              = round($margin, 4);
         $this->margin_percent      = round($marginPct, 2);
+    }
+
+    /**
+     * The price the summary quotes its margin against: the default class, or
+     * the first one priced when no class is marked default.
+     */
+    /** Extra costs worth storing: a row with no label is a row half typed. */
+    private function cleanExtraCosts(): array
+    {
+        return collect($this->extraCosts)
+            ->filter(fn ($c) => trim($c['label'] ?? '') !== '')
+            ->map(fn ($c) => [
+                'label'  => trim($c['label']),
+                'type'   => in_array($c['type'] ?? 'value', ['value', 'percent'], true) ? $c['type'] : 'value',
+                'amount' => round(floatval($c['amount'] ?? 0), 4),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** The summary quotes its margin against this. Public for the view. */
+    public function defaultSellingPrice(): string
+    {
+        return $this->defaultClassPrice();
+    }
+
+    private function defaultClassPrice(): string
+    {
+        $classes = \App\Models\RecipePriceClass::ordered()->get();
+
+        $default = $classes->firstWhere('is_default', true) ?? $classes->first();
+
+        if ($default && ($this->classPrices[$default->id] ?? '') !== '') {
+            return (string) $this->classPrices[$default->id];
+        }
+
+        foreach ($this->classPrices as $price) {
+            if (floatval($price) > 0) {
+                return (string) $price;
+            }
+        }
+
+        return '0';
     }
 
     // ── Product / presentation photos ───────────────────────────────────
@@ -558,11 +753,18 @@ class ProductionRecipeForm extends Component
                 'storage_instruction'    => $this->storage_instruction ?: null,
                 'storage_temperature'    => $this->storage_temperature ?: null,
                 'min_batch_size'         => $this->min_batch_size !== '' ? floatval($this->min_batch_size) : null,
-                'packaging_cost_per_unit' => floatval($this->packaging_cost_per_unit),
+                /*
+                 * The two legacy columns are still written, from the values
+                 * the new sections DERIVE, so everything downstream that reads
+                 * them — production orders price their lines off
+                 * total_cost_per_unit — keeps working unchanged.
+                 */
+                'packaging_cost_per_unit' => $this->packaging_cost,
                 'label_cost'             => floatval($this->label_cost),
+                'extra_costs'            => $this->cleanExtraCosts(),
                 'raw_material_cost'      => $this->raw_material_cost,
                 'total_cost_per_unit'    => $this->total_cost_per_unit,
-                'selling_price_per_unit' => floatval($this->selling_price_per_unit),
+                'selling_price_per_unit' => floatval($this->defaultClassPrice()),
             ];
 
             if ($this->recipeId) {
@@ -579,15 +781,32 @@ class ProductionRecipeForm extends Component
             // completed production batch would have nowhere to put its output.
             $recipe->syncStockItem();
 
-            // Sync lines
+            // Sync lines. Ingredients and packaging share the table and are
+            // told apart by is_packaging, as they are on outlet recipes.
             $recipe->lines()->delete();
-            foreach ($this->lines as $idx => $line) {
-                $recipe->lines()->create([
-                    'ingredient_id'    => $line['ingredient_id'],
-                    'quantity'         => floatval($line['quantity']),
-                    'uom_id'           => $line['uom_id'],
-                    'waste_percentage' => floatval($line['waste_percentage'] ?? 0),
-                    'sort_order'       => $idx + 1,
+            foreach ([false => $this->lines, true => $this->packagingLines] as $isPackaging => $lines) {
+                foreach ($lines as $idx => $line) {
+                    $recipe->lines()->create([
+                        'ingredient_id'    => $line['ingredient_id'],
+                        'is_packaging'     => (bool) $isPackaging,
+                        'quantity'         => floatval($line['quantity']),
+                        'uom_id'           => $line['uom_id'],
+                        'waste_percentage' => floatval($line['waste_percentage'] ?? 0),
+                        'sort_order'       => $idx + 1,
+                    ]);
+                }
+            }
+
+            // One row per class that has a price. A class left at zero is not
+            // stored, so adding a class later does not backfill every recipe
+            // with a zero somebody has to notice and clear.
+            $recipe->prices()->delete();
+            foreach ($this->classPrices as $classId => $price) {
+                if (floatval($price) <= 0) continue;
+
+                $recipe->prices()->create([
+                    'recipe_price_class_id' => (int) $classId,
+                    'selling_price'         => floatval($price),
                 ]);
             }
 
@@ -686,11 +905,33 @@ class ProductionRecipeForm extends Component
                 ->get();
         }
 
+        $packagingSearchResults = collect();
+        if (strlen($this->packagingSearch) >= 2) {
+            $chosen = collect($this->packagingLines)->pluck('ingredient_id')->filter()->all();
+
+            $packagingSearchResults = Ingredient::with('baseUom')
+                ->where('is_active', true)
+                ->where(fn ($q) => $q
+                    ->where('name', 'like', '%' . $this->packagingSearch . '%')
+                    ->orWhere('code', 'like', '%' . $this->packagingSearch . '%')
+                )
+                ->when($chosen, fn ($q) => $q->whereNotIn('id', $chosen))
+                ->orderBy('name')
+                ->limit(8)
+                ->get();
+        }
+
+        // The outlet recipes' classes, not a second set.
+        $priceClasses = \App\Models\RecipePriceClass::ordered()->get();
+
         $pageTitle = $this->recipeId
             ? 'Edit: ' . $this->name
             : 'New Production Recipe';
 
-        return view('livewire.kitchen.production-recipe-form', compact('kitchens', 'uoms', 'searchResults', 'recipeCategories'))
+        return view('livewire.kitchen.production-recipe-form', compact(
+            'kitchens', 'uoms', 'searchResults', 'recipeCategories',
+            'packagingSearchResults', 'priceClasses'
+        ))
             ->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

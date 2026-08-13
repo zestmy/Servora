@@ -110,13 +110,6 @@
                     <textarea wire:model="description" rows="2" class="w-full rounded-lg border-gray-300 text-sm"
                               placeholder="Preparation notes, method summary..."></textarea>
                 </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Training Video Link</label>
-                    <input type="url" wire:model="video_url" class="w-full rounded-lg border-gray-300 text-sm"
-                           placeholder="https://youtube.com/…" />
-                    @error('video_url') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
-                </div>
             </div>
 
             {{-- Yield --}}
@@ -390,11 +383,183 @@
                 </div>
             </div>
 
+            {{-- Packaging: costed as INGREDIENTS, like the outlet recipe
+                 form. It used to be one number typed into the costing panel,
+                 which cannot answer "what is the box costing us this month". --}}
+            <div class="card">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-700">Packaging</h3>
+                    <p class="text-xs text-gray-600 mt-0.5">Boxes, lids, sleeves &mdash; anything that ships with the batch.</p>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="relative">
+                        <input type="text" wire:model.live.debounce.300ms="packagingSearch"
+                               class="w-full rounded-lg border-gray-300 text-sm"
+                               placeholder="Search packaging items (min 2 characters)..." />
+                        @error('packagingLines') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+
+                        @if ($packagingSearchResults->isNotEmpty())
+                            <div class="mt-1 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
+                                @foreach ($packagingSearchResults as $ingredient)
+                                    <button type="button" wire:click="addPackaging({{ $ingredient->id }})"
+                                            class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
+                                        <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
+                                        <span class="text-xs text-gray-500">{{ $ingredient->baseUom?->abbreviation }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    @if (empty($packagingLines))
+                        <p class="text-xs text-gray-500">No packaging added.</p>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left">Item</th>
+                                        <th class="px-4 py-2 text-right w-28">Qty</th>
+                                        <th class="px-4 py-2 text-left w-32">UOM</th>
+                                        <th class="px-4 py-2 text-right w-24">Waste %</th>
+                                        <th class="px-4 py-2 text-right w-28">Unit Cost</th>
+                                        <th class="px-4 py-2 text-right w-28">Line Cost</th>
+                                        <th class="px-4 py-2 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach ($packagingLines as $idx => $line)
+                                        <tr wire:key="pack-{{ $idx }}-{{ $line['ingredient_id'] }}">
+                                            <td class="px-4 py-2 text-gray-800">{{ $line['ingredient_name'] }}</td>
+                                            <td class="px-4 py-2">
+                                                <input type="number" step="0.0001" min="0.0001"
+                                                       wire:model.live.debounce.500ms="packagingLines.{{ $idx }}.quantity"
+                                                       class="w-full rounded border-gray-300 text-sm text-right" />
+                                            </td>
+                                            <td class="px-4 py-2">
+                                                <select wire:model.live="packagingLines.{{ $idx }}.uom_id"
+                                                        class="w-full rounded border-gray-300 text-sm">
+                                                    @foreach ($uoms as $uom)
+                                                        <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-2">
+                                                <input type="number" step="0.01" min="0" max="100"
+                                                       wire:model.live.debounce.500ms="packagingLines.{{ $idx }}.waste_percentage"
+                                                       class="w-full rounded border-gray-300 text-sm text-right" />
+                                            </td>
+                                            <td class="px-4 py-2 text-right tabular-nums text-gray-600">{{ number_format(floatval($line['unit_cost'] ?? 0), 4) }}</td>
+                                            <td class="px-4 py-2 text-right tabular-nums text-gray-800">
+                                                {{ ($line['line_cost'] ?? null) !== null ? number_format($line['line_cost'], 4) : '-' }}
+                                            </td>
+                                            <td class="px-4 py-2 text-center">
+                                                <button type="button" wire:click="removePackagingLine({{ $idx }})"
+                                                        class="text-danger-400 hover:text-danger-600 transition" title="Remove">&times;</button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="bg-gray-50">
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-2 text-right text-sm font-semibold text-gray-600">Packaging Cost</td>
+                                        <td class="px-4 py-2 text-right text-sm font-semibold text-gray-900 tabular-nums">{{ number_format($packaging_cost, 4) }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    @endif
+
+                    {{-- Its own field rather than folded into the extras: it
+                         has a column, and existing recipes carry a value. --}}
+                    <div class="sm:w-64">
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Label Cost (per batch)</label>
+                        <input type="number" step="0.01" min="0" wire:model.live.debounce.500ms="label_cost"
+                               class="w-full rounded-lg border-gray-300 text-sm text-right" />
+                    </div>
+                </div>
+            </div>
+
+            {{-- Extra Costs --}}
+            <div class="card">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700">Extra Costs</h4>
+                        <p class="text-xs text-gray-600 mt-0.5">Gas, labour, wastage allowance &mdash; a value or a % of raw material cost.</p>
+                    </div>
+                    <button type="button" wire:click="addExtraCostRow" class="btn-secondary text-xs">+ Add</button>
+                </div>
+
+                <div class="p-6 space-y-3">
+                    @forelse ($extraCosts as $idx => $cost)
+                        <div class="flex flex-wrap items-start gap-2" wire:key="extra-{{ $idx }}">
+                            <div class="flex-1 min-w-[10rem]">
+                                <input type="text" wire:model.live.debounce.500ms="extraCosts.{{ $idx }}.label"
+                                       class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Gas" />
+                                @error('extraCosts.' . $idx . '.label') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+                            </div>
+                            <select wire:model.live="extraCosts.{{ $idx }}.type" class="rounded-lg border-gray-300 text-sm">
+                                <option value="value">Value</option>
+                                <option value="percent">% of raw</option>
+                            </select>
+                            <input type="number" step="0.01" min="0" wire:model.live.debounce.500ms="extraCosts.{{ $idx }}.amount"
+                                   class="w-28 rounded-lg border-gray-300 text-sm text-right" />
+                            <button type="button" wire:click="removeExtraCostRow({{ $idx }})"
+                                    class="px-2 py-1.5 text-danger-400 hover:text-danger-600 transition" title="Remove">&times;</button>
+                        </div>
+                    @empty
+                        <p class="text-xs text-gray-500">No extra costs.</p>
+                    @endforelse
+
+                    @if (! empty($extraCosts))
+                        <div class="flex items-center justify-end border-t border-gray-100 pt-3 text-sm">
+                            <span class="text-gray-500 mr-4">Extra Costs Subtotal:</span>
+                            <span class="font-semibold text-gray-900 tabular-nums">{{ number_format($extra_cost_total, 4) }}</span>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Selling Price: one per class, using the outlet recipes' own
+                 classes so a company defines "Dine In" and "Delivery" once. --}}
+            @if (auth()->user()->can('reports.view') || auth()->user()->isSystemRole())
+            <div class="card">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-700">Selling Price</h3>
+                    <p class="text-xs text-gray-600 mt-0.5">Per price class. The margin opposite is quoted against the default class.</p>
+                </div>
+
+                <div class="p-6">
+                    @if ($priceClasses->isEmpty())
+                        <p class="text-xs text-gray-500">No price classes defined yet. Add them in Settings to price this recipe.</p>
+                    @else
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @foreach ($priceClasses as $class)
+                                <div wire:key="price-class-{{ $class->id }}">
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">
+                                        {{ $class->name }}
+                                        @if ($class->is_default)
+                                            <span class="ml-1 text-[10px] uppercase tracking-wider text-brand-600">default</span>
+                                        @endif
+                                    </label>
+                                    <input type="number" step="0.01" min="0"
+                                           wire:model.live.debounce.500ms="classPrices.{{ $class->id }}"
+                                           class="w-full rounded-lg border-gray-300 text-sm text-right" />
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
+
             {{-- Training / SOP — Preparation Steps (with AI assistance) --}}
             <div class="card">
                 <div class="flex flex-wrap items-center justify-between gap-2 px-6 py-4 border-b border-gray-100">
                     <div>
-                        <h3 class="text-sm font-semibold text-gray-700">Training / SOP — Preparation Steps</h3>
+                        <h3 class="text-sm font-semibold text-gray-700">Training / SOP</h3>
                         <p class="text-xs text-gray-600 mt-0.5">Step-by-step method shown to kitchen staff. Add photos per step.</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -416,6 +581,17 @@
                         </button>
                     </div>
                 </div>
+
+                {{-- The training video belongs WITH the training, not up in
+                     Basic Details where it was — somebody looking for "how is
+                     this made" looks here. --}}
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Training Video Link</label>
+                    <input type="url" wire:model="video_url" class="w-full rounded-lg border-gray-300 text-sm"
+                           placeholder="https://youtube.com/…" />
+                    @error('video_url') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+                </div>
+
 
                 @if (session()->has('ai_steps_success'))
                     <div class="mx-6 mt-4 px-3 py-2 bg-purple-50 border border-purple-200 text-purple-700 text-xs rounded-lg">{{ session('ai_steps_success') }}</div>
@@ -484,46 +660,51 @@
                      ingredients/method don't need margin math in their face. --}}
                 @if (auth()->user()->can('reports.view') || auth()->user()->isSystemRole())
                 <div class="card p-6 space-y-4">
-                    <h3 class="text-sm font-semibold text-gray-700">Costing Summary</h3>
+                    <h3 class="text-sm font-semibold text-gray-700">Cost Summary</h3>
 
-                    {{-- Raw Material Cost (auto) --}}
-                    <div class="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span class="text-xs text-gray-500">Raw Material Cost</span>
-                        <span class="text-sm font-medium text-gray-800 tabular-nums">{{ number_format($raw_material_cost, 4) }}</span>
-                    </div>
+                    {{-- READ ONLY, like the outlet recipe form's. Every figure
+                         here is derived from a section on the left: packaging
+                         from its own lines, extras from theirs, the price from
+                         the Selling Price section. It used to hold three live
+                         inputs, which made the summary a place you EDITED the
+                         recipe from — so the same number could be set in two
+                         places and the panel stopped being a summary. --}}
 
-                    {{-- Packaging Cost --}}
-                    <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Packaging Cost per Unit</label>
-                        <input type="number" step="0.01" min="0"
-                               wire:model.live.debounce.500ms="packaging_cost_per_unit"
-                               class="w-full rounded-lg border-gray-300 text-sm text-right" />
-                    </div>
-
-                    {{-- Label Cost --}}
-                    <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Label Cost</label>
-                        <input type="number" step="0.01" min="0"
-                               wire:model.live.debounce.500ms="label_cost"
-                               class="w-full rounded-lg border-gray-300 text-sm text-right" />
-                    </div>
+                    <dl class="space-y-2 text-sm">
+                        <div class="flex items-center justify-between">
+                            <dt class="text-gray-500">Raw Material Cost</dt>
+                            <dd class="text-gray-800 tabular-nums">{{ number_format($raw_material_cost, 4) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-gray-500">Packaging Cost</dt>
+                            <dd class="text-gray-800 tabular-nums">{{ number_format($packaging_cost, 4) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-gray-500">Label Cost</dt>
+                            <dd class="text-gray-800 tabular-nums">{{ number_format(floatval($label_cost), 4) }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-gray-500">Extra Costs</dt>
+                            <dd class="text-gray-800 tabular-nums">{{ number_format($extra_cost_total, 4) }}</dd>
+                        </div>
+                    </dl>
 
                     <div class="border-t border-gray-200 pt-3 space-y-3">
-                        {{-- Total Cost per Unit --}}
                         <div class="flex items-center justify-between">
                             <span class="text-xs text-gray-500">Total Cost / Unit</span>
                             <span class="text-sm font-bold text-gray-900 tabular-nums">{{ number_format($total_cost_per_unit, 4) }}</span>
                         </div>
 
-                        {{-- Selling Price --}}
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Selling Price / Unit</label>
-                            <input type="number" step="0.01" min="0"
-                                   wire:model.live.debounce.500ms="selling_price_per_unit"
-                                   class="w-full rounded-lg border-gray-300 text-sm text-right" />
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-500">
+                                Selling Price
+                                @if ($priceClasses->firstWhere('is_default', true))
+                                    <span class="text-[10px] text-gray-500">({{ $priceClasses->firstWhere('is_default', true)->name }})</span>
+                                @endif
+                            </span>
+                            <span class="text-sm font-medium text-gray-800 tabular-nums">{{ number_format(floatval($this->defaultSellingPrice()), 4) }}</span>
                         </div>
 
-                        {{-- Margin --}}
                         <div class="flex items-center justify-between">
                             <span class="text-xs text-gray-500">Margin</span>
                             <span class="text-sm font-bold tabular-nums {{ $margin >= 0 ? 'text-success-600' : 'text-danger-600' }}">
@@ -531,7 +712,6 @@
                             </span>
                         </div>
 
-                        {{-- Margin % --}}
                         <div class="flex items-center justify-between">
                             <span class="text-xs text-gray-500">Margin %</span>
                             <span class="text-sm font-bold tabular-nums {{ $margin_percent >= 0 ? 'text-success-600' : 'text-danger-600' }}">
@@ -540,9 +720,8 @@
                         </div>
                     </div>
 
-                    {{-- Formula hint --}}
                     <div class="text-[10px] text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
-                        <p>Cost/Unit = (Raw + Packaging + Label) / Yield Qty</p>
+                        <p>Cost/Unit = (Raw + Packaging + Label + Extras) / Yield Qty</p>
                         <p>Margin = Selling - Cost/Unit</p>
                         <p>Margin % = Margin / Selling x 100</p>
                     </div>
