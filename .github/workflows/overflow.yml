@@ -102,7 +102,14 @@ jobs:
           APP_URL: http://127.0.0.1:8000
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: |
-          nohup php artisan serve --port=8000 > /tmp/serve.log 2>&1 &
+          # KEPT ALIVE BY A SUPERVISOR LOOP, not started once. `artisan serve`
+          # is PHP's single-threaded dev server, and it died partway through
+          # the first run here — 43 screens into a 129-page sweep — taking the
+          # rest of the run with it as ERR_CONNECTION_REFUSED. Whatever kills
+          # it (a fatal in one request, the OOM killer) is not worth chasing:
+          # a dev server that restarts in under a second is enough, and the
+          # check retries a refused navigation once to ride over the gap.
+          nohup bash -c 'while true; do php artisan serve --port=8000; echo "--- server exited, restarting ---"; sleep 1; done' > /tmp/serve.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:8000/login > /dev/null && break
             if [ "$i" = "30" ]; then
@@ -112,4 +119,4 @@ jobs:
             fi
             sleep 1
           done
-          npm run test:overflow
+          npm run test:overflow || { echo "::group::server log"; cat /tmp/serve.log; echo "::endgroup::"; exit 1; }
