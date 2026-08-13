@@ -27,12 +27,14 @@
     @endif
 
     {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
-        <div>
+    {{-- Wraps. Two print links plus a New Claim button do not fit beside the
+         title on a phone, and neither row could break. --}}
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div class="min-w-0">
             <h1 class="text-lg font-bold text-gray-800">Overtime Claims</h1>
             <p class="text-xs text-gray-600 mt-0.5">Submit and manage staff overtime claims</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
             {{-- TWO STATEMENTS, on purpose.
 
                  "Print Approved" is the signed-and-filed document and always
