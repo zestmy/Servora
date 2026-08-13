@@ -109,7 +109,14 @@ jobs:
           # it (a fatal in one request, the OOM killer) is not worth chasing:
           # a dev server that restarts in under a second is enough, and the
           # check retries a refused navigation once to ride over the gap.
-          nohup bash -c 'while true; do php artisan serve --port=8000; echo "--- server exited, restarting ---"; sleep 1; done' > /tmp/serve.log 2>&1 &
+          # PHP_CLI_SERVER_WORKERS is the fix for the cause rather than the
+          # symptom. PHP's built-in server is single-process by default, and a
+          # browser opening a page fires the document plus its CSS, JS, logos
+          # and favicon at once — so requests queue behind each other and the
+          # server was dying mid-login under the load, resetting connections.
+          # Workers make it handle them concurrently. The supervisor loop stays
+          # as the backstop for a death it still cannot survive.
+          nohup env PHP_CLI_SERVER_WORKERS=4 bash -c 'while true; do php artisan serve --port=8000; echo "--- server exited, restarting ---"; sleep 1; done' > /tmp/serve.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:8000/login > /dev/null && break
             if [ "$i" = "30" ]; then
