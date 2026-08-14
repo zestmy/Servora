@@ -143,6 +143,46 @@ class TrainingQuizParserTest extends TestCase
         $this->assertSame('mcq', $result['questions'][0]['type']);
     }
 
+    /**
+     * A reply that ran out of tokens keeps the questions that finished.
+     *
+     * This is not hypothetical: eight Malay questions with explanations
+     * overran the output ceiling in production and the whole generation
+     * failed, throwing away seven complete questions because the eighth was
+     * cut in half — all of them already written and already paid for.
+     */
+    public function test_it_salvages_the_complete_questions_from_a_truncated_reply(): void
+    {
+        $whole = json_encode([
+            'questions' => [
+                ['type' => 'mcq', 'prompt' => 'First', 'options' => ['a', 'b'], 'correct' => [0]],
+                ['type' => 'mcq', 'prompt' => 'Second', 'options' => ['a', 'b'], 'correct' => [1]],
+            ],
+        ]);
+
+        // Chop mid-way through a third object, the way a token limit does.
+        $truncated = substr($whole, 0, strlen($whole) - 2)
+            . ',{"type":"mcq","prompt":"Third","options":["a","b"';
+
+        $result = $this->parser()->parseQuestions($truncated);
+
+        $this->assertCount(2, $result['questions']);
+        $this->assertSame('First', $result['questions'][0]['prompt']);
+        $this->assertSame('Second', $result['questions'][1]['prompt']);
+    }
+
+    /** A brace inside a prompt must not be counted as structure. */
+    public function test_salvage_is_not_confused_by_braces_inside_the_text(): void
+    {
+        $raw = '{"questions":[{"type":"mcq","prompt":"Use {2} spoons \"exactly\"",'
+            . '"options":["a","b"],"correct":[0]},{"type":"mcq","prompt":"Cut he';
+
+        $result = $this->parser()->parseQuestions($raw);
+
+        $this->assertCount(1, $result['questions']);
+        $this->assertSame('Use {2} spoons "exactly"', $result['questions'][0]['prompt']);
+    }
+
     public function test_an_unparseable_reply_yields_nothing_rather_than_throwing(): void
     {
         $result = $this->parser()->parseQuestions("I'm sorry, I can't help with that.");

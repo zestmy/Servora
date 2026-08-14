@@ -139,7 +139,19 @@ class QuizGeneratorService
             ])
             ->post('https://openrouter.ai/api/v1/chat/completions', [
                 'model'      => self::MODEL,
-                'max_tokens' => 4096,
+                /*
+                 * 8192, raised from 4096 after Malay hit the ceiling.
+                 *
+                 * Eight questions with options and explanations is comfortably
+                 * inside 4096 tokens in English and NOT inside it in Bahasa
+                 * Malaysia — the same content runs longer, and the tokeniser is
+                 * less efficient on it again. The reply came back as valid JSON
+                 * that simply stopped mid-array, which decodes to nothing, so
+                 * the whole generation failed with every question already
+                 * written and paid for. The parser salvages truncated replies
+                 * now as well; this makes it rare rather than routine.
+                 */
+                'max_tokens' => 8192,
                 // Low but not zero. Zero makes every regeneration return the
                 // same eight questions, which defeats the "ask again, I want a
                 // different balance" flow the button exists for.
@@ -376,9 +388,93 @@ class QuizGeneratorService
             }
         }
 
+        // Nothing parsed whole — the usual reason is a reply that ran out of
+        // tokens mid-array. Keep the questions that finished.
+        $salvaged = $this->salvageTruncated($raw);
+
+        if ($salvaged !== null) {
+            Log::warning('[training] AI quiz reply was truncated; kept the complete questions', [
+                'kept' => count($salvaged['questions'] ?? []),
+            ]);
+
+            return $salvaged;
+        }
+
         Log::warning('[training] could not decode AI quiz reply', ['head' => mb_substr($raw, 0, 400)]);
 
         return [];
+    }
+
+    /**
+     * Rescue the whole questions from a reply that stopped mid-sentence.
+     *
+     * A generation that runs out of output tokens returns perfectly good JSON
+     * that simply ends partway through an object. json_decode answers that with
+     * null, so seven finished questions are thrown away because the eighth was
+     * cut in half — every one of them already written, already paid for, and
+     * the author is told the AI "did not return any usable questions", which is
+     * both wrong and unactionable.
+     *
+     * Walks the array tracking brace depth, staying aware of strings and their
+     * escapes so a `{` inside a prompt does not shift the count, and rebuilds
+     * the document from the last element that actually closed.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function salvageTruncated(string $raw): ?array
+    {
+        $open = strpos($raw, '[');
+
+        if ($open === false) {
+            return null;
+        }
+
+        $depth    = 0;
+        $inString = false;
+        $escaped  = false;
+        $lastGood = null;
+
+        for ($i = $open + 1, $len = strlen($raw); $i < $len; $i++) {
+            $char = $raw[$i];
+
+            if ($escaped) {
+                $escaped = false;
+                continue;
+            }
+
+            if ($char === '\\') {
+                $escaped = true;
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = ! $inString;
+                continue;
+            }
+
+            if ($inString) {
+                continue;
+            }
+
+            if ($char === '{') {
+                $depth++;
+            } elseif ($char === '}') {
+                $depth--;
+
+                // Back at the array's own level: this element is complete.
+                if ($depth === 0) {
+                    $lastGood = $i;
+                }
+            }
+        }
+
+        if ($lastGood === null) {
+            return null;
+        }
+
+        $decoded = json_decode('{"questions":' . substr($raw, $open, $lastGood - $open + 1) . ']}', true);
+
+        return is_array($decoded) && ($decoded['questions'] ?? []) !== [] ? $decoded : null;
     }
 
     /**
