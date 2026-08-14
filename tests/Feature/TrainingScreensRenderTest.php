@@ -200,6 +200,34 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('Start a session');
     }
 
+    /** Scheduling from the same form, and the board it produces. */
+    public function test_a_challenge_can_be_scheduled_and_watched(): void
+    {
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\Sessions::class)
+            ->set('kind', 'challenge')
+            ->set('quizId', $this->quiz->id)
+            ->set('outletId', $this->outlet->id)
+            ->set('sessionName', 'Allergen week')
+            ->set('closesAt', now()->addDays(4)->toDateString())
+            ->call('host')
+            ->assertOk()
+            ->assertSee('Allergen week');
+
+        $challenge = \App\Models\TrainingSession::where('mode', 'scheduled')->firstOrFail();
+
+        // End of the chosen day, not the start of it: "closes Friday" has to
+        // include Friday.
+        $this->assertTrue($challenge->closes_at->isSameDay(now()->addDays(4)));
+        $this->assertSame(23, $challenge->closes_at->hour);
+
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\ChallengeBoard::class, ['id' => $challenge->id])
+            ->assertOk()
+            ->assertSee('Allergen week')
+            ->assertSee('Nobody has taken it yet');
+    }
+
     /** Every state of the host console, because they are four different views. */
     public function test_the_host_console_renders_in_every_state(): void
     {

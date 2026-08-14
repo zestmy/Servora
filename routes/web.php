@@ -407,6 +407,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/training/quizzes/{id}', \App\Livewire\Training\QuizBuilder::class)->name('training.quizzes.edit')->middleware('can:training.manage');
     Route::get('/training/live', \App\Livewire\Training\Sessions::class)->name('training.live')->middleware('can:training.host');
     Route::get('/training/live/{id}', \App\Livewire\Training\LiveHost::class)->name('training.live.host')->middleware('can:training.host');
+    // A scheduled challenge has no room to host, so it gets a board instead of
+    // a console — the whole point of scheduling one is that nobody has to run it.
+    Route::get('/training/challenge/{id}', \App\Livewire\Training\ChallengeBoard::class)->name('training.challenge')->middleware('can:training.host');
     Route::get('/training/paths', \App\Livewire\Training\Paths::class)->name('training.paths')->middleware('can:training.view');
     Route::get('/training/assignments', \App\Livewire\Training\Assignments::class)->name('training.assignments')->middleware('can:training.assign');
     Route::get('/training/leaderboard', \App\Livewire\Training\Leaderboard::class)->name('training.leaderboard')->middleware('can:training.view');

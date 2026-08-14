@@ -40,9 +40,14 @@ class TrainingSession extends Model
      */
     public const ANSWER_GRACE_SECONDS = 2;
 
+    /** A room a host drives, or a window staff take in their own time. */
+    public const MODE_LIVE      = 'live';
+    public const MODE_SCHEDULED = 'scheduled';
+
     protected $fillable = [
         'company_id', 'training_quiz_id', 'outlet_id', 'host_user_id',
-        'pin', 'name', 'status', 'current_index', 'question_started_at',
+        'pin', 'name', 'mode', 'opens_at', 'closes_at',
+        'status', 'current_index', 'question_started_at',
         'question_order', 'started_at', 'ended_at',
     ];
 
@@ -50,8 +55,16 @@ class TrainingSession extends Model
         'current_index'       => 'integer',
         'question_order'      => 'array',
         'question_started_at' => 'datetime',
+        'opens_at'            => 'datetime',
+        'closes_at'           => 'datetime',
         'started_at'          => 'datetime',
         'ended_at'            => 'datetime',
+    ];
+
+    protected $attributes = [
+        'mode'          => self::MODE_LIVE,
+        'status'        => 'lobby',
+        'current_index' => 0,
     ];
 
     protected static function booted(): void
@@ -91,7 +104,57 @@ class TrainingSession extends Model
 
     public function scopeLive(Builder $query): Builder
     {
-        return $query->whereIn('status', ['lobby', 'question', 'reveal']);
+        return $query->where('mode', self::MODE_LIVE)
+            ->whereIn('status', ['lobby', 'question', 'reveal']);
+    }
+
+    public function isScheduled(): bool
+    {
+        return $this->mode === self::MODE_SCHEDULED;
+    }
+
+    /**
+     * Challenges taking answers right now.
+     *
+     * A null `opens_at` means "already open" and a null `closes_at` means "no
+     * end", so a challenge created with neither is simply on until somebody
+     * ends it. That is the forgiving reading, and the alternative — treating a
+     * missing bound as closed — would make an incompletely-filled form produce
+     * a challenge that silently reaches nobody.
+     */
+    public function scopeOpenNow(Builder $query): Builder
+    {
+        return $query->where('mode', self::MODE_SCHEDULED)
+            ->where('status', '!=', 'ended')
+            ->where(fn ($q) => $q->whereNull('opens_at')->orWhere('opens_at', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('closes_at')->orWhere('closes_at', '>=', now()));
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->isScheduled()
+            && $this->status !== 'ended'
+            && ($this->opens_at === null || $this->opens_at->isPast())
+            && ($this->closes_at === null || $this->closes_at->isFuture());
+    }
+
+    public function hasClosed(): bool
+    {
+        return $this->isScheduled()
+            && ($this->status === 'ended'
+                || ($this->closes_at !== null && $this->closes_at->isPast()));
+    }
+
+    /** "Closes in 3 days", or why it is not open. */
+    public function windowLabel(): string
+    {
+        return match (true) {
+            $this->status === 'ended'                                  => 'Ended',
+            $this->closes_at?->isPast() ?? false                       => 'Closed ' . $this->closes_at->diffForHumans(),
+            ($this->opens_at?->isFuture() ?? false)                    => 'Opens ' . $this->opens_at->diffForHumans(),
+            $this->closes_at !== null                                  => 'Closes ' . $this->closes_at->diffForHumans(),
+            default                                                    => 'Open',
+        };
     }
 
     /**

@@ -841,6 +841,115 @@ class TrainingModuleTest extends TestCase
         $this->assertSame(1, TrainingSession::find($session->id)->players()->count());
     }
 
+    // ── Scheduled challenges ──────────────────────────────────────────────
+
+    /**
+     * A challenge is open between its dates and invisible outside them.
+     *
+     * The two null cases matter as much as the dates: a missing bound reads as
+     * "no bound", not as "closed", or a half-filled form would produce a
+     * challenge that silently reaches nobody.
+     */
+    public function test_a_challenge_is_only_open_inside_its_window(): void
+    {
+        $quiz     = $this->quiz();
+        $sessions = app(LiveSessionService::class);
+
+        $open = $sessions->schedule($quiz, null, $this->manager->id, now()->subDay(), now()->addDays(3));
+        $soon = $sessions->schedule($quiz, null, $this->manager->id, now()->addDay(), now()->addDays(3));
+        $gone = $sessions->schedule($quiz, null, $this->manager->id, now()->subDays(9), now()->subDay());
+        $ever = $sessions->schedule($quiz, null, $this->manager->id, null, null);
+
+        $ids = TrainingSession::openNow()->pluck('id')->all();
+
+        $this->assertContains($open->id, $ids);
+        $this->assertContains($ever->id, $ids);
+        $this->assertNotContains($soon->id, $ids);
+        $this->assertNotContains($gone->id, $ids);
+
+        $this->assertTrue($open->isOpen());
+        $this->assertTrue($gone->hasClosed());
+    }
+
+    /** A scheduled session is not a room: it must never surface as one. */
+    public function test_a_challenge_does_not_appear_as_a_live_room(): void
+    {
+        $quiz     = $this->quiz();
+        $sessions = app(LiveSessionService::class);
+
+        $challenge = $sessions->schedule($quiz, null, $this->manager->id, null, now()->addDays(2));
+
+        $this->assertEmpty(TrainingSession::live()->pluck('id')->all());
+        $this->assertNull($challenge->pin);
+        $this->assertNull($sessions->findByPin((string) $challenge->pin));
+    }
+
+    /**
+     * One run each, however many attempts the quiz itself allows.
+     *
+     * A challenge is a competition on a shared board. Practising the same quiz
+     * five times and posting the best score is not the same game as everybody
+     * else's, so a finished challenge attempt closes the door — the practice
+     * route is still there when they want to learn rather than compete.
+     */
+    public function test_a_challenge_can_only_be_taken_once(): void
+    {
+        $quiz      = $this->quiz(null, ['max_attempts' => 0]);
+        $sessions  = app(LiveSessionService::class);
+        $selfPaced = app(SelfPacedQuizService::class);
+
+        $challenge = $sessions->schedule($quiz, null, $this->manager->id, null, now()->addDays(2));
+
+        $attempt = $selfPaced->startOrResume($quiz, $this->employee, $challenge);
+        $this->assertSame($challenge->id, $attempt->training_session_id);
+
+        // Interrupted mid-run, they get the same attempt back rather than a new one.
+        $selfPaced->answer($attempt, $quiz->questions[0], [0], 3.0);
+        $this->assertSame($attempt->id, $selfPaced->startOrResume($quiz, $this->employee, $challenge)->id);
+
+        foreach ($quiz->questions as $question) {
+            $selfPaced->answer($attempt, $question, [0], 3.0);
+        }
+        $selfPaced->finish($attempt);
+
+        $this->expectException(\RuntimeException::class);
+        $selfPaced->startOrResume($quiz->fresh(), $this->employee, $challenge->fresh());
+    }
+
+    /** The board reads from attempts, and says who is still part-way through. */
+    public function test_the_challenge_board_ranks_finished_runs_above_unfinished_ones(): void
+    {
+        $quiz      = $this->quiz();
+        $sessions  = app(LiveSessionService::class);
+        $selfPaced = app(SelfPacedQuizService::class);
+
+        $challenge = $sessions->schedule($quiz, null, $this->manager->id, null, now()->addDays(2));
+
+        $other = Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $this->outlet->id,
+            'name'       => 'Hakim Yusof',
+            'email'      => 'hakim' . uniqid() . '@example.test',
+            'is_active'  => true,
+        ]);
+
+        // Aisyah finishes. Hakim starts and walks off.
+        $mine = $selfPaced->startOrResume($quiz, $this->employee, $challenge);
+        foreach ($quiz->questions as $question) {
+            $selfPaced->answer($mine, $question, [0], 2.0);
+        }
+        $selfPaced->finish($mine);
+
+        $selfPaced->startOrResume($quiz, $other, $challenge);
+
+        $standings = $sessions->standings($challenge);
+
+        $this->assertCount(2, $standings);
+        $this->assertSame('Aisyah Rahman', $standings[0]['name']);
+        $this->assertTrue($standings[0]['finished']);
+        $this->assertFalse($standings[1]['finished']);
+    }
+
     /** Options are index-addressed, so a question knows its own answer. */
     public function test_a_question_scores_against_its_own_options(): void
     {

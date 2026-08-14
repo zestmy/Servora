@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Staff\Training;
 
+use App\Livewire\Clock\Staff\StaffComponent;
 use App\Models\TrainingAttempt;
 use App\Models\TrainingQuiz;
-use App\Livewire\Clock\Staff\StaffComponent;
+use App\Models\TrainingSession;
 use App\Services\Training\SelfPacedQuizService;
 use Illuminate\Support\Carbon;
-use Livewire\Component;
 
 /**
  * Take a quiz on your own, on the staff phone.
@@ -39,7 +39,10 @@ class QuizPlay extends StaffComponent
 
     public bool $finished = false;
 
-    public function mount(int $id, SelfPacedQuizService $service): void
+    /** Set when this run counts towards a scheduled challenge. */
+    public ?int $challengeId = null;
+
+    public function mount(int $id, SelfPacedQuizService $service, ?int $session = null): void
     {
         $employee = $this->staff();
 
@@ -50,8 +53,16 @@ class QuizPlay extends StaffComponent
 
         $this->quizId = $quiz->id;
 
+        // Resolved through the company-scoped model, so a challenge id from
+        // another tenant is simply not found rather than played.
+        $challenge = $session
+            ? TrainingSession::where('company_id', $employee->company_id)->find($session)
+            : null;
+
+        $this->challengeId = $challenge?->id;
+
         try {
-            $attempt = $service->startOrResume($quiz, $employee);
+            $attempt = $service->startOrResume($quiz, $employee, $challenge);
         } catch (\RuntimeException $e) {
             session()->flash('error', $e->getMessage());
             $this->finished = true;

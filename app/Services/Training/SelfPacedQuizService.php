@@ -7,6 +7,7 @@ use App\Models\TrainingAnswer;
 use App\Models\TrainingAttempt;
 use App\Models\TrainingQuestion;
 use App\Models\TrainingQuiz;
+use App\Models\TrainingSession;
 
 /**
  * A quiz taken alone, on a phone, between covers.
@@ -35,18 +36,36 @@ class SelfPacedQuizService
      *
      * @throws \RuntimeException when they have used their allowance up
      */
-    public function startOrResume(TrainingQuiz $quiz, Employee $employee): TrainingAttempt
-    {
+    /**
+     * @param  ?TrainingSession  $challenge  a scheduled session this counts towards
+     */
+    public function startOrResume(
+        TrainingQuiz $quiz,
+        Employee $employee,
+        ?TrainingSession $challenge = null,
+    ): TrainingAttempt {
         $quiz->loadMissing('questions');
 
         if ($quiz->questions->isEmpty()) {
             throw new \RuntimeException('This quiz has no questions yet.');
         }
 
+        if ($challenge && ! $challenge->isOpen()) {
+            throw new \RuntimeException('This challenge is not open.');
+        }
+
+        /*
+         * A challenge attempt is its own thing, and resuming has to match on
+         * the session as well as the quiz — otherwise starting a challenge
+         * would hand somebody their half-finished practice run, complete with
+         * the answers they already gave.
+         */
         $open = TrainingAttempt::query()
             ->where('training_quiz_id', $quiz->id)
             ->where('employee_id', $employee->id)
-            ->where('mode', 'self')
+            ->where('mode', $challenge ? 'scheduled' : 'self')
+            ->when($challenge, fn ($q) => $q->where('training_session_id', $challenge->id))
+            ->when(! $challenge, fn ($q) => $q->whereNull('training_session_id'))
             ->whereNull('completed_at')
             ->latest('id')
             ->first();
@@ -55,7 +74,25 @@ class SelfPacedQuizService
             return $open;
         }
 
-        $remaining = $quiz->attemptsRemaining($employee->id);
+        /*
+         * ONE SHOT AT A CHALLENGE. It is a competition with a leaderboard, and
+         * a second run after seeing the answers is not a second attempt, it is
+         * a different game. Practice runs at the same quiz stay unlimited —
+         * they are a different mode and do not count here.
+         */
+        if ($challenge) {
+            $already = TrainingAttempt::query()
+                ->where('training_session_id', $challenge->id)
+                ->where('employee_id', $employee->id)
+                ->whereNotNull('completed_at')
+                ->exists();
+
+            if ($already) {
+                throw new \RuntimeException('You have already taken this challenge.');
+            }
+        }
+
+        $remaining = $challenge ? null : $quiz->attemptsRemaining($employee->id);
 
         if ($remaining !== null && $remaining <= 0) {
             throw new \RuntimeException('You have used all your attempts at this quiz.');
@@ -68,11 +105,12 @@ class SelfPacedQuizService
         }
 
         return TrainingAttempt::create([
-            'company_id'       => $quiz->company_id,
-            'training_quiz_id' => $quiz->id,
-            'employee_id'      => $employee->id,
-            'outlet_id'        => $employee->outlet_id,
-            'mode'             => 'self',
+            'company_id'          => $quiz->company_id,
+            'training_quiz_id'    => $quiz->id,
+            'employee_id'         => $employee->id,
+            'outlet_id'           => $employee->outlet_id,
+            'training_session_id' => $challenge?->id,
+            'mode'                => $challenge ? 'scheduled' : 'self',
             'started_at'       => now(),
             'question_order'   => $ids->values()->all(),
             'question_count'   => $ids->count(),

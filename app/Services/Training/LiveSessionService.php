@@ -67,6 +67,83 @@ class LiveSessionService
         ]);
     }
 
+    /**
+     * Open a quiz for a window rather than for a room.
+     *
+     * No PIN and no question order: nobody is joining a room, and every player
+     * gets their own shuffle from the quiz's own settings when they start. The
+     * status stays 'lobby' throughout — a challenge has no question live at any
+     * moment, so the room state machine simply does not apply to it, and giving
+     * it a status of its own would mean teaching every existing `whereIn`
+     * about a value it will never usefully match.
+     */
+    public function schedule(
+        TrainingQuiz $quiz,
+        ?int $outletId,
+        ?int $hostUserId,
+        ?\DateTimeInterface $opensAt,
+        ?\DateTimeInterface $closesAt,
+        ?string $name = null,
+    ): TrainingSession {
+        $quiz->loadMissing('questions');
+
+        if ($quiz->questions->isEmpty()) {
+            throw new \RuntimeException('This quiz has no questions yet — add or generate some before scheduling it.');
+        }
+
+        if ($opensAt && $closesAt && $closesAt <= $opensAt) {
+            throw new \RuntimeException('The closing date has to be after the opening one.');
+        }
+
+        return TrainingSession::create([
+            'company_id'       => $quiz->company_id,
+            'training_quiz_id' => $quiz->id,
+            'outlet_id'        => $outletId,
+            'host_user_id'     => $hostUserId,
+            'name'             => $name,
+            'mode'             => TrainingSession::MODE_SCHEDULED,
+            'opens_at'         => $opensAt,
+            'closes_at'        => $closesAt,
+            'status'           => 'lobby',
+        ]);
+    }
+
+    /**
+     * The standings for a challenge, best-scoring first.
+     *
+     * Read from the ATTEMPTS rather than from player rows: a challenge has no
+     * lobby, so nobody joins it — they simply start, and the attempt is the
+     * only record that they did. Unfinished attempts are shown too, marked as
+     * such, because "three people are part-way through" is exactly what a host
+     * watching the board wants to know before they chase anybody.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function standings(TrainingSession $session): Collection
+    {
+        return TrainingAttempt::query()
+            ->where('training_session_id', $session->id)
+            ->with('employee:id,name,outlet_id', 'employee.outlet:id,name')
+            ->get()
+            ->sortBy([
+                // Finished first, then by score. Somebody mid-attempt has not
+                // out-scored anybody yet.
+                fn ($a, $b) => ($b->completed_at !== null) <=> ($a->completed_at !== null),
+                fn ($a, $b) => $b->score <=> $a->score,
+            ])
+            ->values()
+            ->map(fn (TrainingAttempt $attempt, int $i) => [
+                'rank'      => $i + 1,
+                'name'      => $attempt->employee->name ?? 'Removed staff member',
+                'outlet'    => $attempt->employee?->outlet?->name,
+                'score'     => (int) $attempt->score,
+                'percent'   => (float) $attempt->percent,
+                'passed'    => (bool) $attempt->passed,
+                'finished'  => $attempt->completed_at !== null,
+                'when'      => $attempt->completed_at,
+            ]);
+    }
+
     /** Start the first question. */
     public function start(TrainingSession $session): TrainingSession
     {

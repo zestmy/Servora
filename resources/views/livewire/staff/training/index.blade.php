@@ -15,6 +15,38 @@
         </div>
     @endif
 
+    {{-- ── Open challenges ──
+         Above everything, including what you owe: a challenge has a closing
+         date and a leaderboard your colleagues are already on, which is the
+         only thing here with a reason to be done TODAY rather than this week. --}}
+    @foreach ($challenges as $challenge)
+        <div wire:key="challenge-{{ $challenge->id }}"
+             class="card overflow-hidden border-l-4 border-l-brand-500">
+            <div class="bg-brand-600 px-4 py-2 text-white">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <x-icon name="trophy" size="h-4 w-4" class="shrink-0 text-brand-100" />
+                        <span class="truncate text-xs font-semibold uppercase tracking-wider">Challenge</span>
+                    </span>
+                    <span class="shrink-0 text-xs text-brand-100">{{ $challenge->windowLabel() }}</span>
+                </div>
+            </div>
+            <div class="p-4">
+                <p class="font-semibold text-gray-900">
+                    {{ $challenge->name ?: $challenge->quiz->title }}
+                </p>
+                <p class="help">
+                    {{ $challenge->quiz->title }} · pass at {{ $challenge->quiz->pass_mark }}%
+                    · one attempt only
+                </p>
+                <a href="{{ route('clock.staff.learn.quiz', [$challenge->training_quiz_id, $challenge->id]) }}"
+                   wire:navigate class="btn-primary mt-3 w-full justify-center">
+                    Take the challenge
+                </a>
+            </div>
+        </div>
+    @endforeach
+
     {{-- What you owe, before the catalogue. Somebody on a break has three
          minutes and the honest answer to "what now" is the thing with a date. --}}
     @if ($outstanding->isNotEmpty())

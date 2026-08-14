@@ -163,8 +163,10 @@ $group->group(function () {
         Route::get('/learn/{id}', \App\Livewire\Staff\Training\CourseView::class)
             ->whereNumber('id')
             ->name('clock.staff.learn.course');
-        Route::get('/learn/quiz/{id}', \App\Livewire\Staff\Training\QuizPlay::class)
-            ->whereNumber('id')
+        // The optional second segment is a scheduled challenge this run counts
+        // towards. Without it the same screen is an ordinary practice attempt.
+        Route::get('/learn/quiz/{id}/{session?}', \App\Livewire\Staff\Training\QuizPlay::class)
+            ->whereNumber('id')->whereNumber('session')
             ->name('clock.staff.learn.quiz');
 
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');

@@ -30,6 +30,11 @@ class Sessions extends Component
     public ?int $outletId = null;
     public string $sessionName = '';
 
+    /** 'room' — everyone together now; 'challenge' — open for a window. */
+    public string $kind = 'room';
+    public ?string $opensAt = null;
+    public ?string $closesAt = null;
+
     public function mount(): void
     {
         $this->requireActiveCompany();
@@ -44,14 +49,36 @@ class Sessions extends Component
             'quizId'      => ['required', 'integer'],
             'outletId'    => ['nullable', $this->outletExistsRule()],
             'sessionName' => ['nullable', 'string', 'max:120'],
-        ], [], ['quizId' => 'quiz']);
+            'opensAt'     => ['nullable', 'date'],
+            'closesAt'    => ['nullable', 'date', 'after_or_equal:opensAt'],
+        ], [], ['quizId' => 'quiz', 'closesAt' => 'closing date', 'opensAt' => 'opening date']);
 
         $quiz = TrainingQuiz::withCount('questions')->findOrFail($this->quizId);
 
         try {
-            $session = $sessions->open($quiz, $this->outletId, Auth::id(), $this->sessionName ?: null);
+            $session = $this->kind === 'challenge'
+                ? $sessions->schedule(
+                    $quiz,
+                    $this->outletId,
+                    Auth::id(),
+                    $this->opensAt ? \Illuminate\Support\Carbon::parse($this->opensAt) : null,
+                    // End of the chosen day. "Closes Friday" means the end of
+                    // Friday to everybody who reads it, and taking the date at
+                    // midnight would shut it before Friday had started.
+                    $this->closesAt ? \Illuminate\Support\Carbon::parse($this->closesAt)->endOfDay() : null,
+                    $this->sessionName ?: null,
+                )
+                : $sessions->open($quiz, $this->outletId, Auth::id(), $this->sessionName ?: null);
         } catch (\RuntimeException $e) {
             session()->flash('error', $e->getMessage());
+
+            return null;
+        }
+
+        if ($this->kind === 'challenge') {
+            session()->flash('success', 'Challenge scheduled. Staff will see it in the Staff Portal.');
+
+            $this->reset(['opensAt', 'closesAt', 'sessionName']);
 
             return null;
         }
@@ -103,6 +130,16 @@ class Sessions extends Component
             ->latest('id')
             ->get();
 
+        // Scheduled challenges, open or waiting to open. Counted by ATTEMPTS
+        // rather than players: nobody joins a challenge, they just take it.
+        $challenges = TrainingSession::query()
+            ->where('mode', TrainingSession::MODE_SCHEDULED)
+            ->where('status', '!=', 'ended')
+            ->with(['quiz:id,title', 'outlet:id,name'])
+            ->withCount(['attempts as taken_count' => fn ($q) => $q->whereNotNull('completed_at')])
+            ->orderBy('closes_at')
+            ->get();
+
         $past = TrainingSession::query()
             ->where('status', 'ended')
             ->with(['quiz:id,title', 'outlet:id,name', 'host:id,name'])
@@ -115,7 +152,7 @@ class Sessions extends Component
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('livewire.training.sessions', compact('quizzes', 'live', 'past', 'outlets'))
+        return view('livewire.training.sessions', compact('quizzes', 'live', 'challenges', 'past', 'outlets'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Live sessions']);
     }
 }
