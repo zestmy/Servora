@@ -119,8 +119,11 @@ class PurchaseCaptureForm extends Component
 
     public function render()
     {
-        $departments = Department::active()->ordered()->get();
-        $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
+        $departments = Department::selectable($this->department_id)->ordered()->get();
+        // supplier_id is '' or 'other' as well as an id; selectable() drops
+        // anything non-numeric, so those two pass through as "nothing kept".
+        $suppliers   = Supplier::selectable(is_numeric($this->supplier_id) ? $this->supplier_id : null)
+            ->orderBy('name')->get();
 
         $pageTitle = $this->recordId ? 'Purchase' : 'Record Purchase';
 

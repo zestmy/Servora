@@ -3,12 +3,16 @@
 namespace Tests\Feature;
 
 use App\Livewire\Hr\EmployeeForm;
+use App\Livewire\Purchasing\OrderForm;
 use App\Livewire\Inventory\StockTakeForm;
 use App\Livewire\Inventory\TransferForm;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
+use App\Models\PurchaseOrder;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -155,6 +159,59 @@ class ClosedOutletStaysSelectableTest extends TestCase
 
         $this->assertContains('CLOSED BRANCH', $c->viewData('destinationOutlets')->pluck('name')->all(),
             'Reopening a transfer must not blank the branch it was sent to.');
+    }
+
+    // ── The same rule for suppliers and departments ───────────────────────
+
+    /**
+     * A purchase order names both, and both retire. Reopening an old order
+     * must not show it placed with a different supplier than it was.
+     */
+    public function test_an_order_still_shows_the_supplier_and_department_it_was_placed_with(): void
+    {
+        $supplier = Supplier::create([
+            'company_id' => $this->company->id, 'name' => 'GONE SUPPLIES',
+            'code' => 'GS', 'is_active' => true,
+        ]);
+        $dept = Department::create([
+            'company_id' => $this->company->id, 'name' => 'CLOSED DEPT', 'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->open->id,
+            'supplier_id' => $supplier->id, 'department_id' => $dept->id,
+            'po_number' => 'PO-TEST-001', 'status' => 'draft',
+            'order_date' => now()->toDateString(), 'created_by' => $this->user->id,
+            'subtotal' => 0, 'total_amount' => 0, 'tax_percent' => 0,
+            'tax_amount' => 0, 'delivery_charges' => 0,
+        ]);
+
+        // Retired AFTER the order was placed.
+        $supplier->update(['is_active' => false]);
+        $dept->update(['is_active' => false]);
+
+        $c = Livewire::actingAs($this->user)->test(OrderForm::class, ['id' => $po->id]);
+
+        $this->assertContains('GONE SUPPLIES', $c->viewData('suppliers')->pluck('name')->all(),
+            'The order was placed with them; the form has to be able to say so.');
+        $this->assertContains('CLOSED DEPT', $c->viewData('departments')->pluck('name')->all());
+    }
+
+    /** And a new order is offered neither. */
+    public function test_a_new_order_is_offered_neither_retired_one(): void
+    {
+        $supplier = Supplier::create([
+            'company_id' => $this->company->id, 'name' => 'GONE SUPPLIES',
+            'code' => 'GS', 'is_active' => false,
+        ]);
+        Department::create([
+            'company_id' => $this->company->id, 'name' => 'CLOSED DEPT', 'is_active' => false,
+        ]);
+
+        $c = Livewire::actingAs($this->user)->test(OrderForm::class);
+
+        $this->assertNotContains('GONE SUPPLIES', $c->viewData('suppliers')->pluck('name')->all());
+        $this->assertNotContains('CLOSED DEPT', $c->viewData('departments')->pluck('name')->all());
     }
 
     /** The four record forms share one picker, so one case covers the trait. */

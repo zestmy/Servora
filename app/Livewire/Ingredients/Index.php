@@ -899,7 +899,19 @@ class Index extends Component
 
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
-        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
+        /*
+         * Edited inline per row, so keep every supplier the open rows already
+         * prefer — otherwise a retired one silently reads as "None" on the row
+         * that still uses them, and saving the row makes that true.
+         *
+         * From editableRows, NOT from $ingredients: preferred_supplier_id is
+         * not a column on the ingredient, it is resolved from the supplier
+         * relation when quick-edit opens. Plucking it off the paginator looked
+         * right and returned nothing but nulls.
+         */
+        $suppliers = Supplier::selectable(
+                collect($this->editableRows)->pluck('preferred_supplier_id')->all()
+            )->orderBy('name')->get();
 
         $categories = IngredientCategory::roots()
             ->with('children')

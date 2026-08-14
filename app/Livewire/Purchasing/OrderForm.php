@@ -561,9 +561,11 @@ class OrderForm extends Component
 
     public function render()
     {
-        $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
+        // selectable() keeps whichever this order already names, so a
+        // retired supplier does not vanish from the order that used them.
+        $suppliers   = Supplier::selectable($this->supplier_id)->orderBy('name')->get();
         $uoms        = UnitOfMeasure::orderBy('name')->get();
-        $departments = Department::active()->ordered()->get();
+        $departments = Department::selectable($this->department_id)->ordered()->get();
 
         $searchResults = collect();
         if (strlen($this->ingredientSearch) >= 2) {

@@ -430,8 +430,11 @@ class PurchaseRequestForm extends Component
                 ->get();
         }
 
-        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
-        $departments = Department::where('is_active', true)->orderBy('sort_order')->get();
+        // Line level here, so every supplier already named on a line is kept.
+        $suppliers = Supplier::selectable(
+                collect($this->lines)->pluck('preferred_supplier_id')->all()
+            )->orderBy('name')->get();
+        $departments = Department::selectable($this->department_id)->orderBy('sort_order')->get();
         $uoms = UnitOfMeasure::orderBy('name')->get();
 
         $outlets = Outlet::whereIn('id', $this->accessibleOutletIds() ?: [0])

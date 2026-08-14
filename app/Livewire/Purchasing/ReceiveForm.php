@@ -289,7 +289,9 @@ class ReceiveForm extends Component
 
     public function render()
     {
-        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
+        // The supplier comes off the order being received, which may well
+        // predate their retirement.
+        $suppliers = Supplier::selectable($this->supplier_id)->orderBy('name')->get();
         $uoms      = UnitOfMeasure::orderBy('name')->get();
 
         $searchResults = collect();

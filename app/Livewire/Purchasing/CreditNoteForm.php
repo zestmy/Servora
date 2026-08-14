@@ -296,7 +296,7 @@ class CreditNoteForm extends Component
 
     public function render()
     {
-        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
+        $suppliers = Supplier::selectable($this->supplier_id)->orderBy('name')->get();
         $uoms      = UnitOfMeasure::orderBy('name')->get();
 
         $invoices = collect();

@@ -371,7 +371,7 @@ class FormTemplateEdit extends Component
             }
         }
 
-        $suppliers   = Supplier::where('is_active', true)->orderBy('name')->get();
+        $suppliers   = Supplier::selectable($this->supplier_id)->orderBy('name')->get();
         $departments = Department::active()->ordered()->get();
         $categories  = IngredientCategory::roots()->with('children')->active()->ordered()->get();
 

@@ -57,4 +57,29 @@ class Supplier extends Model
     {
         return $this->hasMany(SupplierProduct::class);
     }
+
+    /**
+     * Suppliers a picker may offer: the active ones, plus whatever this record
+     * already points at.
+     *
+     * Same rule and same reason as Outlet::selectable(), whose docblock has
+     * the long version: a dropdown filtered on is_active stops containing the
+     * value of the record it is editing the moment that supplier is retired,
+     * and the browser then highlights a different one.
+     *
+     * @param  array<int, int|string|null>|int|string|null  $keep  ids already on the record
+     */
+    public function scopeSelectable($query, $keep = [])
+    {
+        $keep = collect(is_array($keep) ? $keep : [$keep])
+            ->filter()->map(fn ($id) => (int) $id)->all();
+
+        return $query->where(function ($q) use ($keep) {
+            $q->where('is_active', true);
+
+            if ($keep) {
+                $q->orWhereIn('id', $keep);
+            }
+        });
+    }
 }
