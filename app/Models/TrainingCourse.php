@@ -50,6 +50,27 @@ class TrainingCourse extends Model
         'is_compliance'     => 'boolean',
     ];
 
+    /**
+     * Mirrors the column defaults, and this one crashes without it.
+     *
+     * Eloquent does not read DB-side defaults back after an insert, and a cast
+     * is not applied to an attribute that was never set — so on a course
+     * created without `is_compliance`, reading it returns NULL rather than
+     * false. QuizGeneratorService::draftQuizFor() copies it straight into the
+     * quiz's `issues_certificate`, which is NOT NULL, and the insert dies.
+     *
+     * It hid because the course FORM always sends the key, so every path a
+     * person can click was fine; it only surfaced the first time a course was
+     * created from code that left it out. Same trap as TrainingSessionPlayer's
+     * counters and the one LabelSet documents.
+     */
+    protected $attributes = [
+        'source_type'       => 'text',
+        'status'            => 'draft',
+        'estimated_minutes' => 5,
+        'is_compliance'     => false,
+    ];
+
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());

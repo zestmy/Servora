@@ -54,13 +54,25 @@ class TrainingQuiz extends Model
      * Mirrors the column defaults. Eloquent does not read DB-side defaults back
      * after an insert, so without these a just-created quiz scores every answer
      * with a null speed bonus until it is reloaded.
+     *
+     * The shuffle pair matters for a quieter reason than the scoring pair: a
+     * null reads as false, so a quiz hosted in the same request it was created
+     * in would silently deal every player the same order — LiveSessionService
+     * asks `if ($quiz->shuffle_questions)` and would never have been told.
+     * Nothing errors, and nobody finds out.
      */
     protected $attributes = [
-        'pass_mark'       => 70,
-        'default_seconds' => 20,
-        'default_points'  => 1000,
-        'speed_bonus'     => true,
-        'streak_bonus'    => true,
+        'status'             => 'draft',
+        'pass_mark'          => 70,
+        'default_seconds'    => 20,
+        'default_points'     => 1000,
+        'speed_bonus'        => true,
+        'streak_bonus'       => true,
+        'shuffle_questions'  => true,
+        'shuffle_options'    => true,
+        'max_attempts'       => 0,
+        'issues_certificate' => false,
+        'generated_by_ai'    => false,
     ];
 
     protected static function booted(): void

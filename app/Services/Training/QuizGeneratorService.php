@@ -395,7 +395,10 @@ class QuizGeneratorService
             'title'              => $course->title . ' — Quiz',
             'description'        => 'Generated from the course material.',
             'status'             => 'draft',
-            'issues_certificate' => $course->is_compliance,
+            // Cast, don't trust. TrainingCourse mirrors its column defaults so
+            // this cannot be null any more, but issues_certificate is NOT NULL
+            // and a null here took the whole insert down once already.
+            'issues_certificate' => (bool) $course->is_compliance,
             // A race is wrong for compliance material — see the migration note.
             'speed_bonus'        => ! $course->is_compliance,
             'created_by'         => Auth::id(),

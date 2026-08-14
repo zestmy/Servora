@@ -539,6 +539,57 @@ class TrainingModuleTest extends TestCase
             ->assertForbidden();
     }
 
+    // ── Column defaults in memory ─────────────────────────────────────────
+
+    /**
+     * A course created WITHOUT is_compliance can still have a quiz drafted.
+     *
+     * The bug: Eloquent does not read DB-side defaults back after an insert,
+     * and a cast is not applied to an attribute that was never set — so
+     * `is_compliance` read as NULL, draftQuizFor() copied it into the quiz's
+     * NOT NULL `issues_certificate`, and the insert died. It hid because the
+     * course form always sends the key, so every path a person could click was
+     * fine. This creates the course the way the form does not.
+     */
+    public function test_a_quiz_can_be_drafted_for_a_course_created_without_every_key(): void
+    {
+        $course = TrainingCourse::create([
+            'company_id' => $this->company->id,
+            'title'      => 'Minimal',
+            'content'    => 'Something to be asked about.',
+            // deliberately no is_compliance, status, source_type or minutes
+        ]);
+
+        $this->assertFalse($course->is_compliance, 'the model must mirror the column default');
+        $this->assertSame('draft', $course->status);
+        $this->assertSame('text', $course->source_type);
+
+        $quiz = app(\App\Services\Training\QuizGeneratorService::class)->draftQuizFor($course);
+
+        $this->assertFalse($quiz->issues_certificate);
+        $this->assertTrue($quiz->speed_bonus);
+        $this->assertDatabaseHas('training_quizzes', ['id' => $quiz->id, 'issues_certificate' => false]);
+    }
+
+    /**
+     * ...and the same quiz shuffles, without being reloaded first.
+     *
+     * A null reads as false, so a quiz hosted in the request it was created in
+     * would have dealt every player the same order and said nothing about it.
+     */
+    public function test_a_freshly_created_quiz_still_knows_it_shuffles(): void
+    {
+        $quiz = TrainingQuiz::create([
+            'company_id' => $this->company->id,
+            'title'      => 'Fresh',
+        ]);
+
+        $this->assertTrue($quiz->shuffle_questions);
+        $this->assertTrue($quiz->shuffle_options);
+        $this->assertSame(0, $quiz->max_attempts);
+        $this->assertSame('draft', $quiz->status);
+    }
+
     // ── Scoring wiring ────────────────────────────────────────────────────
 
     /** finalise() sums the ROWS, so a re-answer cannot inflate the total. */
