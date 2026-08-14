@@ -549,6 +549,12 @@
 
         {{-- Pin picker. wire:ignore on the map itself: Livewire morphing the
              DOM under Leaflet leaves a dead grey box behind. --}}
+        {{-- Teleported: layouts.app keeps a transform on `.page-enter` after
+             its animation (fill mode `both`), which makes that div the
+             containing block for anything fixed and clips this to the content
+             column. Alpine carries the surrounding x-data across, so
+             `pickerOpen` and the map state still resolve. --}}
+        @teleport('body')
         <div x-show="pickerOpen" x-cloak @keydown.escape.window="pickerOpen = false"
              class="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div class="fixed inset-0 bg-black/50" @click="pickerOpen = false"></div>
@@ -590,5 +596,6 @@
                 </div>
             </div>
         </div>
+        @endteleport
     </div>
 </div>

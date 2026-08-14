@@ -14,6 +14,23 @@ $maxWidth = [
 ][$maxWidth];
 @endphp
 
+{{-- TELEPORTED TO BODY.
+
+     `position: fixed` is relative to the viewport only while no ancestor
+     carries a transform. layouts.app wraps every page in `.page-enter`, whose
+     animation is declared with `both` as its fill mode, so the translateY it
+     finishes on persists for the life of the page — and even translateY(0)
+     establishes a containing block. A modal opened from any page served by
+     that layout was therefore clipped to the content column rather than
+     covering the window.
+
+     An Alpine template rather than Livewire's @teleport, because this is a
+     plain Blade component used from ordinary Blade views as well as from
+     Livewire ones, and @teleport outside a Livewire component is not something
+     to rely on. Alpine carries the x-data below across the teleport with it, so
+     the focus trap and the open/close events keep working. --}}
+<template x-teleport="body">
+
 <div
     x-data="{
         show: @js($show),
@@ -76,3 +93,4 @@ $maxWidth = [
         {{ $slot }}
     </div>
 </div>
+</template>

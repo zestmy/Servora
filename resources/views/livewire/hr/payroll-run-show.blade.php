@@ -520,6 +520,14 @@
 
     {{-- Approve --}}
     @if ($showApprove)
+        {{-- Teleported, like the two below it. `position: fixed` is relative to
+             the viewport UNLESS an ancestor carries a transform, and
+             layouts.app wraps every page in `.page-enter`, whose animation
+             keeps its final translateY because the fill mode is `both`. Even
+             translateY(0) establishes a containing block, so a fixed panel is
+             quietly clipped to the content column instead of covering the
+             window. The layout solves this the same way for the user menu. --}}
+        @teleport('body')
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
             <div class="card p-5 w-full max-w-lg">
                 <h3 class="text-base font-semibold text-gray-800">Approve {{ $run->periodLabel() }}</h3>
@@ -544,11 +552,13 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 
     {{-- Email payslips. A confirmation, not a one-click send: this puts
          someone's pay details in their inbox and cannot be recalled. --}}
     @if ($showEmail)
+        @teleport('body')
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
             <div class="card p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto">
                 <h3 class="text-base font-semibold text-gray-800">Email payslips — {{ $run->periodLabel() }}</h3>
@@ -616,10 +626,12 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 
     {{-- Mark paid --}}
     @if ($showPaid)
+        @teleport('body')
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
             <div class="card p-5 w-full max-w-md">
                 <h3 class="text-base font-semibold text-gray-800">Record payment</h3>
@@ -635,5 +647,6 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>

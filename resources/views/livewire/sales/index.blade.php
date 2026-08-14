@@ -802,6 +802,14 @@
     @endteleport
 
     {{-- Attachments Slide-over --}}
+    {{-- Teleported: `position: fixed` is viewport-relative only while no
+         ancestor carries a transform, and layouts.app wraps every page in
+         `.page-enter`, whose animation keeps its final translateY because the
+         fill mode is `both`. Even translateY(0) makes that div the containing
+         block, so this was being clipped to the content column rather than
+         covering the window. Alpine keeps the surrounding x-data scope across a
+         teleport, so `showAttachments` still resolves. --}}
+    @teleport('body')
     <div x-show="showAttachments" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
          x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
          class="fixed inset-0 z-50 flex items-center justify-center p-4" @keydown.escape.window="showAttachments = false; preview = null">
@@ -864,4 +872,5 @@
             </div>
         </div>
     </div>
+    @endteleport
 </div>

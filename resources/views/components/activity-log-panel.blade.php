@@ -12,6 +12,19 @@
 @props(['show' => false, 'title' => 'Recent Activity', 'logs' => null, 'labels' => [], 'viewAllUrl' => null])
 
 @if ($show)
+    {{-- Teleported to body. `position: fixed` is viewport-relative only while
+         no ancestor carries a transform, and layouts.app wraps every page in
+         `.page-enter`, whose animation keeps its final translateY because the
+         fill mode is `both` — even translateY(0) establishes a containing
+         block. Without this the slide-over is clipped to the content column
+         instead of reaching the full height of the window, which is the whole
+         point of a slide-over. Same escape hatch the layout uses for the user
+         menu.
+
+         @teleport rather than a bare Alpine template: the close control is a
+         wire:click, and Livewire's own directive keeps that bound once the
+         markup has moved out of the component root. --}}
+    @teleport('body')
     <div class="fixed inset-0 z-50 flex justify-end">
         <div class="absolute inset-0 bg-black/30" wire:click="$set('showActivityLog', false)"></div>
         <div class="relative bg-white w-full max-w-lg h-full shadow-2xl flex flex-col"
@@ -59,4 +72,5 @@
             @endif
         </div>
     </div>
+    @endteleport
 @endif
