@@ -3,6 +3,7 @@
 namespace App\Services\Training;
 
 use App\Models\Recipe;
+use App\Services\VisionService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Smalot\PdfParser\Parser as PdfParser;
@@ -92,6 +93,32 @@ class SourceTextExtractor
     }
 
     /**
+     * Below this many characters, a PDF is treated as having no text layer.
+     *
+     * Not zero. A scanned page routinely yields a handful of stray characters —
+     * a page number the scanner's own software stamped on, a bit of metadata
+     * that leaked into the content stream — and testing for exactly nothing
+     * would send those documents down the "we could not read it" path with two
+     * useless characters in hand. 200 is comfortably below any real page of
+     * prose and comfortably above that noise.
+     */
+    private const TEXT_LAYER_FLOOR = 200;
+
+    /**
+     * How many pages of a scan are worth reading.
+     *
+     * Every page is a separate vision call: real money and real seconds, on a
+     * box with five php-fpm workers. Ten pages covers the SOPs and policy
+     * sheets this is for; a hundred-page manual is a different job and should
+     * not silently become a two-minute request that blocks a worker.
+     */
+    private const MAX_SCANNED_PAGES = 10;
+
+    public function __construct(private ?VisionService $vision = null)
+    {
+    }
+
+    /**
      * Text out of an uploaded document.
      *
      * PDF, plain text and markdown are read directly. A .docx is a zip of XML,
@@ -118,10 +145,104 @@ class SourceTextExtractor
                 'error' => $e->getMessage(),
             ]);
 
+            $text = '';
+        }
+
+        $text = $this->tidy($text);
+
+        /*
+         * A PDF with no text layer is READ WITH VISION rather than refused.
+         *
+         * This is the common case for the documents this feature is actually
+         * pointed at: a policy sheet photographed on a phone, or a supplier's
+         * fact sheet scanned to PDF. There is no text in the file at all —
+         * pdfparser is working correctly and returning nothing — so the honest
+         * fallback is to look at the pages rather than to read them.
+         *
+         * Text layer first, always, and not merely as an optimisation: where
+         * one exists it is EXACT, free and instant, where vision is a paid
+         * approximation that can misread a temperature. Falling back only when
+         * there is nothing to read keeps the accurate path the default.
+         */
+        if ($extension === 'pdf' && mb_strlen($text) < self::TEXT_LAYER_FLOOR) {
+            $scanned = $this->readScannedPdf($file->getRealPath());
+
+            if ($scanned !== '') {
+                return $this->tidy($scanned);
+            }
+        }
+
+        return $text;
+    }
+
+    /**
+     * Read a PDF that has no text layer, one rasterised page at a time.
+     *
+     * Ghostscript and Imagick are both on the production box (the label and
+     * Z-report features already lean on them), but neither is guaranteed in
+     * every environment, so a missing extension returns empty and the caller
+     * shows the same "paste it in instead" note it always did.
+     *
+     * Pages are converted and released ONE AT A TIME. Reading a whole PDF into
+     * Imagick at once holds every page as an uncompressed bitmap, which is how
+     * a ten-page scan turns into hundreds of megabytes on a 2 GB box with five
+     * workers. 150 dpi is enough for a vision model to read body text without
+     * making each frame larger than it needs to be.
+     */
+    public function readScannedPdf(string $path): string
+    {
+        if (! class_exists(\Imagick::class) || ! $this->vision) {
             return '';
         }
 
-        return $this->tidy($text);
+        try {
+            $probe = new \Imagick();
+            $probe->pingImage($path);
+            $pages = min($probe->getNumberImages(), self::MAX_SCANNED_PAGES);
+            $probe->clear();
+        } catch (\Throwable $e) {
+            Log::warning('[training] could not open PDF for rasterising', ['error' => $e->getMessage()]);
+
+            return '';
+        }
+
+        $out = [];
+
+        for ($i = 0; $i < $pages; $i++) {
+            $frame = null;
+            $temp  = null;
+
+            try {
+                $frame = new \Imagick();
+                $frame->setResolution(150, 150);
+                $frame->readImage($path . '[' . $i . ']');
+                // Scans are commonly transparent-backed; flattening onto white
+                // stops the text arriving as black-on-black.
+                $frame->setImageBackgroundColor('white');
+                $frame = $frame->flattenImages();
+                $frame->setImageFormat('jpeg');
+                $frame->setImageCompressionQuality(80);
+
+                $temp = tempnam(sys_get_temp_dir(), 'sop') . '.jpg';
+                $frame->writeImage($temp);
+
+                $out[] = $this->vision->extractText($temp);
+            } catch (\Throwable $e) {
+                // One unreadable page does not make the document unreadable.
+                Log::warning('[training] vision failed on a PDF page', [
+                    'page'  => $i + 1,
+                    'error' => $e->getMessage(),
+                ]);
+            } finally {
+                $frame?->clear();
+
+                if ($temp && file_exists($temp)) {
+                    unlink($temp);
+                }
+            }
+        }
+
+        return trim(implode("\n\n", array_filter($out)));
     }
 
     private function fromPdf(string $path): string

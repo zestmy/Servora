@@ -162,11 +162,20 @@ class CourseForm extends Component
             return;
         }
 
+        // A scanned PDF goes page by page through a vision model — see
+        // SourceTextExtractor::readScannedPdf. Ten pages is ten API calls, so
+        // the request needs longer than the default and the button says so.
+        $previous = ini_get('max_execution_time');
+        set_time_limit(240);
+
         $text = $extractor->fromUpload($this->upload);
 
+        set_time_limit((int) $previous ?: 60);
+
         if ($text === '') {
-            $this->extractionNote = 'We could not read any text out of that file — it may be a scan or a photo. '
-                . 'Paste the wording in below and everything else still works.';
+            $this->extractionNote = 'We could not read anything out of that file. If it is a photograph '
+                . 'of a document, try a clearer one — otherwise paste the wording in below and '
+                . 'everything else still works.';
 
             return;
         }

@@ -58,10 +58,17 @@
                         </div>
                         <button type="button" wire:click="importUpload" class="btn-secondary">
                             <span wire:loading.remove wire:target="importUpload,upload">Read the document</span>
-                            <span wire:loading wire:target="importUpload,upload">Reading…</span>
+                            {{-- A scan goes page by page through a vision model, which takes
+                                 the best part of a minute. A button that just says "Reading…"
+                                 for that long reads as a hang. --}}
+                            <span wire:loading wire:target="importUpload,upload">Reading… scans take a minute</span>
                         </button>
                     </div>
-                    <p class="help mt-2">PDF, Word or plain text, up to 12&nbsp;MB.</p>
+                    <p class="help mt-2">
+                        PDF, Word or plain text, up to 12&nbsp;MB. A scanned or photographed PDF has no
+                        text in it to read, so those are passed through the AI page by page instead —
+                        slower, and worth checking the result against the original.
+                    </p>
 
                     @if ($extractionNote)
                         <div class="alert-warning mt-3">
