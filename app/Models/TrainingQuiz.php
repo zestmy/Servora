@@ -6,6 +6,7 @@ use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -59,13 +60,36 @@ class TrainingQuiz extends Model
         return self::BOOLEAN_OPTIONS[$language] ?? self::BOOLEAN_OPTIONS['en'];
     }
 
+    /**
+     * The word that sweeps across the screen after an answer.
+     *
+     * Here beside the true/false wording and for the same reason: it is shown
+     * in whatever the trainee chose to read the paper in, and a Malay quiz that
+     * shouts "CORRECT" at somebody is a quiz that was translated by halves.
+     *
+     * The wrong-answer word is deliberately not a scolding. "Belum tepat" is
+     * "not right yet", and the English matches it — this lands in front of
+     * colleagues, on a screen somebody's manager can see, and a training tool
+     * that makes being wrong feel humiliating teaches people to stop playing.
+     *
+     * @return array{0: string, 1: string} [correct, wrong]
+     */
+    public static function verdictWordsFor(?string $language): array
+    {
+        return match ($language) {
+            'ms'    => ['Betul!', 'Belum tepat'],
+            'id'    => ['Benar!', 'Belum tepat'],
+            default => ['Correct!', 'Not quite'],
+        };
+    }
+
     public function languageLabel(): string
     {
         return self::LANGUAGES[$this->language] ?? self::LANGUAGES['en'];
     }
 
     protected $fillable = [
-        'company_id', 'training_course_id', 'section_id', 'title', 'description', 'language', 'status',
+        'company_id', 'training_course_id', 'title', 'description', 'language', 'status',
         'pass_mark', 'default_seconds', 'default_points',
         'speed_bonus', 'streak_bonus', 'wrong_penalty_percent', 'music_url', 'share_token',
         'shuffle_questions', 'shuffle_options',
@@ -114,6 +138,61 @@ class TrainingQuiz extends Model
         'issues_certificate'    => false,
         'generated_by_ai'       => false,
     ];
+
+    // ── Languages ─────────────────────────────────────────────────────────
+
+    /**
+     * How many of this quiz's questions exist in each language.
+     *
+     * @return array<string, int> language => questions translated
+     */
+    public function translationCoverage(): array
+    {
+        return TrainingQuestionTranslation::query()
+            ->whereIn('training_question_id', $this->questions()->select('id'))
+            ->selectRaw('language, count(*) as n')
+            ->groupBy('language')
+            ->pluck('n', 'language')
+            ->map(fn ($n) => (int) $n)
+            ->all();
+    }
+
+    /**
+     * The languages a trainee may choose, the quiz's own first.
+     *
+     * A LANGUAGE IS ONLY OFFERED WHEN EVERY QUESTION HAS IT. Half a paper in
+     * Malay is worse than none: somebody who picked Malay because they read
+     * Malay would be dropped into English at question five, at speed, for
+     * points, having already committed to the attempt. A partial translation is
+     * a thing for the author to finish, not for a trainee to discover.
+     *
+     * @return array<string, string> language key => label
+     */
+    public function availableLanguages(): array
+    {
+        $own   = $this->language ?: 'en';
+        $total = $this->questions()->count();
+
+        $languages = [$own => self::LANGUAGES[$own] ?? $own];
+
+        if ($total === 0) {
+            return $languages;
+        }
+
+        foreach ($this->translationCoverage() as $language => $done) {
+            if ($done >= $total && $language !== $own && isset(self::LANGUAGES[$language])) {
+                $languages[$language] = self::LANGUAGES[$language];
+            }
+        }
+
+        return $languages;
+    }
+
+    /** Whether a trainee is offered a choice at all. */
+    public function isMultilingual(): bool
+    {
+        return count($this->availableLanguages()) > 1;
+    }
 
     /**
      * The token in this quiz's public link, minted if it has none.
@@ -234,38 +313,73 @@ class TrainingQuiz extends Model
         return $this->belongsTo(TrainingCourse::class, 'training_course_id');
     }
 
-    /** Front of house, back of house, or null for everybody. */
-    public function section(): BelongsTo
+    /**
+     * The sections this quiz is for. Empty means everybody.
+     *
+     * A pivot rather than a column, because the real audiences are not single
+     * sections: a menu paper is for FOH and Bar but not the kitchen, an
+     * allergen paper for the kitchen and FOH but not the office. With one
+     * column those get written twice, and two papers drift.
+     */
+    public function sections(): BelongsToMany
     {
-        return $this->belongsTo(Section::class);
+        return $this->belongsToMany(Section::class, 'training_quiz_sections')->orderBy('name');
+    }
+
+    /** The outlets this quiz is for. Empty means all of them. */
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class, 'training_quiz_outlets')->orderBy('name');
     }
 
     public function sectionLabel(): string
     {
-        return $this->section?->name ?? 'Everyone';
+        $names = $this->sections->pluck('name');
+
+        return $names->isEmpty() ? 'Everyone' : $names->join(' · ');
+    }
+
+    public function outletLabel(): string
+    {
+        $names = $this->outlets->pluck('name');
+
+        return $names->isEmpty() ? 'All outlets' : $names->join(' · ');
     }
 
     /**
      * Quizzes this person should be offered.
      *
-     * Untagged quizzes are included for EVERY section, not excluded from all of
-     * them — null means "everybody" here, so a compliance quiz nobody
-     * remembered to tag still reaches the whole floor. Failing the other way
-     * would hide safety material from people and look like nothing was wrong.
+     * EMPTY MEANS EVERYBODY, on both sides. A quiz nobody remembered to tag
+     * still reaches the whole floor, which is the forgiving direction to fail:
+     * hiding safety material from people looks like nothing is wrong at all.
      *
-     * Somebody with no section at all (none on this company today, but the
-     * column is nullable) sees only the untagged ones, which is the same rule
-     * read from the other side.
+     * The two narrow EACH OTHER. "The kitchen at Bangsar" is the commonest real
+     * audience and neither expresses it alone, so a quiz tagged with both is
+     * offered only where both match — the same rule TrainingAssignment already
+     * applies to the same pair.
+     *
+     * Somebody with no section, or posted to no outlet, sees the quizzes that
+     * name none — the same rule read from the other side.
+     *
+     * @param  array<int, int>|int|null  $outletIds
      */
-    public function scopeForSection(Builder $query, ?int $sectionId): Builder
+    public function scopeForAudience(Builder $query, ?int $sectionId, $outletIds = null): Builder
     {
-        return $query->where(function ($q) use ($sectionId) {
-            $q->whereNull('section_id');
+        $outletIds = array_values(array_filter(array_map('intval', (array) $outletIds)));
 
-            if ($sectionId) {
-                $q->orWhere('section_id', $sectionId);
-            }
-        });
+        return $query
+            ->where(fn ($q) => $q
+                ->whereDoesntHave('sections')
+                ->when($sectionId, fn ($m) => $m->orWhereHas(
+                    'sections',
+                    fn ($s) => $s->where('sections.id', $sectionId),
+                )))
+            ->where(fn ($q) => $q
+                ->whereDoesntHave('outlets')
+                ->when($outletIds !== [], fn ($m) => $m->orWhereHas(
+                    'outlets',
+                    fn ($o) => $o->whereIn('outlets.id', $outletIds),
+                )));
     }
 
     public function createdBy(): BelongsTo

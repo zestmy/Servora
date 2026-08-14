@@ -193,53 +193,116 @@ class TrainingScreensRenderTest extends TestCase
     }
 
     /**
-     * Writing a Malay paper must not destroy the English one.
+     * A second language is the SAME quiz, in other words.
      *
-     * Reported as "when I generated the 2nd language the first one disappears",
-     * and it did: the generate panel drove the quiz's OWN language field and
-     * then replaced its questions, so asking for Malay rewrote the English
-     * paper in place. A course is meant to carry both — the staff course screen
-     * offers every published quiz for the reader's section and lets them pick.
+     * Reported first as "when I generated the 2nd language the first one
+     * disappears" — it was overwriting the questions — and the fix is not a
+     * second quiz either. Two quizzes would be two rows everywhere it counts:
+     * two sets of attempts, two leaderboard lines, two assignments to clear.
+     * The questions and the answer key are shared; only the words differ.
      */
-    public function test_generating_in_another_language_writes_a_second_quiz(): void
+    public function test_a_quiz_can_be_translated_and_still_counts_once(): void
     {
         \App\Models\AppSetting::set('openrouter_api_key', 'test-key');
+
+        $question = $this->quiz->questions->first();
 
         \Illuminate\Support\Facades\Http::fake([
             'openrouter.ai/*' => \Illuminate\Support\Facades\Http::response([
                 'choices' => [['message' => ['content' => json_encode(['questions' => [[
-                    'type'    => 'mcq',
-                    'prompt'  => 'Berapa suhu peti sejuk?',
-                    'options' => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
-                    'correct' => [0],
+                    'id'          => $question->id,
+                    'prompt'      => 'Berapa suhu peti sejuk?',
+                    'options'     => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
+                    'explanation' => 'Melebihi 4°C rantaian sejuk terputus.',
                 ]]])]]],
             ]),
         ]);
 
-        $english = $this->quiz->questions()->pluck('prompt')->all();
-
         Livewire::actingAs($this->manager)
             ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
-            ->set('genLanguage', 'ms')
-            // Picking another language chooses a separate paper by itself: the
-            // outcome that cannot be undone is not the one to arrive at by
-            // default.
-            ->assertSet('genTarget', 'new')
-            ->call('regenerate')
+            ->set('translateTo', 'ms')
+            ->call('translate')
             ->assertOk();
 
-        // The English paper is untouched, questions and language both.
-        $this->quiz->refresh();
-        $this->assertSame('en', $this->quiz->language);
-        $this->assertSame($english, $this->quiz->questions()->pluck('prompt')->all());
+        // Still one quiz. The English wording is untouched.
+        $this->assertSame(1, TrainingQuiz::count());
+        $this->assertSame('What temperature does a chiller hold?', $question->fresh()->prompt);
 
-        $malay = TrainingQuiz::where('language', 'ms')->firstOrFail();
+        $this->assertSame(
+            ['en' => 'English', 'ms' => 'Bahasa Malaysia'],
+            $this->quiz->fresh()->availableLanguages(),
+        );
 
-        $this->assertSame($this->course->id, $malay->training_course_id);
-        $this->assertStringContainsString('Bahasa Malaysia', $malay->title);
-        // A draft, because nobody has read the machine translation yet.
-        $this->assertSame('draft', $malay->status);
-        $this->assertSame('Berapa suhu peti sejuk?', $malay->questions()->value('prompt'));
+        // Same answer key, different words — which is the whole point.
+        $this->assertSame('Berapa suhu peti sejuk?', $question->fresh()->promptIn('ms'));
+        $this->assertSame([0], array_map('intval', (array) $question->fresh()->correct));
+    }
+
+    /**
+     * A half-translated quiz is not offered in that language.
+     *
+     * Somebody who picked Malay because they read Malay would be dropped into
+     * English at question five, at speed, for points, having already committed
+     * to the attempt. A partial translation is the author's problem to finish,
+     * not the trainee's to discover.
+     */
+    public function test_a_partly_translated_quiz_offers_only_its_own_language(): void
+    {
+        $this->quiz->questions()->create([
+            'type'    => 'mcq',
+            'prompt'  => 'Which shelf holds raw chicken?',
+            'options' => ['Bottom', 'Top', 'Middle', 'Any'],
+            'correct' => [0],
+        ]);
+
+        \App\Models\TrainingQuestionTranslation::create([
+            'training_question_id' => $this->quiz->questions()->first()->id,
+            'language'             => 'ms',
+            'prompt'               => 'Berapa suhu peti sejuk?',
+            'options'              => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
+        ]);
+
+        $quiz = $this->quiz->fresh();
+
+        $this->assertSame(['en' => 'English'], $quiz->availableLanguages());
+        $this->assertFalse($quiz->isMultilingual());
+        $this->assertSame(['ms' => 1], $quiz->translationCoverage());
+    }
+
+    /** The chosen language is recorded on the attempt, for the reporting. */
+    public function test_the_language_read_is_written_onto_the_attempt(): void
+    {
+        \App\Models\TrainingQuestionTranslation::create([
+            'training_question_id' => $this->quiz->questions()->first()->id,
+            'language'             => 'ms',
+            'prompt'               => 'Berapa suhu peti sejuk?',
+            'options'              => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
+        ]);
+
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->assertOk()
+            ->assertSee('Bahasa Malaysia')
+            ->set('language', 'ms')
+            ->call('begin')
+            ->assertOk()
+            // The Malay wording, and the same options behind it.
+            ->assertSee('Berapa suhu peti sejuk?');
+
+        $this->assertSame('ms', \App\Models\TrainingAttempt::latest('id')->first()->language);
+    }
+
+    /** A language nobody translated cannot be forced from the browser. */
+    public function test_an_unoffered_language_falls_back_to_the_original(): void
+    {
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->set('language', 'id')
+            ->call('begin')
+            ->assertSet('language', 'en')
+            ->assertSee('What temperature does a chiller hold?');
     }
 
     public function test_the_sessions_screen_renders(): void
@@ -438,6 +501,33 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('This link has expired');
     }
 
+    /**
+     * A quiz on a draft course is still offered to staff.
+     *
+     * It was invisible: a quiz was reachable only through its course, and the
+     * course screen refuses a draft — so a published quiz could reach nobody
+     * at all. Reported as "I need the quiz to be available in Staff Portal".
+     */
+    public function test_a_quiz_whose_course_is_a_draft_is_still_listed(): void
+    {
+        $this->asStaff();
+
+        // While the course is published, the quiz is reached through it and is
+        // not listed twice.
+        Livewire::test(\App\Livewire\Staff\Training\Index::class)
+            ->assertOk()
+            ->assertSee('Chiller discipline')
+            ->assertViewHas('quizzes', fn ($quizzes) => $quizzes->isEmpty());
+
+        $this->course->update(['status' => 'draft']);
+
+        Livewire::test(\App\Livewire\Staff\Training\Index::class)
+            ->assertOk()
+            ->assertSee('Chiller quiz')
+            ->assertDontSee('Nothing published yet')
+            ->assertViewHas('quizzes', fn ($quizzes) => $quizzes->count() === 1);
+    }
+
     public function test_the_staff_course_page_renders(): void
     {
         $this->asStaff();
@@ -465,13 +555,16 @@ class TrainingScreensRenderTest extends TestCase
         $this->quiz->update(['title' => 'Everyone quiz']);
 
         foreach ([['Kitchen quiz', $boh->id], ['Floor quiz', $foh->id]] as [$title, $sectionId]) {
-            TrainingQuiz::create([
+            $paper = TrainingQuiz::create([
                 'company_id'         => $this->company->id,
                 'training_course_id' => $this->course->id,
-                'section_id'         => $sectionId,
                 'title'              => $title,
                 'status'             => 'published',
-            ])->questions()->create([
+            ]);
+
+            $paper->sections()->sync([$sectionId]);
+
+            $paper->questions()->create([
                 'type' => 'mcq', 'prompt' => $title . '?',
                 'options' => ['a', 'b'], 'correct' => [0],
             ]);
@@ -493,6 +586,12 @@ class TrainingScreensRenderTest extends TestCase
 
         $component = Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
             ->assertOk()
+            // The start screen first: nothing exists until Start is pressed, so
+            // opening a quiz and backing out costs nobody an attempt.
+            ->assertSee('Chiller quiz')
+            ->assertDontSee('What temperature does a chiller hold?')
+            ->call('begin')
+            ->assertSet('started', true)
             ->assertSee('What temperature does a chiller hold?');
 
         $component->call('choose', 0, false)
@@ -521,6 +620,7 @@ class TrainingScreensRenderTest extends TestCase
         // result is a state of THIS component, and a fresh mount would simply
         // start a new attempt at a one-question quiz.
         $play = fn () => Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('begin')
             ->call('choose', 0, false)
             ->call('submit')
             ->call('nextQuestion');

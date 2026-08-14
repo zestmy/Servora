@@ -46,6 +46,49 @@ class LeaderboardService
     }
 
     /**
+     * Where somebody stands on ONE quiz, right now, mid-attempt.
+     *
+     * This is what makes a self-paced quiz feel like a race rather than a form.
+     * A score that only appears at the end is a mark; a position that moves
+     * between questions is a game, and the person two places above you is the
+     * reason you read the next one properly.
+     *
+     * Their own running total is passed in rather than read: the attempt is
+     * still open, so the rows are the only truth about it and the caller has
+     * just written one. Everyone else is compared on their BEST COMPLETED
+     * score, which is the same rule the main board uses — see the class note.
+     *
+     * @return array{rank: int, of: int, ahead: ?string, gap: int}
+     */
+    public function standingOnQuiz(int $quizId, int $employeeId, int $myScore): array
+    {
+        $others = TrainingAttempt::query()
+            ->where('training_quiz_id', $quizId)
+            ->where('employee_id', '!=', $employeeId)
+            ->completed()
+            ->with('employee:id,name')
+            ->get()
+            ->groupBy('employee_id')
+            ->map(fn (Collection $theirs) => $theirs->sortByDesc('score')->first())
+            ->sortByDesc('score')
+            ->values();
+
+        // Everyone strictly ahead. A tie leaves you in front of them, which is
+        // the generous reading and the one that keeps a climb from stalling on
+        // an equal score.
+        $ahead = $others->filter(fn ($a) => (int) $a->score > $myScore)->values();
+
+        $justAbove = $ahead->last();
+
+        return [
+            'rank'  => $ahead->count() + 1,
+            'of'    => $others->count() + 1,
+            'ahead' => $justAbove?->employee?->name,
+            'gap'   => $justAbove ? max(0, (int) $justAbove->score - $myScore) : 0,
+        ];
+    }
+
+    /**
      * The board.
      *
      * @return Collection<int, array{
@@ -70,7 +113,7 @@ class LeaderboardService
             ->when($end, fn ($q) => $q->where('completed_at', '<=', $end))
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->when($quizId, fn ($q) => $q->where('training_quiz_id', $quizId))
-            ->with(['employee:id,name,outlet_id', 'employee.outlet:id,name'])
+            ->with(['employee:id,name,outlet_id,photo_path', 'employee.outlet:id,name'])
             ->get();
 
         return $attempts
@@ -89,6 +132,7 @@ class LeaderboardService
                 return [
                     'employee_id' => (int) $theirs->first()->employee_id,
                     'name'       => $employee->name ?? 'Removed staff member',
+                    'photo'      => $employee?->photo_path,
                     'outlet'     => $employee?->outlet?->name,
                     'score'      => (int) $best->sum('score'),
                     'quizzes'    => $best->count(),

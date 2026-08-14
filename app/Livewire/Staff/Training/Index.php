@@ -4,6 +4,7 @@ namespace App\Livewire\Staff\Training;
 
 use App\Models\TrainingAttempt;
 use App\Models\TrainingCourse;
+use App\Models\TrainingQuiz;
 use App\Models\TrainingSession;
 use App\Livewire\Clock\Staff\StaffComponent;
 use App\Services\Training\ReportCardService;
@@ -37,6 +38,42 @@ class Index extends StaffComponent
             ->with(['quizzes' => fn ($q) => $q->where('status', 'published')])
             ->orderBy('title')
             ->get();
+
+        /*
+         * The quizzes, listed in their own right rather than only inside a
+         * course.
+         *
+         * A quiz used to be reachable only through the course it hangs off, so
+         * a published quiz on a course still in draft was invisible to the
+         * whole floor — reported as "I need the quiz to be available in Staff
+         * Portal", and the menu knowledge paper was in exactly that state. The
+         * course is the reading; the quiz is the thing somebody has three
+         * minutes for. Both are offered.
+         *
+         * Section-filtered in SQL like everything else here (an untagged quiz
+         * is everybody's — see TrainingQuiz::scopeForSection), and empty
+         * quizzes are dropped: a card that opens onto nothing is worse than no
+         * card.
+         */
+        $quizzes = TrainingQuiz::query()
+            ->where('company_id', $employee->company_id)
+            ->published()
+            ->forAudience($employee->section_id, $outletIds)
+            ->whereHas('questions')
+            ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%"))
+            ->with('course:id,title,status')
+            ->withCount('questions')
+            ->orderBy('title')
+            ->get()
+            /*
+             * A quiz whose course is published is already on this screen as
+             * that course's card, and listing it twice makes the page look
+             * longer than the work is. What is left is precisely the set that
+             * had nowhere to appear.
+             */
+            ->filter(fn (TrainingQuiz $quiz) => $quiz->course === null
+                || $quiz->course->status !== 'published'
+                || ! $courses->contains('id', $quiz->training_course_id));
 
         // Best percent per quiz, so a card can say "passed 90%" rather than
         // just "done". One query for the lot rather than one per card.
@@ -77,6 +114,7 @@ class Index extends StaffComponent
         return view('livewire.staff.training.index', [
             'employee'    => $employee,
             'courses'     => $courses,
+            'quizzes'     => $quizzes,
             'best'        => $best,
             'challenges'  => $challenges,
             'outstanding' => $reportCards->outstanding($employee),

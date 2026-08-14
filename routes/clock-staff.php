@@ -137,6 +137,18 @@ $group->group(function () {
         Route::get('/', \App\Livewire\Staff\Home::class)->name('clock.staff.home');
 
         Route::get('/clock', ClockPunch::class)->name('clock.staff.punch');
+
+        /*
+         * A colleague's face, for the boards.
+         *
+         * Its own route rather than the manager's — see StaffPhotoController
+         * for what this opens up and why the scope is drawn where it is. A
+         * plain controller because it streams a file, and Livewire answers
+         * with JSON.
+         */
+        Route::get('/photo/{employee}', [\App\Http\Controllers\Hr\StaffPhotoController::class, 'show'])
+            ->whereNumber('employee')
+            ->name('clock.staff.photo');
         Route::get('/punches', ClockHistory::class)->name('clock.staff.history');
         Route::get('/roster', ClockRoster::class)->name('clock.staff.roster');
         // The employee's own payslips, from approved and paid runs only.

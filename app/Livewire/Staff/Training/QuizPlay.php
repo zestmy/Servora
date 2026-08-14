@@ -32,6 +32,20 @@ class QuizPlay extends StaffComponent
     /** Option indexes tapped, as strings from the buttons. */
     public array $chosen = [];
 
+    /**
+     * Where they stand on this quiz, recomputed after every answer.
+     *
+     * The MOVEMENT is the point rather than the number: a rank that appears at
+     * the end is a mark, and a rank that climbs a place between two questions
+     * is the reason somebody reads the next one properly. `standingBefore`
+     * holds the previous rank so the screen can say which way it went.
+     *
+     * @var array{rank: int, of: int, ahead: ?string, gap: int}|null
+     */
+    public ?array $standing = null;
+
+    public ?int $standingBefore = null;
+
     public bool $showFeedback = false;
     public bool $lastCorrect = false;
     public int $lastPoints = 0;
@@ -42,6 +56,24 @@ class QuizPlay extends StaffComponent
 
     /** Set when this run counts towards a scheduled challenge. */
     public ?int $challengeId = null;
+
+    /**
+     * Nobody has pressed Start yet.
+     *
+     * THE START SCREEN EXISTS FOR THREE REASONS and would be worth it for any
+     * one of them. It is where the language is chosen, and that choice has to
+     * be made before question one rather than discovered at it. It is a beat of
+     * "ready?" before a timed thing starts, which is the difference between a
+     * game and an ambush — the clock begins the instant a question is on
+     * screen. And it is the first TAP INSIDE THIS PAGE, which is the only
+     * moment a browser will let the backing music begin: autoplay is refused
+     * outside a user gesture, and the tap that navigated here belonged to the
+     * previous document.
+     */
+    public bool $started = false;
+
+    /** The language this run is being read in. Null until Start. */
+    public ?string $language = null;
 
     public function mount(int $id, SelfPacedQuizService $service, ?int $session = null): void
     {
@@ -62,6 +94,40 @@ class QuizPlay extends StaffComponent
 
         $this->challengeId = $challenge?->id;
 
+        // The quiz's own language is the default, and the only option when
+        // nothing has been translated.
+        $this->language = $quiz->language ?: 'en';
+    }
+
+    /**
+     * Press Start: open the attempt and put question one on screen.
+     *
+     * The attempt is created HERE rather than at mount, so opening the page and
+     * backing out does not leave an unfinished attempt behind — which on a
+     * one-shot challenge would have cost somebody their run for a mis-tap.
+     */
+    public function begin(SelfPacedQuizService $service): void
+    {
+        if ($this->started || $this->finished) {
+            return;
+        }
+
+        $employee = $this->staff();
+        $quiz     = $this->quiz();
+
+        // Re-checked against what the quiz actually offers: this arrives from
+        // the browser, and an unoffered language would mean a paper half in
+        // English for somebody who asked for Malay.
+        $offered = $quiz->availableLanguages();
+
+        if (! isset($offered[$this->language])) {
+            $this->language = $quiz->language ?: 'en';
+        }
+
+        $challenge = $this->challengeId
+            ? TrainingSession::where('company_id', $employee->company_id)->find($this->challengeId)
+            : null;
+
         try {
             $attempt = $service->startOrResume($quiz, $employee, $challenge);
         } catch (\RuntimeException $e) {
@@ -71,8 +137,26 @@ class QuizPlay extends StaffComponent
             return;
         }
 
+        /*
+         * Written on the attempt for the reporting, not for the scoring — the
+         * answer key is the same in every language. "Everybody who read this in
+         * English passed and everybody who read it in Malay failed" is a fact
+         * about the TRANSLATION, and it is invisible unless it was recorded at
+         * the time.
+         *
+         * A RESUMED attempt keeps the language it was started in: swapping
+         * language halfway would leave the answers already given belonging to a
+         * different reading of the questions.
+         */
+        if ($attempt->language) {
+            $this->language = $attempt->language;
+        } else {
+            $attempt->forceFill(['language' => $this->language])->save();
+        }
+
         $this->attemptId = $attempt->id;
         $this->index     = $service->resumeIndex($attempt);
+        $this->started   = true;
 
         if ($this->index >= count((array) $attempt->question_order)) {
             $service->finish($attempt);
@@ -82,6 +166,14 @@ class QuizPlay extends StaffComponent
         }
 
         $this->startedAt = now()->toIso8601String();
+    }
+
+    private function quiz(): TrainingQuiz
+    {
+        return TrainingQuiz::query()
+            ->where('company_id', $this->staff()->company_id)
+            ->published()
+            ->findOrFail($this->quizId);
     }
 
     private function attempt(): TrainingAttempt
@@ -145,7 +237,7 @@ class QuizPlay extends StaffComponent
         $this->lastCorrect        = $answer->is_correct;
         $this->lastPoints         = (int) $answer->points_awarded;
         $this->lastCorrectIndexes = array_map('intval', (array) $question->correct);
-        $this->lastExplanation    = $question->explanation;
+        $this->lastExplanation    = $question->explanationIn($this->language);
 
         /*
          * The sound and the colour, fired from the SERVER's verdict.
@@ -155,7 +247,33 @@ class QuizPlay extends StaffComponent
          * the answer key to the phone before the question is answered. The
          * round trip is already happening; the event rides back on it.
          */
-        $this->dispatch('answer-scored', correct: $answer->is_correct, points: (int) $answer->points_awarded);
+        /*
+         * The board, after this answer landed.
+         *
+         * Their own total is summed from the ROWS rather than read off the
+         * attempt: the attempt's `score` is written by finalise() at the end,
+         * so mid-quiz it is still zero. The rows are the truth until then —
+         * the same reason finalise sums them rather than accumulating.
+         */
+        $before = $this->standing['rank'] ?? null;
+
+        $this->standing = app(\App\Services\Training\LeaderboardService::class)->standingOnQuiz(
+            $attempt->training_quiz_id,
+            $this->staff()->id,
+            (int) $attempt->answers()->sum('points_awarded'),
+        );
+
+        $this->standingBefore = $before;
+
+        [$right, $wrong] = TrainingQuiz::verdictWordsFor($this->language);
+
+        $this->dispatch(
+            'answer-scored',
+            correct: $answer->is_correct,
+            points: (int) $answer->points_awarded,
+            // The word for the ribbon, in whatever they chose to read this in.
+            label: $answer->is_correct ? $right : $wrong,
+        );
     }
 
     /** The clock ran out with nothing chosen. */
@@ -222,6 +340,25 @@ class QuizPlay extends StaffComponent
 
     public function render(SelfPacedQuizService $service)
     {
+        // Before anything else: the start screen. Nothing has been created yet
+        // at this point, so leaving is free.
+        if (! $this->started && ! $this->finished) {
+            $quiz = $this->quiz()->loadCount('questions');
+
+            return view('livewire.staff.training.quiz-start', [
+                'quiz'      => $quiz,
+                'languages' => $quiz->availableLanguages(),
+                'challenge' => $this->challengeId
+                    ? TrainingSession::where('company_id', $this->staff()->company_id)->find($this->challengeId)
+                    : null,
+                'best' => TrainingAttempt::where('employee_id', $this->staff()->id)
+                    ->where('training_quiz_id', $quiz->id)
+                    ->completed()
+                    ->orderByDesc('percent')
+                    ->first(),
+            ])->layout('layouts.clock-staff', $this->shell($quiz->title));
+        }
+
         if ($this->finished || ! $this->attemptId) {
             $attempt = $this->attemptId
                 ? $this->attempt()->fresh(['quiz.course', 'answers'])
@@ -249,7 +386,9 @@ class QuizPlay extends StaffComponent
             ])->layout('layouts.clock-staff', $this->shell('Result'));
         }
 
-        $options = $question->optionList();
+        $question->loadMissing('translations');
+
+        $options = $question->optionListIn($this->language);
 
         // Seeded on the attempt and the question rather than shuffled per
         // render: a fresh shuffle on every Livewire round trip would move the
@@ -266,6 +405,7 @@ class QuizPlay extends StaffComponent
             'attempt'  => $attempt,
             'quiz'     => $attempt->quiz,
             'question' => $question,
+            'prompt'   => $question->promptIn($this->language),
             'options'  => $options,
             'order'    => $order,
             'total'    => count((array) $attempt->question_order),

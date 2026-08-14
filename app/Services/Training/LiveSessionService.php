@@ -123,7 +123,7 @@ class LiveSessionService
     {
         return TrainingAttempt::query()
             ->where('training_session_id', $session->id)
-            ->with('employee:id,name,outlet_id', 'employee.outlet:id,name')
+            ->with('employee:id,name,outlet_id,photo_path', 'employee.outlet:id,name')
             ->get()
             ->sortBy([
                 // Finished first, then by score. Somebody mid-attempt has not
@@ -135,6 +135,8 @@ class LiveSessionService
             ->map(fn (TrainingAttempt $attempt, int $i) => [
                 'rank'      => $i + 1,
                 'name'      => $attempt->employee->name ?? 'Removed staff member',
+                'employee'  => $attempt->employee?->id,
+                'photo'     => $attempt->employee?->photo_path,
                 'outlet'    => $attempt->employee?->outlet?->name,
                 'score'     => (int) $attempt->score,
                 'percent'   => (float) $attempt->percent,

@@ -261,6 +261,22 @@ export default {
                     '0%, 100%': { transform: 'scale(1)' },
                     '50%':      { transform: 'scale(1.12)' },
                 },
+                /* The verdict ribbon: in from the left, a beat to be read, out
+                   to the right. One keyframe rather than three animations, so
+                   the hold cannot drift out of step with the entrance. */
+                'ribbon-sweep': {
+                    '0%':        { opacity: '0', transform: 'translateX(-100%) skewY(-2deg)' },
+                    '12%, 72%':  { opacity: '1', transform: 'translateX(0) skewY(-2deg)' },
+                    '100%':      { opacity: '0', transform: 'translateX(100%) skewY(-2deg)' },
+                },
+                /* The word inside it, arriving a beat after the band so it
+                   reads as landing rather than sliding past. */
+                'verdict-pop': {
+                    '0%, 8%':   { opacity: '0', transform: 'scale(0.7)' },
+                    '26%':      { opacity: '1', transform: 'scale(1.06)' },
+                    '34%, 72%': { opacity: '1', transform: 'scale(1)' },
+                    '100%':     { opacity: '0', transform: 'scale(1)' },
+                },
             },
 
             animation: {
@@ -276,6 +292,8 @@ export default {
                 'score-float': 'score-float 1.1s ease-out both',
                 'flash-out': 'flash-out 0.45s ease-out forwards',
                 'urgent': 'urgent 1s ease-in-out infinite',
+                'ribbon-sweep': 'ribbon-sweep 1.5s cubic-bezier(0.16, 1, 0.3, 1) both',
+                'verdict-pop': 'verdict-pop 1.5s cubic-bezier(0.16, 1, 0.3, 1) both',
             },
         },
     },

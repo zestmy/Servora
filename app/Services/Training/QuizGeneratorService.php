@@ -4,6 +4,8 @@ namespace App\Services\Training;
 
 use App\Models\AppSetting;
 use App\Models\TrainingCourse;
+use App\Models\TrainingQuestion;
+use App\Models\TrainingQuestionTranslation;
 use App\Models\TrainingQuiz;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -107,6 +109,193 @@ class QuizGeneratorService
             'model'     => self::MODEL,
             'dropped'   => $dropped,
         ];
+    }
+
+    // ── Translating ───────────────────────────────────────────────────────
+
+    /**
+     * Say the same questions in another language.
+     *
+     * NOT "generate a Malay quiz from the same material". That was the first
+     * answer and it is subtly wrong: two independent generations produce two
+     * different papers, so a Malay reader and an English reader sit different
+     * exams and their scores are not comparable — which is the whole purpose of
+     * a leaderboard they share. A translation keeps one set of questions, in
+     * one order, with one answer key.
+     *
+     * THE OPTION COUNT IS THE INVARIANT. `correct` is a list of INDEXES into
+     * the option array, so a translation that drops, adds or reorders an option
+     * does not read a little worse — it marks the wrong answer correct for
+     * everybody reading that language, silently, on a quiz that may be about
+     * allergens. Any question whose translation does not come back with exactly
+     * the same number of options is refused and reported, never padded.
+     *
+     * @return array{translated: int, skipped: int, language: string}
+     */
+    public function translateQuiz(TrainingQuiz $quiz, string $language): array
+    {
+        if (! isset(TrainingQuiz::LANGUAGES[$language])) {
+            throw new \RuntimeException('That is not a language this product writes in.');
+        }
+
+        if ($language === ($quiz->language ?: 'en')) {
+            throw new \RuntimeException('The quiz is already written in that language.');
+        }
+
+        $questions = $quiz->questions()->orderBy('sort_order')->orderBy('id')->get();
+
+        if ($questions->isEmpty()) {
+            throw new \RuntimeException('There are no questions to translate yet.');
+        }
+
+        $raw = $this->askForTranslation($questions, $language);
+
+        $decoded = $this->decode($raw);
+        $rows    = $decoded['questions'] ?? (array_is_list($decoded) ? $decoded : []);
+
+        // Keyed by the id WE sent, not by position. A model that returns nine
+        // rows for ten questions would otherwise shift every translation after
+        // the gap onto the wrong question — the same class of silent
+        // misalignment the option count guards against.
+        $byId = [];
+
+        foreach ($rows as $row) {
+            $row = (array) $row;
+
+            if (isset($row['id'])) {
+                $byId[(int) $row['id']] = $row;
+            }
+        }
+
+        $translated = 0;
+        $skipped    = 0;
+
+        DB::transaction(function () use ($questions, $byId, $language, &$translated, &$skipped) {
+            foreach ($questions as $question) {
+                $row     = $byId[$question->id] ?? null;
+                $options = array_values(array_map(
+                    fn ($o) => trim((string) $o),
+                    (array) ($row['options'] ?? []),
+                ));
+
+                $prompt = trim((string) ($row['prompt'] ?? ''));
+
+                if (! $row || $prompt === '' || count($options) !== count($question->optionList())
+                    || in_array('', $options, true)) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                TrainingQuestionTranslation::updateOrCreate(
+                    ['training_question_id' => $question->id, 'language' => $language],
+                    [
+                        'prompt'             => $prompt,
+                        'options'            => $options,
+                        'explanation'        => trim((string) ($row['explanation'] ?? '')) ?: null,
+                        'machine_translated' => true,
+                    ],
+                );
+
+                $translated++;
+            }
+        });
+
+        if ($translated === 0) {
+            throw new \RuntimeException(
+                'Nothing usable came back. Try again — if it keeps happening, the questions may be too long.'
+            );
+        }
+
+        return ['translated' => $translated, 'skipped' => $skipped, 'language' => $language];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, TrainingQuestion>  $questions
+     */
+    private function askForTranslation($questions, string $language): string
+    {
+        $apiKey = AppSetting::get('openrouter_api_key');
+
+        if (empty($apiKey)) {
+            throw new \RuntimeException('OpenRouter API key not configured. Go to Settings > API Keys.');
+        }
+
+        $payload = $questions->map(fn (TrainingQuestion $q) => [
+            'id'          => $q->id,
+            'prompt'      => $q->prompt,
+            'options'     => $q->optionList(),
+            'explanation' => $q->explanation,
+        ])->values()->all();
+
+        $previousTimeout = ini_get('max_execution_time');
+        set_time_limit(180);
+
+        $response = Http::connectTimeout(15)
+            ->timeout(150)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+                'HTTP-Referer'  => config('app.url', 'http://localhost'),
+                'X-Title'       => config('app.name', 'Servora'),
+            ])
+            ->post('https://openrouter.ai/api/v1/chat/completions', [
+                'model'      => self::MODEL,
+                'max_tokens' => 8192,
+                // Lower than generation. There is no "give me a different
+                // balance of questions" here — there is one right answer to
+                // "what does this say in Malay", and drift is not a feature.
+                'temperature' => 0.2,
+                'messages'    => [
+                    ['role' => 'system', 'content' => $this->translationSystemPrompt($language)],
+                    ['role' => 'user',   'content' => json_encode(
+                        ['questions' => $payload],
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+                    )],
+                ],
+            ]);
+
+        set_time_limit((int) $previousTimeout ?: 60);
+
+        if ($response->failed()) {
+            Log::error('[training] OpenRouter translation error', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+
+            $message = $response->json('error.message') ?? ('HTTP ' . $response->status());
+
+            throw new \RuntimeException('Translation failed: ' . $message);
+        }
+
+        return (string) ($response->json('choices.0.message.content') ?? '');
+    }
+
+    private function translationSystemPrompt(string $language): string
+    {
+        $brief = trim($this->languageBrief($language));
+
+        return <<<PROMPT
+        You translate training quizzes for restaurant and cafe staff.
+
+        {$brief}
+
+        You are given questions as JSON. Return JSON and nothing else:
+
+        {"questions":[{"id":<the same id>,"prompt":"…","options":["…","…"],"explanation":"…"}]}
+
+        RULES, and the first two are absolute:
+        1. Return EVERY question, with the id it was given. Never merge, split,
+           reorder or omit one.
+        2. Return EXACTLY the same number of options per question, in exactly the
+           same order. The answer key is stored as positions in that list, so
+           moving an option marks the wrong answer correct.
+        3. Translate the meaning, not the words. These are read at speed on a
+           phone during a shift by somebody who may be holding a tray.
+        4. Keep numbers, temperatures, times and measurements identical.
+        5. Leave brand names, dish names and menu items as they are written.
+        6. If an explanation is null or missing, return it as an empty string.
+        PROMPT;
     }
 
     // ── The call ──────────────────────────────────────────────────────────

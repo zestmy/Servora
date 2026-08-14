@@ -53,8 +53,11 @@
                                          noise, and the thing worth spotting is the one that
                                          differs. An untagged quiz goes to everybody, which is
                                          the normal case and needs no marking. --}}
-                                    @if ($quiz->section_id)
+                                    @if ($quiz->sections->isNotEmpty())
                                         <span class="badge-brand ml-1">{{ $quiz->sectionLabel() }}</span>
+                                    @endif
+                                    @if ($quiz->outlets->isNotEmpty())
+                                        <span class="badge-info ml-1">{{ $quiz->outletLabel() }}</span>
                                     @endif
                                     @if (($quiz->language ?? 'en') !== 'en')
                                         <span class="badge-neutral ml-1">{{ $quiz->languageLabel() }}</span>

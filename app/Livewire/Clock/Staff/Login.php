@@ -34,6 +34,20 @@ class Login extends StaffLogin
         return 'clock.staff.home';
     }
 
+    /**
+     * The punch screen, which is only ever an intended URL by accident.
+     *
+     * Apps installed before the landing page moved still launch /staff/clock,
+     * and iOS never refetches an installed web app's manifest — so the launch
+     * is recorded as "where they were going" and sign-in returns them to the
+     * camera. Nobody is ever deep-linked here on purpose: it is a tab, one tap
+     * from Home. See StaffLogin::destination().
+     */
+    protected function staleLandingRoutes(): array
+    {
+        return ['clock.staff.punch'];
+    }
+
     protected function layoutName(): string
     {
         return 'layouts.clock-staff';

@@ -225,7 +225,14 @@ class LivePlay extends Component
             $answer = $this->myAnswer($current);
 
             if ($answer) {
-                $this->dispatch('answer-scored', correct: (bool) $answer->is_correct, points: (int) $answer->points_awarded);
+                [$right, $wrong] = \App\Models\TrainingQuiz::verdictWordsFor($session->quiz?->language);
+
+                $this->dispatch(
+                    'answer-scored',
+                    correct: (bool) $answer->is_correct,
+                    points: (int) $answer->points_awarded,
+                    label: $answer->is_correct ? $right : $wrong,
+                );
             }
         }
     }

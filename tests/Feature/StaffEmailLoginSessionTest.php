@@ -91,4 +91,44 @@ class StaffEmailLoginSessionTest extends TestCase
 
         $this->assertGuardedPageOpens();
     }
+
+    /**
+     * Launching the app never lands on the clock, however old the installed
+     * icon is.
+     *
+     * Reported twice as "the Staff Portal still lands on Clock-In" after the
+     * route, the post-login fallback and the manifest had all been moved to
+     * Home. The access log had it:
+     *
+     *     GET /staff/clock  302 (no referrer)  → /staff/login
+     *     GET /staff/clock  200  referrer=/staff/login
+     *
+     * An app installed before the move still launches the old start_url, iOS
+     * never refetches an installed web app's manifest, and the intended-URL
+     * machinery faithfully returned them to where the launch had landed.
+     */
+    public function test_a_launch_at_the_old_start_url_still_lands_on_home(): void
+    {
+        // The launch: bounced to sign-in, which records where it was going.
+        $this->get(route('clock.staff.punch'))
+            ->assertRedirect(route('clock.staff.login'));
+
+        $component = $this->signInByEmail(withPin: true);
+
+        $component->assertRedirect(route('clock.staff.home'));
+    }
+
+    /**
+     * A genuine deep link is still honoured — which is the whole reason the
+     * intended URL exists, and what makes the rule above narrow rather than a
+     * blanket "always go home".
+     */
+    public function test_a_real_deep_link_still_returns_after_sign_in(): void
+    {
+        $this->get(route('clock.staff.payslips'))
+            ->assertRedirect(route('clock.staff.login'));
+
+        $this->signInByEmail(withPin: true)
+            ->assertRedirect(route('clock.staff.payslips'));
+    }
 }

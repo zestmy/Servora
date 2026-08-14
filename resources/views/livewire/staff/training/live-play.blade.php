@@ -7,6 +7,11 @@
 --}}
 <div class="mx-auto max-w-md" wire:poll.1s="heartbeat">
 
+    {{-- No music in a live room: the host's screen is the one making noise, and
+         twenty phones playing the same track a beat apart is not a soundtrack.
+         The chime on your own answer still lands. --}}
+    <x-training.quiz-fx />
+
     <div class="mb-4 flex items-center justify-between gap-3">
         <div class="min-w-0">
             <p class="truncate font-semibold text-gray-900">{{ $player->nickname }}</p>
@@ -18,13 +23,7 @@
                 @endif
             </p>
         </div>
-        <div class="flex items-center gap-1">
-            {{-- No music in a live room: the host's screen is the one making
-                 noise, and twenty phones playing the same track a beat apart is
-                 not a soundtrack. The chime on your own answer still lands. --}}
-            <x-training.quiz-fx />
-            <button type="button" wire:click="leave" class="text-xs text-gray-600 hover:text-gray-900">Leave</button>
-        </div>
+        <button type="button" wire:click="leave" class="text-xs text-gray-600 hover:text-gray-900">Leave</button>
     </div>
 
     @if ($session->status === 'lobby')

@@ -15,6 +15,36 @@
             About {{ $course->estimated_minutes }} minutes
             @if ($course->is_compliance) · <span class="badge-warning">Compliance</span> @endif
         </p>
+
+        {{-- ── Straight to the quiz ──
+
+             The material on a real course runs to a couple of thousand words,
+             so the quiz cards sit below a screen and a half of reading — fine
+             for somebody learning it for the first time, and wrong for the far
+             commoner case of a person who has read it, is on a break, and came
+             back to sit the paper. They should not have to scroll past the
+             lesson to find the test.
+
+             Only when there is exactly one, and only as a shortcut: with two
+             papers on offer (a Malay one beside an English one, a kitchen one
+             beside a floor one) picking for them would be choosing somebody's
+             language and section on their behalf. Then this becomes a jump to
+             the list instead, which is honest about what it does. --}}
+        @if ($quizzes->count() === 1)
+            @php $only = $quizzes->first(); @endphp
+            @if ($only->questions_count > 0)
+                <a href="{{ route('clock.staff.learn.quiz', $only->id) }}" wire:navigate
+                   class="btn-primary mt-3 w-full justify-center">
+                    <x-icon name="play" size="h-4 w-4" class="mr-1" />
+                    {{ ($best[$only->id] ?? null) ? 'Take the quiz again' : 'Take the quiz' }}
+                </a>
+            @endif
+        @elseif ($quizzes->count() > 1)
+            <a href="#quizzes" class="btn-primary mt-3 w-full justify-center">
+                <x-icon name="play" size="h-4 w-4" class="mr-1" />
+                Take a quiz ({{ $quizzes->count() }} to choose from)
+            </a>
+        @endif
     </div>
 
     @if ($video)
@@ -64,6 +94,8 @@
             ->map(fn ($l) => $l ?: 'en')->unique()->count() > 1;
     @endphp
 
+    <div id="quizzes" class="scroll-mt-4"></div>
+
     @forelse ($quizzes as $quiz)
         @php $mine = $best[$quiz->id] ?? null; @endphp
         <div wire:key="quiz-{{ $quiz->id }}" class="card p-5 mb-3">
@@ -76,7 +108,7 @@
                         @if ($multilingual || ($quiz->language ?? 'en') !== 'en')
                             · <span class="badge-neutral">{{ $quiz->languageLabel() }}</span>
                         @endif
-                        @if ($quiz->section_id)
+                        @if ($quiz->sections->isNotEmpty())
                             · <span class="badge-brand">{{ $quiz->sectionLabel() }}</span>
                         @endif
                     </p>

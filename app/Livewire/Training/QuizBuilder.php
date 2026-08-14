@@ -28,8 +28,19 @@ class QuizBuilder extends Component
     public string $title = '';
     public string $description = '';
     public string $language = 'en';
-    /** Empty means everybody — see TrainingQuiz::scopeForSection. */
-    public string $sectionId = '';
+    /**
+     * Section ids this quiz is for. Empty means everybody.
+     *
+     * A list rather than one id, because the real audiences are not single
+     * sections: a menu paper is for FOH and Bar but not the kitchen. With one
+     * id those get written as two quizzes, and two papers drift.
+     *
+     * @var array<int, string>
+     */
+    public array $sectionIds = [];
+
+    /** Outlet ids this quiz is for. Empty means all of them. @var array<int, string> */
+    public array $outletIds = [];
     public string $status = 'draft';
     public int $passMark = 70;
     public int $defaultSeconds = 20;
@@ -63,29 +74,28 @@ class QuizBuilder extends Component
     public bool $replaceExisting = true;
 
     /**
-     * The language to WRITE IN, which is not the same field as the quiz's own.
+     * The language to translate INTO, on the languages card.
      *
-     * It used to be `$language` — the settings field — so choosing Malay in the
-     * generate panel changed what the quiz claimed to be and then overwrote its
-     * questions. Somebody producing a Malay paper alongside an English one lost
-     * the English one, which is what was reported.
+     * There is no "generate in another language" any more, and that is the
+     * point. Two independent generations produce two different papers, so a
+     * Malay reader and an English reader would sit different exams and their
+     * scores would not be comparable — on a leaderboard they share. One set of
+     * questions, translated, is the only version of this that means anything.
      */
-    public string $genLanguage = 'en';
-
-    /** 'replace' — this quiz's questions. 'new' — a sibling on the same course. */
-    public string $genTarget = 'replace';
+    public string $translateTo = '';
 
     public function mount(int $id): void
     {
         $this->requireActiveCompany();
 
-        $quiz = TrainingQuiz::findOrFail($id);
+        $quiz = TrainingQuiz::with('sections:id', 'outlets:id')->findOrFail($id);
 
         $this->quizId            = $quiz->id;
         $this->title             = $quiz->title;
         $this->description       = (string) $quiz->description;
         $this->language          = $quiz->language ?: 'en';
-        $this->sectionId         = (string) ($quiz->section_id ?? '');
+        $this->sectionIds        = $quiz->sections->pluck('id')->map('strval')->all();
+        $this->outletIds         = $quiz->outlets->pluck('id')->map('strval')->all();
         $this->status            = $quiz->status;
         $this->passMark          = $quiz->pass_mark;
         $this->defaultSeconds    = $quiz->default_seconds;
@@ -98,21 +108,57 @@ class QuizBuilder extends Component
         $this->shuffleOptions    = $quiz->shuffle_options;
         $this->maxAttempts       = $quiz->max_attempts;
         $this->issuesCertificate = $quiz->issues_certificate;
-        $this->genLanguage       = $this->language;
     }
 
     /**
-     * Picking a different language means a different paper, by default.
+     * Write every question again in another language.
      *
-     * The commonest reason to generate in another language is to have BOTH —
-     * the floor reads Malay, the manager reviews English — and replacing in
-     * place is the one outcome that cannot be undone. It stays a control the
-     * author can move back, because rewriting a Malay paper in Malay is normal
-     * too.
+     * The translation lives on the QUESTION, so this quiz gains a language
+     * rather than gaining a twin: one attempt, one leaderboard line, one
+     * assignment to clear, whichever language somebody read. See the migration
+     * on training_question_translations for why the alternative was worse.
      */
-    public function updatedGenLanguage(string $value): void
+    public function translate(QuizGeneratorService $generator): void
     {
-        $this->genTarget = $value === $this->language ? 'replace' : 'new';
+        $this->authorize('training.manage');
+
+        $quiz = TrainingQuiz::findOrFail($this->quizId);
+
+        try {
+            $result = $generator->translateQuiz($quiz, $this->translateTo);
+        } catch (\RuntimeException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        }
+
+        $label = TrainingQuiz::LANGUAGES[$result['language']] ?? $result['language'];
+
+        // The skipped count is surfaced rather than swallowed: a language is
+        // only offered to staff once EVERY question has it, so "9 of 10" is the
+        // difference between a language that works and one that silently does
+        // not appear.
+        $note = $result['skipped'] > 0
+            ? " {$result['skipped']} could not be translated safely and were left in "
+                . ($quiz->languageLabel()) . ' — translate again to finish them.'
+            : '';
+
+        session()->flash('success', "Translated {$result['translated']} questions into {$label}.{$note}");
+
+        $this->translateTo = '';
+    }
+
+    /** Drop a language from the quiz entirely. */
+    public function removeLanguage(string $language): void
+    {
+        $this->authorize('training.manage');
+
+        \App\Models\TrainingQuestionTranslation::whereIn(
+            'training_question_id',
+            TrainingQuiz::findOrFail($this->quizId)->questions()->select('id'),
+        )->where('language', $language)->delete();
+
+        session()->flash('success', 'Language removed. Staff are no longer offered it.');
     }
 
     public function saveSettings(): void
@@ -123,9 +169,13 @@ class QuizBuilder extends Component
             'title'          => ['required', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
             'language'       => ['required', Rule::in(array_keys(TrainingQuiz::LANGUAGES))],
-            // Scoped to this company: a section id is client-supplied like any
-            // other field, and a <select> is not the control.
-            'sectionId'      => ['nullable', Rule::exists('sections', 'id')
+            // Scoped to this company: these are client-supplied like any other
+            // field, and a set of checkboxes is not the control.
+            'sectionIds'   => ['array'],
+            'sectionIds.*' => [Rule::exists('sections', 'id')
+                ->where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)],
+            'outletIds'    => ['array'],
+            'outletIds.*'  => [Rule::exists('outlets', 'id')
                 ->where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)],
             'status'         => ['required', Rule::in(array_keys(TrainingQuiz::STATUSES))],
             'passMark'       => ['required', 'integer', 'min:1', 'max:100'],
@@ -148,7 +198,6 @@ class QuizBuilder extends Component
             'title'              => $data['title'],
             'description'        => $data['description'] ?: null,
             'language'           => $data['language'],
-            'section_id'         => $this->sectionId ?: null,
             'status'             => $data['status'],
             'pass_mark'          => $data['passMark'],
             'default_seconds'    => $data['defaultSeconds'],
@@ -162,6 +211,14 @@ class QuizBuilder extends Component
             'max_attempts'       => $data['maxAttempts'],
             'issues_certificate' => $this->issuesCertificate,
         ]);
+
+        /*
+         * Empty means everybody, on both sides — so detaching everything is a
+         * meaningful state and sync() with an empty array is the right call,
+         * not a no-op to guard against.
+         */
+        $quiz->sections()->sync(array_map('intval', $data['sectionIds'] ?? []));
+        $quiz->outlets()->sync(array_map('intval', $data['outletIds'] ?? []));
 
         session()->flash('success', 'Quiz settings saved.');
     }
@@ -379,17 +436,10 @@ class QuizBuilder extends Component
             return;
         }
 
-        /*
-         * A SEPARATE PAPER, not this one rewritten.
-         *
-         * The same course carries a Malay set beside an English one — the whole
-         * reason a quiz has a language at all, and the staff course screen
-         * offers both and lets the reader choose. Writing the second one over
-         * the first is what somebody reported losing an afternoon's work to.
-         */
-        $target = $this->genTarget === 'new'
-            ? $this->siblingIn($quiz, $this->genLanguage)
-            : $quiz;
+        $languagesBefore = array_values(array_intersect_key(
+            TrainingQuiz::LANGUAGES,
+            $quiz->translationCoverage(),
+        ));
 
         /*
          * Persist the language BEFORE generating.
@@ -401,29 +451,20 @@ class QuizBuilder extends Component
          * quiz remembers what it was written in, which the true/false editor
          * then follows.
          */
-        if ($target->language !== $this->genLanguage) {
-            $target->update(['language' => $this->genLanguage]);
-            $target->refresh();
+        if ($quiz->language !== $this->language) {
+            $quiz->update(['language' => $this->language]);
+            $quiz->refresh();
         }
 
         try {
             $result = $generator->generateForCourse(
                 $course,
-                $target,
+                $quiz,
                 $this->questionCount,
                 $this->questionDifficulty,
-                // A brand-new sibling has nothing to replace, and passing the
-                // author's "replace" tick through would be answering a question
-                // that was asked about a different quiz.
-                $target->is($quiz) ? $this->replaceExisting : true,
+                $this->replaceExisting,
             );
         } catch (\RuntimeException $e) {
-            // A sibling created for a generation that then failed is an empty
-            // draft nobody asked for. It goes.
-            if (! $target->is($quiz)) {
-                $target->forceDelete();
-            }
-
             session()->flash('error', $e->getMessage());
 
             return;
@@ -433,61 +474,20 @@ class QuizBuilder extends Component
 
         $note = $result['dropped'] > 0 ? " {$result['dropped']} were discarded as unusable." : '';
 
-        if (! $target->is($quiz)) {
-            session()->flash('success', "Wrote {$result['questions']} questions in "
-                . $target->languageLabel() . '. "' . $quiz->title . '" is untouched.' . $note);
+        /*
+         * Replacing the questions orphans every translation of them — the rows
+         * are gone with their questions, by cascade — so the languages card
+         * empties and staff stop being offered anything but the original. That
+         * is the correct outcome and a surprising one, so it is said out loud
+         * rather than discovered when somebody asks where Malay went.
+         */
+        $lost = $this->replaceExisting && $languagesBefore !== []
+            ? ' The ' . implode(' and ', $languagesBefore) . ' translation'
+                . (count($languagesBefore) > 1 ? 's are' : ' is')
+                . ' gone with the old questions — translate again.'
+            : '';
 
-            $this->redirectRoute('training.quizzes.edit', $target->id, navigate: true);
-
-            return;
-        }
-
-        session()->flash('success', "Wrote {$result['questions']} questions.{$note}");
-    }
-
-    /**
-     * A second paper on the same course, in another language.
-     *
-     * Every setting is carried across except the ones that must not be: it
-     * starts as a DRAFT, because an unreviewed machine translation of a safety
-     * quiz has no business being live the moment it is written, and a draft's
-     * public link is dead until somebody has read it through.
-     */
-    private function siblingIn(TrainingQuiz $quiz, string $language): TrainingQuiz
-    {
-        $label = TrainingQuiz::LANGUAGES[$language] ?? $language;
-
-        // "Lamb rack quiz (Bahasa Malaysia)", with any existing language
-        // suffix stripped first so translating a translation does not stack
-        // them.
-        $pattern = '/\s*\((?:' . implode('|', array_map(
-            fn ($l) => preg_quote($l, '/'),
-            TrainingQuiz::LANGUAGES,
-        )) . ')\)$/u';
-
-        $base = trim((string) preg_replace($pattern, '', $quiz->title));
-
-        return TrainingQuiz::create([
-            'company_id'            => $quiz->company_id,
-            'training_course_id'    => $quiz->training_course_id,
-            'section_id'            => $quiz->section_id,
-            'title'                 => $base . ' (' . $label . ')',
-            'description'           => $quiz->description,
-            'language'              => $language,
-            'status'                => 'draft',
-            'pass_mark'             => $quiz->pass_mark,
-            'default_seconds'       => $quiz->default_seconds,
-            'default_points'        => $quiz->default_points,
-            'speed_bonus'           => $quiz->speed_bonus,
-            'streak_bonus'          => $quiz->streak_bonus,
-            'wrong_penalty_percent' => $quiz->wrong_penalty_percent,
-            'music_url'             => $quiz->music_url,
-            'shuffle_questions'     => $quiz->shuffle_questions,
-            'shuffle_options'       => $quiz->shuffle_options,
-            'max_attempts'          => $quiz->max_attempts,
-            'issues_certificate'    => $quiz->issues_certificate,
-            'created_by'            => \Illuminate\Support\Facades\Auth::id(),
-        ]);
+        session()->flash('success', "Wrote {$result['questions']} questions.{$note}{$lost}");
     }
 
     /** Scoped by the quiz, so an id from another company's quiz 404s. */
@@ -513,11 +513,17 @@ class QuizBuilder extends Component
 
     public function render()
     {
-        $quiz      = TrainingQuiz::with('course:id,title', 'section:id,name')->findOrFail($this->quizId);
+        $quiz      = TrainingQuiz::with('course:id,title', 'sections:id,name', 'outlets:id,name')
+            ->findOrFail($this->quizId);
         $questions = $quiz->questions()->get();
         $aiReady   = app(QuizGeneratorService::class)->isConfigured();
 
         $sections = \App\Models\Section::active()->ordered()->get(['id', 'name']);
+
+        $outlets = \App\Models\Outlet::where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         /*
          * The QR is only drawn for a published quiz, because the link only
@@ -528,7 +534,12 @@ class QuizBuilder extends Component
         $shareUrl = $quiz->status === 'published' ? $quiz->shareUrl() : null;
         $shareQr  = $shareUrl ? app(\App\Services\Labels\LabelQrService::class)->encode($shareUrl) : null;
 
-        return view('livewire.training.quiz-builder', compact('quiz', 'questions', 'aiReady', 'sections', 'shareUrl', 'shareQr'))
+        $coverage  = $quiz->translationCoverage();
+        $available = $quiz->availableLanguages();
+
+        return view('livewire.training.quiz-builder', compact(
+            'quiz', 'questions', 'aiReady', 'sections', 'outlets', 'shareUrl', 'shareQr', 'coverage', 'available',
+        ))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $quiz->title]);
     }
 }

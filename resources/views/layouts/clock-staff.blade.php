@@ -238,8 +238,18 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+            {{-- The APP's base, not the punch screen.
+
+                 It registered with /staff/clock, which contradicted the
+                 Service-Worker-Allowed header the worker is served with and
+                 left Home, Punches, Leave, Payslips and Learning outside the
+                 worker's control — uncontrolled, and offline for nobody. See
+                 ClockAppController::scope(), whose comment says exactly this
+                 about the value that was being passed. --}}
             navigator.serviceWorker
-                .register(@js(route('clock.staff.sw')), { scope: @js(route('clock.staff.punch', absolute: false)) })
+                .register(@js(route('clock.staff.sw')), {
+                    scope: @js(rtrim(route('clock.staff.home', absolute: false), '/') . '/'),
+                })
                 // Registration failing must never stop somebody clocking in.
                 .catch(() => {});
         });

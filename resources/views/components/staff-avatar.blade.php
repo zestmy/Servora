@@ -25,6 +25,32 @@
 @props([
     'name' => '',
     'size' => 'h-9 w-9 text-xs',
+    /*
+     * The photograph, when there is one and the caller has it.
+     *
+     * The boards were built on initials alone — see the note above, which is
+     * still the reason a NAME is enough to draw one. The merchant asked for the
+     * real faces, so a caller that has the employee's id and photo_path may
+     * hand them over and get the photograph instead; everyone without one still
+     * falls back to their coloured disc, which is most of the floor.
+     *
+     * Served by clock.staff.photo, not the manager's route: that one is gated
+     * on hr.view, and this is drawn inside a PIN session. See
+     * StaffPhotoController for what the staff-facing route does and does not
+     * expose.
+     */
+    'employee' => null,
+    'photo'    => null,
+    /*
+     * Which route serves the file, because the same board is drawn in two apps
+     * whose photo routes are gated differently. The Staff Portal has
+     * clock.staff.photo (a PIN for this company); the manager app has
+     * hr.employees.photo (hr.view plus outlet access) and does not have the
+     * staff route bound at all — it lives on the subdomain. A caller in the
+     * manager app passes its own route AND checks the ability first, or the
+     * board fills with 403s wearing broken-image icons.
+     */
+    'photoRoute' => 'clock.staff.photo',
 ])
 
 @php
@@ -52,7 +78,20 @@
     $tone = $tones[crc32(mb_strtolower(trim((string) $name))) % count($tones)];
 @endphp
 
+{{-- ONE ELEMENT, with the photograph laid over the disc rather than instead of
+     it. A photo that 404s — deleted from the disk, or a path left behind by a
+     restore — then degrades to the initials underneath instead of to a broken
+     image icon, which is the failure a board full of faces would otherwise
+     show. Most of the floor has no photo at all and never reaches the img. --}}
 <span aria-hidden="true"
-      {{ $attributes->merge(['class' => "inline-flex shrink-0 items-center justify-center rounded-full font-semibold tracking-wide {$size} {$tone}"]) }}>
+      {{ $attributes->merge(['class' => "relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold tracking-wide {$size} {$tone}"]) }}>
     {{ $initials }}
+
+    @if ($employee && $photo)
+        {{-- alt is empty on purpose: the name is beside it everywhere this is
+             used, and a screen reader reading it twice is noise. --}}
+        <img src="{{ route($photoRoute, $employee) }}" alt="" loading="lazy"
+             class="absolute inset-0 h-full w-full rounded-full object-cover"
+             onerror="this.remove()">
+    @endif
 </span>

@@ -325,6 +325,34 @@ abstract class StaffLogin extends Component
             return $fallback;
         }
 
+        /*
+         * A LAUNCH IS NOT A DESTINATION.
+         *
+         * Reported twice as "the Staff Portal still lands on Clock-In", and the
+         * route, the post-login fallback and the manifest were all already
+         * pointing at Home. The access log had the answer:
+         *
+         *     GET /staff/clock  302 (no referrer)  → /staff/login
+         *     GET /staff/login  200
+         *     GET /staff/clock  200  referrer=/staff/login
+         *
+         * An app installed before the landing page moved still launches the old
+         * start_url, and iOS NEVER REFETCHES THE MANIFEST of an installed web
+         * app — remove-and-re-add is the only way, which is not a thing to ask
+         * of a floor. So the launch lands on /staff/clock, the middleware
+         * faithfully records it as "where they were trying to go", and sign-in
+         * returns them there. Every part of that is working as designed.
+         *
+         * The fix is to notice that nobody is ever deep-linked to the punch
+         * screen. It is a tab, one tap from Home; the links people are actually
+         * sent — a payslip, a leave request, a quiz QR — are all elsewhere, and
+         * those still return correctly. An intended URL pointing at the app's
+         * own tabs-and-nothing-else screen is a stale start_url every time.
+         */
+        if ($this->isLandingOnly($intended)) {
+            return $fallback;
+        }
+
         $target = parse_url($intended);
         $here   = parse_url($fallback);
 
@@ -340,6 +368,36 @@ abstract class StaffLogin extends Component
         }
 
         return $intended;
+    }
+
+    /**
+     * Routes that only ever appear as a stale start_url, never as a real
+     * destination somebody was sent to.
+     *
+     * Empty by default; each app names its own. See destination().
+     *
+     * @return array<int, string> route names
+     */
+    protected function staleLandingRoutes(): array
+    {
+        return [];
+    }
+
+    private function isLandingOnly(string $intended): bool
+    {
+        $path = rtrim((string) (parse_url($intended, PHP_URL_PATH) ?: ''), '/');
+
+        foreach ($this->staleLandingRoutes() as $name) {
+            if (! \Illuminate\Support\Facades\Route::has($name)) {
+                continue;
+            }
+
+            if ($path === rtrim((string) parse_url(route($name, absolute: false), PHP_URL_PATH), '/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function companyId(): ?int

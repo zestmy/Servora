@@ -65,7 +65,10 @@
                             </td>
                             <td class="px-4 py-3">
                                 <span class="flex items-center gap-2.5">
-                                    <x-staff-avatar :name="$row['name']" size="h-8 w-8 text-xs" />
+                                    <x-staff-avatar :name="$row['name']" size="h-8 w-8 text-xs"
+                                                    :employee="auth()->user()->can('hr.view') ? ($row['employee_id'] ?? null) : null"
+                                                    :photo="$row['photo'] ?? null"
+                                                    photoRoute="hr.employees.photo" />
                                     <span class="font-medium text-gray-900">{{ $row['name'] }}</span>
                                 </span>
                             </td>

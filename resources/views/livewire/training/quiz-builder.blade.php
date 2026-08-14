@@ -41,63 +41,34 @@
                     </div>
                     <div>
                         <label class="label" for="regen-language">Write it in</label>
-                        <select id="regen-language" wire:model.live="genLanguage" class="input">
+                        <select id="regen-language" wire:model="language" class="input">
                             @foreach (\App\Models\TrainingQuiz::LANGUAGES as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
 
-                    @if ($genTarget === 'replace')
-                        <label class="flex items-center gap-2 pb-2 text-sm text-gray-800">
-                            <input type="checkbox" wire:model="replaceExisting" class="rounded-control border-gray-300">
-                            Replace the current questions
-                        </label>
-                    @endif
+                    <label class="flex items-center gap-2 pb-2 text-sm text-gray-800">
+                        <input type="checkbox" wire:model="replaceExisting" class="rounded-control border-gray-300">
+                        Replace the current questions
+                    </label>
 
                     <button type="button" wire:click="regenerate" class="btn-primary">
-                        <span wire:loading.remove wire:target="regenerate">
-                            {{ $genTarget === 'new' ? 'Write the new paper' : 'Rewrite' }}
-                        </span>
+                        <span wire:loading.remove wire:target="regenerate">Rewrite</span>
                         <span wire:loading wire:target="regenerate">Writing…</span>
                     </button>
                     <button type="button" wire:click="$set('showGenerate', false)" class="btn-ghost">Cancel</button>
                 </div>
 
-                {{-- WHERE IT LANDS. This is the whole of a reported data loss:
-                     picking Malay here used to change what the quiz WAS and
-                     then overwrite its questions, so a Malay paper written
-                     beside an English one arrived by destroying it. A course is
-                     meant to carry both — the staff course screen offers every
-                     published quiz for the reader's section and lets them
-                     choose — so a different language now defaults to a separate
-                     paper, and says so before anything is written. --}}
-                <div class="mt-4 border-t border-gray-100 pt-3">
-                    <p class="label mb-1.5">Where the questions go</p>
-                    <div class="space-y-1.5">
-                        <label class="flex items-start gap-2 text-sm text-gray-800">
-                            <input type="radio" value="replace" wire:model.live="genTarget"
-                                   class="mt-0.5 border-gray-300 text-brand-600">
-                            <span>Into this quiz
-                                <span class="block help">
-                                    “{{ $quiz->title }}” keeps its title and settings. Its current
-                                    questions are replaced if the box above is ticked.
-                                </span>
-                            </span>
-                        </label>
-                        <label class="flex items-start gap-2 text-sm text-gray-800">
-                            <input type="radio" value="new" wire:model.live="genTarget"
-                                   class="mt-0.5 border-gray-300 text-brand-600">
-                            <span>Into a new quiz on the same course
-                                <span class="block help">
-                                    A separate paper in {{ \App\Models\TrainingQuiz::LANGUAGES[$genLanguage] ?? $genLanguage }},
-                                    starting as a draft. This one is left exactly as it is, and staff
-                                    are offered both on the course page.
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                </div>
+                {{-- This is the language the questions are WRITTEN in, and it
+                     is not how a quiz reaches a Malay-speaking floor. That is
+                     the languages card in the sidebar, which translates these
+                     questions rather than writing different ones. --}}
+                <p class="help mt-3">
+                    Rewriting replaces this quiz's questions — and any translations of them
+                    go with the questions they belonged to. To offer the same quiz in another
+                    language, use <span class="font-medium text-gray-700">Languages</span> instead.
+                </p>
             @endif
         </div>
     @endif
@@ -114,6 +85,13 @@
                     <button type="button" wire:click="newQuestion" class="btn-secondary btn-sm">+ Add a question</button>
                 @endcan
             </div>
+
+            {{-- A NEW question opens at the top: it is where the eye is after
+                 pressing "Add a question", and the existing list reads as
+                 context below it rather than as something to scroll past. --}}
+            @if ($editingId === 0)
+                @include('livewire.training.partials.question-editor', ['heading' => 'New question'])
+            @endif
 
             @forelse ($questions as $i => $question)
                 {{-- The one being edited is marked, so the page says which
@@ -170,6 +148,13 @@
                         @endcan
                     </div>
                 </div>
+
+                {{-- Directly BELOW the question it belongs to. A form full of
+                     prompts and options means nothing without the question it
+                     is changing sitting immediately above it. --}}
+                @if ($editingId === $question->id)
+                    @include('livewire.training.partials.question-editor', ['heading' => 'Edit question ' . ($i + 1)])
+                @endif
             @empty
                 <div class="empty-state">
                     <x-icon name="sparkles" size="h-8 w-8" class="text-gray-500" />
@@ -179,123 +164,6 @@
                     </p>
                 </div>
             @endforelse
-
-            {{-- ── Question editor ──
-
-                 IT SCROLLS ITSELF INTO VIEW, and that is a bug fix rather than
-                 a flourish. The editor renders below the question list, so on
-                 an eight-question quiz pressing Edit on question three opened a
-                 form roughly two thousand pixels further down the page. The
-                 form worked perfectly; the screen simply did not move, so the
-                 button read as dead — reported, correctly, as "I cannot edit
-                 the question".
-
-                 x-init rather than a dispatched event: the panel is inserted
-                 into the DOM by the morph, which is exactly when Alpine
-                 initialises it, and once per opening rather than on every
-                 keystroke that re-renders it. --}}
-            @if ($editingId !== null)
-                <div class="panel p-5 ring-2 ring-brand-200" wire:key="question-editor"
-                     x-data
-                     x-init="$nextTick(() => $el.scrollIntoView({
-                         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-                         block: 'center',
-                     }))">
-                    <div class="flex items-start justify-between gap-3 mb-3">
-                        <h3 class="text-sm font-semibold text-gray-900">
-                            {{ $editingId ? 'Edit question' : 'New question' }}
-                        </h3>
-                        <button type="button" wire:click="cancelQuestion"
-                                class="text-xs text-gray-600 hover:text-gray-900">Close</button>
-                    </div>
-
-                    <div class="space-y-3">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                                <label class="label" for="q-type">Type</label>
-                                <select id="q-type" wire:model.live="qType" class="input">
-                                    @foreach (\App\Models\TrainingQuestion::TYPES as $value => $label)
-                                        <option value="{{ $value }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="label" for="q-difficulty-edit">Difficulty</label>
-                                <select id="q-difficulty-edit" wire:model="qDifficulty" class="input">
-                                    @foreach (\App\Models\TrainingQuestion::DIFFICULTIES as $value => $label)
-                                        <option value="{{ $value }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="label" for="q-topic">Topic</label>
-                                <input id="q-topic" type="text" wire:model="qTopic" class="input"
-                                       placeholder="Allergens, Milk, Upselling…">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="label" for="q-prompt">Question</label>
-                            <textarea id="q-prompt" wire:model="qPrompt" rows="2" class="input"></textarea>
-                            @error('qPrompt') <p class="error-text">{{ $message }}</p> @enderror
-                        </div>
-
-                        <div>
-                            <p class="label">Options — tick the correct one{{ $qType === 'multi' ? 's' : '' }}</p>
-                            <div class="space-y-2">
-                                @foreach ($qOptions as $index => $option)
-                                    <div class="flex items-center gap-2" wire:key="opt-{{ $index }}">
-                                        <input type="checkbox" value="{{ $index }}" wire:model="qCorrect"
-                                               aria-label="Option {{ $index + 1 }} is correct"
-                                               class="rounded-control border-gray-300">
-                                        <input type="text" wire:model="qOptions.{{ $index }}" class="input flex-1"
-                                               aria-label="Option {{ $index + 1 }}"
-                                               placeholder="Option {{ $index + 1 }}"
-                                               @readonly($qType === 'true_false')>
-                                        @if ($qType !== 'true_false' && count($qOptions) > 2)
-                                            <button type="button" wire:click="removeOption({{ $index }})"
-                                                    class="icon-btn text-gray-600 hover:text-danger-500"
-                                                    aria-label="Remove option {{ $index + 1 }}">
-                                                <x-icon name="trash" size="h-4 w-4" />
-                                            </button>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            </div>
-                            @if ($qType !== 'true_false' && count($qOptions) < 6)
-                                <button type="button" wire:click="addOption" class="btn-ghost btn-sm mt-2">+ Another option</button>
-                            @endif
-                            @error('qOptions') <p class="error-text">{{ $message }}</p> @enderror
-                            @error('qCorrect') <p class="error-text">{{ $message }}</p> @enderror
-                        </div>
-
-                        <div>
-                            <label class="label" for="q-explanation">Why (shown after answering)</label>
-                            <textarea id="q-explanation" wire:model="qExplanation" rows="2" class="input"></textarea>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="label" for="q-points">Points</label>
-                                <input id="q-points" type="number" min="100" max="5000" wire:model="qPoints"
-                                       class="input" placeholder="{{ $quiz->default_points }}">
-                                <p class="help">Blank uses the quiz default.</p>
-                            </div>
-                            <div>
-                                <label class="label" for="q-seconds">Seconds</label>
-                                <input id="q-seconds" type="number" min="5" max="300" wire:model="qSeconds"
-                                       class="input" placeholder="{{ $quiz->default_seconds }}">
-                                <p class="help">Blank uses the quiz default.</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2">
-                            <button type="button" wire:click="saveQuestion" class="btn-primary">Save question</button>
-                            <button type="button" wire:click="cancelQuestion" class="btn-ghost">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            @endif
         </div>
 
         {{-- ── Settings ── --}}
@@ -312,19 +180,62 @@
                     <label class="label" for="quiz-description">Description</label>
                     <textarea id="quiz-description" wire:model="description" rows="2" class="input"></textarea>
                 </div>
+                {{-- ── Who it is for ──
+
+                     TICKED SETS, NOT TWO DROPDOWNS. A single section forces
+                     every real audience into "one section or everybody": a menu
+                     paper is for FOH and Bar but not the kitchen, an allergen
+                     paper for the kitchen and FOH but not the office. Neither
+                     was expressible, so authors wrote the quiz twice — and two
+                     papers drift, score separately, and have to be added up by
+                     hand.
+
+                     Nothing ticked means everybody, on both sides. It is what
+                     every existing quiz means, and it is the forgiving
+                     direction to fail: hiding safety material from people looks
+                     like nothing is wrong at all. --}}
                 <div>
-                    <label class="label" for="quiz-section">Who it is for</label>
-                    <select id="quiz-section" wire:model="sectionId" class="input">
-                        <option value="">Everyone</option>
-                        @foreach ($sections as $section)
-                            <option value="{{ $section->id }}">{{ $section->name }}</option>
-                        @endforeach
-                    </select>
-                    <p class="help">
-                        The same course can carry one questionnaire for the kitchen and another for
-                        the floor. Leave it on Everyone for anything safety- or compliance-related.
+                    <p class="label">Who it is for</p>
+
+                    <fieldset class="mt-1">
+                        <legend class="sr-only">Sections</legend>
+                        <p class="text-xs font-medium text-gray-700">Sections</p>
+                        @if ($sections->isEmpty())
+                            <p class="help">No sections set up yet — this quiz reaches everybody.</p>
+                        @else
+                            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1.5">
+                                @foreach ($sections as $section)
+                                    <label class="flex items-center gap-2 text-sm text-gray-800">
+                                        <input type="checkbox" value="{{ $section->id }}" wire:model="sectionIds"
+                                               class="rounded-control border-gray-300">
+                                        {{ $section->name }}
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                        @error('sectionIds.*') <p class="error-text">{{ $message }}</p> @enderror
+                    </fieldset>
+
+                    <fieldset class="mt-3">
+                        <legend class="sr-only">Outlets</legend>
+                        <p class="text-xs font-medium text-gray-700">Outlets</p>
+                        <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1.5">
+                            @foreach ($outlets as $outlet)
+                                <label class="flex items-center gap-2 text-sm text-gray-800">
+                                    <input type="checkbox" value="{{ $outlet->id }}" wire:model="outletIds"
+                                           class="rounded-control border-gray-300">
+                                    {{ $outlet->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('outletIds.*') <p class="error-text">{{ $message }}</p> @enderror
+                    </fieldset>
+
+                    <p class="help mt-2">
+                        Tick nothing on a row to mean all of it. The two narrow each other, so
+                        “Kitchen” plus “Bangsar” reaches the kitchen at Bangsar and nowhere else.
+                        Leave both empty for anything safety- or compliance-related.
                     </p>
-                    @error('sectionId') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
@@ -431,6 +342,88 @@
 
                 @can('training.manage')
                     <button type="button" wire:click="saveSettings" class="btn-primary w-full mt-2">Save settings</button>
+                @endcan
+            </div>
+
+            {{-- ── Languages ──
+
+                 ONE QUIZ, several languages, rather than one quiz per
+                 language. A second quiz would be its own row everywhere it
+                 counts — its own attempts, its own leaderboard line, its own
+                 assignment to clear — so a floor where half the staff read
+                 Malay would produce two of every number and "who has done the
+                 allergen quiz" would have to be asked twice. Here the questions
+                 are the same questions with the same answer key, and only the
+                 words differ. See the migration on
+                 training_question_translations. --}}
+            <div class="card p-5">
+                <h2 class="text-sm font-semibold text-gray-900">Languages</h2>
+                <p class="help mt-1">
+                    Staff pick one before they start. Their score counts once whichever they read.
+                </p>
+
+                <ul class="mt-3 space-y-1.5">
+                    <li class="flex items-center justify-between gap-2 text-sm">
+                        <span class="font-medium text-gray-900">{{ $quiz->languageLabel() }}</span>
+                        <span class="badge-neutral">Written in</span>
+                    </li>
+
+                    @foreach (\App\Models\TrainingQuiz::LANGUAGES as $code => $label)
+                        @continue ($code === ($quiz->language ?: 'en'))
+                        @php $done = $coverage[$code] ?? 0; @endphp
+                        @continue ($done === 0)
+
+                        <li class="flex items-center justify-between gap-2 text-sm">
+                            <span class="text-gray-900">{{ $label }}</span>
+                            <span class="flex items-center gap-2">
+                                @if (isset($available[$code]))
+                                    <span class="badge-success">Offered</span>
+                                @else
+                                    {{-- A partial translation is NOT offered to
+                                         staff: somebody who picked Malay would
+                                         be dropped into English at question
+                                         five, at speed, for points. --}}
+                                    <span class="badge-warning">{{ $done }} of {{ $questions->count() }}</span>
+                                @endif
+                                @can('training.manage')
+                                    <button type="button" wire:click="removeLanguage('{{ $code }}')"
+                                            data-confirm-delete="Remove {{ $label }} from this quiz? The translated wording is deleted."
+                                            class="text-xs text-gray-600 hover:text-danger-500">Remove</button>
+                                @endcan
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+
+                @can('training.manage')
+                    @if ($questions->isEmpty())
+                        <p class="help mt-3">Write the questions first, then translate them.</p>
+                    @elseif (! $aiReady)
+                        <p class="help mt-3">Translation needs the AI key, under Settings &gt; API Keys.</p>
+                    @else
+                        <div class="mt-3 flex items-end gap-2">
+                            <div class="flex-1">
+                                <label class="sr-only" for="translate-to">Translate into</label>
+                                <select id="translate-to" wire:model="translateTo" class="input">
+                                    <option value="">Add a language…</option>
+                                    @foreach (\App\Models\TrainingQuiz::LANGUAGES as $code => $label)
+                                        @continue ($code === ($quiz->language ?: 'en'))
+                                        <option value="{{ $code }}">
+                                            {{ ($coverage[$code] ?? 0) > 0 ? 'Finish ' : '' }}{{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <button type="button" wire:click="translate" class="btn-secondary"
+                                    @disabled($translateTo === '')>
+                                <span wire:loading.remove wire:target="translate">Translate</span>
+                                <span wire:loading wire:target="translate">Translating…</span>
+                            </button>
+                        </div>
+                        <p class="help mt-2">
+                            The same questions in the same order — read them through before publishing.
+                        </p>
+                    @endif
                 @endcan
             </div>
 

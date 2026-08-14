@@ -46,7 +46,8 @@ class CourseView extends StaffComponent
             ->visibleToOutlets($employee->trainingOutletIds())
             ->with(['quizzes' => fn ($q) => $q
                 ->where('status', 'published')
-                ->forSection($employee->section_id)
+                ->forAudience($employee->section_id, $employee->trainingOutletIds())
+                ->with('sections:id,name')
                 ->withCount('questions')
                 ->orderBy('id')])
             ->findOrFail($id ?? $this->courseId);

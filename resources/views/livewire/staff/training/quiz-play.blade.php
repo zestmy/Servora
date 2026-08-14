@@ -20,11 +20,17 @@
 --}}
 <div class="p-4" x-data="{ expired: false }">
 
+    {{-- First child, same as on the start screen — see the note there. The
+         morph between the two must not tear the music player down. --}}
+    <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" />
+
     <div class="mb-4 flex items-center justify-between gap-3">
         <p class="text-sm font-medium text-gray-600">
             Question {{ $index + 1 }} of {{ $total }}
         </p>
-        <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" />
+        @if ($quiz->isMultilingual())
+            <p class="text-xs text-gray-600">{{ \App\Models\TrainingQuiz::LANGUAGES[$language] ?? '' }}</p>
+        @endif
     </div>
 
     {{-- Progress through the quiz --}}
@@ -86,7 +92,10 @@
     @endunless
 
     <div class="card p-6 mb-4">
-        <p class="text-lg font-semibold leading-snug text-gray-900">{{ $question->prompt }}</p>
+        {{-- $prompt, not $question->prompt: the same question in whichever
+             language this run is being read in. The answer key is shared, so
+             the options below are index-for-index with the original. --}}
+        <p class="text-lg font-semibold leading-snug text-gray-900">{{ $prompt }}</p>
         @if ($question->isMultiSelect())
             <p class="help mt-2">Choose all that apply, then press Answer.</p>
         @endif
@@ -165,6 +174,58 @@
                     @endif
                 </div>
             </div>
+
+            {{-- ── The board, between questions ──
+
+                 A score that only appears at the end is a mark. A POSITION
+                 THAT MOVES is a race, and the person two places above you is
+                 the reason the next question gets read properly rather than
+                 skimmed. This is the whole difference between a quiz somebody
+                 finishes and a quiz somebody plays twice.
+
+                 Only drawn when there is somebody to be ahead of: "1st of 1"
+                 is not a standing, it is an empty room, and dressing it up as
+                 a leaderboard is the kind of thing that makes a floor stop
+                 believing the rest of the screen. --}}
+            @if ($standing && $standing['of'] > 1)
+                @php
+                    $climbed = $standingBefore !== null && $standing['rank'] < $standingBefore;
+                    $slipped = $standingBefore !== null && $standing['rank'] > $standingBefore;
+                @endphp
+                <div wire:key="standing-{{ $index }}"
+                     class="mt-4 rounded-surface border px-4 py-3
+                            {{ $climbed ? 'border-success-200 bg-success-50 motion-safe:animate-pop-in'
+                               : ($slipped ? 'border-warning-200 bg-warning-50' : 'border-gray-200 bg-gray-50') }}">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="flex items-baseline gap-2 min-w-0">
+                            <span class="text-2xl font-bold tabular-nums
+                                         {{ $climbed ? 'text-success-700' : 'text-gray-900' }}">
+                                {{ $standing['rank'] }}<span class="text-sm font-semibold">{{ [1 => 'st', 2 => 'nd', 3 => 'rd'][$standing['rank']] ?? 'th' }}</span>
+                            </span>
+                            <span class="truncate text-sm text-gray-600">of {{ $standing['of'] }}</span>
+                        </span>
+
+                        @if ($climbed)
+                            <span class="shrink-0 text-sm font-semibold text-success-700">
+                                &#9650; up {{ $standingBefore - $standing['rank'] }}
+                            </span>
+                        @elseif ($slipped)
+                            <span class="shrink-0 text-sm font-semibold text-warning-700">
+                                &#9660; down {{ $standing['rank'] - $standingBefore }}
+                            </span>
+                        @endif
+                    </div>
+
+                    @if ($standing['ahead'])
+                        <p class="help mt-1">
+                            {{ number_format($standing['gap']) }} behind
+                            {{ Str::before($standing['ahead'], ' ') }} — catch them on the next one.
+                        </p>
+                    @elseif ($standing['rank'] === 1)
+                        <p class="help mt-1">Top of the board. Hold it.</p>
+                    @endif
+                </div>
+            @endif
 
             <button type="button" wire:click="nextQuestion" class="btn-primary w-full mt-4">
                 {{ $index + 1 >= $total ? 'See my result' : 'Next question' }}

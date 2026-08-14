@@ -98,4 +98,62 @@ class TrainingQuestion extends Model
     {
         return $this->type === 'multi';
     }
+
+    // ── Languages ─────────────────────────────────────────────────────────
+
+    public function translations(): HasMany
+    {
+        return $this->hasMany(TrainingQuestionTranslation::class);
+    }
+
+    /**
+     * The translation for a language, or null for the original.
+     *
+     * Null in, null out — the caller does not have to know whether a language
+     * was chosen. Reads from an already-loaded relation when there is one, so
+     * rendering a question does not cost a query per language lookup.
+     */
+    public function translation(?string $language): ?TrainingQuestionTranslation
+    {
+        if (! $language || $language === ($this->quiz?->language ?? 'en')) {
+            return null;
+        }
+
+        if ($this->relationLoaded('translations')) {
+            return $this->translations->firstWhere('language', $language);
+        }
+
+        return $this->translations()->where('language', $language)->first();
+    }
+
+    public function promptIn(?string $language): string
+    {
+        return $this->translation($language)?->prompt ?: $this->prompt;
+    }
+
+    /**
+     * The options in a language, INDEX FOR INDEX with the original.
+     *
+     * A translation with a different number of options is refused rather than
+     * padded: the answer key is a list of indexes into this array, so a
+     * mismatch does not degrade the reading experience, it marks the wrong
+     * option correct. Falling back to the original is the only safe answer, and
+     * the writer refuses to store one that would land here.
+     *
+     * @return array<int, string>
+     */
+    public function optionListIn(?string $language): array
+    {
+        $translated = $this->translation($language)?->optionList();
+        $original   = $this->optionList();
+
+        return $translated && count($translated) === count($original)
+            ? $translated
+            : $original;
+    }
+
+    public function explanationIn(?string $language): ?string
+    {
+        return $this->translation($language)?->explanation ?: $this->explanation;
+    }
 }

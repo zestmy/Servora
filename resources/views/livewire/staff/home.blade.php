@@ -141,7 +141,7 @@
                                 <span class="tabular-nums text-gray-500">{{ $row['rank'] }}</span>
                             @endif
                         </span>
-                        <x-staff-avatar :name="$row['name']" size="h-7 w-7 text-[10px]" />
+                        <x-staff-avatar :name="$row['name']" :employee="$row['employee_id'] ?? null" :photo="$row['photo'] ?? null" size="h-7 w-7 text-[10px]" />
                         <span class="min-w-0 flex-1 truncate">
                             {{ $row['name'] }}
                             @if ($isMe)

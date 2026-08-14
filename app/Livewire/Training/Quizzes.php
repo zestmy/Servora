@@ -84,7 +84,7 @@ class Quizzes extends Component
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%"))
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->withCount(['questions', 'attempts', 'sessions'])
-            ->with(['course:id,title', 'section:id,name'])
+            ->with(['course:id,title', 'sections:id,name', 'outlets:id,name'])
             ->latest('id')
             ->paginate(15);
 

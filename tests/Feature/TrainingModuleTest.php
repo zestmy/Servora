@@ -742,18 +742,26 @@ class TrainingModuleTest extends TestCase
 
         $course = $this->course();
 
+        $bar = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'Bar', 'is_active' => true]);
+
         $everyone = $this->quiz($course, ['title' => 'Allergens']);
-        $kitchen  = $this->quiz($course, ['title' => 'Method', 'section_id' => $boh->id]);
-        $floor    = $this->quiz($course, ['title' => 'Selling it', 'section_id' => $foh->id]);
+        $kitchen  = $this->quiz($course, ['title' => 'Method']);
+        $kitchen->sections()->sync([$boh->id]);
+
+        // TWO sections on one paper, which is the case a single column could
+        // not express and the reason authors were writing the quiz twice.
+        $service = $this->quiz($course, ['title' => 'Selling it']);
+        $service->sections()->sync([$foh->id, $bar->id]);
 
         $offered = fn (?int $sectionId) => TrainingQuiz::published()
             ->where('training_course_id', $course->id)
-            ->forSection($sectionId)
+            ->forAudience($sectionId, $this->outlet->id)
             ->orderBy('id')
             ->pluck('title')
             ->all();
 
         $this->assertSame(['Allergens', 'Selling it'], $offered($foh->id));
+        $this->assertSame(['Allergens', 'Selling it'], $offered($bar->id));
         $this->assertSame(['Allergens', 'Method'], $offered($boh->id));
 
         // Nobody on this company has a null section today, but the column
@@ -762,17 +770,55 @@ class TrainingModuleTest extends TestCase
 
         $this->assertNotNull($kitchen);
         $this->assertNotNull($everyone);
-        $this->assertNotNull($floor);
+    }
+
+    /**
+     * Outlet and section NARROW EACH OTHER: "the kitchen at Bangsar" is the
+     * commonest real audience and neither expresses it alone.
+     */
+    public function test_a_quiz_tagged_to_an_outlet_and_a_section_needs_both(): void
+    {
+        $boh    = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'BOH', 'is_active' => true]);
+        $foh    = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'FOH', 'is_active' => true]);
+        $course = $this->course();
+
+        $quiz = $this->quiz($course, ['title' => 'Bangsar kitchen']);
+        $quiz->sections()->sync([$boh->id]);
+        $quiz->outlets()->sync([$this->outlet->id]);
+
+        $offered = fn (?int $sectionId, $outletIds) => TrainingQuiz::published()
+            ->where('title', 'Bangsar kitchen')
+            ->forAudience($sectionId, $outletIds)
+            ->exists();
+
+        $this->assertTrue($offered($boh->id, $this->outlet->id));
+        // Right section, wrong branch.
+        $this->assertFalse($offered($boh->id, $this->otherOutlet->id));
+        // Right branch, wrong section.
+        $this->assertFalse($offered($foh->id, $this->outlet->id));
+        // A manager posted to both branches still qualifies through one of them.
+        $this->assertTrue($offered($boh->id, [$this->outlet->id, $this->otherOutlet->id]));
     }
 
     public function test_an_untagged_quiz_reports_itself_as_everyones(): void
     {
-        $section = \App\Models\Section::create([
+        $boh = \App\Models\Section::create([
             'company_id' => $this->company->id, 'name' => 'BOH', 'is_active' => true,
+        ]);
+        $foh = \App\Models\Section::create([
+            'company_id' => $this->company->id, 'name' => 'FOH', 'is_active' => true,
         ]);
 
         $this->assertSame('Everyone', $this->quiz()->sectionLabel());
-        $this->assertSame('BOH', $this->quiz(null, ['section_id' => $section->id])->sectionLabel());
+        $this->assertSame('All outlets', $this->quiz()->outletLabel());
+
+        $both = $this->quiz();
+        $both->sections()->sync([$boh->id, $foh->id]);
+        $both->outlets()->sync([$this->outlet->id]);
+
+        // Ordered by name, so the label reads the same twice running.
+        $this->assertSame('BOH · FOH', $both->fresh()->sectionLabel());
+        $this->assertSame('Bangsar', $both->fresh()->outletLabel());
     }
 
     // ── Scoring wiring ────────────────────────────────────────────────────
@@ -839,6 +885,61 @@ class TrainingModuleTest extends TestCase
 
         $this->assertSame($first->id, $second->id);
         $this->assertSame(1, TrainingSession::find($session->id)->players()->count());
+    }
+
+    /**
+     * The position moves between questions, which is the whole mechanic.
+     *
+     * A score that appears only at the end is a mark. A rank that climbs a
+     * place after an answer is a race, and the person immediately above is the
+     * reason the next question gets read rather than skimmed.
+     */
+    public function test_a_standing_climbs_as_the_running_total_does(): void
+    {
+        $quiz  = $this->quiz();
+        $board = app(LeaderboardService::class);
+
+        $rivals = [];
+
+        foreach ([['Hakim', 2], ['Siti', 3]] as [$name, $rightAnswers]) {
+            $rivals[$name] = Employee::create([
+                'company_id' => $this->company->id,
+                'outlet_id'  => $this->outlet->id,
+                'name'       => $name,
+                'email'      => strtolower($name) . uniqid() . '@example.test',
+                'is_active'  => true,
+            ]);
+
+            $service = app(SelfPacedQuizService::class);
+            $attempt = $service->startOrResume($quiz, $rivals[$name]);
+
+            foreach ($quiz->questions as $i => $question) {
+                $service->answer($attempt, $question, $i < $rightAnswers ? [0] : [1], 5.0);
+            }
+
+            $service->finish($attempt);
+        }
+
+        $hakim = \App\Models\TrainingAttempt::where('employee_id', $rivals['Hakim']->id)->first();
+        $siti  = \App\Models\TrainingAttempt::where('employee_id', $rivals['Siti']->id)->first();
+
+        // Behind both, with nothing scored yet.
+        $start = $board->standingOnQuiz($quiz->id, $this->employee->id, 0);
+        $this->assertSame(3, $start['rank']);
+        $this->assertSame(3, $start['of']);
+        $this->assertSame('Hakim', $start['ahead']);
+        $this->assertSame((int) $hakim->score, $start['gap']);
+
+        // Past Hakim, still behind Siti.
+        $middle = $board->standingOnQuiz($quiz->id, $this->employee->id, (int) $hakim->score + 1);
+        $this->assertSame(2, $middle['rank']);
+        $this->assertSame('Siti', $middle['ahead']);
+
+        // Top, with nobody left to chase.
+        $top = $board->standingOnQuiz($quiz->id, $this->employee->id, (int) $siti->score + 1);
+        $this->assertSame(1, $top['rank']);
+        $this->assertNull($top['ahead']);
+        $this->assertSame(0, $top['gap']);
     }
 
     // ── Penalties and music ───────────────────────────────────────────────

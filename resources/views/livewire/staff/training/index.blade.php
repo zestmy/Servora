@@ -78,6 +78,42 @@
                class="input" placeholder="Search training">
     </div>
 
+    {{-- ── Quizzes with no course to sit inside ──
+
+         A quiz used to be reachable only through the course it hangs off, so a
+         published quiz on a course still in draft was invisible to the whole
+         floor. The course is the reading; the quiz is the thing somebody has
+         three minutes for between covers. Both belong on this screen. --}}
+    @if ($quizzes->isNotEmpty())
+        <div class="space-y-3">
+            @foreach ($quizzes as $quiz)
+                @php $mine = $best[$quiz->id] ?? null; @endphp
+                <a wire:key="quiz-{{ $quiz->id }}"
+                   href="{{ route('clock.staff.learn.quiz', $quiz->id) }}" wire:navigate
+                   class="card block p-4 active:bg-gray-50 border-l-4 border-l-brand-400">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-900">{{ $quiz->title }}</p>
+                            <p class="mt-0.5 text-xs text-gray-600">
+                                {{ $quiz->questions_count }} {{ Str::plural('question', $quiz->questions_count) }}
+                                · {{ $quiz->default_seconds }}s each
+                                · pass {{ $quiz->pass_mark }}%
+                                @if ($quiz->isMultilingual())
+                                    · <span class="badge-neutral">{{ count($quiz->availableLanguages()) }} languages</span>
+                                @endif
+                            </p>
+                        </div>
+                        @if ($mine)
+                            <span class="{{ $mine->passed ? 'badge-success' : 'badge-warning' }} shrink-0">
+                                {{ (float) $mine->percent }}%
+                            </span>
+                        @endif
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    @endif
+
     <div class="space-y-3">
         @forelse ($courses as $course)
             @php
@@ -116,13 +152,19 @@
                 </div>
             </a>
         @empty
-            <div class="empty-state">
-                <x-icon name="academic" size="h-8 w-8" class="text-gray-500" />
-                <p class="empty-title">Nothing published yet</p>
-                <p class="empty-body">
-                    When your manager publishes training for your branch it appears here.
-                </p>
-            </div>
+            {{-- Only when there is genuinely nothing. A quiz with no course
+                 still counts as training on this screen, and telling somebody
+                 "nothing published yet" above a quiz they can take is the kind
+                 of small wrongness that makes people stop trusting a page. --}}
+            @if ($quizzes->isEmpty())
+                <div class="empty-state">
+                    <x-icon name="academic" size="h-8 w-8" class="text-gray-500" />
+                    <p class="empty-title">Nothing published yet</p>
+                    <p class="empty-body">
+                        When your manager publishes training for your branch it appears here.
+                    </p>
+                </div>
+            @endif
         @endforelse
     </div>
 

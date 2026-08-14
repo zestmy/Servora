@@ -59,7 +59,10 @@
                             <td class="px-4 py-3 tabular-nums font-semibold text-gray-700">{{ $row['rank'] }}</td>
                             <td class="px-4 py-3">
                                 <span class="flex items-center gap-2 min-w-0">
-                                    <x-staff-avatar :name="$row['name']" size="h-8 w-8 text-[11px]" />
+                                    <x-staff-avatar :name="$row['name']" size="h-8 w-8 text-[11px]"
+                                                    :employee="auth()->user()->can('hr.view') ? ($row['employee'] ?? null) : null"
+                                                    :photo="$row['photo'] ?? null"
+                                                    photoRoute="hr.employees.photo" />
                                     <span class="truncate font-medium text-gray-900">{{ $row['name'] }}</span>
                                 </span>
                             </td>
