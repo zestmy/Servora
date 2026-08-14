@@ -62,6 +62,19 @@ class QuizBuilder extends Component
     public string $questionDifficulty = 'mixed';
     public bool $replaceExisting = true;
 
+    /**
+     * The language to WRITE IN, which is not the same field as the quiz's own.
+     *
+     * It used to be `$language` — the settings field — so choosing Malay in the
+     * generate panel changed what the quiz claimed to be and then overwrote its
+     * questions. Somebody producing a Malay paper alongside an English one lost
+     * the English one, which is what was reported.
+     */
+    public string $genLanguage = 'en';
+
+    /** 'replace' — this quiz's questions. 'new' — a sibling on the same course. */
+    public string $genTarget = 'replace';
+
     public function mount(int $id): void
     {
         $this->requireActiveCompany();
@@ -85,6 +98,21 @@ class QuizBuilder extends Component
         $this->shuffleOptions    = $quiz->shuffle_options;
         $this->maxAttempts       = $quiz->max_attempts;
         $this->issuesCertificate = $quiz->issues_certificate;
+        $this->genLanguage       = $this->language;
+    }
+
+    /**
+     * Picking a different language means a different paper, by default.
+     *
+     * The commonest reason to generate in another language is to have BOTH —
+     * the floor reads Malay, the manager reviews English — and replacing in
+     * place is the one outcome that cannot be undone. It stays a control the
+     * author can move back, because rewriting a Malay paper in Malay is normal
+     * too.
+     */
+    public function updatedGenLanguage(string $value): void
+    {
+        $this->genTarget = $value === $this->language ? 'replace' : 'new';
     }
 
     public function saveSettings(): void
@@ -352,6 +380,18 @@ class QuizBuilder extends Component
         }
 
         /*
+         * A SEPARATE PAPER, not this one rewritten.
+         *
+         * The same course carries a Malay set beside an English one — the whole
+         * reason a quiz has a language at all, and the staff course screen
+         * offers both and lets the reader choose. Writing the second one over
+         * the first is what somebody reported losing an afternoon's work to.
+         */
+        $target = $this->genTarget === 'new'
+            ? $this->siblingIn($quiz, $this->genLanguage)
+            : $quiz;
+
+        /*
          * Persist the language BEFORE generating.
          *
          * The generator reads it off the quiz row, and the dropdown in this
@@ -361,20 +401,29 @@ class QuizBuilder extends Component
          * quiz remembers what it was written in, which the true/false editor
          * then follows.
          */
-        if ($quiz->language !== $this->language) {
-            $quiz->update(['language' => $this->language]);
-            $quiz->refresh();
+        if ($target->language !== $this->genLanguage) {
+            $target->update(['language' => $this->genLanguage]);
+            $target->refresh();
         }
 
         try {
             $result = $generator->generateForCourse(
                 $course,
-                $quiz,
+                $target,
                 $this->questionCount,
                 $this->questionDifficulty,
-                $this->replaceExisting,
+                // A brand-new sibling has nothing to replace, and passing the
+                // author's "replace" tick through would be answering a question
+                // that was asked about a different quiz.
+                $target->is($quiz) ? $this->replaceExisting : true,
             );
         } catch (\RuntimeException $e) {
+            // A sibling created for a generation that then failed is an empty
+            // draft nobody asked for. It goes.
+            if (! $target->is($quiz)) {
+                $target->forceDelete();
+            }
+
             session()->flash('error', $e->getMessage());
 
             return;
@@ -384,7 +433,61 @@ class QuizBuilder extends Component
 
         $note = $result['dropped'] > 0 ? " {$result['dropped']} were discarded as unusable." : '';
 
+        if (! $target->is($quiz)) {
+            session()->flash('success', "Wrote {$result['questions']} questions in "
+                . $target->languageLabel() . '. "' . $quiz->title . '" is untouched.' . $note);
+
+            $this->redirectRoute('training.quizzes.edit', $target->id, navigate: true);
+
+            return;
+        }
+
         session()->flash('success', "Wrote {$result['questions']} questions.{$note}");
+    }
+
+    /**
+     * A second paper on the same course, in another language.
+     *
+     * Every setting is carried across except the ones that must not be: it
+     * starts as a DRAFT, because an unreviewed machine translation of a safety
+     * quiz has no business being live the moment it is written, and a draft's
+     * public link is dead until somebody has read it through.
+     */
+    private function siblingIn(TrainingQuiz $quiz, string $language): TrainingQuiz
+    {
+        $label = TrainingQuiz::LANGUAGES[$language] ?? $language;
+
+        // "Lamb rack quiz (Bahasa Malaysia)", with any existing language
+        // suffix stripped first so translating a translation does not stack
+        // them.
+        $pattern = '/\s*\((?:' . implode('|', array_map(
+            fn ($l) => preg_quote($l, '/'),
+            TrainingQuiz::LANGUAGES,
+        )) . ')\)$/u';
+
+        $base = trim((string) preg_replace($pattern, '', $quiz->title));
+
+        return TrainingQuiz::create([
+            'company_id'            => $quiz->company_id,
+            'training_course_id'    => $quiz->training_course_id,
+            'section_id'            => $quiz->section_id,
+            'title'                 => $base . ' (' . $label . ')',
+            'description'           => $quiz->description,
+            'language'              => $language,
+            'status'                => 'draft',
+            'pass_mark'             => $quiz->pass_mark,
+            'default_seconds'       => $quiz->default_seconds,
+            'default_points'        => $quiz->default_points,
+            'speed_bonus'           => $quiz->speed_bonus,
+            'streak_bonus'          => $quiz->streak_bonus,
+            'wrong_penalty_percent' => $quiz->wrong_penalty_percent,
+            'music_url'             => $quiz->music_url,
+            'shuffle_questions'     => $quiz->shuffle_questions,
+            'shuffle_options'       => $quiz->shuffle_options,
+            'max_attempts'          => $quiz->max_attempts,
+            'issues_certificate'    => $quiz->issues_certificate,
+            'created_by'            => \Illuminate\Support\Facades\Auth::id(),
+        ]);
     }
 
     /** Scoped by the quiz, so an id from another company's quiz 404s. */

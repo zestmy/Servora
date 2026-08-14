@@ -54,6 +54,16 @@
          so the page offers whatever this person is entitled to and lets them
          pick. Section filtering already happened in SQL; anything still here is
          theirs to take. --}}
+    @php
+        // Label the language on EVERY paper when there is more than one to
+        // choose between, English included. A badge that appears only on the
+        // Malay set tells a Malay reader which one is theirs and tells an
+        // English reader nothing at all — the unlabelled card is just the one
+        // without a badge, which is not how anybody reads a list.
+        $multilingual = $quizzes->pluck('language')
+            ->map(fn ($l) => $l ?: 'en')->unique()->count() > 1;
+    @endphp
+
     @forelse ($quizzes as $quiz)
         @php $mine = $best[$quiz->id] ?? null; @endphp
         <div wire:key="quiz-{{ $quiz->id }}" class="card p-5 mb-3">
@@ -62,8 +72,8 @@
                     <h2 class="font-semibold text-gray-900">{{ $quiz->title }}</h2>
                     <p class="text-xs text-gray-600 mt-0.5">
                         {{ $quiz->questions_count }} {{ Str::plural('question', $quiz->questions_count) }}
-                        · lulus {{ $quiz->pass_mark }}%
-                        @if (($quiz->language ?? 'en') !== 'en')
+                        · pass {{ $quiz->pass_mark }}%
+                        @if ($multilingual || ($quiz->language ?? 'en') !== 'en')
                             · <span class="badge-neutral">{{ $quiz->languageLabel() }}</span>
                         @endif
                         @if ($quiz->section_id)

@@ -40,22 +40,63 @@
                         </select>
                     </div>
                     <div>
-                        <label class="label" for="regen-language">Language</label>
-                        <select id="regen-language" wire:model.live="language" class="input">
+                        <label class="label" for="regen-language">Write it in</label>
+                        <select id="regen-language" wire:model.live="genLanguage" class="input">
                             @foreach (\App\Models\TrainingQuiz::LANGUAGES as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <label class="flex items-center gap-2 pb-2 text-sm text-gray-800">
-                        <input type="checkbox" wire:model="replaceExisting" class="rounded-control border-gray-300">
-                        Replace the current questions
-                    </label>
+
+                    @if ($genTarget === 'replace')
+                        <label class="flex items-center gap-2 pb-2 text-sm text-gray-800">
+                            <input type="checkbox" wire:model="replaceExisting" class="rounded-control border-gray-300">
+                            Replace the current questions
+                        </label>
+                    @endif
+
                     <button type="button" wire:click="regenerate" class="btn-primary">
-                        <span wire:loading.remove wire:target="regenerate">Rewrite</span>
+                        <span wire:loading.remove wire:target="regenerate">
+                            {{ $genTarget === 'new' ? 'Write the new paper' : 'Rewrite' }}
+                        </span>
                         <span wire:loading wire:target="regenerate">Writing…</span>
                     </button>
                     <button type="button" wire:click="$set('showGenerate', false)" class="btn-ghost">Cancel</button>
+                </div>
+
+                {{-- WHERE IT LANDS. This is the whole of a reported data loss:
+                     picking Malay here used to change what the quiz WAS and
+                     then overwrite its questions, so a Malay paper written
+                     beside an English one arrived by destroying it. A course is
+                     meant to carry both — the staff course screen offers every
+                     published quiz for the reader's section and lets them
+                     choose — so a different language now defaults to a separate
+                     paper, and says so before anything is written. --}}
+                <div class="mt-4 border-t border-gray-100 pt-3">
+                    <p class="label mb-1.5">Where the questions go</p>
+                    <div class="space-y-1.5">
+                        <label class="flex items-start gap-2 text-sm text-gray-800">
+                            <input type="radio" value="replace" wire:model.live="genTarget"
+                                   class="mt-0.5 border-gray-300 text-brand-600">
+                            <span>Into this quiz
+                                <span class="block help">
+                                    “{{ $quiz->title }}” keeps its title and settings. Its current
+                                    questions are replaced if the box above is ticked.
+                                </span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-2 text-sm text-gray-800">
+                            <input type="radio" value="new" wire:model.live="genTarget"
+                                   class="mt-0.5 border-gray-300 text-brand-600">
+                            <span>Into a new quiz on the same course
+                                <span class="block help">
+                                    A separate paper in {{ \App\Models\TrainingQuiz::LANGUAGES[$genLanguage] ?? $genLanguage }},
+                                    starting as a draft. This one is left exactly as it is, and staff
+                                    are offered both on the course page.
+                                </span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
             @endif
         </div>

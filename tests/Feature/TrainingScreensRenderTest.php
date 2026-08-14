@@ -192,6 +192,56 @@ class TrainingScreensRenderTest extends TestCase
             ->assertOk();
     }
 
+    /**
+     * Writing a Malay paper must not destroy the English one.
+     *
+     * Reported as "when I generated the 2nd language the first one disappears",
+     * and it did: the generate panel drove the quiz's OWN language field and
+     * then replaced its questions, so asking for Malay rewrote the English
+     * paper in place. A course is meant to carry both — the staff course screen
+     * offers every published quiz for the reader's section and lets them pick.
+     */
+    public function test_generating_in_another_language_writes_a_second_quiz(): void
+    {
+        \App\Models\AppSetting::set('openrouter_api_key', 'test-key');
+
+        \Illuminate\Support\Facades\Http::fake([
+            'openrouter.ai/*' => \Illuminate\Support\Facades\Http::response([
+                'choices' => [['message' => ['content' => json_encode(['questions' => [[
+                    'type'    => 'mcq',
+                    'prompt'  => 'Berapa suhu peti sejuk?',
+                    'options' => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
+                    'correct' => [0],
+                ]]])]]],
+            ]),
+        ]);
+
+        $english = $this->quiz->questions()->pluck('prompt')->all();
+
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->set('genLanguage', 'ms')
+            // Picking another language chooses a separate paper by itself: the
+            // outcome that cannot be undone is not the one to arrive at by
+            // default.
+            ->assertSet('genTarget', 'new')
+            ->call('regenerate')
+            ->assertOk();
+
+        // The English paper is untouched, questions and language both.
+        $this->quiz->refresh();
+        $this->assertSame('en', $this->quiz->language);
+        $this->assertSame($english, $this->quiz->questions()->pluck('prompt')->all());
+
+        $malay = TrainingQuiz::where('language', 'ms')->firstOrFail();
+
+        $this->assertSame($this->course->id, $malay->training_course_id);
+        $this->assertStringContainsString('Bahasa Malaysia', $malay->title);
+        // A draft, because nobody has read the machine translation yet.
+        $this->assertSame('draft', $malay->status);
+        $this->assertSame('Berapa suhu peti sejuk?', $malay->questions()->value('prompt'));
+    }
+
     public function test_the_sessions_screen_renders(): void
     {
         Livewire::actingAs($this->manager)
