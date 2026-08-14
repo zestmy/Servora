@@ -4,6 +4,7 @@ namespace App\Livewire\Staff\Training;
 
 use App\Livewire\Clock\Staff\StaffComponent;
 use App\Models\TrainingAttempt;
+use App\Models\TrainingCourse;
 use App\Models\TrainingQuiz;
 use App\Models\TrainingSession;
 use App\Services\Training\SelfPacedQuizService;
@@ -188,6 +189,37 @@ class QuizPlay extends StaffComponent
         $this->finished = true;
     }
 
+    /**
+     * The result screen's own data.
+     *
+     * `readableCourse` is the fix for a reported 404. The result offered "Back
+     * to the course" whenever the quiz had one — but a quiz can be PUBLISHED
+     * while its course is still a draft, which is exactly the state the menu
+     * knowledge paper was in, and the staff course screen quite correctly
+     * refuses to open a draft. The link was therefore a button that could only
+     * ever produce a 404, and the person who found it had just finished a quiz.
+     *
+     * Resolved through the same query the course screen uses rather than by
+     * checking `status` here: outlet visibility can retire a course too, and
+     * two rules that must agree are one rule asked twice.
+     */
+    private function readableCourse(?TrainingAttempt $attempt): ?TrainingCourse
+    {
+        $courseId = $attempt?->quiz?->training_course_id;
+
+        if (! $courseId) {
+            return null;
+        }
+
+        $employee = $this->staff();
+
+        return TrainingCourse::query()
+            ->where('company_id', $employee->company_id)
+            ->published()
+            ->visibleToOutlets($employee->trainingOutletIds())
+            ->find($courseId);
+    }
+
     public function render(SelfPacedQuizService $service)
     {
         if ($this->finished || ! $this->attemptId) {
@@ -198,6 +230,7 @@ class QuizPlay extends StaffComponent
             return view('livewire.staff.training.quiz-result', [
                 'attempt'     => $attempt,
                 'certificate' => $attempt?->certificate()->first(),
+                'course'      => $this->readableCourse($attempt),
             ])->layout('layouts.clock-staff', $this->shell('Result'));
         }
 
@@ -207,9 +240,12 @@ class QuizPlay extends StaffComponent
         if (! $question) {
             $this->finish($service);
 
+            $done = $this->attempt()->fresh(['quiz.course', 'answers']);
+
             return view('livewire.staff.training.quiz-result', [
-                'attempt'     => $this->attempt()->fresh(['quiz.course', 'answers']),
-                'certificate' => $this->attempt()->certificate()->first(),
+                'attempt'     => $done,
+                'certificate' => $done->certificate()->first(),
+                'course'      => $this->readableCourse($done),
             ])->layout('layouts.clock-staff', $this->shell('Result'));
         }
 

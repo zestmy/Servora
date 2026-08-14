@@ -75,7 +75,10 @@
             </div>
 
             @forelse ($questions as $i => $question)
-                <div wire:key="q-{{ $question->id }}" class="card p-4">
+                {{-- The one being edited is marked, so the page says which
+                     question the form below belongs to. --}}
+                <div wire:key="q-{{ $question->id }}"
+                     class="card p-4 {{ $editingId === $question->id ? 'ring-2 ring-brand-300' : '' }}">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0 flex-1">
                             <p class="text-xs text-gray-600 mb-1">
@@ -136,12 +139,34 @@
                 </div>
             @endforelse
 
-            {{-- ── Question editor ── --}}
+            {{-- ── Question editor ──
+
+                 IT SCROLLS ITSELF INTO VIEW, and that is a bug fix rather than
+                 a flourish. The editor renders below the question list, so on
+                 an eight-question quiz pressing Edit on question three opened a
+                 form roughly two thousand pixels further down the page. The
+                 form worked perfectly; the screen simply did not move, so the
+                 button read as dead — reported, correctly, as "I cannot edit
+                 the question".
+
+                 x-init rather than a dispatched event: the panel is inserted
+                 into the DOM by the morph, which is exactly when Alpine
+                 initialises it, and once per opening rather than on every
+                 keystroke that re-renders it. --}}
             @if ($editingId !== null)
-                <div class="panel p-5" wire:key="question-editor">
-                    <h3 class="text-sm font-semibold text-gray-900 mb-3">
-                        {{ $editingId ? 'Edit question' : 'New question' }}
-                    </h3>
+                <div class="panel p-5 ring-2 ring-brand-200" wire:key="question-editor"
+                     x-data
+                     x-init="$nextTick(() => $el.scrollIntoView({
+                         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                         block: 'center',
+                     }))">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <h3 class="text-sm font-semibold text-gray-900">
+                            {{ $editingId ? 'Edit question' : 'New question' }}
+                        </h3>
+                        <button type="button" wire:click="cancelQuestion"
+                                class="text-xs text-gray-600 hover:text-gray-900">Close</button>
+                    </div>
 
                     <div class="space-y-3">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">

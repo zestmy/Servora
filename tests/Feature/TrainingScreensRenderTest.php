@@ -455,6 +455,37 @@ class TrainingScreensRenderTest extends TestCase
             ->assertOk();
     }
 
+    /**
+     * The result page must not offer a course the reader cannot open.
+     *
+     * A quiz can be published while its course is still a draft — the menu
+     * knowledge paper was in exactly that state — and the staff course screen
+     * correctly refuses a draft. The "Back to the course" button was therefore
+     * a guaranteed 404, handed to somebody who had just finished a quiz.
+     */
+    public function test_the_result_hides_the_course_link_when_the_course_is_a_draft(): void
+    {
+        $this->asStaff();
+
+        // Played through rather than scored behind the screen's back: the
+        // result is a state of THIS component, and a fresh mount would simply
+        // start a new attempt at a one-question quiz.
+        $play = fn () => Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('choose', 0, false)
+            ->call('submit')
+            ->call('nextQuestion');
+
+        // Published course: the link is offered.
+        $play()->assertOk()->assertSee('Back to the course');
+
+        $this->course->update(['status' => 'draft']);
+
+        $play()->assertOk()
+            ->assertDontSee('Back to the course')
+            // The rest of the result is untouched — only the dead link goes.
+            ->assertSee('All training');
+    }
+
     public function test_the_progress_screen_renders(): void
     {
         $this->asStaff();

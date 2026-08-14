@@ -113,9 +113,14 @@
             </div>
         @endif
 
+        {{-- $course, NOT $attempt->quiz->course. A quiz can be published while
+             its course is still a draft, and the staff course screen refuses
+             to open a draft — so the relation being present said nothing about
+             whether the link would work. It reliably produced a 404 for
+             somebody who had just finished a quiz. See QuizPlay::readableCourse. --}}
         <div class="flex flex-wrap gap-2 mt-5">
-            @if ($attempt->quiz?->course)
-                <a href="{{ route('clock.staff.learn.course', $attempt->quiz->course->id) }}" class="btn-secondary">
+            @if ($course)
+                <a href="{{ route('clock.staff.learn.course', $course->id) }}" class="btn-secondary">
                     Back to the course
                 </a>
             @endif

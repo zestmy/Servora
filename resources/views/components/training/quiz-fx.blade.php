@@ -13,24 +13,53 @@
     step down. Both are under 400ms, because this plays between somebody's tap
     and their reading the explanation.
 
+    ON AN IPHONE, THE RINGER SWITCH SILENCES WEB AUDIO. Media elements ignore
+    it; an AudioContext does not. So the chime honestly cannot be made to play
+    on a handset in silent mode, and the flash, the shake and the vibration are
+    not decoration around it — they are the same feedback for the third of the
+    floor whose phone is on silent all shift. That is why every reaction here
+    has a visible half and a haptic half as well as a sound.
+
     SOUND IS ON BY DEFAULT AND MUSIC IS NOT. A phone that suddenly plays music
     on a service pass is a phone that gets put face down for the rest of the
     shift; a short chime is not. Both choices are remembered in localStorage per
     device, which is the right scope — it is a property of where the phone is,
     not of who is holding it.
 
-    Autoplay policy is handled by construction rather than fought with: the
-    AudioContext is created on the first user gesture (every route into this
-    screen goes through a tap), and the music iframe is only inserted when
-    somebody presses the speaker. Nothing here ever tries to make noise the
-    browser has not already been told is wanted.
+    MUSIC GOES THROUGH THE YOUTUBE PLAYER API AND SHOWS ITS PLAYER, and both
+    halves of that are iOS. Setting `autoplay=1` on an iframe src is ignored by
+    Safari on iOS outright — reported as "my music doesn't sound in my iphone",
+    and it never could have — because playback has to begin inside a user
+    gesture. The API lets playVideo() be called from the tap itself. And the
+    player is VISIBLE rather than a 1x1 pixel, because iOS declines to play
+    media in a frame that has been hidden, which is precisely the trick this
+    check exists to stop. A small player somebody can see, pause and skip is
+    also the more honest thing to put on a screen that is making noise.
 
     Props:
       music  a YouTube embed URL, or null for a quiz with no backing track
 --}}
 @props(['music' => null])
 
-<div x-data="quizFx(@js($music))"
+@php
+    // The API takes an id and a playlist, not an embed URL — so the pieces are
+    // pulled back out of the URL the model built, which is still the right
+    // place for the parsing: it is the half that decides what is safe.
+    $musicId = null;
+    $musicList = null;
+
+    if ($music) {
+        if (preg_match('~/embed/([A-Za-z0-9_-]{11})~', $music, $m)) {
+            $musicId = $m[1];
+        }
+
+        if (preg_match('~[?&]list=([A-Za-z0-9_-]{12,})~', $music, $m)) {
+            $musicList = $m[1];
+        }
+    }
+@endphp
+
+<div x-data="quizFx(@js($musicId), @js($musicList))"
      @answer-scored.window="react($event.detail)"
      class="contents">
 
@@ -44,8 +73,8 @@
              :class="flash === 'right' ? 'bg-success-400' : 'bg-danger-400'"></div>
     </template>
 
-    {{-- The controls. One row, both 44px, because they are pressed with the
-         same hands as everything else in this app. --}}
+    {{-- The controls. Both 44px, because they are pressed with the same hands
+         as everything else in this app. --}}
     <div class="flex items-center justify-end gap-1">
         <button type="button" @click="toggleSound()"
                 class="icon-btn" :aria-pressed="sound.toString()"
@@ -54,7 +83,7 @@
             <span x-show="! sound" class="text-base leading-none opacity-50" aria-hidden="true">&#128263;</span>
         </button>
 
-        @if ($music)
+        @if ($musicId || $musicList)
             <button type="button" @click="toggleMusic()"
                     class="icon-btn" :aria-pressed="musicOn.toString()"
                     :aria-label="musicOn ? 'Stop the music' : 'Play music'">
@@ -64,17 +93,23 @@
         @endif
     </div>
 
-    @if ($music)
-        {{-- 1x1 rather than display:none. A hidden iframe is allowed to be
-             dropped from the layout entirely by some engines, and a dropped
-             iframe is a silent one. It is inserted only once the speaker has
-             been pressed, so a quiz nobody wanted music on never contacts
-             YouTube at all — which is also the privacy answer. --}}
-        <template x-if="musicOn">
-            <div class="fixed bottom-0 right-0 h-px w-px overflow-hidden opacity-0" aria-hidden="true">
-                <iframe :src="musicSrc" width="1" height="1" frameborder="0"
-                        allow="autoplay; encrypted-media" referrerpolicy="no-referrer"
-                        title="Background music"></iframe>
+    @if ($musicId || $musicList)
+        {{-- The player, teleported to the body and docked bottom-left so it
+             survives this component being re-rendered between questions — a
+             player torn down and rebuilt on every question is a track that
+             restarts every twenty seconds.
+
+             Bottom LEFT because the primary button on every quiz screen is
+             full-width at the bottom, and the right-hand corner is where a
+             thumb rests. --}}
+        <template x-teleport="body">
+            <div x-show="musicOn" style="display:none"
+                 class="fixed bottom-3 left-3 z-40 w-40 overflow-hidden rounded-surface bg-gray-900 shadow-e3">
+                <div id="quiz-music-player" class="aspect-video w-full"></div>
+                <button type="button" @click="toggleMusic()"
+                        class="flex w-full items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:text-white">
+                    <span aria-hidden="true">&#9632;</span> Stop the music
+                </button>
             </div>
         </template>
     @endif
@@ -98,10 +133,14 @@
 
                 window.Alpine.__quizFxRegistered = true;
 
-                window.Alpine.data('quizFx', (musicSrc) => ({
+                window.Alpine.data('quizFx', (musicId, musicList) => ({
                     sound: localStorage.getItem('quizSound') !== 'off',
-                    musicOn: localStorage.getItem('quizMusic') === 'on' && !! musicSrc,
-                    musicSrc: musicSrc,
+                    // Never restored from storage. Music that starts itself
+                    // because of a choice made on a different shift is the
+                    // thing a phone gets put face down for.
+                    musicOn: false,
+                    musicId: musicId,
+                    musicList: musicList,
                     flash: null,
                     ctx: null,
 
@@ -173,13 +212,22 @@
                         this.flash = right ? 'right' : 'wrong';
                         setTimeout(() => { this.flash = null; }, 460);
 
+                        // Music ducks under the verdict rather than being
+                        // talked over by it, then comes back up.
+                        this.duck();
+
                         if (! this.sound) {
                             return;
                         }
 
                         right ? this.ding() : this.buzz();
 
-                        // A phone in an apron pocket is heard before it is seen.
+                        /*
+                         * The haptic is not a nicety. On iOS the ringer switch
+                         * silences Web Audio while leaving media alone, so on a
+                         * phone in silent mode this and the flash ARE the
+                         * feedback — see the note at the top.
+                         */
                         if (navigator.vibrate) {
                             navigator.vibrate(right ? 30 : [40, 60, 40]);
                         }
@@ -196,9 +244,119 @@
                         }
                     },
 
-                    toggleMusic() {
+                    // ── Music ─────────────────────────────────────────────
+
+                    /**
+                     * Load YouTube's API once, and resolve when it is ready.
+                     *
+                     * onYouTubeIframeAPIReady is a single global YouTube calls
+                     * exactly once, so it is wired to a promise rather than
+                     * being overwritten by whichever screen asked last.
+                     */
+                    youtube() {
+                        if (window.__ytReady) {
+                            return window.__ytReady;
+                        }
+
+                        window.__ytReady = new Promise((resolve) => {
+                            if (window.YT && window.YT.Player) {
+                                resolve(window.YT);
+
+                                return;
+                            }
+
+                            window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+
+                            const tag = document.createElement('script');
+                            tag.src = 'https://www.youtube.com/iframe_api';
+                            document.head.appendChild(tag);
+                        });
+
+                        return window.__ytReady;
+                    },
+
+                    async toggleMusic() {
                         this.musicOn = ! this.musicOn;
-                        localStorage.setItem('quizMusic', this.musicOn ? 'on' : 'off');
+
+                        if (! this.musicOn) {
+                            window.__quizPlayer?.pauseVideo?.();
+
+                            return;
+                        }
+
+                        /*
+                         * playVideo() has to be reachable from THIS gesture on
+                         * iOS. An existing player is therefore started before
+                         * anything is awaited — an await here would end the
+                         * gesture and the play would be refused silently, which
+                         * is the whole of the original iPhone bug.
+                         *
+                         * "Existing" means its iframe is still in the document.
+                         * The staff app navigates with wire:navigate, so the
+                         * global outlives the page that made it, and calling
+                         * playVideo() on a player whose iframe was swapped out
+                         * from under it is a button that does nothing at all.
+                         */
+                        if (! window.__quizPlayer?.getIframe?.()?.isConnected) {
+                            window.__quizPlayer?.destroy?.();
+                            window.__quizPlayer = null;
+                        }
+
+                        if (window.__quizPlayer?.playVideo) {
+                            window.__quizPlayer.playVideo();
+
+                            return;
+                        }
+
+                        const YT = await this.youtube();
+                        const mount = document.getElementById('quiz-music-player');
+
+                        if (! mount) {
+                            return;
+                        }
+
+                        window.__quizPlayer = new YT.Player(mount, {
+                            videoId: this.musicId || undefined,
+                            playerVars: {
+                                // playsinline keeps iOS from throwing the video
+                                // fullscreen over the question being answered.
+                                playsinline: 1,
+                                controls: 0,
+                                modestbranding: 1,
+                                rel: 0,
+                                loop: 1,
+                                ...(this.musicList
+                                    ? { list: this.musicList, listType: 'playlist' }
+                                    : { playlist: this.musicId }),
+                            },
+                            events: {
+                                onReady: (e) => {
+                                    // Backing music, not the main event: loud
+                                    // enough to hear under a chime, quiet
+                                    // enough to talk over.
+                                    e.target.setVolume(35);
+                                    e.target.playVideo();
+                                },
+                            },
+                        });
+                    },
+
+                    /** Drop the music while a verdict is being heard. */
+                    duck() {
+                        const player = window.__quizPlayer;
+
+                        if (! this.musicOn || ! player?.setVolume) {
+                            return;
+                        }
+
+                        // Swallowed on purpose: a player torn down by a
+                        // navigation mid-question must never take the answer
+                        // feedback down with it. Ducking is the least
+                        // important thing happening at this moment.
+                        try {
+                            player.setVolume(10);
+                            setTimeout(() => { try { player.setVolume(35); } catch (e) {} }, 900);
+                        } catch (e) {}
                     },
                 }));
             };
