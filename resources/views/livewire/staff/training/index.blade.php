@@ -2,8 +2,23 @@
 
     <div>
         <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Learning</p>
-        <h1 class="text-2xl font-bold text-gray-900 mt-0.5">
-            Hi {{ Str::before($employee->name, ' ') }}
+        {{-- THE WHOLE NAME, not the first word of it.
+
+             It greeted "Hi MOHD", which is nobody. Cutting at the first space
+             assumes a given-name-first Western order, and on this floor most
+             names are not that shape: Malay names lead with an honorific or a
+             religious prefix (Mohd, Muhammad, Nur, Siti), Chinese names lead
+             with the family name, and Indian names often lead with an initial.
+             The first word is the wrong word far more often than it is right,
+             and there is no rule that picks correctly — which is exactly why
+             the avatar component takes two letters off the front rather than
+             trying to identify a surname.
+
+             So it uses what the person is called, in full. It wraps on a long
+             one, which costs a line and is the only version that is never
+             wrong. --}}
+        <h1 class="text-2xl font-bold leading-tight text-gray-900 mt-0.5">
+            Hi {{ $employee->name }}
         </h1>
         <p class="text-sm text-gray-600 mt-0.5">Learn it, prove it, climb the board.</p>
     </div>

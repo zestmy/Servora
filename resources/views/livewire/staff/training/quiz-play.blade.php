@@ -219,7 +219,12 @@
                     @if ($standing['ahead'])
                         <p class="help mt-1">
                             {{ number_format($standing['gap']) }} behind
-                            {{ Str::before($standing['ahead'], ' ') }} — catch them on the next one.
+                            {{-- The whole name. The first word is the wrong
+                                 word on most names here — see the greeting on
+                                 the Learning screen — and naming a colleague
+                                 incorrectly on the screen that says you are
+                                 chasing them is worse than the extra line. --}}
+                            {{ $standing['ahead'] }} — catch them on the next one.
                         </p>
                     @elseif ($standing['rank'] === 1)
                         <p class="help mt-1">Top of the board. Hold it.</p>
