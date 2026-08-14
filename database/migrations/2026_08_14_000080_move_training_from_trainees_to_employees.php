@@ -149,41 +149,22 @@ return new class extends Migration
          * dropConstrainedForeignId already removes whatever the engine created
          * for the FK, so there is nothing to do for that table here.
          */
-        foreach ([
-            ['training_attempts',      'training_attempt_user_idx',                    'index'],
-            ['training_path_progress', 'training_path_progress_unique',                'unique'],
-            ['training_certificates',  'training_certificates_company_id_lms_user_id_index', 'index'],
-            ['training_assignments',   'training_assignments_lms_user_id_index',       'index'],
-        ] as [$table, $name, $type]) {
-            if (! $this->hasIndex($table, $name)) {
-                continue;
-            }
-
-            Schema::table($table, function (Blueprint $t) use ($name, $type) {
-                $type === 'unique' ? $t->dropUnique($name) : $t->dropIndex($name);
-            });
-        }
-
-        foreach (array_keys(self::TABLES) as $table) {
-            if (! Schema::hasColumn($table, 'lms_user_id')) {
-                continue;
-            }
-
-            Schema::table($table, function (Blueprint $t) {
-                $t->dropConstrainedForeignId('lms_user_id');
-            });
-        }
-
-        // 4. Put the indexes back, on the column that now carries the learner.
+        /*
+         * ORDER MATTERS, and it is the opposite of the obvious one.
+         *
+         * The new indexes go in FIRST, before anything is dropped. MySQL will
+         * refuse to drop an index that a foreign key is relying on, and it
+         * relies on whatever index happens to lead with the right column:
+         * `training_attempt_user_idx` is (company_id, lms_user_id, completed_at)
+         * and there is no dedicated index for the company_id foreign key, so
+         * MySQL had quietly adopted the composite one and answered the drop
+         * with "needed in a foreign key constraint". Creating the replacement
+         * — which also leads with company_id — gives it something else to hold
+         * on to before the old one is taken away.
+         */
         if (! $this->hasIndex('training_attempts', 'training_attempt_staff_idx')) {
             Schema::table('training_attempts', function (Blueprint $t) {
                 $t->index(['company_id', 'employee_id', 'completed_at'], 'training_attempt_staff_idx');
-            });
-        }
-
-        if (! $this->hasIndex('training_path_progress', 'training_path_progress_unique')) {
-            Schema::table('training_path_progress', function (Blueprint $t) {
-                $t->unique(['training_path_id', 'employee_id'], 'training_path_progress_unique');
             });
         }
 
@@ -199,17 +180,98 @@ return new class extends Migration
             });
         }
 
-        // 5. Where a learner is compulsory, say so in the schema rather than
-        //    trusting every future caller to remember.
+        /*
+         * A NEW NAME, not the old one reused.
+         *
+         * `training_path_progress_unique` is (training_path_id, lms_user_id) and
+         * the training_path_id foreign key had adopted it for the same reason
+         * the attempts one did — so it cannot be dropped until something else
+         * leads with training_path_id. Reusing the name would need the old one
+         * gone first, which is precisely what is impossible; a different name
+         * lets the replacement exist alongside it for the one statement it
+         * takes to remove the original.
+         */
+        if (! $this->hasIndex('training_path_progress', 'training_path_progress_employee_unique')) {
+            Schema::table('training_path_progress', function (Blueprint $t) {
+                $t->unique(['training_path_id', 'employee_id'], 'training_path_progress_employee_unique');
+            });
+        }
+
+        /*
+         * Then the old column. dropConstrainedForeignId removes the foreign key
+         * and the column together, and the engine takes any index that existed
+         * only to serve that column with it — which is why the plain
+         * lms_user_id indexes are NOT dropped by hand above. Trying to drop
+         * those first is the same "needed in a foreign key constraint" refusal
+         * from the other direction.
+         */
+        foreach (array_keys(self::TABLES) as $table) {
+            if (! Schema::hasColumn($table, 'lms_user_id')) {
+                continue;
+            }
+
+            Schema::table($table, function (Blueprint $t) {
+                $t->dropConstrainedForeignId('lms_user_id');
+            });
+        }
+
+        // Anything composite that named the old column and outlived it.
+        foreach ([
+            ['training_attempts',      'training_attempt_user_idx',                         'index'],
+            ['training_certificates',  'training_certificates_company_id_lms_user_id_index', 'index'],
+            ['training_path_progress', 'training_path_progress_unique',                     'unique'],
+        ] as [$table, $name, $type]) {
+            if (! $this->hasIndex($table, $name)) {
+                continue;
+            }
+
+            Schema::table($table, function (Blueprint $t) use ($name, $type) {
+                $type === 'unique' ? $t->dropUnique($name) : $t->dropIndex($name);
+            });
+        }
+
+
+        /*
+         * 5. Where a learner is compulsory, say so in the schema rather than
+         *    trusting every future caller to remember.
+         *
+         * THE FOREIGN KEY HAS TO CHANGE WITH IT. Every employee_id above was
+         * created ON DELETE SET NULL, and MySQL refuses to make a column NOT
+         * NULL while a foreign key promises to set it to null — "cannot be NOT
+         * NULL: needed in a foreign key constraint ... SET NULL". So the
+         * constraint is dropped, the column tightened, and the key put back as
+         * CASCADE.
+         *
+         * Cascade is also the honest answer for these two. A certificate with
+         * no recipient and a progress row belonging to nobody are not records,
+         * they are debris; and Employee soft-deletes, so this only fires on a
+         * force delete, which is the one case where somebody really is being
+         * erased rather than retired.
+         */
         foreach (self::TABLES as $table => $nullable) {
             if ($nullable) {
+                continue;
+            }
+
+            $isNullable = collect(Schema::getColumns($table))
+                ->firstWhere('name', 'employee_id')['nullable'] ?? false;
+
+            if (! $isNullable) {
                 continue;
             }
 
             DB::table($table)->whereNull('employee_id')->delete();
 
             Schema::table($table, function (Blueprint $t) {
+                $t->dropForeign(['employee_id']);
+            });
+
+            Schema::table($table, function (Blueprint $t) {
                 $t->foreignId('employee_id')->nullable(false)->change();
+            });
+
+            Schema::table($table, function (Blueprint $t) {
+                $t->foreign('employee_id')->references('id')->on('employees')->cascadeOnDelete();
             });
         }
     }
@@ -224,7 +286,7 @@ return new class extends Migration
         }
 
         Schema::table('training_attempts', fn (Blueprint $t) => $t->dropIndex('training_attempt_staff_idx'));
-        Schema::table('training_path_progress', fn (Blueprint $t) => $t->dropUnique('training_path_progress_unique'));
+        Schema::table('training_path_progress', fn (Blueprint $t) => $t->dropUnique('training_path_progress_employee_unique'));
         Schema::table('training_certificates', fn (Blueprint $t) => $t->dropIndex(['company_id', 'employee_id']));
         Schema::table('training_assignments', fn (Blueprint $t) => $t->dropIndex(['employee_id']));
 
