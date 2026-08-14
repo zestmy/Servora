@@ -38,9 +38,25 @@
     destroyed mid-quiz. That is "the music stops when I move to the next
     question". Nothing Livewire morphs can reach it now.
 
-    It is parked far off-screen rather than hidden: a frame that has been hidden
-    outright is what iOS refuses to play media in. The floating button is the
-    control somebody actually wants — not "which video is this" but "stop it".
+    AND ON IOS, NONE OF THAT IS ENOUGH. A gesture belongs to the FRAME it
+    happened in. playVideo() reaches the player by postMessage into a
+    cross-origin iframe, and WebKit does not carry the parent page's activation
+    across that boundary — so the tap on Start authorises nothing as far as
+    youtube-nocookie.com is concerned, and playback is refused however
+    synchronous the call was. That is why "no sound on iPhone" survived being
+    fixed twice: both fixes were real, and neither could have been sufficient.
+
+    The only gesture iOS accepts is one INSIDE the player. So the API call is
+    still made — it works on Android and on the desktop — and then the result
+    is CHECKED. If playback did not start, the player is brought on screen with
+    its own controls, above the floating button, and one tap on it starts the
+    music for the rest of the quiz; the API drives it from then on, because by
+    then the frame has been activated. It parks itself off-screen again the
+    moment it is playing.
+
+    Guessing which platform needs this would be wrong — Safari's policy varies
+    by version and by whether the user has played media on the site before.
+    Asking the player what it actually did is the only thing that stays true.
 
     Props:
       music  a YouTube embed URL, or null for a quiz with no backing track
@@ -141,6 +157,21 @@
         </div>
     </template>
 
+    @if ($hasMusic)
+        {{-- The label that appears with the player when iOS has refused. The
+             PLAYER itself is not in this template — see mountPlayer() — but
+             this is, because it is ordinary chrome and can be rebuilt by any
+             morph without costing anything. --}}
+        <template x-teleport="body">
+            <div x-show="needsTap" style="display:none"
+                 class="fixed bottom-[9.5rem] right-4 z-50 w-40 rounded-surface bg-gray-900 px-3 py-2 text-center">
+                <p class="text-[11px] font-medium leading-snug text-white">
+                    Tap play to start the music
+                </p>
+            </div>
+        </template>
+    @endif
+
     {{-- THE PLAYER IS NOT IN THIS TEMPLATE, and that is the fix for "the music
          stops when I move to the next question". It was a teleported node, and
          a teleport's lifetime is tied to the <template> that declared it: every
@@ -177,6 +208,13 @@
                     // because of a choice made on a different shift is the
                     // thing a phone gets put face down for.
                     musicOn: false,
+                    /*
+                     * Playback was asked for and did not happen — so the
+                     * player comes on screen to be tapped. See the note at the
+                     * top: on iOS the only gesture that counts is one inside
+                     * the frame.
+                     */
+                    needsTap: false,
                     musicId: musicId,
                     musicList: musicList,
                     flash: null,
@@ -364,12 +402,11 @@
 
                         const mount = document.createElement('div');
                         mount.id = 'quiz-music-player';
-                        mount.setAttribute('aria-hidden', 'true');
-                        mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
-                            + 'width:160px;height:90px;opacity:0;pointer-events:none;';
 
                         document.body.appendChild(mount);
                         window.__quizPlayerMount = mount;
+
+                        this.parkPlayer();
 
                         const YT = await this.youtube();
 
@@ -379,7 +416,16 @@
                                 // playsinline keeps iOS from throwing the video
                                 // fullscreen over the question being answered.
                                 playsinline: 1,
-                                controls: 0,
+                                /*
+                                 * CONTROLS ON, though the player spends almost
+                                 * all its life off-screen. When iOS refuses the
+                                 * API call this frame is the only thing that
+                                 * can start the music, and it can only do that
+                                 * if there is something in it to tap. Creating
+                                 * a second player at that point would mean
+                                 * loading the track twice.
+                                 */
+                                controls: 1,
                                 modestbranding: 1,
                                 rel: 0,
                                 loop: 1,
@@ -411,6 +457,14 @@
                                  * than one with no music at all.
                                  */
                                 onStateChange: (e) => {
+                                    // Playing at last — whether from the API or
+                                    // from a tap on the frame. Put it away.
+                                    if (e.data === YT.PlayerState.PLAYING) {
+                                        this.needsTap = false;
+                                        this.musicOn = true;
+                                        this.parkPlayer();
+                                    }
+
                                     if (e.data === YT.PlayerState.ENDED && this.musicOn) {
                                         e.target.seekTo(0);
                                         e.target.playVideo();
@@ -418,6 +472,64 @@
                                 },
                             },
                         });
+                    },
+
+                    /** Off-screen, inert, and impossible to tap by accident. */
+                    parkPlayer() {
+                        const mount = window.__quizPlayerMount;
+
+                        if (mount) {
+                            mount.setAttribute('aria-hidden', 'true');
+                            mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
+                                + 'width:160px;height:90px;opacity:0;pointer-events:none;';
+                        }
+                    },
+
+                    /**
+                     * On screen, above the floating buttons, with its own
+                     * controls — the one thing iOS will accept a tap on.
+                     */
+                    revealPlayer() {
+                        const mount = window.__quizPlayerMount;
+
+                        if (! mount) {
+                            return;
+                        }
+
+                        mount.removeAttribute('aria-hidden');
+                        mount.style.cssText = 'position:fixed;bottom:6.5rem;right:1rem;z-index:50;'
+                            + 'width:160px;height:90px;border-radius:12px;overflow:hidden;'
+                            + 'box-shadow:0 8px 24px rgba(15,23,42,.28);';
+
+                        this.needsTap = true;
+                    },
+
+                    /**
+                     * Did it actually start?
+                     *
+                     * The only honest way to know. A browser that refuses
+                     * playback does not throw and does not return false — it
+                     * simply does nothing, which is why this was invisible for
+                     * two rounds of fixes. A second is long enough for a track
+                     * to reach BUFFERING even on a slow kitchen connection.
+                     */
+                    confirmPlaying() {
+                        clearTimeout(this._confirm);
+
+                        this._confirm = setTimeout(() => {
+                            if (! this.musicOn) {
+                                return;
+                            }
+
+                            let state = -1;
+
+                            try { state = window.__quizPlayer?.getPlayerState?.() ?? -1; } catch (e) {}
+
+                            // 1 playing, 3 buffering — both mean it was allowed.
+                            if (state !== 1 && state !== 3) {
+                                this.revealPlayer();
+                            }
+                        }, 1100);
                     },
 
                     /** The Start tap. Music begins if the quiz has any. */
@@ -451,6 +563,15 @@
                                 window.__quizPlayer?.pauseVideo?.();
                             }
                         } catch (e) {}
+
+                        if (this.musicOn) {
+                            // Ask the player, a beat later, whether it was
+                            // actually allowed to start.
+                            this.confirmPlaying();
+                        } else {
+                            this.needsTap = false;
+                            this.parkPlayer();
+                        }
 
                         // A player torn down by a navigation is rebuilt rather
                         // than left as a dead button.
