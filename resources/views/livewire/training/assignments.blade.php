@@ -84,14 +84,21 @@
 
     {{-- ── New assignment ── --}}
     @if ($showModal)
-        {{-- The OVERLAY scrolls and the card is capped, which is the whole fix.
-             Centring a fixed panel with no internal scroll means that the
-             moment the content is taller than the viewport it overflows in
-             BOTH directions — the heading and the first field go off the top
-             with no way to reach them, which is exactly how this shipped and
-             how it was reported. items-start keeps it near the top on a short
-             screen; sm:items-center restores the centred look where there is
-             room for it. --}}
+        {{-- TELEPORTED TO BODY, and that is the actual fix rather than a
+             refinement. `position: fixed` is relative to the viewport UNLESS an
+             ancestor has a transform, in which case that ancestor becomes the
+             containing block and clips it. layouts.app wraps every page in
+             `.page-enter`, whose animation carries `both` as its fill mode — so
+             the translateY it ends on PERSISTS, and every fixed child of a
+             Livewire page is quietly trapped inside the content column. That is
+             why the panel was cut off at the bottom of the table area rather
+             than at the bottom of the window. The layout already solves this
+             once for the user menu, with the same escape hatch.
+
+             The overlay also scrolls and the card is height-capped: a centred
+             panel taller than the window overflows in both directions and puts
+             its own heading out of reach. --}}
+        @teleport('body')
         <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4
                     flex items-start justify-center sm:items-center"
              wire:key="assignment-modal">
@@ -181,5 +188,6 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>

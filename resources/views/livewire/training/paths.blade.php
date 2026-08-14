@@ -148,7 +148,9 @@
 
     {{-- ── Path settings ── --}}
     @if ($showModal)
-        {{-- Scrolls and caps, for the reason spelled out in assignments.blade. --}}
+        {{-- Teleported, scrolled and capped — see assignments.blade for why a
+             fixed panel is clipped to the content column without this. --}}
+        @teleport('body')
         <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4
                     flex items-start justify-center sm:items-center" wire:key="path-modal">
             <div class="card my-auto w-full max-w-md p-6">
@@ -198,5 +200,6 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>
