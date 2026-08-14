@@ -198,36 +198,71 @@ return new class extends Migration
         }
 
         /*
-         * Then the old column. dropConstrainedForeignId removes the foreign key
-         * and the column together, and the engine takes any index that existed
-         * only to serve that column with it — which is why the plain
-         * lms_user_id indexes are NOT dropped by hand above. Trying to drop
-         * those first is the same "needed in a foreign key constraint" refusal
-         * from the other direction.
+         * Then the old column — KEY, THEN INDEXES, THEN COLUMN, in that order,
+         * because the two engines refuse in opposite directions and only this
+         * sequence satisfies both.
+         *
+         *   MySQL  will not drop an index a foreign key is leaning on, so the
+         *          constraint has to go first.
+         *   SQLite will not drop a column an index still references, so the
+         *          indexes have to go before the column.
+         *
+         * dropConstrainedForeignId cannot express that: it drops the key and
+         * the column in one step and leaves whatever indexes named the column
+         * for the engine to sort out, which MySQL does silently and SQLite
+         * answers with "error in index ... after drop column". Enumerating the
+         * indexes rather than naming them also means the auto-created
+         * `*_lms_user_id_foreign` backing index is caught without this
+         * migration having to know which engine invented it.
          */
         foreach (array_keys(self::TABLES) as $table) {
             if (! Schema::hasColumn($table, 'lms_user_id')) {
                 continue;
             }
 
-            Schema::table($table, function (Blueprint $t) {
-                $t->dropConstrainedForeignId('lms_user_id');
-            });
-        }
-
-        // Anything composite that named the old column and outlived it.
-        foreach ([
-            ['training_attempts',      'training_attempt_user_idx',                         'index'],
-            ['training_certificates',  'training_certificates_company_id_lms_user_id_index', 'index'],
-            ['training_path_progress', 'training_path_progress_unique',                     'unique'],
-        ] as [$table, $name, $type]) {
-            if (! $this->hasIndex($table, $name)) {
-                continue;
+            /*
+             * Only where the driver has a constraint to drop. SQLite has no
+             * ALTER for it — it rebuilds the whole table on a column change and
+             * carries the keys across itself — and asking anyway throws "this
+             * database driver does not support dropping foreign keys by name".
+             * MySQL genuinely needs it gone before its backing index can be.
+             */
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                foreach (Schema::getForeignKeys($table) as $key) {
+                    if (in_array('lms_user_id', $key['columns'] ?? [], true)) {
+                        Schema::table($table, fn (Blueprint $t) => $t->dropForeign($key['name']));
+                    }
+                }
             }
 
-            Schema::table($table, function (Blueprint $t) use ($name, $type) {
-                $type === 'unique' ? $t->dropUnique($name) : $t->dropIndex($name);
-            });
+            foreach (Schema::getIndexes($table) as $index) {
+                if (($index['primary'] ?? false) || ! in_array('lms_user_id', $index['columns'] ?? [], true)) {
+                    continue;
+                }
+
+                Schema::table($table, fn (Blueprint $t) => ($index['unique'] ?? false)
+                    ? $t->dropUnique($index['name'])
+                    : $t->dropIndex($index['name']));
+            }
+
+            /*
+             * And the column itself, which is the one step the two engines
+             * genuinely cannot share.
+             *
+             * SQLite has to go through dropConstrainedForeignId: it cannot
+             * ALTER a key away, so Laravel rebuilds the table and carries the
+             * remaining constraints across. A plain dropColumn leaves the old
+             * key definition pointing at a column that is no longer there —
+             * "unknown column in foreign key definition".
+             *
+             * MySQL cannot use that path, because it drops key and column
+             * together and leaves the indexes for last, which is the order that
+             * made it refuse in production. Its constraint is already gone
+             * above, so a plain dropColumn is all that remains.
+             */
+            Schema::table($table, fn (Blueprint $t) => DB::connection()->getDriverName() === 'sqlite'
+                ? $t->dropConstrainedForeignId('lms_user_id')
+                : $t->dropColumn('lms_user_id'));
         }
 
 

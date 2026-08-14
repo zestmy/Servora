@@ -28,6 +28,8 @@ class QuizBuilder extends Component
     public string $title = '';
     public string $description = '';
     public string $language = 'en';
+    /** Empty means everybody — see TrainingQuiz::scopeForSection. */
+    public string $sectionId = '';
     public string $status = 'draft';
     public int $passMark = 70;
     public int $defaultSeconds = 20;
@@ -67,6 +69,7 @@ class QuizBuilder extends Component
         $this->title             = $quiz->title;
         $this->description       = (string) $quiz->description;
         $this->language          = $quiz->language ?: 'en';
+        $this->sectionId         = (string) ($quiz->section_id ?? '');
         $this->status            = $quiz->status;
         $this->passMark          = $quiz->pass_mark;
         $this->defaultSeconds    = $quiz->default_seconds;
@@ -87,6 +90,10 @@ class QuizBuilder extends Component
             'title'          => ['required', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
             'language'       => ['required', Rule::in(array_keys(TrainingQuiz::LANGUAGES))],
+            // Scoped to this company: a section id is client-supplied like any
+            // other field, and a <select> is not the control.
+            'sectionId'      => ['nullable', Rule::exists('sections', 'id')
+                ->where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)],
             'status'         => ['required', Rule::in(array_keys(TrainingQuiz::STATUSES))],
             'passMark'       => ['required', 'integer', 'min:1', 'max:100'],
             'defaultSeconds' => ['required', 'integer', 'min:5', 'max:300'],
@@ -106,6 +113,7 @@ class QuizBuilder extends Component
             'title'              => $data['title'],
             'description'        => $data['description'] ?: null,
             'language'           => $data['language'],
+            'section_id'         => $this->sectionId ?: null,
             'status'             => $data['status'],
             'pass_mark'          => $data['passMark'],
             'default_seconds'    => $data['defaultSeconds'],
@@ -393,11 +401,13 @@ class QuizBuilder extends Component
 
     public function render()
     {
-        $quiz      = TrainingQuiz::with('course:id,title')->findOrFail($this->quizId);
+        $quiz      = TrainingQuiz::with('course:id,title', 'section:id,name')->findOrFail($this->quizId);
         $questions = $quiz->questions()->get();
         $aiReady   = app(QuizGeneratorService::class)->isConfigured();
 
-        return view('livewire.training.quiz-builder', compact('quiz', 'questions', 'aiReady'))
+        $sections = \App\Models\Section::active()->ordered()->get(['id', 'name']);
+
+        return view('livewire.training.quiz-builder', compact('quiz', 'questions', 'aiReady', 'sections'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $quiz->title]);
     }
 }

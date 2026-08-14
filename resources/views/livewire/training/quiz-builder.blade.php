@@ -247,6 +247,21 @@
                     <textarea id="quiz-description" wire:model="description" rows="2" class="input"></textarea>
                 </div>
                 <div>
+                    <label class="label" for="quiz-section">Who it is for</label>
+                    <select id="quiz-section" wire:model="sectionId" class="input">
+                        <option value="">Everyone</option>
+                        @foreach ($sections as $section)
+                            <option value="{{ $section->id }}">{{ $section->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="help">
+                        The same course can carry one questionnaire for the kitchen and another for
+                        the floor. Leave it on Everyone for anything safety- or compliance-related.
+                    </p>
+                    @error('sectionId') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
                     <label class="label" for="quiz-language">Question language</label>
                     <select id="quiz-language" wire:model.live="language" class="input">
                         @foreach (\App\Models\TrainingQuiz::LANGUAGES as $value => $label)

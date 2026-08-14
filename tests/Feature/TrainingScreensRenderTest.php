@@ -327,6 +327,45 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('Chiller quiz');
     }
 
+    /**
+     * The page offers the quizzes for the reader's SECTION, not simply the
+     * first one on the course.
+     *
+     * This is the case that broke the old `quizzes->first()`: a course now
+     * carries a kitchen questionnaire beside a floor one, and taking the first
+     * would hand a waiter the chef's quiz because it had the lower id.
+     */
+    public function test_the_staff_course_page_offers_only_this_person_s_section(): void
+    {
+        $foh = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'FOH', 'is_active' => true]);
+        $boh = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'BOH', 'is_active' => true]);
+
+        // The existing quiz is untagged, so it belongs to everybody.
+        $this->quiz->update(['title' => 'Everyone quiz']);
+
+        foreach ([['Kitchen quiz', $boh->id], ['Floor quiz', $foh->id]] as [$title, $sectionId]) {
+            TrainingQuiz::create([
+                'company_id'         => $this->company->id,
+                'training_course_id' => $this->course->id,
+                'section_id'         => $sectionId,
+                'title'              => $title,
+                'status'             => 'published',
+            ])->questions()->create([
+                'type' => 'mcq', 'prompt' => $title . '?',
+                'options' => ['a', 'b'], 'correct' => [0],
+            ]);
+        }
+
+        $this->employee->update(['section_id' => $foh->id]);
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\CourseView::class, ['id' => $this->course->id])
+            ->assertOk()
+            ->assertSee('Everyone quiz')
+            ->assertSee('Floor quiz')
+            ->assertDontSee('Kitchen quiz');
+    }
+
     public function test_playing_a_quiz_renders_the_question_then_the_result(): void
     {
         $this->asStaff();
@@ -358,8 +397,59 @@ class TrainingScreensRenderTest extends TestCase
     }
 
     /**
-     * The board — which is also what the staff app now opens on, so a failure
-     * here is not one screen being wrong, it is the app's front door.
+     * The Staff Portal home screen — literally the app's front door, so a
+     * failure here is every staff member seeing a 500 on open.
+     *
+     * Rendered for somebody with NOTHING: no attempts, no assignments, no
+     * clock event, no rank. That is the state of every employee on the day
+     * this ships, and a dashboard that only works once there is data to show
+     * is a dashboard nobody ever sees working.
+     */
+    public function test_the_staff_home_screen_renders_for_somebody_with_no_history(): void
+    {
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Home::class)
+            ->assertOk()
+            ->assertSee('Not clocked in')
+            ->assertSee('Clock in')
+            ->assertSee('This month')
+            // The empty-state line, not a fabricated rank.
+            ->assertSee('Nothing yet this month');
+    }
+
+    /** ...and again once they have a score and something outstanding. */
+    public function test_the_staff_home_screen_renders_with_data(): void
+    {
+        TrainingAssignment::create([
+            'company_id'         => $this->company->id,
+            'training_course_id' => $this->course->id,
+            'outlet_id'          => $this->outlet->id,
+            'due_on'             => now()->subDay()->toDateString(),
+        ]);
+
+        // Answered WRONG on purpose. Passing would clear the assignment — that
+        // is what "outstanding" means and it is tested elsewhere — and this
+        // screen needs the case where somebody has a score AND still owes
+        // something, which is the state most staff are actually in.
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($this->quiz, $this->employee);
+        $service->answer($attempt, $this->quiz->questions->first(), [1], 3.0);
+        $service->finish($attempt);
+
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Home::class)
+            ->assertOk()
+            ->assertSee('To do')
+            ->assertSee('Overdue')
+            ->assertSee('Top of')
+            ->assertSee('Aisyah Rahman');
+    }
+
+    /**
+     * The board — which the app also links to prominently, so a failure here
+     * is not one screen being wrong.
      */
     public function test_the_leaderboard_renders_with_and_without_a_score(): void
     {

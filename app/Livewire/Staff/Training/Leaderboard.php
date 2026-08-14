@@ -2,10 +2,9 @@
 
 namespace App\Livewire\Staff\Training;
 
-use App\Services\Staff\StaffSession;
+use App\Livewire\Clock\Staff\StaffComponent;
 use App\Services\Training\LeaderboardService;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 
 /**
  * The board, and the first thing the staff app opens on.
@@ -23,7 +22,7 @@ use Livewire\Component;
  * reason to play; the branch board is one a team can actually win. The company
  * view is one tap away for anyone who wants it.
  */
-class Leaderboard extends Component
+class Leaderboard extends StaffComponent
 {
     #[Url(as: 'period', except: 'month')]
     public string $period = 'month';
@@ -32,9 +31,9 @@ class Leaderboard extends Component
     #[Url(as: 'scope', except: 'outlet')]
     public string $scope = 'outlet';
 
-    public function render(LeaderboardService $leaderboard, StaffSession $staff)
+    public function render(LeaderboardService $leaderboard)
     {
-        $employee = $staff->employee();
+        $employee = $this->staff();
 
         $outletId = $this->scope === 'outlet' ? $employee?->outlet_id : null;
 
@@ -60,6 +59,6 @@ class Leaderboard extends Component
             'employee' => $employee,
             'me'       => $me,
             'position' => $position,
-        ])->layout('layouts.clock-staff', ['title' => 'Leaderboard']);
+        ])->layout('layouts.clock-staff', $this->shell('Leaderboard'));
     }
 }

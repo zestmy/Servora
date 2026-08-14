@@ -84,9 +84,18 @@
 
     {{-- ── New assignment ── --}}
     @if ($showModal)
-        <div class="fixed inset-0 z-overlay flex items-center justify-center bg-gray-900/50 p-4"
+        {{-- The OVERLAY scrolls and the card is capped, which is the whole fix.
+             Centring a fixed panel with no internal scroll means that the
+             moment the content is taller than the viewport it overflows in
+             BOTH directions — the heading and the first field go off the top
+             with no way to reach them, which is exactly how this shipped and
+             how it was reported. items-start keeps it near the top on a short
+             screen; sm:items-center restores the centred look where there is
+             room for it. --}}
+        <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4
+                    flex items-start justify-center sm:items-center"
              wire:key="assignment-modal">
-            <div class="card w-full max-w-lg p-6">
+            <div class="card my-auto w-full max-w-lg p-6">
                 <h2 class="text-base font-semibold text-gray-900 mb-4">New assignment</h2>
 
                 <div class="space-y-4">

@@ -65,7 +65,7 @@ class TrainingQuiz extends Model
     }
 
     protected $fillable = [
-        'company_id', 'training_course_id', 'title', 'description', 'language', 'status',
+        'company_id', 'training_course_id', 'section_id', 'title', 'description', 'language', 'status',
         'pass_mark', 'default_seconds', 'default_points',
         'speed_bonus', 'streak_bonus', 'shuffle_questions', 'shuffle_options',
         'max_attempts', 'issues_certificate',
@@ -125,6 +125,40 @@ class TrainingQuiz extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(TrainingCourse::class, 'training_course_id');
+    }
+
+    /** Front of house, back of house, or null for everybody. */
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    public function sectionLabel(): string
+    {
+        return $this->section?->name ?? 'Everyone';
+    }
+
+    /**
+     * Quizzes this person should be offered.
+     *
+     * Untagged quizzes are included for EVERY section, not excluded from all of
+     * them — null means "everybody" here, so a compliance quiz nobody
+     * remembered to tag still reaches the whole floor. Failing the other way
+     * would hide safety material from people and look like nothing was wrong.
+     *
+     * Somebody with no section at all (none on this company today, but the
+     * column is nullable) sees only the untagged ones, which is the same rule
+     * read from the other side.
+     */
+    public function scopeForSection(Builder $query, ?int $sectionId): Builder
+    {
+        return $query->where(function ($q) use ($sectionId) {
+            $q->whereNull('section_id');
+
+            if ($sectionId) {
+                $q->orWhere('section_id', $sectionId);
+            }
+        });
     }
 
     public function createdBy(): BelongsTo

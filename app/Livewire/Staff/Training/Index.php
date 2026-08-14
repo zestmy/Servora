@@ -4,10 +4,9 @@ namespace App\Livewire\Staff\Training;
 
 use App\Models\TrainingAttempt;
 use App\Models\TrainingCourse;
-use App\Services\Staff\StaffSession;
+use App\Livewire\Clock\Staff\StaffComponent;
 use App\Services\Training\ReportCardService;
 use Livewire\Attributes\Url;
-use Livewire\Component;
 
 /**
  * What this employee has to learn, and what they can learn.
@@ -16,14 +15,14 @@ use Livewire\Component;
  * covers has three minutes, and the honest answer to "what should I do now" is
  * the thing with a date on it rather than the newest course.
  */
-class Index extends Component
+class Index extends StaffComponent
 {
     #[Url(as: 'q', except: '')]
     public string $search = '';
 
-    public function render(StaffSession $staff, ReportCardService $reportCards)
+    public function render(ReportCardService $reportCards)
     {
-        $employee  = $staff->employee();
+        $employee  = $this->staff();
         $outletIds = $employee->trainingOutletIds();
 
         $courses = TrainingCourse::query()
@@ -52,6 +51,6 @@ class Index extends Component
             'courses'     => $courses,
             'best'        => $best,
             'outstanding' => $reportCards->outstanding($employee),
-        ])->layout('layouts.clock-staff', ['title' => 'Learn']);
+        ])->layout('layouts.clock-staff', $this->shell('Learn'));
     }
 }

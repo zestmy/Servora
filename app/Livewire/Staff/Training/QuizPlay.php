@@ -4,7 +4,7 @@ namespace App\Livewire\Staff\Training;
 
 use App\Models\TrainingAttempt;
 use App\Models\TrainingQuiz;
-use App\Services\Staff\StaffSession;
+use App\Livewire\Clock\Staff\StaffComponent;
 use App\Services\Training\SelfPacedQuizService;
 use Illuminate\Support\Carbon;
 use Livewire\Component;
@@ -19,7 +19,7 @@ use Livewire\Component;
  * elapsed time is a number the client can choose, and points are on a
  * leaderboard their colleagues can see.
  */
-class QuizPlay extends Component
+class QuizPlay extends StaffComponent
 {
     public int $quizId;
     public ?int $attemptId = null;
@@ -39,9 +39,9 @@ class QuizPlay extends Component
 
     public bool $finished = false;
 
-    public function mount(int $id, SelfPacedQuizService $service, StaffSession $staff): void
+    public function mount(int $id, SelfPacedQuizService $service): void
     {
-        $employee = $staff->employee();
+        $employee = $this->staff();
 
         $quiz = TrainingQuiz::query()
             ->where('company_id', $employee->company_id)
@@ -72,11 +72,11 @@ class QuizPlay extends Component
         $this->startedAt = now()->toIso8601String();
     }
 
-    private function attempt(StaffSession $staff): TrainingAttempt
+    private function attempt(): TrainingAttempt
     {
         // Scoped to the employee, so an attempt id belonging to a colleague is
         // simply not found rather than played.
-        return TrainingAttempt::where('employee_id', $staff->employee()?->id)
+        return TrainingAttempt::where('employee_id', $this->staff()->id)
             ->with('quiz')
             ->findOrFail($this->attemptId);
     }
@@ -104,17 +104,17 @@ class QuizPlay extends Component
         }
     }
 
-    public function submit(SelfPacedQuizService $service, StaffSession $staff): void
+    public function submit(SelfPacedQuizService $service): void
     {
         if ($this->showFeedback || $this->finished) {
             return;
         }
 
-        $attempt  = $this->attempt($staff);
+        $attempt  = $this->attempt();
         $question = $service->questionAt($attempt, $this->index);
 
         if (! $question) {
-            $this->finish($service, $staff);
+            $this->finish($service);
 
             return;
         }
@@ -137,19 +137,19 @@ class QuizPlay extends Component
     }
 
     /** The clock ran out with nothing chosen. */
-    public function timeout(SelfPacedQuizService $service, StaffSession $staff): void
+    public function timeout(SelfPacedQuizService $service): void
     {
         if ($this->showFeedback || $this->finished) {
             return;
         }
 
         $this->chosen = [];
-        $this->submit($service, $staff);
+        $this->submit($service);
     }
 
-    public function nextQuestion(SelfPacedQuizService $service, StaffSession $staff): void
+    public function nextQuestion(SelfPacedQuizService $service): void
     {
-        $attempt = $this->attempt($staff);
+        $attempt = $this->attempt();
 
         $this->index++;
         $this->chosen       = [];
@@ -157,39 +157,39 @@ class QuizPlay extends Component
         $this->startedAt    = now()->toIso8601String();
 
         if ($this->index >= count((array) $attempt->question_order)) {
-            $this->finish($service, $staff);
+            $this->finish($service);
         }
     }
 
-    private function finish(SelfPacedQuizService $service, StaffSession $staff): void
+    private function finish(SelfPacedQuizService $service): void
     {
-        $service->finish($this->attempt($staff));
+        $service->finish($this->attempt());
         $this->finished = true;
     }
 
-    public function render(SelfPacedQuizService $service, StaffSession $staff)
+    public function render(SelfPacedQuizService $service)
     {
         if ($this->finished || ! $this->attemptId) {
             $attempt = $this->attemptId
-                ? $this->attempt($staff)->fresh(['quiz.course', 'answers'])
+                ? $this->attempt()->fresh(['quiz.course', 'answers'])
                 : null;
 
             return view('livewire.staff.training.quiz-result', [
                 'attempt'     => $attempt,
                 'certificate' => $attempt?->certificate()->first(),
-            ])->layout('layouts.clock-staff', ['title' => 'Result']);
+            ])->layout('layouts.clock-staff', $this->shell('Result'));
         }
 
-        $attempt  = $this->attempt($staff);
+        $attempt  = $this->attempt();
         $question = $service->questionAt($attempt, $this->index);
 
         if (! $question) {
-            $this->finish($service, $staff);
+            $this->finish($service);
 
             return view('livewire.staff.training.quiz-result', [
-                'attempt'     => $this->attempt($staff)->fresh(['quiz.course', 'answers']),
-                'certificate' => $this->attempt($staff)->certificate()->first(),
-            ])->layout('layouts.clock-staff', ['title' => 'Result']);
+                'attempt'     => $this->attempt()->fresh(['quiz.course', 'answers']),
+                'certificate' => $this->attempt()->certificate()->first(),
+            ])->layout('layouts.clock-staff', $this->shell('Result'));
         }
 
         $options = $question->optionList();
@@ -213,6 +213,6 @@ class QuizPlay extends Component
             'order'    => $order,
             'total'    => count((array) $attempt->question_order),
             'seconds'  => $question->secondsValue($attempt->quiz),
-        ])->layout('layouts.clock-staff', ['title' => $attempt->quiz->title]);
+        ])->layout('layouts.clock-staff', $this->shell($attempt->quiz->title));
     }
 }

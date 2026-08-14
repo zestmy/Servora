@@ -2,9 +2,8 @@
 
 namespace App\Livewire\Staff\Training;
 
-use App\Services\Staff\StaffSession;
+use App\Livewire\Clock\Staff\StaffComponent;
 use App\Services\Training\ReportCardService;
-use Livewire\Component;
 
 /**
  * An employee's own report card.
@@ -17,15 +16,15 @@ use Livewire\Component;
  * to look at next rather than as a deficiency. It is the most useful thing on
  * the page.
  */
-class MyProgress extends Component
+class MyProgress extends StaffComponent
 {
-    public function render(ReportCardService $reportCards, StaffSession $staff)
+    public function render(ReportCardService $reportCards)
     {
-        $employee = $staff->employee();
+        $employee = $this->staff();
 
         return view('livewire.staff.training.my-progress', [
             'card'     => $reportCards->for($employee),
             'employee' => $employee,
-        ])->layout('layouts.clock-staff', ['title' => 'My progress']);
+        ])->layout('layouts.clock-staff', $this->shell('My progress'));
     }
 }

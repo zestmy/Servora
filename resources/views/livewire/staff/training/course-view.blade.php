@@ -46,63 +46,60 @@
         <div class="prose-sm max-w-none whitespace-pre-wrap text-[15px] leading-relaxed text-gray-800">{{ $course->content }}</div>
     </div>
 
-    {{-- ── The quiz ── --}}
-    @if ($quiz)
-        <div class="card p-6">
-            <h2 class="text-base font-semibold text-gray-900">{{ $quiz->title }}</h2>
-            <p class="text-sm text-gray-600 mt-1">
-                {{ $quiz->questions_count }} {{ Str::plural('question', $quiz->questions_count) }}
-                · pass at {{ $quiz->pass_mark }}%
-                @if ($remaining !== null)
-                    · {{ $remaining }} {{ Str::plural('attempt', $remaining) }} left
-                @endif
-            </p>
 
-            @if ($best)
-                <div class="mt-3 rounded-surface bg-gray-50 p-3 text-sm">
-                    <p class="text-gray-800">
-                        Your best: <span class="font-semibold">{{ (float) $best->percent }}%</span>
-                        · {{ number_format($best->score) }} points
-                        <span class="{{ $best->passed ? 'badge-success' : 'badge-warning' }} ml-1">
-                            {{ $best->passed ? 'Passed' : 'Not passed yet' }}
-                        </span>
+    {{-- ── The quizzes ──
+
+         A LIST, not one quiz. The same material can carry a kitchen
+         questionnaire and a floor one, and an English set beside a Malay set —
+         so the page offers whatever this person is entitled to and lets them
+         pick. Section filtering already happened in SQL; anything still here is
+         theirs to take. --}}
+    @forelse ($quizzes as $quiz)
+        @php $mine = $best[$quiz->id] ?? null; @endphp
+        <div wire:key="quiz-{{ $quiz->id }}" class="card p-5 mb-3">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="font-semibold text-gray-900">{{ $quiz->title }}</h2>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                        {{ $quiz->questions_count }} {{ Str::plural('question', $quiz->questions_count) }}
+                        · lulus {{ $quiz->pass_mark }}%
+                        @if (($quiz->language ?? 'en') !== 'en')
+                            · <span class="badge-neutral">{{ $quiz->languageLabel() }}</span>
+                        @endif
+                        @if ($quiz->section_id)
+                            · <span class="badge-brand">{{ $quiz->sectionLabel() }}</span>
+                        @endif
                     </p>
                 </div>
-            @endif
+                @if ($mine)
+                    <span class="{{ $mine->passed ? 'badge-success' : 'badge-warning' }} shrink-0">
+                        {{ (float) $mine->percent }}%
+                    </span>
+                @endif
+            </div>
+
+            @php $remaining = $quiz->attemptsRemaining($employee->id); @endphp
 
             @if ($quiz->questions_count === 0)
-                <p class="help mt-3">This quiz has no questions yet.</p>
+                <p class="help mt-3">No questions on this one yet.</p>
             @elseif ($remaining !== null && $remaining <= 0)
                 <p class="help mt-3">You have used all your attempts at this quiz.</p>
             @else
-                <a href="{{ route('clock.staff.learn.quiz', $quiz->id) }}" class="btn-primary mt-4">
-                    {{ $best ? 'Try again' : 'Start the quiz' }}
+                <a href="{{ route('clock.staff.learn.quiz', $quiz->id) }}" wire:navigate
+                   class="btn-primary mt-3 w-full justify-center">
+                    {{ $mine ? 'Try again' : 'Start' }}
                 </a>
-            @endif
-
-            @if ($attempts->isNotEmpty())
-                <div class="mt-5 border-t border-gray-100 pt-4">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">Your attempts</p>
-                    <ul class="space-y-1 text-sm">
-                        @foreach ($attempts->take(5) as $attempt)
-                            <li class="flex items-center justify-between gap-3">
-                                <span class="text-gray-700">
-                                    {{ $attempt->completed_at?->format('j M Y, H:i') }}
-                                    @if ($attempt->mode === 'live') <span class="badge-brand ml-1">Live</span> @endif
-                                </span>
-                                <span class="tabular-nums {{ $attempt->passed ? 'text-success-700' : 'text-gray-700' }}">
-                                    {{ (float) $attempt->percent }}%
-                                </span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
+                @if ($remaining !== null)
+                    <p class="help mt-1 text-center">
+                        {{ $remaining }} {{ Str::plural('attempt', $remaining) }} left
+                    </p>
+                @endif
             @endif
         </div>
-    @else
+    @empty
         <div class="alert-info">
             <x-icon name="info" size="h-5 w-5" class="flex-shrink-0" />
-            <p>There is no quiz on this course yet — just read it through.</p>
+            <p>No quiz for your section on this course yet — read it through.</p>
         </div>
-    @endif
+    @endforelse
 </div>

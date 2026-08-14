@@ -148,8 +148,10 @@
 
     {{-- ── Path settings ── --}}
     @if ($showModal)
-        <div class="fixed inset-0 z-overlay flex items-center justify-center bg-gray-900/50 p-4" wire:key="path-modal">
-            <div class="card w-full max-w-md p-6">
+        {{-- Scrolls and caps, for the reason spelled out in assignments.blade. --}}
+        <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4
+                    flex items-start justify-center sm:items-center" wire:key="path-modal">
+            <div class="card my-auto w-full max-w-md p-6">
                 <h2 class="text-base font-semibold text-gray-900 mb-4">
                     {{ $modalPathId ? 'Edit path' : 'New path' }}
                 </h2>

@@ -626,6 +626,57 @@ class TrainingModuleTest extends TestCase
         $this->assertSame(['True', 'False'], TrainingQuiz::booleanOptionsFor('zz'));
     }
 
+    // ── Section targeting ─────────────────────────────────────────────────
+
+    /**
+     * A kitchen quiz does not reach the floor, and an untagged one reaches
+     * everybody.
+     *
+     * The last part is the one worth a test: null means EVERYBODY, not "no
+     * section", so a compliance quiz nobody remembered to tag still gets to the
+     * whole team. Failing the other way would hide safety material and look
+     * like nothing was wrong.
+     */
+    public function test_a_quiz_tagged_to_a_section_only_reaches_that_section(): void
+    {
+        $foh = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'FOH', 'is_active' => true]);
+        $boh = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'BOH', 'is_active' => true]);
+
+        $course = $this->course();
+
+        $everyone = $this->quiz($course, ['title' => 'Allergens']);
+        $kitchen  = $this->quiz($course, ['title' => 'Method', 'section_id' => $boh->id]);
+        $floor    = $this->quiz($course, ['title' => 'Selling it', 'section_id' => $foh->id]);
+
+        $offered = fn (?int $sectionId) => TrainingQuiz::published()
+            ->where('training_course_id', $course->id)
+            ->forSection($sectionId)
+            ->orderBy('id')
+            ->pluck('title')
+            ->all();
+
+        $this->assertSame(['Allergens', 'Selling it'], $offered($foh->id));
+        $this->assertSame(['Allergens', 'Method'], $offered($boh->id));
+
+        // Nobody on this company has a null section today, but the column
+        // allows it — and they must still get the untagged material.
+        $this->assertSame(['Allergens'], $offered(null));
+
+        $this->assertNotNull($kitchen);
+        $this->assertNotNull($everyone);
+        $this->assertNotNull($floor);
+    }
+
+    public function test_an_untagged_quiz_reports_itself_as_everyones(): void
+    {
+        $section = \App\Models\Section::create([
+            'company_id' => $this->company->id, 'name' => 'BOH', 'is_active' => true,
+        ]);
+
+        $this->assertSame('Everyone', $this->quiz()->sectionLabel());
+        $this->assertSame('BOH', $this->quiz(null, ['section_id' => $section->id])->sectionLabel());
+    }
+
     // ── Scoring wiring ────────────────────────────────────────────────────
 
     /** finalise() sums the ROWS, so a re-answer cannot inflate the total. */

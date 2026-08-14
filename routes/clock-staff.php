@@ -112,14 +112,15 @@ $group->group(function () {
          * A bare /staff has to land somewhere: it is what gets typed from
          * memory, and what a shared link gets trimmed to.
          *
-         * IT LANDS ON THE LEADERBOARD, not the clock. That is a deliberate
-         * trade and the cost is real — clocking in is one tap further away for
-         * everybody, every shift, and those taps are made by people standing in
-         * a doorway. It buys the thing the learning module exists for: a board
-         * nobody sees motivates nobody. The clock is the FIRST tab in the bar,
-         * so the extra tap is exactly one and always in the same place.
+         * IT LANDS ON A DASHBOARD, and that replaced two worse answers. It went
+         * to the clock-in camera first, which made a multi-purpose app feel
+         * like a single-purpose tool; then to the leaderboard, which put the
+         * board in front of people at the moment they were trying to clock in.
+         * The home screen answers "am I clocked in", "what do I owe" and "where
+         * am I" at once, and keeps clocking in ONE TAP away as its primary
+         * button — so the doorway case costs a tap and nothing more.
          */
-        Route::redirect('/', '/staff/learn/leaderboard')->name('clock.staff.home');
+        Route::get('/', \App\Livewire\Staff\Home::class)->name('clock.staff.home');
 
         Route::get('/clock', ClockPunch::class)->name('clock.staff.punch');
         Route::get('/punches', ClockHistory::class)->name('clock.staff.history');
