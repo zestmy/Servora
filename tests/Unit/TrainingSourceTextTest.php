@@ -17,9 +17,6 @@ class TrainingSourceTextTest extends TestCase
 {
     private function extractor(): SourceTextExtractor
     {
-        // No VisionService: readScannedPdf must decline rather than fatal when
-        // there is nothing to call, which is also what a environment without
-        // Imagick looks like.
         return new SourceTextExtractor();
     }
 
@@ -57,8 +54,12 @@ class TrainingSourceTextTest extends TestCase
         $this->assertStringNotContainsString('tail', $out);
     }
 
-    /** With no vision service wired up it declines rather than fataling. */
-    public function test_a_scanned_pdf_returns_nothing_when_vision_is_unavailable(): void
+    /**
+     * A file that cannot be opened returns empty rather than throwing, and
+     * without ever reaching for the vision service — the caller treats "we
+     * could not read it" as an ordinary outcome and says so in the UI.
+     */
+    public function test_an_unopenable_pdf_returns_nothing(): void
     {
         $this->assertSame('', $this->extractor()->readScannedPdf('/no/such/file.pdf'));
     }

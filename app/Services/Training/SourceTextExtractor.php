@@ -114,8 +114,24 @@ class SourceTextExtractor
      */
     private const MAX_SCANNED_PAGES = 10;
 
+    /**
+     * Vision is resolved lazily, not injected.
+     *
+     * The obvious `private ?VisionService $vision = null` DOES NOT WORK: a
+     * nullable constructor parameter with a default is one the container
+     * declines to build, so it arrives as null and the fallback silently never
+     * fires — which is exactly what production reported back when this was
+     * checked. Taking it as a required dependency instead would drag
+     * VisionService's constructor, and therefore an app_settings query, into
+     * every unit test that only wanted to tidy a string.
+     */
     public function __construct(private ?VisionService $vision = null)
     {
+    }
+
+    private function vision(): VisionService
+    {
+        return $this->vision ??= app(VisionService::class);
     }
 
     /**
@@ -191,7 +207,7 @@ class SourceTextExtractor
      */
     public function readScannedPdf(string $path): string
     {
-        if (! class_exists(\Imagick::class) || ! $this->vision) {
+        if (! class_exists(\Imagick::class)) {
             return '';
         }
 
@@ -226,7 +242,7 @@ class SourceTextExtractor
                 $temp = tempnam(sys_get_temp_dir(), 'sop') . '.jpg';
                 $frame->writeImage($temp);
 
-                $out[] = $this->vision->extractText($temp);
+                $out[] = $this->vision()->extractText($temp);
             } catch (\Throwable $e) {
                 // One unreadable page does not make the document unreadable.
                 Log::warning('[training] vision failed on a PDF page', [
