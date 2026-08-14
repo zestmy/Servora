@@ -588,6 +588,46 @@ class TrainingModuleTest extends TestCase
         $this->asStaff($colleague)->get($url)->assertForbidden();
     }
 
+    /**
+     * The certificate is ONE page.
+     *
+     * It printed as two, the second blank, because the sheet was declared
+     * `height: 210mm` — exactly the page — so the first sub-millimetre of
+     * rounding pushed it over and dompdf started another. A blank second page
+     * is the difference between a certificate somebody prints and pins up and
+     * one they assume is broken.
+     *
+     * Counted from the PDF's own page objects rather than by eye. Nothing else
+     * about the design is asserted — a layout test that pins pixel positions
+     * only ever fails on the day somebody improves it — but the page count is
+     * a fact, and it is the one that was wrong.
+     */
+    public function test_the_certificate_pdf_is_a_single_page(): void
+    {
+        $course = $this->course(['is_compliance' => true]);
+        $quiz   = $this->quiz($course, ['issues_certificate' => true]);
+
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($quiz, $this->employee);
+        foreach ($quiz->questions as $question) {
+            $service->answer($attempt, $question, [0], 3.0);
+        }
+        $service->finish($attempt);
+
+        $certificate = $this->employee->trainingCertificates()->first();
+
+        $pdf = $this->asStaff($this->employee)
+            ->get(route('clock.staff.certificate', $certificate->id))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match_all('~/Type\s*/Page[^s]~', $pdf),
+            'The certificate must fit on one page.',
+        );
+    }
+
     // ── Column defaults in memory ─────────────────────────────────────────
 
     /**
