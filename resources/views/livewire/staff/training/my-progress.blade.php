@@ -83,7 +83,11 @@
 
     @if ($card['certificates']->isNotEmpty())
         <div class="card p-4">
-            <h2 class="text-sm font-semibold text-gray-900 mb-2">My certificates</h2>
+            <div class="mb-2 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-gray-900">My certificates</h2>
+                <a href="{{ route('clock.staff.learn.certificates') }}" wire:navigate
+                   class="text-xs font-medium text-brand-600 hover:underline">See all</a>
+            </div>
             <ul class="space-y-2">
                 @foreach ($card['certificates'] as $certificate)
                     <li class="flex flex-wrap items-center justify-between gap-2 text-sm">

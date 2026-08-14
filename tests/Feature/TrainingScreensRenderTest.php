@@ -636,6 +636,64 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('All training');
     }
 
+    /**
+     * The form SHOWS the cover it already has.
+     *
+     * Reported as "I added a cover image and it did not indicate anything was
+     * uploaded" — and it was right: the upload worked and the staff app drew
+     * the picture, but the edit form was a bare file input that mentioned
+     * neither the new file nor the one already on the record.
+     */
+    public function test_the_course_form_shows_and_can_clear_an_existing_cover(): void
+    {
+        $this->course->update(['cover_path' => 'training/covers/example.jpg']);
+
+        $form = Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\CourseForm::class, ['id' => $this->course->id])
+            ->assertOk()
+            ->assertSet('coverPath', 'training/covers/example.jpg')
+            ->assertSee('Current cover')
+            ->assertSee('training/covers/example.jpg');
+
+        // Removing does not touch the stored file until the form is saved: a
+        // course edited and abandoned must come back with its picture.
+        $form->call('removeCover')
+            ->assertSet('coverPath', null)
+            ->assertDontSee('Current cover');
+
+        $this->assertSame('training/covers/example.jpg', $this->course->fresh()->cover_path);
+
+        $form->call('save');
+
+        $this->assertNull($this->course->fresh()->cover_path);
+    }
+
+    /** The wall of certificates, and its empty state. */
+    public function test_the_staff_certificates_screen_renders(): void
+    {
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\MyCertificates::class)
+            ->assertOk()
+            ->assertSee('No certificates yet');
+
+        \App\Models\TrainingCertificate::create([
+            'company_id'         => $this->company->id,
+            'employee_id'        => $this->employee->id,
+            'training_course_id' => $this->course->id,
+            'title'              => 'Chiller discipline',
+            'recipient_name'     => $this->employee->name,
+            'serial'             => 'CERT-2026-TESTONLY',
+            'issued_at'          => now(),
+        ]);
+
+        Livewire::test(\App\Livewire\Staff\Training\MyCertificates::class)
+            ->assertOk()
+            ->assertSee('Chiller discipline')
+            ->assertSee('CERT-2026-TESTONLY')
+            ->assertDontSee('No certificates yet');
+    }
+
     public function test_the_progress_screen_renders(): void
     {
         $this->asStaff();

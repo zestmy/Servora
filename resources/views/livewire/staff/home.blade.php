@@ -82,6 +82,28 @@
         </div>
     @endif
 
+    {{-- ── What you have earned ──
+
+         Only when there is something. A certificate is looked for months after
+         the quiz, by somebody who remembers passing and not where the result
+         went — so it gets a doorway on the screen they open first, rather than
+         living only under a heading about weak topics. --}}
+    @if ($certificates > 0)
+        <a href="{{ route('clock.staff.learn.certificates') }}" wire:navigate
+           class="card flex items-center gap-3 p-4 active:bg-gray-50">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-100">
+                <x-icon name="trophy" size="h-5 w-5" class="text-success-700" />
+            </span>
+            <span class="min-w-0 flex-1">
+                <span class="block font-semibold text-gray-900">My certificates</span>
+                <span class="block text-xs text-gray-600">
+                    {{ $certificates }} in date — tap to download
+                </span>
+            </span>
+            <x-icon name="chevron-right" size="h-5 w-5" class="shrink-0 text-gray-400" />
+        </a>
+    @endif
+
     {{-- ── How you are doing this month ── --}}
     <div class="card p-4">
         <div class="flex items-center justify-between gap-3">

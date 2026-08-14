@@ -79,6 +79,14 @@ class Home extends StaffComponent
             'accuracy'    => $questions > 0 ? round($correct / $questions * 100) : null,
             'passed'      => $best->where('passed', true)->count(),
             'outstanding' => $reportCards->outstanding($employee),
+            /*
+             * How many certificates are in date, for the doorway to the wall.
+             * A count rather than the rows: this is the home screen, and the
+             * only question it has to answer is "have I got any".
+             */
+            'certificates' => \App\Models\TrainingCertificate::where('employee_id', $employee->id)
+                ->valid()
+                ->count(),
             'top'         => $leaderboard->board((int) $employee->company_id, 'month', $employee->outlet_id, null, 3),
         ])->layout('layouts.clock-staff', $this->shell('Home'));
     }

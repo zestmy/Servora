@@ -22,13 +22,25 @@
     on a handset in silent mode, and the flash, the shake and the vibration are
     not decoration around it — for a phone on silent they ARE the feedback.
 
-    MUSIC GOES THROUGH THE YOUTUBE PLAYER API, and starts on the Start tap.
-    Setting autoplay=1 on an iframe src is ignored outright by Safari on iOS —
-    reported as "my music doesn't sound in my iphone", and it never could have
-    — because playback must begin inside a user gesture. The start screen exists
-    partly to provide one. The player itself is parked off-screen with a
-    floating button to stop and restart it, which is the control somebody
-    actually wants: not "which video is this" but "make it stop".
+    MUSIC GOES THROUGH THE YOUTUBE PLAYER API, and two things about it are
+    load-bearing rather than incidental.
+
+    THE PLAYER IS BUILT AT PAGE LOAD; ONLY PLAYBACK WAITS FOR THE TAP.
+    Constructing a player needs no user gesture — playing does. The first
+    version did both on the Start tap with an `await` on the API script in
+    between, and an await ends the gesture, so playVideo() arrived unauthorised
+    and was refused in silence. That is "the music does not autoplay". Every
+    path from the tap to playVideo() is now synchronous.
+
+    THE PLAYER LIVES ON <body>, BUILT IN JAVASCRIPT, not in this template. A
+    teleported node's lifetime is tied to the <template> that declared it, and
+    this component re-renders on every question — so the iframe was being
+    destroyed mid-quiz. That is "the music stops when I move to the next
+    question". Nothing Livewire morphs can reach it now.
+
+    It is parked far off-screen rather than hidden: a frame that has been hidden
+    outright is what iOS refuses to play media in. The floating button is the
+    control somebody actually wants — not "which video is this" but "stop it".
 
     Props:
       music  a YouTube embed URL, or null for a quiz with no backing track
@@ -129,18 +141,16 @@
         </div>
     </template>
 
-    @if ($hasMusic)
-        {{-- Parked off-screen rather than display:none. A frame that has been
-             hidden outright is exactly what iOS refuses to play media in; one
-             that is merely somewhere else is not. It is never removed once
-             created, so pausing and resuming keeps the track's position. --}}
-        <template x-teleport="body">
-            <div class="pointer-events-none fixed bottom-0 left-0 h-24 w-40 -translate-x-[200vw] overflow-hidden opacity-0"
-                 aria-hidden="true">
-                <div id="quiz-music-player" class="h-full w-full"></div>
-            </div>
-        </template>
-    @endif
+    {{-- THE PLAYER IS NOT IN THIS TEMPLATE, and that is the fix for "the music
+         stops when I move to the next question". It was a teleported node, and
+         a teleport's lifetime is tied to the <template> that declared it: every
+         Livewire re-render — a question, a feedback panel, the next question —
+         risked that template being replaced, which destroys the teleported
+         iframe and the track with it.
+
+         So the container is built in JavaScript and appended to <body> once,
+         outside anything Blade owns. Nothing Livewire morphs can reach it. See
+         mountPlayer() below. --}}
 </div>
 
 @once
@@ -176,6 +186,26 @@
                     label: '',
                     points: 0,
                     ctx: null,
+
+                    /*
+                     * THE PLAYER IS BUILT AT PAGE LOAD, NOT ON THE TAP.
+                     *
+                     * Reported as "music is not auto-play". Constructing a
+                     * YouTube player needs no user gesture; only PLAYBACK does
+                     * — and the old code did both on the Start tap, with an
+                     * `await` on the API script in between. That await ends the
+                     * gesture, so by the time playVideo() was reachable the
+                     * browser had stopped counting it as user-initiated and
+                     * refused, silently, on exactly the platform that matters
+                     * (iOS). Building the player while the start screen is
+                     * being read leaves the tap with one synchronous call to
+                     * make.
+                     */
+                    init() {
+                        if (this.musicId || this.musicList) {
+                            this.mountPlayer();
+                        }
+                    },
 
                     /*
                      * One AudioContext for the page, built lazily on a gesture.
@@ -316,56 +346,32 @@
                         return window.__ytReady;
                     },
 
-                    /** The Start tap. Music begins if the quiz has any. */
-                    autostart() {
-                        if (! this.musicId && ! this.musicList) {
+                    /**
+                     * Build the off-screen player, once per document.
+                     *
+                     * The container is created HERE rather than in the Blade,
+                     * because a teleported node dies with the template that
+                     * declared it and this one has to outlive every Livewire
+                     * re-render between question one and the result. Parked far
+                     * off-screen rather than display:none — a frame that has
+                     * been hidden outright is what iOS refuses to play media
+                     * in; one that is merely somewhere else is not.
+                     */
+                    async mountPlayer() {
+                        if (window.__quizPlayerMount?.isConnected) {
                             return;
                         }
 
-                        if (! this.musicOn) {
-                            this.toggleMusic();
-                        }
-                    },
+                        const mount = document.createElement('div');
+                        mount.id = 'quiz-music-player';
+                        mount.setAttribute('aria-hidden', 'true');
+                        mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
+                            + 'width:160px;height:90px;opacity:0;pointer-events:none;';
 
-                    async toggleMusic() {
-                        this.musicOn = ! this.musicOn;
-
-                        if (! this.musicOn) {
-                            try { window.__quizPlayer?.pauseVideo?.(); } catch (e) {}
-
-                            return;
-                        }
-
-                        /*
-                         * playVideo() has to be reachable from THIS gesture on
-                         * iOS. An existing player is therefore started before
-                         * anything is awaited — an await ends the gesture and
-                         * the play is refused in silence, which is the whole of
-                         * the original iPhone bug.
-                         *
-                         * "Existing" means its iframe is still in the document.
-                         * The staff app navigates with wire:navigate, so the
-                         * global outlives the page that made it, and calling
-                         * playVideo() on a player whose iframe was swapped out
-                         * is a button that does nothing at all.
-                         */
-                        if (! window.__quizPlayer?.getIframe?.()?.isConnected) {
-                            try { window.__quizPlayer?.destroy?.(); } catch (e) {}
-                            window.__quizPlayer = null;
-                        }
-
-                        if (window.__quizPlayer?.playVideo) {
-                            window.__quizPlayer.playVideo();
-
-                            return;
-                        }
+                        document.body.appendChild(mount);
+                        window.__quizPlayerMount = mount;
 
                         const YT = await this.youtube();
-                        const mount = document.getElementById('quiz-music-player');
-
-                        if (! mount) {
-                            return;
-                        }
 
                         window.__quizPlayer = new YT.Player(mount, {
                             videoId: this.musicId || undefined,
@@ -377,6 +383,9 @@
                                 modestbranding: 1,
                                 rel: 0,
                                 loop: 1,
+                                // NOT autoplay: nothing may make noise before
+                                // somebody has asked for it.
+                                autoplay: 0,
                                 ...(this.musicList
                                     ? { list: this.musicList, listType: 'playlist' }
                                     : { playlist: this.musicId }),
@@ -387,10 +396,67 @@
                                     // enough to hear under a chime, quiet
                                     // enough to talk over.
                                     e.target.setVolume(35);
-                                    e.target.playVideo();
+
+                                    // Somebody pressed Start while the API was
+                                    // still loading. The document still has
+                                    // their tap behind it, so this is allowed.
+                                    if (this.musicOn) {
+                                        e.target.playVideo();
+                                    }
+                                },
+                                /*
+                                 * A single video ends rather than looping when
+                                 * the `playlist` trick is refused, and a quiz
+                                 * that falls silent half way through is worse
+                                 * than one with no music at all.
+                                 */
+                                onStateChange: (e) => {
+                                    if (e.data === YT.PlayerState.ENDED && this.musicOn) {
+                                        e.target.seekTo(0);
+                                        e.target.playVideo();
+                                    }
                                 },
                             },
                         });
+                    },
+
+                    /** The Start tap. Music begins if the quiz has any. */
+                    autostart() {
+                        if (! this.musicId && ! this.musicList) {
+                            return;
+                        }
+
+                        if (! this.musicOn) {
+                            this.toggleMusic();
+                        }
+                    },
+
+                    /*
+                     * SYNCHRONOUS, DELIBERATELY. Every path from the tap to
+                     * playVideo() has to be free of `await`: an await ends the
+                     * user gesture, and playback outside a gesture is refused
+                     * without an error — which is the whole of the "music does
+                     * not autoplay on my iPhone" report. The player was already
+                     * built at page load precisely so this can be a single
+                     * call. If it is somehow not ready yet, onReady picks up
+                     * the flag set here.
+                     */
+                    toggleMusic() {
+                        this.musicOn = ! this.musicOn;
+
+                        try {
+                            if (this.musicOn) {
+                                window.__quizPlayer?.playVideo?.();
+                            } else {
+                                window.__quizPlayer?.pauseVideo?.();
+                            }
+                        } catch (e) {}
+
+                        // A player torn down by a navigation is rebuilt rather
+                        // than left as a dead button.
+                        if (this.musicOn && ! window.__quizPlayerMount?.isConnected) {
+                            this.mountPlayer();
+                        }
                     },
 
                     /** Drop the music while a verdict is being heard. */

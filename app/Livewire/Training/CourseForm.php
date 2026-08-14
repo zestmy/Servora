@@ -49,6 +49,18 @@ class CourseForm extends Component
     public $upload;
     public $cover;
 
+    /**
+     * The cover already on the course, so the form can SHOW it.
+     *
+     * `$cover` only ever holds a file chosen in this session — it is nulled
+     * after saving — so an edit form built from it alone said nothing about the
+     * image already on the record. Reported as "I added a cover and it did not
+     * indicate anything was uploaded", which was exactly right: the upload
+     * worked, the staff app showed the picture, and the only screen that never
+     * mentioned it was the one used to set it.
+     */
+    public ?string $coverPath = null;
+
     /** Set when an import produced nothing readable, so the view can say so. */
     public string $extractionNote = '';
 
@@ -82,6 +94,22 @@ class CourseForm extends Component
         $this->isCompliance     = $course->is_compliance;
         $this->recertifyMonths  = $course->recertify_months;
         $this->outletIds        = $course->outlets->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $this->coverPath        = $course->cover_path;
+    }
+
+    /**
+     * Take the cover off, whether it was just chosen or has been there for
+     * months.
+     *
+     * The stored FILE is left alone until the form is saved: a course that is
+     * edited and abandoned must come back with its picture, and deleting on
+     * the click would make "remove" a destructive act performed before anybody
+     * pressed save.
+     */
+    public function removeCover(): void
+    {
+        $this->cover     = null;
+        $this->coverPath = null;
     }
 
     protected function rules(): array
@@ -204,6 +232,9 @@ class CourseForm extends Component
 
         if ($this->cover) {
             $course->cover_path = $this->cover->store('training/covers', 'public');
+        } elseif ($this->coverPath === null) {
+            // Cleared on the form, and only now — see removeCover().
+            $course->cover_path = null;
         }
 
         if ($this->upload) {
@@ -227,9 +258,10 @@ class CourseForm extends Component
 
         $course->outlets()->sync(array_map('intval', $this->outletIds));
 
-        $this->courseId = $course->id;
-        $this->upload   = null;
-        $this->cover    = null;
+        $this->courseId  = $course->id;
+        $this->upload    = null;
+        $this->cover     = null;
+        $this->coverPath = $course->cover_path;
 
         if ($andGenerate) {
             return $this->generateQuiz(app(QuizGeneratorService::class));

@@ -212,9 +212,51 @@
                            placeholder="YouTube or Vimeo">
                     @error('videoUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
+                {{-- ── The cover, SHOWN ──
+
+                     It was a bare file input, which said nothing at all: not
+                     that an upload had finished, and not that the course
+                     already had a picture. So adding a cover looked like
+                     nothing had happened — the file uploaded, the staff app
+                     showed it, and the only screen that never mentioned it was
+                     the one used to set it.
+
+                     A thumbnail of whichever is current answers both. A
+                     just-chosen file is read from Livewire's temporary URL, a
+                     stored one from the public disk, and the wire:loading
+                     state covers the seconds in between on a slow line. --}}
                 <div>
                     <label class="label" for="course-cover">Cover image</label>
+
+                    @php
+                        $coverPreview = $cover
+                            ? $cover->temporaryUrl()
+                            : ($coverPath ? Storage::disk('public')->url($coverPath) : null);
+                    @endphp
+
+                    @if ($coverPreview)
+                        <div class="mb-2 flex items-start gap-3">
+                            <img src="{{ $coverPreview }}" alt="Cover image"
+                                 class="h-20 w-32 shrink-0 rounded-surface border border-gray-200 object-cover">
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-900">
+                                    {{ $cover ? 'Ready to save' : 'Current cover' }}
+                                </p>
+                                <p class="help">
+                                    {{ $cover
+                                        ? 'This replaces the old one when you save.'
+                                        : 'Choose a file below to replace it.' }}
+                                </p>
+                                <button type="button" wire:click="removeCover"
+                                        class="mt-1 text-xs text-gray-600 hover:text-danger-600">Remove</button>
+                            </div>
+                        </div>
+                    @endif
+
                     <input id="course-cover" type="file" wire:model="cover" accept="image/*" class="input">
+
+                    <p class="help mt-1" wire:loading wire:target="cover">Uploading…</p>
+
                     @error('cover') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
             </div>

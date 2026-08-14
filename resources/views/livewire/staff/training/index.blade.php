@@ -168,8 +168,14 @@
         @endforelse
     </div>
 
-    <a href="{{ route('clock.staff.learn.progress') }}" wire:navigate
-       class="btn-secondary w-full justify-center">
-        My progress
-    </a>
+    <div class="grid grid-cols-2 gap-2">
+        <a href="{{ route('clock.staff.learn.progress') }}" wire:navigate
+           class="btn-secondary justify-center">
+            My progress
+        </a>
+        <a href="{{ route('clock.staff.learn.certificates') }}" wire:navigate
+           class="btn-secondary justify-center">
+            My certificates
+        </a>
+    </div>
 </div>

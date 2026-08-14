@@ -184,6 +184,11 @@ $group->group(function () {
             ->name('clock.staff.learn');
         Route::get('/learn/progress', \App\Livewire\Staff\Training\MyProgress::class)
             ->name('clock.staff.learn.progress');
+        // Everything they have earned, on its own screen — a certificate is
+        // looked for months later by somebody who remembers passing and not
+        // where the result went. See the component.
+        Route::get('/learn/certificates', \App\Livewire\Staff\Training\MyCertificates::class)
+            ->name('clock.staff.learn.certificates');
         // Before /learn/{id}, or "leaderboard" and "progress" would be read as
         // course ids and 404 on a numeric lookup.
         Route::get('/learn/{id}', \App\Livewire\Staff\Training\CourseView::class)

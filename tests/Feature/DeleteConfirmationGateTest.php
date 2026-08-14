@@ -78,6 +78,7 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/labels/staff/print-labels.blade.php::removeLine'               => 'item in the print queue, not yet printed',
         'livewire/onboarding/wizard.blade.php::removeInvite'                     => 'invitation not yet sent',
         'livewire/training/partials/question-editor.blade.php::removeOption'     => 'unsaved option on the question being edited',
+        'livewire/training/course-form.blade.php::removeCover'                   => 'clears the field; the stored image survives until Save',
 
         // ── Not a delete at all. Matched on the word rather than the act:
         //    "clearSelection" closes the report-card panel and puts nothing
