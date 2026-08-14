@@ -6,9 +6,19 @@
     animation rather than a JS timer: it is a picture of the clock, and the
     clock itself is on the server (see App\Livewire\Lms\QuizPlay).
 --}}
-<div class="p-4"
-     x-data="{ expired: false }"
-     wire:key="q-{{ $question->id }}">
+{{--
+    NO wire:key ON THIS ROOT ELEMENT. It had one, keyed on the question, meant
+    to force a clean slate between questions — and a key on a component's root
+    is the one place Livewire says never to put it. The root is what Livewire
+    morphs the response into; keying it makes the morph replace the element
+    Livewire is tracking, and the rebuilt DOM comes back with nothing bound to
+    it. The symptom is precisely what was reported: the options render, look
+    right, and do nothing at all when tapped.
+
+    The per-question keys that were actually wanted are on the option buttons
+    below, which is where they belong.
+--}}
+<div class="p-4" x-data="{ expired: false }">
 
     <div class="mb-4 flex items-center justify-between gap-3">
         <p class="text-sm font-medium text-gray-600">

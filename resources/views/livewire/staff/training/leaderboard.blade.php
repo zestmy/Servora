@@ -88,6 +88,8 @@
                         @endif
                     </span>
 
+                    <x-staff-avatar :name="$row['name']" />
+
                     <span class="min-w-0 flex-1">
                         <span class="block truncate {{ $isMe ? 'font-bold text-brand-900' : 'font-medium text-gray-900' }}">
                             {{ $row['name'] }}

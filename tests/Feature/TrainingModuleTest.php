@@ -626,6 +626,104 @@ class TrainingModuleTest extends TestCase
         $this->assertSame(['True', 'False'], TrainingQuiz::booleanOptionsFor('zz'));
     }
 
+    // ── Assignment audiences ──────────────────────────────────────────────
+
+    /**
+     * Outlet and section NARROW each other rather than compete.
+     *
+     * "The kitchen at Bangsar" is the commonest real requirement and neither
+     * column expresses it alone, so the pair has to behave as one idea. The
+     * case that matters is the near-miss: a Bangsar waiter and a Damansara cook
+     * each match one half and must not be caught.
+     */
+    public function test_an_outlet_and_section_assignment_only_reaches_that_section_at_that_outlet(): void
+    {
+        $boh = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'BOH', 'is_active' => true]);
+        $foh = \App\Models\Section::create(['company_id' => $this->company->id, 'name' => 'FOH', 'is_active' => true]);
+
+        $course = $this->course();
+
+        TrainingAssignment::create([
+            'company_id'         => $this->company->id,
+            'training_course_id' => $course->id,
+            'outlet_id'          => $this->outlet->id,
+            'section_id'         => $boh->id,
+        ]);
+
+        $make = fn (?int $outletId, ?int $sectionId) => Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $outletId,
+            'section_id' => $sectionId,
+            'name'       => 'Staff ' . uniqid(),
+            'is_active'  => true,
+        ]);
+
+        $bangsarCook    = $make($this->outlet->id, $boh->id);
+        $bangsarWaiter  = $make($this->outlet->id, $foh->id);
+        $damansaraCook  = $make($this->otherOutlet->id, $boh->id);
+
+        $lands = fn (Employee $e) => TrainingAssignment::forEmployee($e)->count();
+
+        $this->assertSame(1, $lands($bangsarCook));
+        $this->assertSame(0, $lands($bangsarWaiter), 'right branch, wrong section');
+        $this->assertSame(0, $lands($damansaraCook), 'right section, wrong branch');
+    }
+
+    /** An individual assignment reaches that person and nobody else. */
+    public function test_an_individual_assignment_reaches_only_them(): void
+    {
+        $course = $this->course();
+
+        TrainingAssignment::create([
+            'company_id'         => $this->company->id,
+            'training_course_id' => $course->id,
+            'employee_id'        => $this->employee->id,
+        ]);
+
+        $colleague = Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $this->outlet->id,
+            'name'       => 'Colleague',
+            'is_active'  => true,
+        ]);
+
+        $this->assertSame(1, TrainingAssignment::forEmployee($this->employee)->count());
+        $this->assertSame(0, TrainingAssignment::forEmployee($colleague)->count());
+    }
+
+    /**
+     * A quiz assignment requires THAT paper, not every paper on its course.
+     *
+     * Expanding it back out would undo the only thing naming a quiz buys —
+     * a course carries a kitchen set and a floor set, and being told to sit
+     * both is not what "do the Malay one" means.
+     */
+    public function test_a_quiz_assignment_is_cleared_by_passing_that_quiz_alone(): void
+    {
+        $course = $this->course();
+        $mine   = $this->quiz($course, ['title' => 'Mine']);
+        $other  = $this->quiz($course, ['title' => 'Somebody else\'s']);
+
+        TrainingAssignment::create([
+            'company_id'       => $this->company->id,
+            'training_quiz_id' => $mine->id,
+            'outlet_id'        => $this->outlet->id,
+        ]);
+
+        $service = app(ReportCardService::class);
+        $this->assertCount(1, $service->outstanding($this->employee));
+
+        $play = app(SelfPacedQuizService::class);
+        $attempt = $play->startOrResume($mine, $this->employee);
+        foreach ($mine->questions as $question) {
+            $play->answer($attempt, $question, [0], 3.0);
+        }
+        $play->finish($attempt);
+
+        $this->assertCount(0, $service->outstanding($this->employee));
+        $this->assertNotNull($other);
+    }
+
     // ── Section targeting ─────────────────────────────────────────────────
 
     /**

@@ -63,7 +63,12 @@
                                     <span class="tabular-nums font-semibold text-gray-700">{{ $row['rank'] }}</span>
                                 </span>
                             </td>
-                            <td class="px-4 py-3 font-medium text-gray-900">{{ $row['name'] }}</td>
+                            <td class="px-4 py-3">
+                                <span class="flex items-center gap-2.5">
+                                    <x-staff-avatar :name="$row['name']" size="h-8 w-8 text-xs" />
+                                    <span class="font-medium text-gray-900">{{ $row['name'] }}</span>
+                                </span>
+                            </td>
                             <td class="px-4 py-3 text-gray-700">{{ $row['outlet'] ?? '—' }}</td>
                             <td class="px-4 py-3 tabular-nums font-semibold text-gray-900">{{ number_format($row['score']) }}</td>
                             <td class="px-4 py-3 tabular-nums text-gray-700">{{ $row['quizzes'] }}</td>

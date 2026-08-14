@@ -16,9 +16,22 @@ class Login extends StaffLogin
         return ClockStaffAuthenticate::INTENDED_KEY;
     }
 
+    /**
+     * Home, not the clock.
+     *
+     * Signing in lands on the dashboard for the same reason /staff does: this
+     * app is punches, leave, payslips and training, and dropping everybody on
+     * the camera makes it feel like one tool. Clocking in stays one tap away —
+     * it is the primary button on the home screen's first card, and the first
+     * tab in the bar.
+     *
+     * The INTENDED url still wins over this. Somebody bounced to sign-in on
+     * their way to a payslip is returned to the payslip, which is what the
+     * intended key exists for; this is only where an unprompted sign-in ends.
+     */
     protected function fallbackRoute(): string
     {
-        return 'clock.staff.punch';
+        return 'clock.staff.home';
     }
 
     protected function layoutName(): string

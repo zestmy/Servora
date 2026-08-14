@@ -123,7 +123,11 @@ class ReportCardService
     {
         $assignments = TrainingAssignment::query()
             ->forEmployee($employee)
-            ->with(['course.quizzes:id,training_course_id', 'path.items.course.quizzes:id,training_course_id'])
+            ->with([
+                'quiz:id,title',
+                'course.quizzes:id,training_course_id',
+                'path.items.course.quizzes:id,training_course_id',
+            ])
             ->get();
 
         $passedQuizIds = TrainingAttempt::query()
@@ -136,13 +140,21 @@ class ReportCardService
 
         return $assignments
             ->map(function (TrainingAssignment $assignment) use ($passedQuizIds) {
-                $courses = $assignment->course
-                    ? collect([$assignment->course])
-                    : ($assignment->path?->items->pluck('course')->filter() ?? collect());
-
-                $required = $courses
-                    ->flatMap(fn (TrainingCourse $c) => $c->quizzes->pluck('id'))
-                    ->map(fn ($id) => (int) $id);
+                /*
+                 * A quiz assignment requires THAT quiz and nothing else.
+                 *
+                 * It exists precisely because a course can carry several — a
+                 * kitchen paper, a floor paper, an English set and a Malay one
+                 * — so expanding it back out to "every quiz on the course"
+                 * would undo the only thing naming a quiz buys you.
+                 */
+                $required = $assignment->training_quiz_id
+                    ? collect([(int) $assignment->training_quiz_id])
+                    : ($assignment->course
+                        ? collect([$assignment->course])
+                        : ($assignment->path?->items->pluck('course')->filter() ?? collect())
+                      )->flatMap(fn (TrainingCourse $c) => $c->quizzes->pluck('id'))
+                       ->map(fn ($id) => (int) $id);
 
                 // A course with no quiz cannot be "passed", so it stays
                 // outstanding — which is the honest answer, and shows up as the

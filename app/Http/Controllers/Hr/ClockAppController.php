@@ -20,7 +20,21 @@ class ClockAppController extends Controller
 {
     public function manifest(): Response
     {
-        $start   = route('clock.staff.punch', absolute: false);
+        /*
+         * The installed app opens on HOME, not on the clock.
+         *
+         * This is the line that actually decides where the icon on somebody's
+         * home screen goes — changing the `/staff` route alone does nothing for
+         * anyone who installed the PWA, because a standalone app launches its
+         * start_url and never visits the bare path. That is why the portal kept
+         * opening on the camera after the landing page moved.
+         *
+         * NOTE FOR WHOEVER CHANGES THIS NEXT: an installed PWA caches the
+         * manifest, so existing installations keep the old start_url until the
+         * browser refetches it. Staff who already have the icon may need to
+         * reinstall before they see the change.
+         */
+        $start   = route('clock.staff.home', absolute: false);
         $company = app()->bound('currentCompany') ? app('currentCompany') : null;
         $brand   = $company?->brand_name ?? $company?->name;
 

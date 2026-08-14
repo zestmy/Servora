@@ -28,7 +28,7 @@
                             <td class="px-4 py-3">
                                 <p class="font-medium text-gray-900">{{ $assignment->targetName() }}</p>
                                 <p class="text-xs text-gray-600">
-                                    {{ $assignment->path ? 'Learning path' : 'Course' }}
+                                    {{ $assignment->targetKind() }}
                                     @if (! $assignment->is_mandatory)
                                         · <span class="badge-neutral">Optional</span>
                                     @endif
@@ -37,7 +37,15 @@
                             <td class="px-4 py-3 text-gray-700">
                                 {{ $assignment->audienceName() }}
                                 <span class="block text-xs text-gray-600">
-                                    {{ $assignment->outlet_id ? 'Everyone at this outlet' : 'One person' }}
+                                    @if ($assignment->employee_id)
+                                        One person
+                                    @elseif ($assignment->section_id)
+                                        That section only
+                                    @elseif ($assignment->outlet_id)
+                                        Everyone at this outlet
+                                    @else
+                                        Everyone
+                                    @endif
                                 </span>
                             </td>
                             <td class="px-4 py-3">
@@ -111,11 +119,27 @@
                         <div class="seg mb-2">
                             <button type="button" wire:click="$set('targetType', 'course')"
                                     class="seg-item {{ $targetType === 'course' ? 'seg-item-on' : '' }}">A course</button>
+                            <button type="button" wire:click="$set('targetType', 'quiz')"
+                                    class="seg-item {{ $targetType === 'quiz' ? 'seg-item-on' : '' }}">One quiz</button>
                             <button type="button" wire:click="$set('targetType', 'path')"
                                     class="seg-item {{ $targetType === 'path' ? 'seg-item-on' : '' }}">A learning path</button>
                         </div>
 
-                        @if ($targetType === 'course')
+                        @if ($targetType === 'quiz')
+                            <select wire:model="quizId" class="input" aria-label="Quiz">
+                                <option value="">Choose a quiz…</option>
+                                @foreach ($quizzes as $q)
+                                    <option value="{{ $q->id }}">
+                                        {{ $q->title }}{{ ($q->language ?? 'en') !== 'en' ? ' — ' . $q->languageLabel() : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('quizId') <p class="error-text">{{ $message }}</p> @enderror
+                            <p class="help">
+                                Name the paper rather than the course when a course carries more than
+                                one — a kitchen set beside a floor set, or English beside Malay.
+                            </p>
+                        @elseif ($targetType === 'course')
                             <select wire:model="courseId" class="input" aria-label="Course">
                                 <option value="">Choose a course…</option>
                                 @foreach ($courses as $course)
@@ -144,14 +168,34 @@
                         </div>
 
                         @if ($audienceType === 'outlet')
-                            <select wire:model="outletId" class="input" aria-label="Outlet">
-                                <option value="">Choose an outlet…</option>
-                                @foreach ($outlets as $outlet)
-                                    <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('outletId') <p class="error-text">{{ $message }}</p> @enderror
-                            <p class="help">New starters at this branch inherit it automatically.</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                    <label class="sr-only" for="assign-outlet">Outlet</label>
+                                    <select id="assign-outlet" wire:model="outletId" class="input">
+                                        <option value="">Choose an outlet…</option>
+                                        @foreach ($outlets as $outlet)
+                                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('outletId') <p class="error-text">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="sr-only" for="assign-section">Section</label>
+                                    {{-- Narrows the outlet, it does not replace it: "the kitchen at
+                                         Bangsar" needs both, and it is the commonest ask. --}}
+                                    <select id="assign-section" wire:model="sectionId" class="input">
+                                        <option value="">Every section</option>
+                                        @foreach ($sections as $section)
+                                            <option value="{{ $section->id }}">{{ $section->name }} only</option>
+                                        @endforeach
+                                    </select>
+                                    @error('sectionId') <p class="error-text">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                            <p class="help">
+                                New starters at this branch inherit it automatically — and if you pick a
+                                section, only the people posted to it.
+                            </p>
                         @else
                             <select wire:model="traineeId" class="input" aria-label="Staff member">
                                 <option value="">Choose a person…</option>
