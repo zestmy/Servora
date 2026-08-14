@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Scopes\CompanyScope;
 use App\Services\Staff\StaffSession;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -33,8 +34,32 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class StaffPhotoController extends Controller
 {
-    public function show(int $employee, StaffSession $staff): StreamedResponse|Response
+    /*
+     * $employee is NOT typed `int`, and that is a bug fixed rather than a
+     * style choice. A route parameter arrives as a STRING, and whether PHP
+     * quietly coerces "80" to 80 is decided by the file making the CALL —
+     * which here is Laravel's ControllerDispatcher, under strict_types. So an
+     * int hint throws a TypeError, the request 500s, and the only symptom is
+     * an avatar that silently falls back to initials because the img's
+     * onerror removed it. Cast inside instead.
+     */
+    /*
+     * THE ROUTE PARAMETER IS READ BY NAME, not taken as an argument.
+     *
+     * These routes are mounted on {companySlug}.servora.com.my, so the route
+     * has TWO parameters and companySlug comes first — and Laravel's
+     * ControllerDispatcher spreads them POSITIONALLY
+     * (`...array_values($parameters)`). Argument #1 is therefore the SLUG,
+     * not the id: "must be of type int, string given", a 500, every time.
+     *
+     * It survived review because it cannot happen locally. APP_DOMAIN is unset
+     * in development and in the test suite, so the same routes mount on a path
+     * with no companySlug, the single parameter lands in the right position,
+     * and everything passes. Reading by name is correct in both.
+     */
+    public function show(Request $request, StaffSession $staff): StreamedResponse|Response
     {
+        $employee  = (int) $request->route('employee');
         $companyId = $staff->companyId();
 
         abort_unless($companyId, 404);

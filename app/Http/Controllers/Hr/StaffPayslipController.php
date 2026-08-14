@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunLine;
 use App\Scopes\CompanyScope;
@@ -24,8 +25,16 @@ use App\Services\Staff\StaffSession;
  */
 class StaffPayslipController extends Controller
 {
-    public function show(int $line, StaffSession $session, PayslipPdf $pdf)
+    /*
+     * The route parameter is read BY NAME. This route is mounted on
+     * {companySlug}.servora.com.my, so companySlug is the first parameter and
+     * Laravel's dispatcher spreads them positionally — argument #1 would be
+     * the slug, not the id, and the request 500s. It cannot reproduce locally,
+     * where APP_DOMAIN is unset and there is no slug. See StaffPhotoController.
+     */
+    public function show(Request $request, StaffSession $session, PayslipPdf $pdf)
     {
+        $line     = (int) $request->route('line');
         $employee = $session->employee($session->companyId());
 
         // The middleware already redirected if there was no session; reaching

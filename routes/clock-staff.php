@@ -195,6 +195,26 @@ $group->group(function () {
             ->whereNumber('id')->whereNumber('session')
             ->name('clock.staff.learn.quiz');
 
+        /*
+         * Their own certificate, ON A /staff PATH.
+         *
+         * Reported as "downloading my certificate goes to the LMS login page",
+         * and it did — EnforceMainDomain allows only /lms, /labels, /staff and
+         * /clock on a company subdomain, so the manager app's
+         * /training/certificates/{id}/pdf was bounced to the LMS door before
+         * it reached any code. The staff app is on the subdomain, so its links
+         * have to live inside a path the subdomain admits.
+         *
+         * The SAME controller answers both routes rather than a second copy of
+         * the PDF: it already asks whichever caller turned up whether the
+         * certificate is theirs — a manager on the web guard, or the person it
+         * belongs to on the PIN session — and two renderers would drift the
+         * first time the template changed.
+         */
+        Route::get('/certificates/{id}', [\App\Http\Controllers\Training\CertificatePdfController::class, 'show'])
+            ->whereNumber('id')
+            ->name('clock.staff.certificate');
+
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');
         // Their own MC back again — a plain controller, because Livewire
         // answers with JSON and this is a file.

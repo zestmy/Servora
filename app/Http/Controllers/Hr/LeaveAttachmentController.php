@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Models\LeaveRequest;
 use App\Scopes\CompanyScope;
 use App\Services\Staff\StaffSession;
@@ -49,9 +50,17 @@ class LeaveAttachmentController extends Controller
     }
 
     /** The employee's own, from the staff portal's PIN session. */
-    public function mine(int $leaveRequest, StaffSession $session): StreamedResponse|Response
+    /*
+     * The route parameter is read BY NAME. This route is mounted on
+     * {companySlug}.servora.com.my, so companySlug is the first parameter and
+     * Laravel's dispatcher spreads them positionally — argument #1 would be
+     * the slug, not the id, and the request 500s. It cannot reproduce locally,
+     * where APP_DOMAIN is unset and there is no slug. See StaffPhotoController.
+     */
+    public function mine(Request $request, StaffSession $session): StreamedResponse|Response
     {
-        $employee = $session->employee($session->companyId());
+        $leaveRequest = (int) $request->route('leaveRequest');
+        $employee     = $session->employee($session->companyId());
 
         abort_unless($employee, 403, 'Sign in again.');
 

@@ -54,7 +54,7 @@
                         <p class="font-semibold text-gray-900">Your certificate is ready</p>
                         <p class="text-xs text-gray-600 font-mono">{{ $certificate->serial }}</p>
                     </div>
-                    <a href="{{ route('training.certificates.pdf', $certificate->id) }}" class="btn-secondary">
+                    <a href="{{ route('clock.staff.certificate', $certificate->id) }}" class="btn-secondary">
                         <x-icon name="download" size="h-4 w-4" class="mr-1" /> Download
                     </a>
                 </div>
@@ -69,7 +69,13 @@
                 <h2 class="text-sm font-semibold text-gray-900 mb-3">What you answered</h2>
                 <ol class="space-y-4">
                     @foreach ($attempt->answers as $answer)
-                        @php $question = $answer->question; @endphp
+                        @php
+                            $question = $answer->question;
+                            // The words they actually read, not the original.
+                            // A Malay run reviewed in English is a review of a
+                            // different paper.
+                            $lang = $attempt->language;
+                        @endphp
                         @continue (! $question)
                         <li wire:key="review-{{ $answer->id }}" class="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
                             <div class="flex items-start gap-2">
@@ -79,10 +85,10 @@
                                     <x-icon name="alert" size="h-5 w-5" class="mt-0.5 flex-shrink-0 text-warning-600" />
                                 @endif
                                 <div class="min-w-0 flex-1">
-                                    <p class="font-medium text-gray-900">{{ $question->prompt }}</p>
+                                    <p class="font-medium text-gray-900">{{ $question->promptIn($lang) }}</p>
 
                                     <ul class="mt-2 space-y-1 text-sm">
-                                        @foreach ($question->optionList() as $index => $option)
+                                        @foreach ($question->optionListIn($lang) as $index => $option)
                                             @php
                                                 $right = in_array($index, array_map('intval', (array) $question->correct), true);
                                                 $mine  = in_array($index, array_map('intval', (array) $answer->chosen), true);
@@ -102,8 +108,8 @@
                                         <p class="help mt-1">You ran out of time on this one.</p>
                                     @endif
 
-                                    @if ($question->explanation)
-                                        <p class="mt-2 text-sm text-gray-700">{{ $question->explanation }}</p>
+                                    @if ($question->explanationIn($lang))
+                                        <p class="mt-2 text-sm text-gray-700">{{ $question->explanationIn($lang) }}</p>
                                     @endif
                                 </div>
                             </div>

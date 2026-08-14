@@ -98,7 +98,7 @@
                             </span>
                         </span>
                         @unless ($certificate->isRevoked())
-                            <a href="{{ route('training.certificates.pdf', $certificate->id) }}"
+                            <a href="{{ route('clock.staff.certificate', $certificate->id) }}"
                                class="shrink-0 text-xs text-brand-600 hover:underline">Download</a>
                         @endunless
                     </li>

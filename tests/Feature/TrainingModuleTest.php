@@ -540,6 +540,54 @@ class TrainingModuleTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * The certificate downloads from a /staff path.
+     *
+     * Reported as "downloading my certificate goes to the LMS login page", and
+     * it did — EnforceMainDomain admits only /lms, /labels, /staff and /clock
+     * on a company subdomain, so the manager app's /training/... link was
+     * bounced to the LMS door before it reached any code. The staff app lives
+     * on that subdomain, so its links have to live inside a path it admits.
+     *
+     * The same controller answers both routes, so the ownership rule is tested
+     * once and applies to both. The case worth pinning here is that the staff
+     * route EXISTS and belongs to the right person.
+     */
+    public function test_a_trainee_downloads_their_certificate_from_the_staff_path(): void
+    {
+        $course = $this->course(['is_compliance' => true]);
+        $quiz   = $this->quiz($course, ['issues_certificate' => true]);
+
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($quiz, $this->employee);
+        foreach ($quiz->questions as $question) {
+            $service->answer($attempt, $question, [0], 3.0);
+        }
+        $service->finish($attempt);
+
+        $certificate = $this->employee->trainingCertificates()->first();
+
+        $url = route('clock.staff.certificate', $certificate->id);
+
+        // Inside /staff, or the subdomain never lets the request through.
+        $this->assertStringContainsString('/staff/certificates/', $url);
+
+        $this->asStaff($this->employee)
+            ->get($url)
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $colleague = Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $this->outlet->id,
+            'name'       => 'Someone Else',
+            'email'      => 'else' . uniqid() . '@example.test',
+            'is_active'  => true,
+        ]);
+
+        $this->asStaff($colleague)->get($url)->assertForbidden();
+    }
+
     // ── Column defaults in memory ─────────────────────────────────────────
 
     /**

@@ -7,6 +7,7 @@ use App\Models\TrainingCertificate;
 use App\Scopes\CompanyScope;
 use App\Services\Staff\StaffSession;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -34,8 +35,24 @@ class CertificatePdfController extends Controller
      * otherwise be satisfied by whichever guard happened to be signed in,
      * which is not the same question as "is this yours".
      */
-    public function show(int $id, StaffSession $staff)
+    /*
+     * THE ROUTE PARAMETER IS READ BY NAME, not taken as an argument.
+     *
+     * These routes are mounted on {companySlug}.servora.com.my, so the route
+     * has TWO parameters and companySlug comes first — and Laravel's
+     * ControllerDispatcher spreads them POSITIONALLY
+     * (`...array_values($parameters)`). Argument #1 is therefore the SLUG,
+     * not the id: "must be of type int, string given", a 500, every time.
+     *
+     * It survived review because it cannot happen locally. APP_DOMAIN is unset
+     * in development and in the test suite, so the same routes mount on a path
+     * with no companySlug, the single parameter lands in the right position,
+     * and everything passes. Reading by name is correct in both.
+     */
+    public function show(Request $request, StaffSession $staff)
     {
+        $id = (int) $request->route('id');
+
         $certificate = TrainingCertificate::withoutGlobalScope(CompanyScope::class)
             ->with(['employee:id,name,company_id', 'course:id,title', 'company'])
             ->findOrFail($id);
