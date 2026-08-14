@@ -77,6 +77,14 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/labels/print-screen.blade.php::removeLine'                     => 'item in the print queue, not yet printed',
         'livewire/labels/staff/print-labels.blade.php::removeLine'               => 'item in the print queue, not yet printed',
         'livewire/onboarding/wizard.blade.php::removeInvite'                     => 'invitation not yet sent',
+        'livewire/training/quiz-builder.blade.php::removeOption'                 => 'unsaved option on the question being edited',
+
+        // ── Not a delete at all. Matched on the word rather than the act:
+        //    "clearSelection" closes the report-card panel and puts nothing
+        //    back to the database. Same shape as the clearRange/clearApiKey
+        //    cases above, in reverse — those hide a destructive act behind a
+        //    harmless name, this hides a harmless one behind a loaded name.
+        'livewire/training/report-cards.blade.php::clearSelection'               => 'closes the open report card; nothing is removed',
 
         // ── Calculators. Scratch screens that compute and store nothing.
         'livewire/marketing/menu-engineering-matrix.blade.php::removeRow'        => 'calculator row, nothing stored',

@@ -221,6 +221,15 @@ export default {
                     from: { transform: 'translateX(0)' },
                     to:   { transform: 'translateX(-50%)' },
                 },
+                /* The quiz countdown bar. A picture of the clock, not the
+                   clock — the seconds that decide points are measured
+                   server-side, so this only has to look right. Animating
+                   transform rather than width keeps it off the layout path
+                   on the low-end phones the staff apps run on. */
+                'countdown': {
+                    from: { transform: 'scaleX(1)' },
+                    to:   { transform: 'scaleX(0)' },
+                },
             },
 
             animation: {
@@ -228,6 +237,9 @@ export default {
                 'shimmer': 'shimmer 1.8s infinite',
                 'progress-slide': 'progress-slide 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite',
                 'marquee': 'marquee 42s linear infinite',
+                /* Duration is set inline per question, because a question's
+                   time limit is data. */
+                'countdown': 'countdown linear forwards',
             },
         },
     },

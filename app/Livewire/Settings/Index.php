@@ -6,11 +6,14 @@ use App\Models\CentralKitchen;
 use App\Models\CentralPurchasingUnit;
 use App\Models\Department;
 use App\Models\DocumentFolder;
+use App\Models\LmsUser;
 use App\Models\Outlet;
 use App\Models\OutletGroup;
 use App\Models\PoApprover;
 use App\Models\ReportSubscription;
 use App\Models\TaxRate;
+use App\Models\TrainingCertificate;
+use App\Models\TrainingCourse;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -270,6 +273,63 @@ class Index extends Component
                     'icon'  => 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
                     'can'   => 'hr.documents.manage',
                     'count' => [DocumentFolder::count(), 'folder'],
+                ],
+            ],
+        ];
+
+        /*
+         * Learning & Development.
+         *
+         * Its own group rather than two tiles in HR. The Training Portal card
+         * moved here from HR & People when the module did — the screen has not
+         * changed, only what it is filed under, and its gate moved from
+         * `hr.view` to `training.portal` in the same migration so nobody lost
+         * access.
+         *
+         * The slug this group produces — learning-development — is what the
+         * sidebar's "Training Settings" link points at. Slugs are computed from
+         * the label in render(), so renaming this group renames that link's
+         * target too; the link would fall back to showing everything rather
+         * than 404, but it would stop being a shortcut.
+         */
+        $groups[] = [
+            'label' => 'Learning & Development',
+            'note'  => 'Who can reach the training portal, and what the AI writes quizzes from.',
+            'tiles' => [
+                [
+                    'label' => 'Training Portal',
+                    'note'  => 'Approve trainees and choose which outlets\' SOPs each can open',
+                    'route' => 'settings.lms-users',
+                    'can'   => 'training.portal',
+                    'icon'  => 'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+                    // Scoped BY HAND, unlike the tiles around it. LmsUser has no
+                    // CompanyScope and must not gain one: the login flow looks a
+                    // trainee up by email before any company is known, and a
+                    // global scope there would make signing in impossible. So a
+                    // bare count() here would have counted every trainee on the
+                    // platform and shown it to one tenant.
+                    'count' => [
+                        $user->company_id
+                            ? LmsUser::where('company_id', $user->company_id)->count()
+                            : 0,
+                        'trainee',
+                    ],
+                ],
+                [
+                    'label' => 'Courses',
+                    'note'  => 'The material quizzes are written from',
+                    'route' => 'training.courses',
+                    'can'   => 'training.view',
+                    'icon'  => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+                    'count' => [TrainingCourse::count(), 'course'],
+                ],
+                [
+                    'label' => 'Certificates',
+                    'note'  => 'What has been issued, and what is about to lapse',
+                    'route' => 'training.certificates',
+                    'can'   => 'training.view',
+                    'icon'  => 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+                    'count' => [TrainingCertificate::count(), 'certificate'],
                 ],
             ],
         ];

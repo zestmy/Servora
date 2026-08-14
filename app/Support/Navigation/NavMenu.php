@@ -232,8 +232,13 @@ final class NavMenu
                     ['route' => 'hr.payroll.ea-forms',   'label' => 'EA Forms',          'permission' => 'hr.payroll',      'section' => 'Pay'],
                     ['route' => 'settings.labour-costs', 'label' => 'Labour Costs',      'permission' => 'hr.view',         'section' => 'Pay'],
 
-                    ['route' => 'hr.documents',          'label' => 'Documents',         'permission' => 'hr.documents.view', 'section' => 'Records & Training'],
-                    ['route' => 'settings.lms-users',    'label' => 'Training Portal',   'permission' => 'hr.view',           'section' => 'Records & Training'],
+                    // Training Portal used to sit here, in a section called
+                    // "Records & Training". It now lives in Learning &
+                    // Development below, with the courses, quizzes and
+                    // certificates it belongs beside — one place a manager goes
+                    // for anything to do with training, rather than the portal
+                    // in HR and everything else somewhere else.
+                    ['route' => 'hr.documents',          'label' => 'Documents',         'permission' => 'hr.documents.view', 'section' => 'Records'],
 
                     // Straight to this module's own settings — including
                     // Clock-In Settings, which moved there. Offered to anyone
@@ -245,6 +250,37 @@ final class NavMenu
                      // which every Chef and Branch Manager holds — so the link
                      // was offered to almost everybody in the company.
                      'anyPermission' => ['settings.hr', 'settings.sections', 'settings.certifications', 'settings.ot_approvers'],
+                     'section' => 'Configure'],
+                ],
+            ],
+            [
+                // Its own group rather than a corner of HR. Training is now a
+                // module a merchant runs deliberately — author material, host a
+                // live round, issue certificates — and the person who runs a
+                // product-knowledge session for the floor is rarely the person
+                // who administers payroll.
+                //
+                // Sectioned for the same reason HR is: eleven items in one list
+                // read as a wall. Sections must stay CONTIGUOUS — the caption is
+                // emitted when the section changes, so splitting one in two
+                // prints its heading twice.
+                'label' => 'Learning & Development',
+                'icon'  => 'academic',
+                'items' => [
+                    ['route' => 'training.courses',       'label' => 'Courses',        'permission' => 'training.view',    'section' => 'Content'],
+                    ['route' => 'training.quizzes',       'label' => 'Quizzes',        'permission' => 'training.view',    'section' => 'Content'],
+                    ['route' => 'training.paths',         'label' => 'Learning Paths', 'permission' => 'training.view',    'section' => 'Content'],
+
+                    ['route' => 'training.live',          'label' => 'Live Sessions',  'permission' => 'training.host',    'section' => 'Run it'],
+                    ['route' => 'training.assignments',   'label' => 'Assignments',    'permission' => 'training.assign',  'section' => 'Run it'],
+
+                    ['route' => 'training.leaderboard',   'label' => 'Leaderboard',    'permission' => 'training.view',    'section' => 'Progress'],
+                    ['route' => 'training.report-cards',  'label' => 'Report Cards',   'permission' => 'training.reports', 'section' => 'Progress'],
+                    ['route' => 'training.certificates',  'label' => 'Certificates',   'permission' => 'training.view',    'section' => 'Progress'],
+
+                    ['route' => 'settings.lms-users',     'label' => 'Training Portal', 'permission' => 'training.portal', 'section' => 'Configure'],
+                    ['route' => 'settings.index', 'query' => 'module=learning-development', 'label' => 'Training Settings',
+                     'anyPermission' => ['training.manage', 'training.portal'],
                      'section' => 'Configure'],
                 ],
             ],

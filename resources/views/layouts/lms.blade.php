@@ -142,15 +142,32 @@
              x-transition:leave="transition-opacity duration-75"
              class="flex-1 overflow-y-auto py-4 px-3">
 
-            {{-- All SOPs link --}}
-            <a href="{{ route('lms.dashboard') }}" @click="closeMobile()"
-               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-3
-                      {{ request()->routeIs('lms.dashboard') ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                All SOPs
-            </a>
+            {{-- Learning & Development first, SOPs below it.
+
+                 The SOP library is reference — you look something up in it. The
+                 training is work somebody has been ASKED to do, sometimes with a
+                 date on it, so it goes above the thing you consult. --}}
+            @php
+                $lmsLinks = [
+                    ['route' => 'lms.courses',   'label' => 'Training',      'icon' => 'academic', 'match' => 'lms.courses*'],
+                    ['route' => 'lms.live',      'label' => 'Live session',  'icon' => 'play',     'match' => 'lms.live'],
+                    ['route' => 'lms.progress',  'label' => 'My progress',   'icon' => 'trophy',   'match' => 'lms.progress'],
+                    ['route' => 'lms.dashboard', 'label' => 'All SOPs',      'icon' => 'document', 'match' => 'lms.dashboard'],
+                ];
+            @endphp
+
+            <div class="mb-4 space-y-0.5">
+                @foreach ($lmsLinks as $link)
+                    @php $isOn = request()->routeIs($link['match']); @endphp
+                    <a href="{{ route($link['route']) }}" @click="closeMobile()"
+                       @if ($isOn) aria-current="page" @endif
+                       class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                              {{ $isOn ? 'bg-brand-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                        <x-icon :name="$link['icon']" size="h-4 w-4" stroke="2" class="flex-shrink-0" />
+                        {{ $link['label'] }}
+                    </a>
+                @endforeach
+            </div>
 
             {{-- SOP list by category (accordion: one open at a time) --}}
             @php
@@ -201,13 +218,19 @@
              x-transition:enter-end="opacity-100"
              x-transition:leave="transition-opacity duration-75"
              class="hidden lg:flex flex-1 flex-col items-center py-4 px-2 overflow-y-auto">
-            <a href="{{ route('lms.dashboard') }}" title="All SOPs"
-               class="w-10 h-10 flex items-center justify-center rounded-lg mb-2 transition
-                      {{ request()->routeIs('lms.dashboard') ? 'bg-brand-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-            </a>
+            {{-- Every destination stays reachable at the rail. The outlet
+                 sidebar shipped a rail that could only reach one screen, and
+                 NavigationPanelTest exists because of it. --}}
+            @foreach ($lmsLinks ?? [] as $link)
+                @php $isOn = request()->routeIs($link['match']); @endphp
+                <a href="{{ route($link['route']) }}" title="{{ $link['label'] }}"
+                   @if ($isOn) aria-current="page" @endif
+                   class="w-10 h-10 flex items-center justify-center rounded-lg mb-2 transition
+                          {{ $isOn ? 'bg-brand-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
+                    <x-icon :name="$link['icon']" size="h-5 w-5" stroke="2" />
+                    <span class="sr-only">{{ $link['label'] }}</span>
+                </a>
+            @endforeach
         </nav>
 
         {{-- Bottom: User --}}

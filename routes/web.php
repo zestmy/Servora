@@ -182,6 +182,19 @@ Route::middleware('auth:affiliate')->prefix('affiliate')->group(function () {
     Route::post('/logout', [\App\Http\Controllers\Affiliate\AuthController::class, 'logout'])->name('affiliate.logout');
 });
 
+/*
+ * A training certificate as a PDF.
+ *
+ * OUTSIDE the authenticated group on purpose, and not by oversight. Two
+ * different populations download this: a manager on the `web` guard, and the
+ * person it belongs to on the `lms` guard from the training portal. Those are
+ * separate guards — an `auth` middleware satisfied by one is not satisfied by
+ * the other — so the check cannot be middleware at all. The controller asks the
+ * right question of whichever guard turned up, and refuses anyone else.
+ */
+Route::get('/training/certificates/{id}/pdf', [\App\Http\Controllers\Training\CertificatePdfController::class, 'show'])
+    ->name('training.certificates.pdf');
+
 Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])->group(function () {
     // Onboarding (must be before onboarding middleware)
     Route::get('/onboarding', OnboardingWizard::class)->name('onboarding');
@@ -350,7 +363,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/par-levels', SettingsParLevels::class)->name('settings.par-levels')->middleware('can:inventory.view');
     Route::get('/settings/outlet-groups', \App\Livewire\Settings\OutletGroups::class)->name('settings.outlet-groups')->middleware('can:settings.outlet_groups');
     Route::get('/settings/labour-costs', SettingsLabourCosts::class)->name('settings.labour-costs')->middleware('can:hr.view');
-    Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:hr.view');
+    // Moved from `hr.view` to its own ability when the screen moved from HR to
+    // Learning & Development. Everyone holding `hr.view` was granted
+    // `training.portal` in the same migration, so nobody lost access.
+    Route::get('/settings/lms-users', SettingsLmsUsers::class)->name('settings.lms-users')->middleware('can:training.portal');
     Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.cpu');
     Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.kitchens');
     Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.tax_rates');
@@ -378,11 +394,37 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels/printers', \App\Livewire\Labels\Printers::class)->name('labels.printers')->middleware('can:labels.manage');
     Route::get('/labels/settings', \App\Livewire\Labels\Settings::class)->name('labels.settings')->middleware('can:labels.manage');
 
-    Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:hr.view');
-    Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:hr.view');
+    /*
+     * ── Learning & Development ────────────────────────────────────────────
+     *
+     * Courses, quizzes, live sessions, paths, assignments, the leaderboard,
+     * report cards and certificates.
+     */
+    Route::get('/training/courses', \App\Livewire\Training\Courses::class)->name('training.courses')->middleware('can:training.view');
+    Route::get('/training/courses/create', \App\Livewire\Training\CourseForm::class)->name('training.courses.create')->middleware('can:training.manage');
+    Route::get('/training/courses/{id}/edit', \App\Livewire\Training\CourseForm::class)->name('training.courses.edit')->middleware('can:training.manage');
+    Route::get('/training/quizzes', \App\Livewire\Training\Quizzes::class)->name('training.quizzes')->middleware('can:training.view');
+    Route::get('/training/quizzes/{id}', \App\Livewire\Training\QuizBuilder::class)->name('training.quizzes.edit')->middleware('can:training.manage');
+    Route::get('/training/live', \App\Livewire\Training\Sessions::class)->name('training.live')->middleware('can:training.host');
+    Route::get('/training/live/{id}', \App\Livewire\Training\LiveHost::class)->name('training.live.host')->middleware('can:training.host');
+    Route::get('/training/paths', \App\Livewire\Training\Paths::class)->name('training.paths')->middleware('can:training.view');
+    Route::get('/training/assignments', \App\Livewire\Training\Assignments::class)->name('training.assignments')->middleware('can:training.assign');
+    Route::get('/training/leaderboard', \App\Livewire\Training\Leaderboard::class)->name('training.leaderboard')->middleware('can:training.view');
+    Route::get('/training/report-cards', \App\Livewire\Training\ReportCards::class)->name('training.report-cards')->middleware('can:training.reports');
+    Route::get('/training/certificates', \App\Livewire\Training\Certificates::class)->name('training.certificates')->middleware('can:training.view');
+    /*
+     * SOP exports, moved from `hr.view` to `training.view` with the rest of the
+     * module. Nobody loses access — the same migration granted `training.view`
+     * to every holder of `hr.view` — and it closes a real hole the move opened:
+     * these links live on the Training Portal screen, whose own gate is now
+     * `training.portal`, so a person granted only the portal was being offered
+     * three download buttons that would 403.
+     */
+    Route::get('/training/sop/{id}/pdf', [SopPdfController::class, 'single'])->name('training.sop.pdf')->middleware('can:training.view');
+    Route::get('/training/sop/pdf-all', [SopPdfController::class, 'all'])->name('training.sop.pdf-all')->middleware('can:training.view');
     // The whole catalogue is too heavy to render in a request — it goes through
     // the queue and is collected here. See App\Jobs\GenerateSopExport.
-    Route::get('/training/sop/export/{export}', [SopExportController::class, 'download'])->name('training.sop.export.download')->middleware('can:hr.view');
+    Route::get('/training/sop/export/{export}', [SopExportController::class, 'download'])->name('training.sop.export.download')->middleware('can:training.view');
 
     // HR routes
     Route::get('/hr/employees', \App\Livewire\Hr\Employees::class)->name('hr.employees')->middleware('can:hr.view');

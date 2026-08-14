@@ -114,6 +114,10 @@ class NavigationPanelTest extends TestCase
             'Labels',
             'Sales',
             'HR',
+            // Sits after HR because that is where the Training Portal came
+            // from, so the link somebody already knows is one group further
+            // down rather than somewhere unrelated.
+            'Learning & Development',
             'Business Intelligence',
             'Settings',
         ], $labels);

@@ -54,6 +54,11 @@ return [
     'groups' => [
         'operations' => 'Operations',
         'people'     => 'People & HR',
+        // Its own group rather than a corner of People & HR. Training is now a
+        // module a merchant runs deliberately — courses, live sessions,
+        // certificates — and the person who hosts a product-knowledge session
+        // for the floor is not usually the person who administers payroll.
+        'learning'   => 'Learning & Development',
         'insight'    => 'Reporting',
         'admin'      => 'Administration',
     ],
@@ -737,6 +742,58 @@ return [
                 'kitchens' => [
                     'name' => 'settings.kitchens', 'label' => 'Central kitchens',
                     'title' => 'Settings (Central Kitchens)', 'help' => 'Central kitchens, their members and linked outlets.',
+                ],
+            ],
+        ],
+
+        /* ------------------------------------------- Learning & Development */
+
+        'training' => [
+            'label'     => 'Training',
+            'group'     => 'learning',
+            'abilities' => [
+                'view' => [
+                    'name'  => 'training.view',
+                    'label' => 'View (read-only)',
+                    'title' => 'Training',
+                    'help'  => 'See courses, quizzes, live session history and the company leaderboard.',
+                ],
+                'manage' => [
+                    'name'  => 'training.manage',
+                    'label' => 'Author courses & quizzes',
+                    'title' => 'Training (Author)',
+                    'help'  => 'Create and change courses, generate quizzes with AI, and edit questions and learning paths.',
+                ],
+                // Separate from authoring for the same reason approving a leave
+                // request is separate from configuring leave types: running the
+                // room in front of the team is a floor-manager job, writing the
+                // material is not.
+                'host' => [
+                    'name'  => 'training.host',
+                    'label' => 'Host live sessions',
+                    'title' => 'Training (Host)',
+                    'help'  => 'Open a live session, drive the questions, and end the round.',
+                ],
+                'assign' => [
+                    'name'  => 'training.assign',
+                    'label' => 'Assign & certify',
+                    'title' => 'Training (Assign)',
+                    'help'  => 'Set what staff or outlets must complete and by when, and issue or revoke certificates.',
+                ],
+                // Individual results are performance data about a named person.
+                // Reading the leaderboard is not the same act as reading one
+                // employee's wrong answers.
+                'reports' => [
+                    'name'  => 'training.reports',
+                    'label' => 'Staff report cards',
+                    'title' => 'Training (Report Cards)',
+                    'help'  => 'Open any individual trainee\'s score history, weak topics and completion record.',
+                ],
+                'portal' => [
+                    'name'  => 'training.portal',
+                    'label' => 'Administer the portal',
+                    'title' => 'Training (Portal)',
+                    'help'  => 'Approve trainee accounts and choose which outlets\' SOPs each of them can open.',
                 ],
             ],
         ],

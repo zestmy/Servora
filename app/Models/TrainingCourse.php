@@ -1,0 +1,156 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\PurgesStoredFiles;
+use App\Scopes\CompanyScope;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * One body of training material.
+ *
+ * Where the prose came from is recorded but not enforced after import: an
+ * SOP-backed course can be edited freely, and `resync()` is an explicit act
+ * rather than something that happens behind the author's back. A recipe that
+ * changes its method should not silently rewrite the course somebody spent an
+ * afternoon shaping around it.
+ */
+class TrainingCourse extends Model
+{
+    use PurgesStoredFiles;
+    use SoftDeletes;
+
+    public const SOURCE_TYPES = [
+        'sop'    => 'From an SOP',
+        'upload' => 'From a document',
+        'text'   => 'Written here',
+    ];
+
+    public const STATUSES = [
+        'draft'     => 'Draft',
+        'published' => 'Published',
+        'archived'  => 'Archived',
+    ];
+
+    protected $fillable = [
+        'company_id', 'title', 'summary', 'category',
+        'source_type', 'source_recipe_id', 'source_filename', 'source_path',
+        'content', 'cover_path', 'video_url', 'estimated_minutes',
+        'status', 'is_compliance', 'recertify_months', 'created_by',
+    ];
+
+    protected $casts = [
+        'estimated_minutes' => 'integer',
+        'recertify_months'  => 'integer',
+        'is_compliance'     => 'boolean',
+    ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new CompanyScope());
+
+        // The cover art and any uploaded source document belong to the row.
+        static::deleting(function (self $course) {
+            if ($course->isForceDeleting()) {
+                self::purgeStoredFile($course->cover_path);
+                self::purgeStoredFile($course->source_path);
+            }
+        });
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function sourceRecipe(): BelongsTo
+    {
+        return $this->belongsTo(Recipe::class, 'source_recipe_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class, 'training_course_outlets')->withTimestamps();
+    }
+
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(TrainingQuiz::class);
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(TrainingAssignment::class);
+    }
+
+    public function pathItems(): HasMany
+    {
+        return $this->hasMany(TrainingPathItem::class);
+    }
+
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(TrainingCertificate::class);
+    }
+
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where('status', 'published');
+    }
+
+    /**
+     * Courses a trainee holding these outlets may open.
+     *
+     * Identical in shape to Recipe::scopeVisibleToOutlets, and deliberately so:
+     * a course with no outlets is company-wide, which is what "everyone does the
+     * allergen course" has to mean. An empty list is the legacy unrestricted
+     * trainee, exactly as it is for SOPs.
+     */
+    public function scopeVisibleToOutlets(Builder $query, array $outletIds): Builder
+    {
+        if (empty($outletIds)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($outletIds) {
+            $q->whereDoesntHave('outlets')
+              ->orWhereHas('outlets', fn ($o) => $o->whereIn('outlets.id', $outletIds));
+        });
+    }
+
+    /** The live quiz for this course, if there is one. */
+    public function primaryQuiz(): ?TrainingQuiz
+    {
+        return $this->quizzes()->where('status', 'published')->orderBy('id')->first()
+            ?? $this->quizzes()->orderBy('id')->first();
+    }
+
+    public function sourceLabel(): string
+    {
+        return self::SOURCE_TYPES[$this->source_type] ?? 'Written here';
+    }
+
+    /**
+     * Roughly how long the material takes to read, in whole minutes.
+     *
+     * 200 words a minute is the usual figure for adult reading of familiar
+     * material, and everything here is familiar material. Floored at one so a
+     * three-line course never advertises itself as taking no time at all.
+     */
+    public static function readingMinutes(?string $content): int
+    {
+        $words = str_word_count(strip_tags((string) $content));
+
+        return max(1, (int) ceil($words / 200));
+    }
+}
