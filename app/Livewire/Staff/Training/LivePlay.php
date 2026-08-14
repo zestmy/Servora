@@ -4,6 +4,7 @@ namespace App\Livewire\Staff\Training;
 
 use App\Models\Employee;
 use App\Models\TrainingAnswer;
+use App\Models\TrainingQuestion;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionPlayer;
 use App\Scopes\CompanyScope;
@@ -32,6 +33,15 @@ class LivePlay extends Component
 
     /** Which question the phone has already answered, so it stops asking. */
     public ?int $answeredQuestionId = null;
+
+    /**
+     * Which reveal this phone has already played a sound for.
+     *
+     * The room polls once a second and a reveal lasts as long as the host wants
+     * it to, so without this the ding fires every second until they press next
+     * — which is funny once and unbearable immediately afterwards.
+     */
+    public ?int $celebratedQuestionId = null;
 
     /** Option indexes tapped but not yet sent (multi-select only). */
     public array $chosen = [];
@@ -196,11 +206,42 @@ class LivePlay extends Component
 
         $player->forceFill(['last_seen_at' => now()])->save();
 
-        $current = $this->session()?->currentQuestion();
+        $session = $this->session();
+        $current = $session?->currentQuestion();
 
         if ($current && $this->answeredQuestionId !== $current->id) {
             $this->chosen = [];
         }
+
+        /*
+         * The verdict lands when the HOST reveals, not when the answer was
+         * sent. Playing it at send time would be simpler and would also tell
+         * the room what the answer was while everyone else is still choosing —
+         * which is the one thing a live round cannot allow.
+         */
+        if ($session?->status === 'reveal' && $current && $this->celebratedQuestionId !== $current->id) {
+            $this->celebratedQuestionId = $current->id;
+
+            $answer = $this->myAnswer($current);
+
+            if ($answer) {
+                $this->dispatch('answer-scored', correct: (bool) $answer->is_correct, points: (int) $answer->points_awarded);
+            }
+        }
+    }
+
+    /** This player's row for a question, if they answered it. */
+    private function myAnswer(?TrainingQuestion $question): ?TrainingAnswer
+    {
+        $attempt = $this->player()?->attempt;
+
+        if (! $question || ! $attempt) {
+            return null;
+        }
+
+        return TrainingAnswer::where('training_attempt_id', $attempt->id)
+            ->where('training_question_id', $question->id)
+            ->first();
     }
 
     public function render()
@@ -229,6 +270,7 @@ class LivePlay extends Component
             'session'         => $session,
             'player'          => $player,
             'question'        => $question,
+            'myAnswer'        => $session->status === 'reveal' ? $this->myAnswer($question) : null,
             'remaining'       => $session->secondsRemaining($question),
             'alreadyAnswered' => $alreadyAnswered,
             'podium'          => $session->players()->limit(5)->get(),

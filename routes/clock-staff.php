@@ -65,6 +65,20 @@ $group->group(function () {
     Route::get('/live/{pin?}', \App\Livewire\Staff\Training\LivePlay::class)->name('clock.staff.live');
 
     /*
+     * A quiz's public front door — the address on the QR beside the pass.
+     *
+     * OUTSIDE the PIN gate on purpose, and it gives nothing away for it: the
+     * page says what the quiz is and ends at a button, and the button goes to
+     * the gated route, which bounces through the ordinary sign-in and returns.
+     * Putting it inside the gate would show a bare PIN form to somebody who
+     * just scanned a poster, with nothing on screen saying what they scanned —
+     * which is what people back out of.
+     */
+    Route::get('/q/{token}', \App\Livewire\Staff\Training\QuizGate::class)
+        ->where('token', '[A-Za-z0-9]{8,32}')
+        ->name('clock.staff.quiz.link');
+
+    /*
      * The outlet kiosk.
      *
      * Alongside the staff app rather than inside it, because it authenticates

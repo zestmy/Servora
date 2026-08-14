@@ -18,7 +18,13 @@
                 @endif
             </p>
         </div>
-        <button type="button" wire:click="leave" class="text-xs text-gray-600 hover:text-gray-900">Leave</button>
+        <div class="flex items-center gap-1">
+            {{-- No music in a live room: the host's screen is the one making
+                 noise, and twenty phones playing the same track a beat apart is
+                 not a soundtrack. The chime on your own answer still lands. --}}
+            <x-training.quiz-fx />
+            <button type="button" wire:click="leave" class="text-xs text-gray-600 hover:text-gray-900">Leave</button>
+        </div>
     </div>
 
     @if ($session->status === 'lobby')
@@ -72,9 +78,38 @@
         </div>
 
     @elseif ($session->status === 'reveal')
-        <div class="card p-8 text-center">
+        {{-- Your own verdict, beside the room's. The big screen says what the
+             answer WAS; only this screen can say whether you had it, and a
+             player who has to work that out from a score that moved is a player
+             who stops watching. Keyed on the question so the entrance animation
+             replays rather than being morphed silently into place. --}}
+        <div wire:key="reveal-{{ $session->current_index }}"
+             class="card p-8 text-center
+                    {{ $myAnswer && $myAnswer->is_correct ? 'motion-safe:animate-pop-in' : '' }}
+                    {{ $myAnswer && ! $myAnswer->is_correct ? 'motion-safe:animate-shake' : '' }}">
             <p class="text-sm text-gray-600">Question {{ $session->current_index + 1 }} of {{ $session->questionCount() }}</p>
-            <h1 class="text-xl font-bold text-gray-900 mt-2">Answer's on the big screen</h1>
+
+            @if ($myAnswer && $myAnswer->is_correct)
+                <div class="mx-auto mt-3 h-12 w-12 rounded-full bg-success-100 flex items-center justify-center">
+                    <x-icon name="check" size="h-7 w-7" class="text-success-700" />
+                </div>
+                <h1 class="text-xl font-bold text-success-800 mt-3">Correct</h1>
+            @elseif ($myAnswer)
+                <div class="mx-auto mt-3 h-12 w-12 rounded-full bg-danger-100 flex items-center justify-center">
+                    <x-icon name="alert" size="h-7 w-7" class="text-danger-700" />
+                </div>
+                <h1 class="text-xl font-bold text-danger-800 mt-3">Not this time</h1>
+            @else
+                <h1 class="text-xl font-bold text-gray-900 mt-2">Answer's on the big screen</h1>
+            @endif
+
+            @if ($myAnswer && $myAnswer->points_awarded != 0)
+                <p class="mt-1 text-sm font-semibold tabular-nums
+                          {{ $myAnswer->points_awarded > 0 ? 'text-success-700' : 'text-danger-700' }}">
+                    {{ $myAnswer->points_awarded > 0 ? '+' : '−' }}{{ number_format(abs($myAnswer->points_awarded)) }}
+                </p>
+            @endif
+
             <p class="text-3xl font-bold tabular-nums text-brand-700 mt-4">{{ number_format($player->score) }}</p>
             <p class="text-sm text-gray-600">points so far</p>
         </div>

@@ -841,6 +841,76 @@ class TrainingModuleTest extends TestCase
         $this->assertSame(1, TrainingSession::find($session->id)->players()->count());
     }
 
+    // ── Penalties and music ───────────────────────────────────────────────
+
+    /**
+     * A run that goes badly bottoms out at zero rather than going negative.
+     *
+     * The answer ROWS keep their true negative values — the report card has to
+     * be able to say what a question cost — so this is specifically about the
+     * total, which is the number that appears in front of colleagues.
+     */
+    public function test_a_disastrous_attempt_scores_zero_rather_than_a_negative(): void
+    {
+        $quiz    = $this->quiz(null, ['wrong_penalty_percent' => 100]);
+        $service = app(SelfPacedQuizService::class);
+
+        $attempt = $service->startOrResume($quiz, $this->employee);
+
+        foreach ($quiz->questions as $question) {
+            $service->answer($attempt, $question, [1], 5.0);
+        }
+
+        $attempt = $service->finish($attempt);
+
+        $this->assertSame(0, (int) $attempt->score);
+        $this->assertSame(0, $attempt->correct_count);
+        $this->assertTrue($attempt->answers()->where('points_awarded', '<', 0)->exists());
+    }
+
+    /** Running out of time is not a guess, and is never charged for. */
+    public function test_a_timeout_costs_nothing_even_on_a_penalised_quiz(): void
+    {
+        $quiz    = $this->quiz(null, ['wrong_penalty_percent' => 50]);
+        $service = app(SelfPacedQuizService::class);
+
+        $attempt = $service->startOrResume($quiz, $this->employee);
+
+        $timedOut = $service->answer($attempt, $quiz->questions[0], [], 20.0);
+        $guessed  = $service->answer($attempt, $quiz->questions[1], [1], 4.0);
+
+        $this->assertSame(0, (int) $timedOut->points_awarded);
+        $this->assertSame(-500, (int) $guessed->points_awarded);
+    }
+
+    /**
+     * The music URL is rebuilt from an id rather than passed through — it ends
+     * up in an iframe src, which is one of the few places a merchant-typed
+     * string becomes executable.
+     */
+    public function test_only_a_youtube_id_survives_into_the_music_embed(): void
+    {
+        $quiz = $this->quiz();
+
+        $quiz->music_url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s';
+        $this->assertStringContainsString('youtube-nocookie.com/embed/dQw4w9WgXcQ', $quiz->musicEmbedUrl());
+
+        $quiz->music_url = 'https://youtu.be/dQw4w9WgXcQ';
+        $this->assertStringContainsString('/embed/dQw4w9WgXcQ', $quiz->musicEmbedUrl());
+
+        // A single video only loops when it also names itself as the playlist.
+        $this->assertStringContainsString('playlist=dQw4w9WgXcQ', $quiz->musicEmbedUrl());
+
+        $quiz->music_url = 'javascript:alert(1)';
+        $this->assertNull($quiz->musicEmbedUrl());
+
+        $quiz->music_url = 'https://example.com/not-youtube';
+        $this->assertNull($quiz->musicEmbedUrl());
+
+        $quiz->music_url = '';
+        $this->assertNull($quiz->musicEmbedUrl());
+    }
+
     // ── Scheduled challenges ──────────────────────────────────────────────
 
     /**

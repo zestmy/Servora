@@ -322,6 +322,32 @@
                         <span class="block help">+10% at three in a row, +20% at five.</span>
                     </span>
                 </label>
+                <div class="pt-1">
+                    <label class="label" for="quiz-penalty">Wrong answer costs</label>
+                    <div class="flex items-center gap-2">
+                        <input id="quiz-penalty" type="number" min="0" max="100" step="5"
+                               wire:model="wrongPenaltyPercent" class="input w-24">
+                        <span class="text-sm text-gray-700">% of the question's points</span>
+                    </div>
+                    <p class="help">
+                        0 means a wrong answer is simply worth nothing, which is how Kahoot plays it.
+                        Raise it to make guessing expensive on a safety paper. Running out of time never
+                        costs anything, and nobody's total goes below zero.
+                    </p>
+                    @error('wrongPenaltyPercent') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="pt-1">
+                    <label class="label" for="quiz-music">Background music</label>
+                    <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
+                           placeholder="https://www.youtube.com/watch?v=…">
+                    <p class="help">
+                        A YouTube link — a video or a playlist. It plays quietly behind the questions on
+                        the staff phone, muted until they tap the speaker. Leave it blank for silence.
+                    </p>
+                    @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+
                 <label class="flex items-center gap-2 text-sm text-gray-800">
                     <input type="checkbox" wire:model="shuffleQuestions" class="rounded-control border-gray-300">
                     Shuffle the questions
@@ -340,6 +366,59 @@
                 @can('training.manage')
                     <button type="button" wire:click="saveSettings" class="btn-primary w-full mt-2">Save settings</button>
                 @endcan
+            </div>
+
+            {{-- The poster. A link and a QR that take somebody from a
+                 noticeboard to the first question in one scan and one PIN. --}}
+            <div class="card p-5">
+                <h2 class="text-sm font-semibold text-gray-900">Share this quiz</h2>
+
+                @if (! $shareUrl)
+                    <p class="help mt-1">
+                        Publish the quiz and a public link appears here — a QR for the pass, or a
+                        link to drop in the staff group. It asks for the same PIN they clock in with.
+                    </p>
+                @else
+                    <p class="help mt-1">
+                        Print the code or send the link. Staff scan it, key in their PIN, and start.
+                    </p>
+
+                    <div class="mt-3 flex items-start gap-4">
+                        <img src="{{ $shareQr }}" alt="QR code for {{ $quiz->title }}"
+                             class="h-28 w-28 shrink-0 rounded-surface border border-gray-200 bg-white p-1">
+
+                        <div class="min-w-0 flex-1"
+                             x-data="{ copied: false }">
+                            <p class="break-all rounded-control bg-gray-50 px-2 py-1.5 font-mono text-xs text-gray-700">
+                                {{ $shareUrl }}
+                            </p>
+
+                            {{-- navigator.clipboard is unavailable on plain
+                                 http, which is every local dev setup — the
+                                 textarea fallback is what keeps the button from
+                                 being dead there. --}}
+                            <button type="button" class="btn-secondary btn-sm mt-2"
+                                    @click="
+                                        const url = @js($shareUrl);
+                                        if (navigator.clipboard) {
+                                            navigator.clipboard.writeText(url);
+                                        } else {
+                                            const box = document.createElement('textarea');
+                                            box.value = url;
+                                            document.body.appendChild(box);
+                                            box.select();
+                                            document.execCommand('copy');
+                                            box.remove();
+                                        }
+                                        copied = true;
+                                        setTimeout(() => copied = false, 2000);
+                                    ">
+                                <span x-show="! copied">Copy link</span>
+                                <span x-show="copied" x-cloak class="text-success-700">Copied</span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             @if ($quiz->generated_by_ai)

@@ -345,6 +345,49 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('Front of house induction');
     }
 
+    /**
+     * The public front door: what someone sees a second after scanning the QR,
+     * before they have proved who they are.
+     */
+    public function test_the_public_quiz_link_introduces_the_quiz_without_a_pin(): void
+    {
+        // No asStaff() — this is the whole point of the screen. The company
+        // comes from the subdomain, which is what the middleware puts in the
+        // session on a real request.
+        session(['subdomain_company_id' => $this->company->id]);
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizGate::class, ['token' => $this->quiz->shareToken()])
+            ->assertOk()
+            ->assertSee('Chiller quiz')
+            ->assertSee('Start — enter your PIN', escape: false)
+            // Nothing about the questions themselves leaks out here.
+            ->assertDontSee('What temperature does a chiller hold?');
+    }
+
+    /** A draft's link is dead, so a poster can be printed before the paper is. */
+    public function test_an_unpublished_quiz_has_no_working_link(): void
+    {
+        session(['subdomain_company_id' => $this->company->id]);
+
+        $token = $this->quiz->shareToken();
+        $this->quiz->update(['status' => 'draft']);
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizGate::class, ['token' => $token])
+            ->assertOk()
+            ->assertSee('This link has expired')
+            ->assertDontSee('Chiller quiz');
+    }
+
+    /** A made-up token is the same dead end, not an error. */
+    public function test_an_unknown_token_lands_on_the_expired_page(): void
+    {
+        session(['subdomain_company_id' => $this->company->id]);
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizGate::class, ['token' => 'notarealtoken123'])
+            ->assertOk()
+            ->assertSee('This link has expired');
+    }
+
     public function test_the_staff_course_page_renders(): void
     {
         $this->asStaff();

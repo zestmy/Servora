@@ -67,16 +67,18 @@ class TrainingQuiz extends Model
     protected $fillable = [
         'company_id', 'training_course_id', 'section_id', 'title', 'description', 'language', 'status',
         'pass_mark', 'default_seconds', 'default_points',
-        'speed_bonus', 'streak_bonus', 'shuffle_questions', 'shuffle_options',
+        'speed_bonus', 'streak_bonus', 'wrong_penalty_percent', 'music_url', 'share_token',
+        'shuffle_questions', 'shuffle_options',
         'max_attempts', 'issues_certificate',
         'generated_by_ai', 'ai_model', 'generated_at', 'created_by',
     ];
 
     protected $casts = [
-        'pass_mark'          => 'integer',
-        'default_seconds'    => 'integer',
-        'default_points'     => 'integer',
-        'max_attempts'       => 'integer',
+        'pass_mark'             => 'integer',
+        'default_seconds'       => 'integer',
+        'default_points'        => 'integer',
+        'max_attempts'          => 'integer',
+        'wrong_penalty_percent' => 'integer',
         'speed_bonus'        => 'boolean',
         'streak_bonus'       => 'boolean',
         'shuffle_questions'  => 'boolean',
@@ -98,19 +100,124 @@ class TrainingQuiz extends Model
      * Nothing errors, and nobody finds out.
      */
     protected $attributes = [
-        'status'             => 'draft',
-        'language'           => 'en',
-        'pass_mark'          => 70,
-        'default_seconds'    => 20,
-        'default_points'     => 1000,
-        'speed_bonus'        => true,
-        'streak_bonus'       => true,
-        'shuffle_questions'  => true,
-        'shuffle_options'    => true,
-        'max_attempts'       => 0,
-        'issues_certificate' => false,
-        'generated_by_ai'    => false,
+        'status'                => 'draft',
+        'language'              => 'en',
+        'pass_mark'             => 70,
+        'default_seconds'       => 20,
+        'default_points'        => 1000,
+        'speed_bonus'           => true,
+        'streak_bonus'          => true,
+        'wrong_penalty_percent' => 0,
+        'shuffle_questions'     => true,
+        'shuffle_options'       => true,
+        'max_attempts'          => 0,
+        'issues_certificate'    => false,
+        'generated_by_ai'       => false,
     ];
+
+    /**
+     * The token in this quiz's public link, minted if it has none.
+     *
+     * Lazily rather than in a creating() hook so a quiz that predates the
+     * column — or one restored from a backup taken before it — still answers
+     * the question. The write is a single indexed update and happens once in
+     * the life of a quiz.
+     */
+    public function shareToken(): string
+    {
+        if (! $this->share_token) {
+            $this->forceFill(['share_token' => \Illuminate\Support\Str::random(16)])->save();
+        }
+
+        return $this->share_token;
+    }
+
+    /**
+     * The URL to print on a poster.
+     *
+     * Built by hand rather than with route(), for the same reason
+     * LabelQrService does it: this is generated in the MANAGER app, on the main
+     * domain, where the staff subdomain's route defaults are not bound. route()
+     * would produce a main-domain address that sends staff to a sign-in they
+     * cannot use.
+     */
+    public function shareUrl(): string
+    {
+        $token  = $this->shareToken();
+        $domain = config('app.domain');
+        $slug   = $this->company?->slug ?? Company::find($this->company_id)?->slug;
+
+        if ($domain && $slug) {
+            return 'https://' . $slug . '.' . $domain . '/staff/q/' . $token;
+        }
+
+        // Local dev, where the staff app lives on a path instead.
+        return url('/staff/q/' . $token);
+    }
+
+    /**
+     * The YouTube embed to play behind this quiz, or null.
+     *
+     * REBUILT FROM AN ID RATHER THAN PASSED THROUGH. `music_url` is typed into
+     * a form by a merchant, and an iframe src is one of the few places in a
+     * Blade template where a string becomes executable — a `javascript:` URL or
+     * somebody else's page in a frame is a real answer to "what did you put in
+     * the box". So only the id is taken, only if it matches YouTube's own
+     * character set, and the URL around it is written here.
+     *
+     * youtube-nocookie.com for the same reason the consent banners exist: this
+     * plays on a staff phone that never agreed to anything.
+     */
+    public function musicEmbedUrl(): ?string
+    {
+        $raw = trim((string) $this->music_url);
+
+        if ($raw === '') {
+            return null;
+        }
+
+        $id       = null;
+        $playlist = null;
+
+        if (preg_match('~[?&]list=([A-Za-z0-9_-]{12,})~', $raw, $m)) {
+            $playlist = $m[1];
+        }
+
+        if (preg_match('~(?:youtu\.be/|v=|/embed/|/shorts/)([A-Za-z0-9_-]{11})~', $raw, $m)) {
+            $id = $m[1];
+        } elseif (preg_match('~^[A-Za-z0-9_-]{11}$~', $raw)) {
+            // Somebody pasted the id on its own, which is a reasonable thing to do.
+            $id = $raw;
+        }
+
+        $params = [
+            'autoplay'       => 1,
+            'controls'       => 0,
+            'modestbranding' => 1,
+            'playsinline'    => 1,
+            'enablejsapi'    => 1,
+        ];
+
+        if ($playlist) {
+            $params['list'] = $playlist;
+            $params['loop'] = 1;
+
+            return 'https://www.youtube-nocookie.com/embed/' . ($id ?? 'videoseries')
+                . '?' . http_build_query($params);
+        }
+
+        if (! $id) {
+            return null;
+        }
+
+        // A single video loops only when it is also named as the playlist —
+        // YouTube's own quirk, and without it the room falls silent after one
+        // track and nobody knows why.
+        $params['loop']     = 1;
+        $params['playlist'] = $id;
+
+        return 'https://www.youtube-nocookie.com/embed/' . $id . '?' . http_build_query($params);
+    }
 
     protected static function booted(): void
     {

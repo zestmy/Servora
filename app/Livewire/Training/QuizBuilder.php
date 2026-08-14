@@ -36,6 +36,9 @@ class QuizBuilder extends Component
     public int $defaultPoints = 1000;
     public bool $speedBonus = true;
     public bool $streakBonus = true;
+    /** Share of a question's points a wrong answer costs. 0 = nothing. */
+    public int $wrongPenaltyPercent = 0;
+    public string $musicUrl = '';
     public bool $shuffleQuestions = true;
     public bool $shuffleOptions = true;
     public int $maxAttempts = 0;
@@ -76,6 +79,8 @@ class QuizBuilder extends Component
         $this->defaultPoints     = $quiz->default_points;
         $this->speedBonus        = $quiz->speed_bonus;
         $this->streakBonus       = $quiz->streak_bonus;
+        $this->wrongPenaltyPercent = (int) $quiz->wrong_penalty_percent;
+        $this->musicUrl          = (string) $quiz->music_url;
         $this->shuffleQuestions  = $quiz->shuffle_questions;
         $this->shuffleOptions    = $quiz->shuffle_options;
         $this->maxAttempts       = $quiz->max_attempts;
@@ -99,6 +104,8 @@ class QuizBuilder extends Component
             'defaultSeconds' => ['required', 'integer', 'min:5', 'max:300'],
             'defaultPoints'  => ['required', 'integer', 'min:100', 'max:5000'],
             'maxAttempts'    => ['required', 'integer', 'min:0', 'max:20'],
+            'wrongPenaltyPercent' => ['required', 'integer', 'min:0', 'max:100'],
+            'musicUrl'       => ['nullable', 'string', 'max:500', 'url'],
         ]);
 
         $quiz = TrainingQuiz::withCount('questions')->findOrFail($this->quizId);
@@ -120,6 +127,8 @@ class QuizBuilder extends Component
             'default_points'     => $data['defaultPoints'],
             'speed_bonus'        => $this->speedBonus,
             'streak_bonus'       => $this->streakBonus,
+            'wrong_penalty_percent' => $data['wrongPenaltyPercent'],
+            'music_url'          => $data['musicUrl'] ?: null,
             'shuffle_questions'  => $this->shuffleQuestions,
             'shuffle_options'    => $this->shuffleOptions,
             'max_attempts'       => $data['maxAttempts'],
@@ -407,7 +416,16 @@ class QuizBuilder extends Component
 
         $sections = \App\Models\Section::active()->ordered()->get(['id', 'name']);
 
-        return view('livewire.training.quiz-builder', compact('quiz', 'questions', 'aiReady', 'sections'))
+        /*
+         * The QR is only drawn for a published quiz, because the link only
+         * works for one — a poster printed from a draft would scan to "this
+         * link has expired", which reads as a broken system rather than as an
+         * unfinished quiz.
+         */
+        $shareUrl = $quiz->status === 'published' ? $quiz->shareUrl() : null;
+        $shareQr  = $shareUrl ? app(\App\Services\Labels\LabelQrService::class)->encode($shareUrl) : null;
+
+        return view('livewire.training.quiz-builder', compact('quiz', 'questions', 'aiReady', 'sections', 'shareUrl', 'shareQr'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $quiz->title]);
     }
 }

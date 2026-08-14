@@ -230,6 +230,37 @@ export default {
                     from: { transform: 'scaleX(1)' },
                     to:   { transform: 'scaleX(0)' },
                 },
+                /* The answer reactions. Deliberately short — this plays
+                   between a tap and reading the explanation, and anything
+                   over about half a second stops being feedback and starts
+                   being a wait. */
+                'pop-in': {
+                    '0%':   { opacity: '0', transform: 'scale(0.6)' },
+                    '60%':  { opacity: '1', transform: 'scale(1.08)' },
+                    '100%': { opacity: '1', transform: 'scale(1)' },
+                },
+                'shake': {
+                    '0%, 100%':  { transform: 'translateX(0)' },
+                    '20%, 60%':  { transform: 'translateX(-7px)' },
+                    '40%, 80%':  { transform: 'translateX(7px)' },
+                },
+                /* The points that just landed, floating off the top. */
+                'score-float': {
+                    '0%':   { opacity: '0', transform: 'translateY(6px) scale(0.9)' },
+                    '25%':  { opacity: '1', transform: 'translateY(0) scale(1)' },
+                    '100%': { opacity: '0', transform: 'translateY(-28px) scale(1)' },
+                },
+                /* A wash of colour across the whole screen, gone before it
+                   can be looked at directly. */
+                'flash-out': {
+                    from: { opacity: '0.5' },
+                    to:   { opacity: '0' },
+                },
+                /* The last five seconds. */
+                'urgent': {
+                    '0%, 100%': { transform: 'scale(1)' },
+                    '50%':      { transform: 'scale(1.12)' },
+                },
             },
 
             animation: {
@@ -240,6 +271,11 @@ export default {
                 /* Duration is set inline per question, because a question's
                    time limit is data. */
                 'countdown': 'countdown linear forwards',
+                'pop-in': 'pop-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both',
+                'shake': 'shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both',
+                'score-float': 'score-float 1.1s ease-out both',
+                'flash-out': 'flash-out 0.45s ease-out forwards',
+                'urgent': 'urgent 1s ease-in-out infinite',
             },
         },
     },

@@ -104,6 +104,52 @@ class TrainingScoringTest extends TestCase
         );
     }
 
+    // ── Penalties ─────────────────────────────────────────────────────────
+
+    /**
+     * A penalty is a share of the question's OWN points, so a question worth
+     * double also costs double — the stakes stay proportional to the thing
+     * being asked.
+     */
+    public function test_a_wrong_answer_costs_a_share_of_the_question_s_points(): void
+    {
+        $scoring = new ScoringService();
+        $quiz    = $this->quiz(['wrong_penalty_percent' => 50]);
+
+        $this->assertSame(-500, $scoring->points($this->question(), $quiz, false, 3.0, 0));
+        $this->assertSame(-1000, $scoring->points($this->question(['points' => 2000]), $quiz, false, 3.0, 0));
+    }
+
+    /**
+     * FLAT, not speed-scaled. Paying less for a fast wrong answer is exactly
+     * the incentive a penalty exists to remove.
+     */
+    public function test_a_penalty_does_not_shrink_with_speed(): void
+    {
+        $scoring = new ScoringService();
+        $quiz    = $this->quiz(['wrong_penalty_percent' => 25]);
+
+        $this->assertSame(-250, $scoring->points($this->question(), $quiz, false, 0.0, 0));
+        $this->assertSame(-250, $scoring->points($this->question(), $quiz, false, 19.9, 0));
+    }
+
+    /** Quizzes written before the setting existed keep scoring as they did. */
+    public function test_a_quiz_with_no_penalty_set_still_pays_zero_for_a_wrong_answer(): void
+    {
+        $scoring = new ScoringService();
+
+        $this->assertSame(0, $scoring->points($this->question(), $this->quiz(), false, 3.0, 0));
+    }
+
+    /** A total never goes below zero, however badly it went. */
+    public function test_a_running_total_is_floored_at_zero(): void
+    {
+        $scoring = new ScoringService();
+
+        $this->assertSame(0, $scoring->floorTotal(-1500));
+        $this->assertSame(250, $scoring->floorTotal(250));
+    }
+
     public function test_turning_the_speed_bonus_off_pays_full_points_at_any_speed(): void
     {
         $scoring = new ScoringService();

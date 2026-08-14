@@ -28,6 +28,16 @@ use Illuminate\Support\Facades\DB;
  * fifteen-question quiz into "whoever got the first four right has won", which
  * empties the room for the back half — the opposite of what a training session
  * is for.
+ *
+ * A WRONG ANSWER CAN COST POINTS, per quiz, off by default. The penalty is a
+ * share of the question's own base, so a question worth double also costs
+ * double, and it is FLAT rather than speed-scaled: a fast wrong answer and a
+ * slow wrong answer are equally wrong, and paying less for a fast guess is
+ * precisely the incentive a penalty exists to remove.
+ *
+ * The penalty never touches the streak bonus, which is already zero on a wrong
+ * answer, and never compounds — see roundedTotal() for why a running total
+ * cannot go below zero even when the answers behind it do.
  */
 class ScoringService
 {
@@ -51,7 +61,7 @@ class ScoringService
         int $streak = 0,
     ): int {
         if (! $isCorrect) {
-            return 0;
+            return -$this->penalty($question, $quiz);
         }
 
         $base    = $question->pointsValue($quiz);
@@ -70,6 +80,38 @@ class ScoringService
         }
 
         return max(0, $points);
+    }
+
+    /**
+     * What a wrong answer costs on this quiz — a positive number, or zero.
+     *
+     * Zero on every quiz that predates the setting, which is the only safe
+     * default: a scoring rule that appears retroactively would rewrite what
+     * people already believed about a board they were on.
+     */
+    public function penalty(TrainingQuestion $question, TrainingQuiz $quiz): int
+    {
+        $percent = max(0, min(100, (int) $quiz->wrong_penalty_percent));
+
+        if ($percent === 0) {
+            return 0;
+        }
+
+        return (int) round($question->pointsValue($quiz) * $percent / 100);
+    }
+
+    /**
+     * A running total, floored at zero.
+     *
+     * The floor is here rather than on the answer row because the row has to
+     * stay honest — the report card needs to say a question cost 500 points —
+     * while a TOTAL in front of colleagues does not benefit from being
+     * negative. In a kitchen, a leaderboard with minus numbers on it stops
+     * being a scoreboard and becomes something people remember for years.
+     */
+    public function floorTotal(int $total): int
+    {
+        return max(0, $total);
     }
 
     /** The bonus fraction earned at this streak length. */
@@ -106,6 +148,21 @@ class ScoringService
     ): TrainingAnswer {
         $isCorrect = $question->isCorrect($chosen);
 
+        /*
+         * Running out of time costs nothing beyond the marks not earned.
+         *
+         * A penalty exists to make a GUESS expensive, and somebody who tapped
+         * nothing did not guess — they read the question and the clock beat
+         * them, or their phone locked in a pocket. Charging for that would push
+         * an unsure trainee into a random tap, which is the exact behaviour the
+         * setting was turned on to discourage. It also keeps self-paced play
+         * agreeing with the live room, where a timeout has always been a plain
+         * zero row.
+         */
+        $points = $chosen === []
+            ? 0
+            : $this->points($question, $quiz, $isCorrect, $secondsTaken, $streak);
+
         return TrainingAnswer::updateOrCreate(
             [
                 'training_attempt_id'  => $attempt->id,
@@ -114,7 +171,7 @@ class ScoringService
             [
                 'chosen'          => array_values(array_map('intval', $chosen)),
                 'is_correct'      => $isCorrect,
-                'points_awarded'  => $this->points($question, $quiz, $isCorrect, $secondsTaken, $streak),
+                'points_awarded'  => $points,
                 'seconds_taken'   => round($secondsTaken, 2),
                 'seconds_allowed' => $question->secondsValue($quiz),
             ],
@@ -141,7 +198,7 @@ class ScoringService
         $percent = $questionCount > 0 ? round($correct / $questionCount * 100, 2) : 0.0;
 
         $attempt->forceFill([
-            'score'          => (int) $attempt->answers->sum('points_awarded'),
+            'score'          => $this->floorTotal((int) $attempt->answers->sum('points_awarded')),
             'max_score'      => $attempt->max_score ?: ($quiz?->maxScore() ?? 0),
             'correct_count'  => $correct,
             'question_count' => $questionCount,
@@ -171,7 +228,7 @@ class ScoringService
             $streak = $answer->is_correct ? (int) $player->streak + 1 : 0;
 
             $player->forceFill([
-                'score'          => (int) $player->score + (int) $answer->points_awarded,
+                'score'          => $this->floorTotal((int) $player->score + (int) $answer->points_awarded),
                 'streak'         => $streak,
                 'best_streak'    => max((int) $player->best_streak, $streak),
                 'correct_count'  => (int) $player->correct_count + ($answer->is_correct ? 1 : 0),

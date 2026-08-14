@@ -24,9 +24,7 @@
         <p class="text-sm font-medium text-gray-600">
             Question {{ $index + 1 }} of {{ $total }}
         </p>
-        <p class="text-sm text-gray-600">
-            {{ $quiz->title }}
-        </p>
+        <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" />
     </div>
 
     {{-- Progress through the quiz --}}
@@ -35,20 +33,55 @@
              style="width: {{ round(($index) / max(1, $total) * 100) }}%"></div>
     </div>
 
-    {{-- The countdown.
+    {{-- The countdown, and it is meant to be the loudest thing on the screen.
 
-         Only drawn while the question is open. On timeout it calls the server
-         once — @js guards against it firing twice if Alpine re-inits. --}}
+         A bar alone is a fact; a number ticking down is a pulse, and the whole
+         reason this format works on a floor at 3pm is that it feels like a
+         game. It goes red and beats in the last five seconds.
+
+         THE NUMBER IS STILL NOT THE CLOCK. The seconds that decide points are
+         the difference between two SERVER stamps — see the component. This is
+         a picture of the clock, drawn locally so it stays smooth on a phone
+         that is polling nothing.
+
+         Its own x-data, so that each question gets a fresh count: the block is
+         removed on feedback and re-added for the next question, and state
+         hoisted to the root would come back holding the previous question's
+         remaining seconds. The interval checks it is still in the document
+         rather than being cleaned up by hand — a morph can remove this element
+         without anything getting the chance to run teardown. --}}
     @unless ($showFeedback)
-        <div class="mb-5"
-             x-init="setTimeout(() => { if (! expired) { expired = true; $wire.timeout(); } }, {{ $seconds * 1000 }})">
-            <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                {{-- The duration is the question's own limit, so it goes in a
-                     style attribute — a Tailwind class cannot carry data. --}}
-                <div class="h-full w-full origin-left rounded-full bg-warning-500 motion-safe:animate-countdown"
-                     style="animation-duration: {{ $seconds }}s"></div>
+        <div class="mb-5" wire:key="timer-{{ $question->id }}"
+             x-data="{ left: {{ $seconds }}, fired: false }"
+             x-init="const tick = setInterval(() => {
+                         if (! $el.isConnected) { clearInterval(tick); return; }
+                         left = Math.max(0, left - 1);
+                         if (left === 0 && ! fired && ! expired) {
+                             fired = expired = true;
+                             clearInterval(tick);
+                             $wire.timeout();
+                         }
+                     }, 1000)">
+            <div class="flex items-center gap-4">
+                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 transition-colors"
+                     :class="left <= 5
+                         ? 'border-danger-500 text-danger-600 motion-safe:animate-urgent'
+                         : 'border-brand-500 text-brand-700'">
+                    <span class="text-2xl font-bold tabular-nums" x-text="left">{{ $seconds }}</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    {{-- The duration is the question's own limit, so it goes in
+                         a style attribute — a Tailwind class cannot carry data. --}}
+                    <div class="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                        <div class="h-full w-full origin-left rounded-full motion-safe:animate-countdown transition-colors"
+                             :class="left <= 5 ? 'bg-danger-500' : 'bg-warning-500'"
+                             style="animation-duration: {{ $seconds }}s"></div>
+                    </div>
+                    <p class="mt-1.5 text-xs font-medium text-gray-600">
+                        Answer fast — points fall as the clock does.
+                    </p>
+                </div>
             </div>
-            <p class="mt-1 text-right text-xs text-gray-600">{{ $seconds }} seconds</p>
         </div>
     @endunless
 
@@ -92,7 +125,26 @@
     </div>
 
     @if ($showFeedback)
-        <div class="card p-5 mt-4">
+        {{-- Keyed on the question so the entrance animation actually plays
+             again: without a key the morph reuses the element, and a CSS
+             animation on an element that was never removed does not restart. --}}
+        <div wire:key="feedback-{{ $question->id }}"
+             class="card p-5 mt-4 relative overflow-visible
+                    {{ $lastCorrect ? 'border-success-200 motion-safe:animate-pop-in'
+                                    : 'border-danger-200 motion-safe:animate-shake' }}">
+
+            {{-- What the answer was worth, floating off the top. A penalty is
+                 shown as the negative it was; the running total it feeds never
+                 goes below zero, which is why nobody sees a minus score. --}}
+            @if ($lastPoints !== 0)
+                <span aria-hidden="true"
+                      class="pointer-events-none absolute -top-2 right-4 text-xl font-bold tabular-nums
+                             motion-safe:animate-score-float
+                             {{ $lastPoints > 0 ? 'text-success-600' : 'text-danger-600' }}">
+                    {{ $lastPoints > 0 ? '+' : '−' }}{{ number_format(abs($lastPoints)) }}
+                </span>
+            @endif
+
             <div class="flex items-start gap-3">
                 @if ($lastCorrect)
                     <x-icon name="check" size="h-6 w-6" class="flex-shrink-0 text-success-600" />
@@ -104,6 +156,8 @@
                         {{ $lastCorrect ? 'Correct' : 'Not this time' }}
                         @if ($lastPoints > 0)
                             <span class="ml-1 text-brand-700">+{{ number_format($lastPoints) }}</span>
+                        @elseif ($lastPoints < 0)
+                            <span class="ml-1 text-danger-700">−{{ number_format(abs($lastPoints)) }}</span>
                         @endif
                     </p>
                     @if ($lastExplanation)

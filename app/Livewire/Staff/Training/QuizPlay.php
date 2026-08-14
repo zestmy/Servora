@@ -142,9 +142,19 @@ class QuizPlay extends StaffComponent
 
         $this->showFeedback       = true;
         $this->lastCorrect        = $answer->is_correct;
-        $this->lastPoints         = $answer->points_awarded;
+        $this->lastPoints         = (int) $answer->points_awarded;
         $this->lastCorrectIndexes = array_map('intval', (array) $question->correct);
         $this->lastExplanation    = $question->explanation;
+
+        /*
+         * The sound and the colour, fired from the SERVER's verdict.
+         *
+         * It would be less code to have the browser compare the tapped index
+         * against a correct one it was handed — and it would also mean shipping
+         * the answer key to the phone before the question is answered. The
+         * round trip is already happening; the event rides back on it.
+         */
+        $this->dispatch('answer-scored', correct: $answer->is_correct, points: (int) $answer->points_awarded);
     }
 
     /** The clock ran out with nothing chosen. */
