@@ -101,9 +101,16 @@
                                 @endif
                             </span>
                         </span>
+                        {{-- A BUTTON, not a text link. This is used on a phone,
+                             often with one hand and sometimes with gloves on,
+                             and a 12px underlined word is a 12px target. The
+                             rest of the staff app is on a 44px floor and this
+                             was the one control that had opted out of it. --}}
                         @unless ($certificate->isRevoked())
                             <a href="{{ route('clock.staff.certificate', $certificate->id) }}"
-                               class="shrink-0 text-xs text-brand-600 hover:underline">Download</a>
+                               class="btn-secondary btn-sm shrink-0">
+                                <x-icon name="download" size="h-4 w-4" class="mr-1" /> Download
+                            </a>
                         @endunless
                     </li>
                 @endforeach

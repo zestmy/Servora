@@ -95,4 +95,45 @@
             </table>
         </div>
     </div>
+
+    {{-- ── Not started ──
+
+         The board answers "who is winning". The management question is "who
+         has not begun", and it cannot be read off a list of the people who
+         have — chasing three names should not mean diffing a roster against a
+         leaderboard.
+
+         It carries no score, no rank and no history, only "not yet", and a
+         person leaves it the moment they finish anything. Hidden entirely when
+         the board is filtered to a single quiz: "has not taken ANY quiz" is a
+         statement about a person, and the same list under a one-quiz filter
+         would be a different claim under the same heading. --}}
+    @if ($notStarted->isNotEmpty())
+        <div class="card p-5 mt-4">
+            <h2 class="text-sm font-semibold text-gray-900">
+                Not started — {{ $notStarted->count() }} {{ Str::plural('person', $notStarted->count()) }}
+            </h2>
+            <p class="help mb-3">
+                Active staff with nothing finished
+                {{ Str::lower(\App\Services\Training\LeaderboardService::PERIODS[$period] ?? $period) }}.
+                Assign them something, or run a live round at the next briefing.
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+                @foreach ($notStarted as $person)
+                    <span wire:key="not-started-{{ $person->id }}"
+                          class="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-3">
+                        <x-staff-avatar :name="$person->name" size="h-7 w-7 text-[10px]"
+                                        :employee="auth()->user()->can('hr.view') ? $person->id : null"
+                                        :photo="$person->photo_path"
+                                        photoRoute="hr.employees.photo" />
+                        <span class="text-sm text-gray-800">{{ $person->name }}</span>
+                        @if ($person->outlet)
+                            <span class="text-xs text-gray-500">{{ $person->outlet->name }}</span>
+                        @endif
+                    </span>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </div>

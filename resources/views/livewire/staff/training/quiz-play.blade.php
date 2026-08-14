@@ -183,11 +183,21 @@
                  skimmed. This is the whole difference between a quiz somebody
                  finishes and a quiz somebody plays twice.
 
-                 Only drawn when there is somebody to be ahead of: "1st of 1"
-                 is not a standing, it is an empty room, and dressing it up as
-                 a leaderboard is the kind of thing that makes a floor stop
-                 believing the rest of the screen. --}}
-            @if ($standing && $standing['of'] > 1)
+                 A SOLO RUN GETS A DIFFERENT LINE, not a fake one. "1st of 1"
+                 is an empty room dressed as a leaderboard, and a floor that
+                 reads it once stops believing the rest of the screen. But
+                 showing nothing at all is how the first person to take a quiz
+                 concludes the feature is broken — which is exactly what
+                 happened here, with one employee and four quizzes. So being
+                 first says it plainly. --}}
+            @if ($standing && $standing['of'] === 1)
+                <div class="mt-4 rounded-surface border border-brand-200 bg-brand-50 px-4 py-3">
+                    <p class="text-sm font-medium text-brand-900">You are first on this quiz</p>
+                    <p class="help mt-0.5">
+                        Nobody else has taken it yet — whatever you score is the mark to beat.
+                    </p>
+                </div>
+            @elseif ($standing && $standing['of'] > 1)
                 @php
                     $climbed = $standingBefore !== null && $standing['rank'] < $standingBefore;
                     $slipped = $standingBefore !== null && $standing['rank'] > $standingBefore;

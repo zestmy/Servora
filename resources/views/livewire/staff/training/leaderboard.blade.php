@@ -111,6 +111,61 @@
         </div>
     @endif
 
+    {{-- ── Not started yet ──
+
+         The board answers "who is winning". On a floor of fifty-odd people the
+         more useful question is "who has not begun", and it cannot be read off
+         a list of the people who have — a manager wanting to chase three names
+         should not have to diff a roster against a leaderboard.
+
+         IT IS A NUDGE LIST, NOT A WALL OF SHAME, and the copy is what keeps it
+         one. It carries no score, no rank and no history — only "not yet" —
+         and a person leaves it the moment they finish anything. Collapsed
+         behind a summary line so it is something you open rather than
+         something that greets everybody who looks at the board. --}}
+    @if ($notStarted->isNotEmpty())
+        <details class="card p-4">
+            <summary class="cursor-pointer list-none">
+                <span class="flex items-center justify-between gap-3">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-semibold text-gray-900">
+                            {{ $notStarted->count() }} {{ Str::plural('person', $notStarted->count()) }}
+                            {{ $notStarted->count() === 1 ? 'has' : 'have' }} not started
+                        </span>
+                        <span class="help">
+                            {{ $scope === 'outlet' ? 'At your branch' : 'Across the company' }} ·
+                            {{ Str::lower(\App\Services\Training\LeaderboardService::PERIODS[$period] ?? $period) }}
+                        </span>
+                    </span>
+                    <x-icon name="chevron-down" size="h-5 w-5" class="shrink-0 text-gray-400" />
+                </span>
+            </summary>
+
+            <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                @foreach ($notStarted as $person)
+                    <li wire:key="not-started-{{ $person->id }}" class="flex items-center gap-2">
+                        <x-staff-avatar :name="$person->name" :employee="$person->id"
+                                        :photo="$person->photo_path" size="h-8 w-8 text-[11px]" />
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-sm text-gray-900">{{ $person->name }}</span>
+                            @if ($person->outlet)
+                                <span class="block truncate text-xs text-gray-600">{{ $person->outlet->name }}</span>
+                            @endif
+                        </span>
+                        @if ($person->id === $employee->id)
+                            <a href="{{ route('clock.staff.learn') }}" wire:navigate
+                               class="btn-primary btn-sm shrink-0">Start</a>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+
+            <p class="help mt-3">
+                Nudge them — a quiz takes about three minutes.
+            </p>
+        </details>
+    @endif
+
     <a href="{{ route('clock.staff.learn') }}"
        class="btn-secondary w-full justify-center">
         <x-icon name="academic" size="h-4 w-4" class="mr-1" /> Go to training

@@ -51,7 +51,23 @@ class Leaderboard extends Component
 
         $quizzes = TrainingQuiz::orderBy('title')->get(['id', 'title']);
 
-        return view('livewire.training.leaderboard', compact('board', 'outlets', 'quizzes'))
+        /*
+         * Who has not started, for the person whose job it is to chase them.
+         *
+         * Only when no single quiz is selected: "has not taken ANY quiz" is a
+         * statement about a person, and filtering the board to one paper would
+         * turn it into "has not taken this one", which is a different list
+         * wearing the same heading. See LeaderboardService::notStarted.
+         */
+        $notStarted = $this->quizId
+            ? collect()
+            : $leaderboard->notStarted(
+                $companyId,
+                $this->period,
+                $this->outletId ? (int) $this->outletId : null,
+            );
+
+        return view('livewire.training.leaderboard', compact('board', 'outlets', 'quizzes', 'notStarted'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Leaderboard']);
     }
 }

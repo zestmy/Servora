@@ -28,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'kitchen.user'        => \App\Http\Middleware\EnsureKitchenUser::class,
             'labels.staff'        => \App\Http\Middleware\LabelStaffAuthenticate::class,
             'clock.staff'         => \App\Http\Middleware\ClockStaffAuthenticate::class,
+            // Sends an app LAUNCH at the clock screen to Home. See the class:
+            // it exists because iOS never refetches an installed PWA's manifest.
+            'staff.landing'       => \App\Http\Middleware\LandOnStaffHome::class,
             'clock.kiosk'         => \App\Http\Middleware\KioskAuthenticate::class,
         ]);
 

@@ -668,6 +668,126 @@ class TrainingScreensRenderTest extends TestCase
         $this->assertNull($this->course->fresh()->cover_path);
     }
 
+    /**
+     * The board moves between questions, on the screen and not just in a
+     * service.
+     *
+     * standingOnQuiz() is unit-tested elsewhere; what this pins is the wiring
+     * that makes it visible — the previous rank being carried across a request
+     * so the arrow can be drawn, and the block being drawn at all.
+     *
+     * THE BLOCK IS HIDDEN WHEN NOBODY ELSE HAS TAKEN THE QUIZ, which is a real
+     * behaviour rather than a bug and the likeliest reason somebody looks for
+     * this and does not find it: "1st of 1" is an empty room dressed as a
+     * leaderboard. Both halves are asserted.
+     */
+    public function test_the_standing_moves_between_questions(): void
+    {
+        // A second question, so there is a "between" at all.
+        $this->quiz->questions()->create([
+            'type' => 'mcq', 'prompt' => 'Which shelf holds raw chicken?',
+            'options' => ['Bottom', 'Top'], 'correct' => [0], 'sort_order' => 2,
+        ]);
+
+        $this->asStaff();
+
+        // Nobody else has taken it: no board, because there is no board.
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('begin')
+            ->call('choose', 0, false)
+            ->call('submit')
+            ->assertOk()
+            ->assertDontSee('of 1');
+
+        // A rival who scored on the first question only.
+        $rival = Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $this->outlet->id,
+            'name'       => 'Hakim Yusof',
+            'email'      => 'hakim' . uniqid() . '@example.test',
+            'is_active'  => true,
+        ]);
+
+        $service = app(SelfPacedQuizService::class);
+        $theirs  = $service->startOrResume($this->quiz->fresh('questions'), $rival);
+
+        foreach ($this->quiz->fresh('questions')->questions as $i => $question) {
+            $service->answer($theirs, $question, $i === 0 ? [0] : [1], 4.0);
+        }
+        $service->finish($theirs);
+
+        // Fresh run for our employee, now with somebody to chase.
+        \App\Models\TrainingAttempt::where('employee_id', $this->employee->id)->delete();
+
+        $play = Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('begin');
+
+        // Question one, answered wrongly: behind the rival, and no arrow yet
+        // because there is no previous position to compare with.
+        $play->call('choose', 1, false)->call('submit')
+            ->assertSet('standing.rank', 2)
+            ->assertSet('standing.of', 2)
+            ->assertSet('standingBefore', null)
+            ->assertSee('of 2');
+
+        // Question two, answered correctly and fast enough to go past them.
+        $play->call('nextQuestion')
+            ->call('choose', 0, false)
+            ->call('submit')
+            ->assertSet('standing.rank', 1)
+            ->assertSet('standingBefore', 2)
+            ->assertSee('up 1');
+    }
+
+    /**
+     * The three things the backing music depends on, asserted in the markup.
+     *
+     * Audio cannot be tested from PHP — but each of the two reported music
+     * bugs was a STRUCTURAL property of the rendered page, and those can be:
+     *
+     * 1. The Start button dispatches `start-music`. Playback has to begin
+     *    inside the tap, because a browser refuses it outside a user gesture.
+     * 2. The effects component is the FIRST CHILD of both the start screen and
+     *    the question screen. That is what lets Livewire's morph carry it from
+     *    one to the other instead of tearing it down — a torn-down component
+     *    takes the player with it, which is "the music stops when I move to the
+     *    next question".
+     * 3. There is NO player element in the markup at all. It is created in
+     *    JavaScript and appended to <body>, outside anything Livewire morphs.
+     *    A `quiz-music-player` div appearing in a Blade template again would
+     *    reintroduce bug 2 exactly.
+     */
+    public function test_the_quiz_screens_keep_the_music_wiring_intact(): void
+    {
+        $this->quiz->update(['music_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
+
+        $this->asStaff();
+
+        $start = Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->assertOk()
+            ->assertSee('start-music', escape: false)
+            ->assertSee('quizFx(', escape: false)
+            // The id appears in the script that CREATES the element, which is
+            // the whole point; what must never come back is a Blade-rendered
+            // element carrying it.
+            ->assertDontSee('id="quiz-music-player"', escape: false);
+
+        $question = $start->call('begin')->assertOk()
+            ->assertSee('quizFx(', escape: false)
+            ->assertDontSee('id="quiz-music-player"', escape: false);
+
+        // First child on both, which is the property the morph relies on.
+        foreach ([$start->html(), $question->html()] as $html) {
+            $body = preg_replace('/<!--.*?-->/s', '', $html);
+
+            $this->assertMatchesRegularExpression(
+                '~<div[^>]*>\s*<div x-data="quizFx\(~',
+                $body,
+                'quiz-fx must be the first child, or the morph tears the player down between screens.',
+            );
+        }
+    }
+
     /** The wall of certificates, and its empty state. */
     public function test_the_staff_certificates_screen_renders(): void
     {

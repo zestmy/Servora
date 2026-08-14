@@ -55,10 +55,22 @@ class Leaderboard extends StaffComponent
             : $leaderboard->positionOf((int) $employee->company_id, $employee->id, $this->period, $outletId);
 
         return view('livewire.staff.training.leaderboard', [
-            'board'    => $board,
-            'employee' => $employee,
-            'me'       => $me,
-            'position' => $position,
+            'board'      => $board,
+            'employee'   => $employee,
+            'me'         => $me,
+            'position'   => $position,
+            /*
+             * Who has not started. The board answers "who is winning"; on a
+             * floor of fifty-odd people the more useful question is "who has
+             * not begun", and it cannot be read off a list of the people who
+             * have. See LeaderboardService::notStarted for why this is a nudge
+             * list rather than a wall of shame, and what keeps it that way.
+             */
+            'notStarted' => $leaderboard->notStarted(
+                (int) $employee->company_id,
+                $this->period,
+                $outletId,
+            ),
         ])->layout('layouts.clock-staff', $this->shell('Leaderboard'));
     }
 }

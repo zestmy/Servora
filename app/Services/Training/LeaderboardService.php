@@ -24,10 +24,11 @@ use Illuminate\Support\Collection;
 class LeaderboardService
 {
     public const PERIODS = [
-        'week'  => 'This week',
-        'month' => 'This month',
-        'year'  => 'This year',
-        'all'   => 'All time',
+        'week'      => 'This week',
+        'last_week' => 'Last week',
+        'month'     => 'This month',
+        'year'      => 'This year',
+        'all'       => 'All time',
     ];
 
     /**
@@ -39,6 +40,21 @@ class LeaderboardService
 
         return match ($period) {
             'week'  => ['start' => $now->copy()->startOfWeek(), 'end' => $now->copy()->endOfWeek()],
+            /*
+             * Monday to Sunday, the same week boundary every other screen in
+             * the product uses — see QuickDateRangeTest, which exists because
+             * two screens once disagreed about when a week starts and the
+             * numbers could not be reconciled by anybody looking at them.
+             *
+             * Last week matters here more than it does elsewhere: a board that
+             * only ever shows the CURRENT week resets to empty every Monday
+             * morning, which is exactly when a manager wants to see who
+             * finished and who did not.
+             */
+            'last_week' => [
+                'start' => $now->copy()->subWeek()->startOfWeek(),
+                'end'   => $now->copy()->subWeek()->endOfWeek(),
+            ],
             'month' => ['start' => $now->copy()->startOfMonth(), 'end' => $now->copy()->endOfMonth()],
             'year'  => ['start' => $now->copy()->startOfYear(), 'end' => $now->copy()->endOfYear()],
             default => ['start' => null, 'end' => null],
@@ -147,6 +163,52 @@ class LeaderboardService
             // than a property of the row.
             ->map(fn (array $row, int $i) => ['rank' => $i + 1] + $row)
             ->values();
+    }
+
+    /**
+     * Active staff with nothing finished in the period.
+     *
+     * The board answers "who is winning"; on a floor of fifty-odd people the
+     * more useful management question is "who has not started", and it cannot
+     * be read off a list of the people who have. A manager wanting to chase
+     * three names should not have to diff a roster against a leaderboard.
+     *
+     * A NOTE ON WHAT THIS IS. It is a list of colleagues who have not done
+     * something, visible to their colleagues, and that is a real thing to be
+     * careful with — the same instinct that keeps negative scores off the
+     * board. Two things keep it fair: it says NOTHING beyond "not yet",
+     * carrying no score, no rank and no history, and it disappears the moment
+     * somebody finishes one quiz. It is a nudge list, not a wall of shame, and
+     * the copy on the screen has to keep it that way.
+     *
+     * Ordered by name rather than by anything derived, so it reads as a roster
+     * and not as a ranking of laziness.
+     *
+     * @return Collection<int, \App\Models\Employee>
+     */
+    public function notStarted(int $companyId, string $period = 'month', ?int $outletId = null): Collection
+    {
+        ['start' => $start, 'end' => $end] = $this->range($period);
+
+        $done = TrainingAttempt::query()
+            ->where('company_id', $companyId)
+            ->completed()
+            ->whereNotNull('employee_id')
+            ->when($start, fn ($q) => $q->where('completed_at', '>=', $start))
+            ->when($end, fn ($q) => $q->where('completed_at', '<=', $end))
+            ->pluck('employee_id')
+            ->unique()
+            ->all();
+
+        return \App\Models\Employee::query()
+            ->withoutGlobalScope(\App\Scopes\CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->whereNotIn('id', $done ?: [0])
+            ->with('outlet:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'outlet_id', 'photo_path']);
     }
 
     /**

@@ -1030,6 +1030,73 @@ class TrainingModuleTest extends TestCase
         $this->assertSame(0, $top['gap']);
     }
 
+    /**
+     * Who has not started, and last week as a period of its own.
+     *
+     * The board answers "who is winning"; the management question is "who has
+     * not begun", and it cannot be read off the list of people who have. The
+     * case that matters is that finishing REMOVES somebody — a nudge list that
+     * keeps naming people after they have done the work is a list nobody trusts
+     * twice.
+     */
+    public function test_the_board_says_who_has_not_started(): void
+    {
+        $quiz  = $this->quiz();
+        $board = app(LeaderboardService::class);
+
+        $idle = Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $this->outlet->id,
+            'name'       => 'Hakim Yusof',
+            'email'      => 'hakim' . uniqid() . '@example.test',
+            'is_active'  => true,
+        ]);
+
+        $elsewhere = Employee::create([
+            'company_id' => $this->company->id,
+            'outlet_id'  => $this->otherOutlet->id,
+            'name'       => 'Siti Nordin',
+            'email'      => 'siti' . uniqid() . '@example.test',
+            'is_active'  => true,
+        ]);
+
+        // Nobody has done anything: everybody is on the list.
+        $names = fn (?int $outletId = null) => $board
+            ->notStarted($this->company->id, 'month', $outletId)
+            ->pluck('name')->all();
+
+        $this->assertSame(['Aisyah Rahman', 'Hakim Yusof', 'Siti Nordin'], $names());
+
+        // Scoped to a branch, it is a branch roster.
+        $this->assertSame(['Aisyah Rahman', 'Hakim Yusof'], $names($this->outlet->id));
+
+        // Finishing one quiz takes you off it.
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($quiz, $this->employee);
+        foreach ($quiz->questions as $question) {
+            $service->answer($attempt, $question, [0], 3.0);
+        }
+        $service->finish($attempt);
+
+        $this->assertSame(['Hakim Yusof', 'Siti Nordin'], $names());
+
+        /*
+         * LAST WEEK IS ITS OWN PERIOD. A board that only shows the current week
+         * resets to empty every Monday morning — which is exactly when somebody
+         * wants to see who finished and who did not. That attempt was completed
+         * today, so against last week this person has still done nothing.
+         */
+        $this->assertContains('Aisyah Rahman', $board
+            ->notStarted($this->company->id, 'last_week')->pluck('name')->all());
+
+        $range = $board->range('last_week');
+
+        // Monday to Sunday, the boundary every other screen in the product uses.
+        $this->assertSame(now()->subWeek()->startOfWeek()->toDateString(), $range['start']->toDateString());
+        $this->assertSame(now()->subWeek()->endOfWeek()->toDateString(), $range['end']->toDateString());
+        $this->assertEmpty($board->board($this->company->id, 'last_week')->all());
+    }
+
     // ── Penalties and music ───────────────────────────────────────────────
 
     /**

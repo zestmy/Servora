@@ -136,7 +136,15 @@ $group->group(function () {
          */
         Route::get('/', \App\Livewire\Staff\Home::class)->name('clock.staff.home');
 
-        Route::get('/clock', ClockPunch::class)->name('clock.staff.punch');
+        /*
+         * `staff.landing` sends an app LAUNCH here to Home instead. Apps
+         * installed before the landing page moved still launch this URL and
+         * iOS never refetches their manifest — see LandOnStaffHome. Tapping
+         * the Clock tab is unaffected.
+         */
+        Route::get('/clock', ClockPunch::class)
+            ->middleware('staff.landing')
+            ->name('clock.staff.punch');
 
         /*
          * A colleague's face, for the boards.

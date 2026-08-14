@@ -119,6 +119,45 @@ class StaffEmailLoginSessionTest extends TestCase
     }
 
     /**
+     * A LAUNCH at the old start_url lands on Home even while signed in.
+     *
+     * The third report of "the portal still lands on Clock-In", and the first
+     * two fixes were each right about a different route in. This is the one
+     * that was left: an app installed before the landing page moved launches
+     * /staff/clock directly, with a live session, so no sign-in and no
+     * redirect is involved at all — and iOS never refetches an installed web
+     * app's manifest, so the client cannot fix itself.
+     *
+     * Sec-Fetch-Site: none is a navigation with no originating page — a
+     * launcher icon, a typed address, a bookmark.
+     */
+    public function test_launching_at_the_clock_screen_lands_on_home(): void
+    {
+        $this->signInByEmail(withPin: true);
+
+        $this->withHeaders(['Sec-Fetch-Site' => 'none', 'Sec-Fetch-Dest' => 'document'])
+            ->get(route('clock.staff.punch'))
+            ->assertRedirect(route('clock.staff.home'));
+    }
+
+    /** Tapping the Clock tab inside the app still opens the clock. */
+    public function test_the_clock_tab_still_opens_the_clock(): void
+    {
+        $this->signInByEmail(withPin: true);
+
+        $this->withHeaders([
+            'Sec-Fetch-Site' => 'same-origin',
+            'Sec-Fetch-Dest' => 'document',
+            'Referer'        => route('clock.staff.home'),
+        ])->get(route('clock.staff.punch'))->assertOk();
+
+        // And a browser that sends no Sec-Fetch headers at all is left alone
+        // rather than guessed at: sending somebody who deliberately tapped
+        // Clock to the wrong screen is worse than the bug being fixed.
+        $this->get(route('clock.staff.punch'))->assertOk();
+    }
+
+    /**
      * A genuine deep link is still honoured — which is the whole reason the
      * intended URL exists, and what makes the rule above narrow rather than a
      * blanket "always go home".
