@@ -21,7 +21,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @php
-        $liveUser    = Auth::guard('lms')->user();
+        // The staff PIN session, not a guard — a live round is joinable by
+        // somebody who has never signed in, so this is null as often as not.
+        $liveUser    = app(\App\Services\Staff\StaffSession::class)->employee();
         $liveCompany = $liveUser?->company ?? (app()->bound('currentCompany') ? app('currentCompany') : null);
         $liveBrand   = $liveCompany->brand_name ?? $liveCompany->name ?? 'Training';
     @endphp
@@ -51,7 +53,7 @@
         </span>
 
         @if ($liveUser)
-            <a href="{{ route('lms.courses') }}" class="text-xs text-gray-300 hover:text-white">Training</a>
+            <a href="{{ route('clock.staff.learn') }}" class="text-xs text-gray-300 hover:text-white">Training</a>
         @endif
     </div>
 </header>

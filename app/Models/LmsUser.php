@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
@@ -64,47 +63,15 @@ class LmsUser extends Authenticatable
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    // ── Learning & Development ────────────────────────────────────────────
-
-    public function attempts(): HasMany
-    {
-        return $this->hasMany(TrainingAttempt::class);
-    }
-
-    public function certificates(): HasMany
-    {
-        return $this->hasMany(TrainingCertificate::class);
-    }
-
-    public function pathProgress(): HasMany
-    {
-        return $this->hasMany(TrainingPathProgress::class);
-    }
-
-    public function assignments(): HasMany
-    {
-        return $this->hasMany(TrainingAssignment::class);
-    }
-
-    /**
-     * Initials for the leaderboard avatar.
+    /*
+     * NO TRAINING RELATIONS HERE ANY MORE.
      *
-     * Two letters from two words where there are two, otherwise the first two
-     * of the only one — a mononym would otherwise render a single letter in a
-     * circle sized for a pair, which reads as a rendering fault rather than a
-     * name.
+     * Learning hangs off Employee, not off this model. An LMS account is
+     * invitation-only — somebody registers and a manager approves them — which
+     * is right for the SOP library this login exists to serve and wrong for
+     * training, where the point is that the whole floor is on it. See the
+     * migration that moved it.
      */
-    public function initials(): string
-    {
-        $parts = preg_split('/\s+/', trim($this->name)) ?: [];
-        $parts = array_values(array_filter($parts));
-
-        if (count($parts) >= 2) {
-            return mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1));
-        }
-
-        return mb_strtoupper(mb_substr($this->name, 0, 2));
-    }
 
     public function scopeApproved($query)
     {

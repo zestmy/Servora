@@ -27,15 +27,15 @@
             <div class="card overflow-hidden">
                 <div class="max-h-[36rem] overflow-y-auto divide-y divide-gray-100">
                     @forelse ($roster as $row)
-                        <button type="button" wire:key="roster-{{ $row['trainee']->id }}"
-                                wire:click="select({{ $row['trainee']->id }})"
+                        <button type="button" wire:key="roster-{{ $row['employee']->id }}"
+                                wire:click="select({{ $row['employee']->id }})"
                                 class="w-full text-left px-4 py-3 transition-colors
-                                       {{ (int) $selectedId === $row['trainee']->id ? 'bg-brand-50/60' : 'hover:bg-gray-50' }}">
+                                       {{ (int) $selectedId === $row['employee']->id ? 'bg-brand-50/60' : 'hover:bg-gray-50' }}">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="font-medium text-gray-900 truncate">{{ $row['trainee']->name }}</p>
+                                    <p class="font-medium text-gray-900 truncate">{{ $row['employee']->name }}</p>
                                     <p class="text-xs text-gray-600 truncate">
-                                        {{ $row['trainee']->outlet?->name ?? 'No outlet' }}
+                                        {{ $row['employee']->outlet?->name ?? 'No outlet' }}
                                         · {{ $row['attempts'] }} {{ Str::plural('attempt', $row['attempts']) }}
                                     </p>
                                 </div>
@@ -48,9 +48,10 @@
                         </button>
                     @empty
                         <div class="empty-state border-0 bg-transparent">
-                            <p class="empty-title">No trainees</p>
+                            <p class="empty-title">No staff</p>
                             <p class="empty-body">
-                                Staff appear here once they register on the training portal and are approved.
+                                Every active employee appears here, whether or not they have taken anything —
+                                the ones who have not are the point of this screen.
                             </p>
                         </div>
                     @endforelse
@@ -74,10 +75,10 @@
                         <div class="card p-5">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <h2 class="text-base font-semibold text-gray-900">{{ $card['trainee']->name }}</h2>
+                                    <h2 class="text-base font-semibold text-gray-900">{{ $card['employee']->name }}</h2>
                                     <p class="text-sm text-gray-600">
-                                        {{ $card['trainee']->email }}
-                                        @if ($card['trainee']->outlet) · {{ $card['trainee']->outlet->name }} @endif
+                                        {{ $card['employee']->email }}
+                                        @if ($card['employee']->outlet) · {{ $card['employee']->outlet->name }} @endif
                                     </p>
                                 </div>
                                 <button wire:click="clearSelection" class="btn-ghost btn-sm">Close</button>

@@ -1,5 +1,5 @@
-<div class="max-w-3xl">
-    <a href="{{ route('lms.courses') }}" class="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 mb-4">
+<div class="p-4">
+    <a href="{{ route('clock.staff.learn') }}" class="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 mb-4">
         <x-icon name="chevron-left" size="h-4 w-4" /> All training
     </a>
 
@@ -75,7 +75,7 @@
             @elseif ($remaining !== null && $remaining <= 0)
                 <p class="help mt-3">You have used all your attempts at this quiz.</p>
             @else
-                <a href="{{ route('lms.quiz.play', $quiz->id) }}" class="btn-primary mt-4">
+                <a href="{{ route('clock.staff.learn.quiz', $quiz->id) }}" class="btn-primary mt-4">
                     {{ $best ? 'Try again' : 'Start the quiz' }}
                 </a>
             @endif

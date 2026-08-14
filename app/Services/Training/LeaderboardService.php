@@ -49,7 +49,7 @@ class LeaderboardService
      * The board.
      *
      * @return Collection<int, array{
-     *     rank: int, trainee_id: int, name: string, outlet: ?string,
+     *     rank: int, employee_id: int, name: string, outlet: ?string,
      *     score: int, quizzes: int, accuracy: float, passed: int
      * }>
      */
@@ -65,31 +65,31 @@ class LeaderboardService
         $attempts = TrainingAttempt::query()
             ->where('company_id', $companyId)
             ->completed()
-            ->whereNotNull('lms_user_id')
+            ->whereNotNull('employee_id')
             ->when($start, fn ($q) => $q->where('completed_at', '>=', $start))
             ->when($end, fn ($q) => $q->where('completed_at', '<=', $end))
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->when($quizId, fn ($q) => $q->where('training_quiz_id', $quizId))
-            ->with(['trainee:id,name,outlet_id', 'trainee.outlet:id,name'])
+            ->with(['employee:id,name,outlet_id', 'employee.outlet:id,name'])
             ->get();
 
         return $attempts
-            ->groupBy('lms_user_id')
+            ->groupBy('employee_id')
             ->map(function (Collection $theirs) {
                 // Best per quiz — see the class note.
                 $best = $theirs->groupBy('training_quiz_id')
                     ->map(fn (Collection $forQuiz) => $forQuiz->sortByDesc('score')->first())
                     ->values();
 
-                $trainee = $theirs->first()->trainee;
+                $employee = $theirs->first()->employee;
 
                 $questions = (int) $best->sum('question_count');
                 $correct   = (int) $best->sum('correct_count');
 
                 return [
-                    'trainee_id' => (int) $theirs->first()->lms_user_id,
-                    'name'       => $trainee->name ?? 'Removed trainee',
-                    'outlet'     => $trainee?->outlet?->name,
+                    'employee_id' => (int) $theirs->first()->employee_id,
+                    'name'       => $employee->name ?? 'Removed staff member',
+                    'outlet'     => $employee?->outlet?->name,
                     'score'      => (int) $best->sum('score'),
                     'quizzes'    => $best->count(),
                     'accuracy'   => $questions > 0 ? round($correct / $questions * 100, 1) : 0.0,
@@ -106,17 +106,17 @@ class LeaderboardService
     }
 
     /**
-     * One trainee's position, even when they are off the end of the board.
+     * One person's position, even when they are off the end of the board.
      *
      * A staff member who is 63rd still wants to know they are 63rd — "not in
      * the top 50" tells them nothing about whether they are close.
      *
      * @return array{rank: int, of: int}|null
      */
-    public function positionOf(int $companyId, int $traineeId, string $period = 'month', ?int $outletId = null): ?array
+    public function positionOf(int $companyId, int $employeeId, string $period = 'month', ?int $outletId = null): ?array
     {
         $full = $this->board($companyId, $period, $outletId, null, PHP_INT_MAX);
-        $row  = $full->firstWhere('trainee_id', $traineeId);
+        $row  = $full->firstWhere('employee_id', $employeeId);
 
         return $row ? ['rank' => $row['rank'], 'of' => $full->count()] : null;
     }

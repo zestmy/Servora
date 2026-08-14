@@ -31,19 +31,19 @@ class CertificateService
     {
         $quiz = $attempt->quiz;
 
-        if (! $attempt->passed || ! $quiz?->issues_certificate || ! $attempt->lms_user_id) {
+        if (! $attempt->passed || ! $quiz?->issues_certificate || ! $attempt->employee_id) {
             return null;
         }
 
-        $course  = $quiz->course;
-        $trainee = $attempt->trainee;
+        $course   = $quiz->course;
+        $employee = $attempt->employee;
 
-        if (! $trainee) {
+        if (! $employee) {
             return null;
         }
 
         $existing = TrainingCertificate::query()
-            ->where('lms_user_id', $trainee->id)
+            ->where('employee_id', $employee->id)
             ->where('training_course_id', $course?->id)
             ->whereNull('revoked_at')
             ->first();
@@ -61,7 +61,7 @@ class CertificateService
             $existing->forceFill([
                 'training_quiz_id'    => $quiz->id,
                 'training_attempt_id' => $attempt->id,
-                'recipient_name'      => $trainee->name,
+                'recipient_name'      => $employee->name,
                 'title'               => $course?->title ?? $quiz->title,
                 'percent'             => $attempt->percent,
                 'issued_at'           => now(),
@@ -73,12 +73,12 @@ class CertificateService
 
         return TrainingCertificate::create([
             'company_id'          => $attempt->company_id,
-            'lms_user_id'         => $trainee->id,
+            'employee_id'         => $employee->id,
             'training_course_id'  => $course?->id,
             'training_quiz_id'    => $quiz->id,
             'training_attempt_id' => $attempt->id,
             'serial'              => $this->newSerial(),
-            'recipient_name'      => $trainee->name,
+            'recipient_name'      => $employee->name,
             'title'               => $course?->title ?? $quiz->title,
             'percent'             => $attempt->percent,
             'issued_at'           => now(),

@@ -11,7 +11,7 @@ class TrainingPathProgress extends Model
     protected $table = 'training_path_progress';
 
     protected $fillable = [
-        'training_path_id', 'lms_user_id', 'completed_items', 'total_items',
+        'training_path_id', 'employee_id', 'completed_items', 'total_items',
         'started_at', 'completed_at',
     ];
 
@@ -27,9 +27,9 @@ class TrainingPathProgress extends Model
         return $this->belongsTo(TrainingPath::class, 'training_path_id');
     }
 
-    public function trainee(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(LmsUser::class, 'lms_user_id');
+        return $this->belongsTo(Employee::class);
     }
 
     public function percent(): float

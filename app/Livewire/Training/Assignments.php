@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training;
 
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\TrainingAssignment;
 use App\Models\TrainingCourse;
@@ -82,15 +82,15 @@ class Assignments extends Component
             ? TrainingPath::findOrFail($this->pathId)->id
             : null;
 
-        $traineeId = $this->audienceType === 'trainee'
-            ? LmsUser::where('company_id', Auth::user()->company_id)->findOrFail($this->traineeId)->id
+        $employeeId = $this->audienceType === 'trainee'
+            ? Employee::where('company_id', Auth::user()->company_id)->findOrFail($this->traineeId)->id
             : null;
 
         TrainingAssignment::create([
             'company_id'         => Auth::user()->company_id,
             'training_course_id' => $courseId,
             'training_path_id'   => $pathId,
-            'lms_user_id'        => $traineeId,
+            'employee_id'        => $employeeId,
             'outlet_id'          => $this->audienceType === 'outlet' ? $this->outletId : null,
             'due_on'             => $this->dueOn ?: null,
             'is_mandatory'       => $this->isMandatory,
@@ -117,7 +117,7 @@ class Assignments extends Component
         $companyId = Auth::user()->company_id;
 
         $assignments = TrainingAssignment::query()
-            ->with(['course:id,title', 'path:id,name', 'trainee:id,name', 'outlet:id,name', 'assignedBy:id,name'])
+            ->with(['course:id,title', 'path:id,name', 'employee:id,name', 'outlet:id,name', 'assignedBy:id,name'])
             ->orderByRaw('due_on is null')
             ->orderBy('due_on')
             ->latest('id')
@@ -127,8 +127,12 @@ class Assignments extends Component
         $paths   = TrainingPath::published()->orderBy('name')->get(['id', 'name']);
         $outlets = Outlet::where('company_id', $companyId)->where('is_active', true)
             ->orderBy('name')->get(['id', 'name']);
-        $trainees = LmsUser::where('company_id', $companyId)->approved()
-            ->orderBy('name')->get(['id', 'name', 'email']);
+        // Staff, not LMS trainees: training is reached with the staff PIN now,
+        // so the people who can be assigned it are the people on the payroll.
+        $trainees = Employee::where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'staff_id']);
 
         return view('livewire.training.assignments', compact(
             'assignments', 'courses', 'paths', 'outlets', 'trainees'

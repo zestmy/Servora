@@ -45,6 +45,6 @@
     </div>
 
     <div class="mt-4 text-center">
-        <a href="{{ route('lms.courses') }}" class="text-sm text-gray-600 hover:text-gray-900">Back to training</a>
+        <a href="{{ route('clock.staff.learn') }}" class="text-sm text-gray-600 hover:text-gray-900">Back to training</a>
     </div>
 </div>

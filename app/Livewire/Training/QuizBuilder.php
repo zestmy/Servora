@@ -27,6 +27,7 @@ class QuizBuilder extends Component
     // Quiz settings
     public string $title = '';
     public string $description = '';
+    public string $language = 'en';
     public string $status = 'draft';
     public int $passMark = 70;
     public int $defaultSeconds = 20;
@@ -65,6 +66,7 @@ class QuizBuilder extends Component
         $this->quizId            = $quiz->id;
         $this->title             = $quiz->title;
         $this->description       = (string) $quiz->description;
+        $this->language          = $quiz->language ?: 'en';
         $this->status            = $quiz->status;
         $this->passMark          = $quiz->pass_mark;
         $this->defaultSeconds    = $quiz->default_seconds;
@@ -84,6 +86,7 @@ class QuizBuilder extends Component
         $data = $this->validate([
             'title'          => ['required', 'string', 'max:255'],
             'description'    => ['nullable', 'string', 'max:1000'],
+            'language'       => ['required', Rule::in(array_keys(TrainingQuiz::LANGUAGES))],
             'status'         => ['required', Rule::in(array_keys(TrainingQuiz::STATUSES))],
             'passMark'       => ['required', 'integer', 'min:1', 'max:100'],
             'defaultSeconds' => ['required', 'integer', 'min:5', 'max:300'],
@@ -102,6 +105,7 @@ class QuizBuilder extends Component
         $quiz->update([
             'title'              => $data['title'],
             'description'        => $data['description'] ?: null,
+            'language'           => $data['language'],
             'status'             => $data['status'],
             'pass_mark'          => $data['passMark'],
             'default_seconds'    => $data['defaultSeconds'],
@@ -155,7 +159,11 @@ class QuizBuilder extends Component
     public function updatedQType(string $value): void
     {
         if ($value === 'true_false') {
-            $this->qOptions = ['True', 'False'];
+            // In the QUIZ's language, not English. The same wording the
+            // generator is told to use, from the same constant — a hand-added
+            // question reading "True/False" in an otherwise Malay paper is
+            // exactly the inconsistency staff spot and authors do not.
+            $this->qOptions = TrainingQuiz::booleanOptionsFor($this->language);
             $this->qCorrect = array_slice($this->qCorrect, 0, 1);
             $this->qCorrect = array_values(array_filter($this->qCorrect, fn ($i) => (int) $i < 2));
         } elseif (count($this->qOptions) < 4) {
@@ -324,6 +332,21 @@ class QuizBuilder extends Component
             session()->flash('error', 'This quiz is not attached to a course, so there is no material to read.');
 
             return;
+        }
+
+        /*
+         * Persist the language BEFORE generating.
+         *
+         * The generator reads it off the quiz row, and the dropdown in this
+         * panel is component state until something saves it — so picking Malay
+         * and pressing Rewrite would otherwise return English questions and
+         * look like the setting does nothing. Saving it here also means the
+         * quiz remembers what it was written in, which the true/false editor
+         * then follows.
+         */
+        if ($quiz->language !== $this->language) {
+            $quiz->update(['language' => $this->language]);
+            $quiz->refresh();
         }
 
         try {

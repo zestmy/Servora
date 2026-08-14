@@ -153,8 +153,22 @@
     @isset($staff)
         @php
             $tabs = [
+                /*
+                 * CLOCK STAYS FIRST even though the app now LANDS on the
+                 * leaderboard. The landing page moved for visibility; the tab
+                 * order exists for muscle memory, and the thumb that reaches
+                 * for the leftmost tab at 8:59am should still find the clock.
+                 * Moving both would have cost a doorway full of people two
+                 * taps instead of one.
+                 */
                 ['route' => 'clock.staff.punch',   'label' => 'Clock',
                  'icon'  => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                // Trophy and mortarboard: the two learning tabs have to be
+                // told apart at a glance in a bar that is scanned, not read.
+                ['route' => 'clock.staff.leaderboard', 'label' => 'Board',
+                 'icon'  => 'M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0'],
+                ['route' => 'clock.staff.learn',   'label' => 'Learn',
+                 'icon'  => 'M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342'],
                 ['route' => 'clock.staff.history', 'label' => 'Punches',
                  'icon'  => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
                 ['route' => 'clock.staff.roster',  'label' => 'Roster',
@@ -182,6 +196,14 @@
             {{-- Literal class strings, not "grid-cols-{{ n }}": Tailwind scans
                  templates as plain text and never sees an interpolated name,
                  so the built stylesheet would not contain the column count. --}}
+            {{-- Eight tabs is more than a bottom bar wants, and the default
+                 below is what catches it: past six the grid drops to four
+                 columns and WRAPS TO TWO ROWS rather than squeezing eight
+                 45px cells onto a 360px phone, where the labels would be
+                 unreadable and the targets below the 44px floor. Two rows
+                 costs vertical space, which is the lesser harm — but this bar
+                 is now carrying more than it should, and the next thing added
+                 to it should replace something rather than join it. --}}
             @php
                 $tabCols = match (count($tabs)) {
                     1 => 'grid-cols-1', 2 => 'grid-cols-2', 3 => 'grid-cols-3',

@@ -2,7 +2,7 @@
 
 namespace App\Services\Training;
 
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\TrainingAnswer;
 use App\Models\TrainingAttempt;
 use App\Models\TrainingQuestion;
@@ -140,7 +140,7 @@ class LiveSessionService
 
                 $attempt->forceFill(['question_count' => $session->questionCount()])->save();
                 $this->scoring->finalise($attempt->fresh('answers'), $quiz);
-                $this->certificates->issueFor($attempt->fresh(['quiz.course', 'trainee']));
+                $this->certificates->issueFor($attempt->fresh(['quiz.course', 'employee']));
             }
         });
 
@@ -215,7 +215,7 @@ class LiveSessionService
     /**
      * Put somebody in the room.
      *
-     * A signed-in trainee re-joining gets their existing player row back rather
+     * A signed-in employee re-joining gets their existing player row back rather
      * than a second one — a phone that locked itself mid-round must not cost
      * somebody their score.
      *
@@ -224,16 +224,16 @@ class LiveSessionService
      * problem — but two people typing "Chef" into a kitchen briefing is
      * commonplace, and matching on the name silently hands the second one the
      * first one's score. Their rejoin is already solved elsewhere and better:
-     * App\Livewire\Lms\LivePlay stores the player id in the browser session, so
-     * a reload returns to the same row without anyone having to type their name
+     * the player screen stores the player id in the browser session, so a reload
+     * returns to the same row without anyone having to type their name
      * identically. A genuinely new "Chef" simply becomes "Chef 2".
      */
-    public function join(TrainingSession $session, string $nickname, ?LmsUser $trainee = null): TrainingSessionPlayer
+    public function join(TrainingSession $session, string $nickname, ?Employee $employee = null): TrainingSessionPlayer
     {
-        $nickname = trim($nickname) !== '' ? trim(mb_substr($nickname, 0, 60)) : ($trainee?->name ?? 'Player');
+        $nickname = trim($nickname) !== '' ? trim(mb_substr($nickname, 0, 60)) : ($employee?->name ?? 'Player');
 
-        $existing = $trainee
-            ? $session->players()->where('lms_user_id', $trainee->id)->first()
+        $existing = $employee
+            ? $session->players()->where('employee_id', $employee->id)->first()
             : null;
 
         if ($existing) {
@@ -250,9 +250,9 @@ class LiveSessionService
             $nickname = mb_substr($base, 0, 56) . ' ' . $n++;
         }
 
-        return DB::transaction(function () use ($session, $nickname, $trainee) {
+        return DB::transaction(function () use ($session, $nickname, $employee) {
             $player = $session->players()->create([
-                'lms_user_id'  => $trainee?->id,
+                'employee_id'  => $employee?->id,
                 'nickname'     => $nickname,
                 'joined_at'    => now(),
                 'last_seen_at' => now(),
@@ -261,8 +261,8 @@ class LiveSessionService
             TrainingAttempt::create([
                 'company_id'                 => $session->company_id,
                 'training_quiz_id'           => $session->training_quiz_id,
-                'lms_user_id'                => $trainee?->id,
-                'outlet_id'                  => $session->outlet_id ?? $trainee?->outlet_id,
+                'employee_id'                => $employee?->id,
+                'outlet_id'                  => $session->outlet_id ?? $employee?->outlet_id,
                 'training_session_id'        => $session->id,
                 'training_session_player_id' => $player->id,
                 'mode'                       => 'live',

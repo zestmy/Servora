@@ -142,17 +142,17 @@
              x-transition:leave="transition-opacity duration-75"
              class="flex-1 overflow-y-auto py-4 px-3">
 
-            {{-- Learning & Development first, SOPs below it.
+            {{-- The SOP library, which is what this portal is for.
 
-                 The SOP library is reference — you look something up in it. The
-                 training is work somebody has been ASKED to do, sometimes with a
-                 date on it, so it goes above the thing you consult. --}}
+                 Training used to sit above this and has moved to the staff app,
+                 where an employee reaches it with the PIN they already clock in
+                 with — this login is invitation-only and reached a fraction of
+                 the floor. Kept as a list of one rather than collapsed back to a
+                 bare link: the rail below renders from the same array, and the
+                 next thing added here should not have to rebuild both. --}}
             @php
                 $lmsLinks = [
-                    ['route' => 'lms.courses',   'label' => 'Training',      'icon' => 'academic', 'match' => 'lms.courses*'],
-                    ['route' => 'lms.live',      'label' => 'Live session',  'icon' => 'play',     'match' => 'lms.live'],
-                    ['route' => 'lms.progress',  'label' => 'My progress',   'icon' => 'trophy',   'match' => 'lms.progress'],
-                    ['route' => 'lms.dashboard', 'label' => 'All SOPs',      'icon' => 'document', 'match' => 'lms.dashboard'],
+                    ['route' => 'lms.dashboard', 'label' => 'All SOPs', 'icon' => 'document', 'match' => 'lms.dashboard'],
                 ];
             @endphp
 

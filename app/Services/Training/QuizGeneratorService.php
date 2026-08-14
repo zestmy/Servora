@@ -73,7 +73,7 @@ class QuizGeneratorService
             );
         }
 
-        $raw = $this->ask($material, $course, min($count, self::MAX_QUESTIONS), $difficulty);
+        $raw = $this->ask($material, $course, min($count, self::MAX_QUESTIONS), $difficulty, $quiz->language ?? 'en');
 
         $parsed  = $this->parseQuestions($raw);
         $dropped = $parsed['dropped'];
@@ -111,8 +111,13 @@ class QuizGeneratorService
 
     // ── The call ──────────────────────────────────────────────────────────
 
-    private function ask(string $material, TrainingCourse $course, int $count, string $difficulty): string
-    {
+    private function ask(
+        string $material,
+        TrainingCourse $course,
+        int $count,
+        string $difficulty,
+        string $language = 'en',
+    ): string {
         $apiKey = AppSetting::get('openrouter_api_key');
 
         if (empty($apiKey)) {
@@ -140,8 +145,8 @@ class QuizGeneratorService
                 // different balance" flow the button exists for.
                 'temperature' => 0.4,
                 'messages'   => [
-                    ['role' => 'system', 'content' => $this->systemPrompt()],
-                    ['role' => 'user',   'content' => $this->userPrompt($material, $course, $count, $difficulty)],
+                    ['role' => 'system', 'content' => $this->systemPrompt($language)],
+                    ['role' => 'user',   'content' => $this->userPrompt($material, $course, $count, $difficulty, $language)],
                 ],
             ]);
 
@@ -161,9 +166,64 @@ class QuizGeneratorService
         return (string) ($response->json('choices.0.message.content') ?? '');
     }
 
-    private function systemPrompt(): string
+    /**
+     * How to ask for each language.
+     *
+     * NAMED SPECIFICALLY, not "translate it". The failure a vague instruction
+     * produces is a half-translation: an English prompt with Malay options, or
+     * Indonesian vocabulary in a Malaysian paper. Each entry states the variety
+     * wanted, warns off the neighbouring one, and pins the true/false wording so
+     * it cannot come back as "True/False" in an otherwise Malay quiz.
+     *
+     * Kitchen English is left alone on purpose in both. Staff say "chiller" and
+     * "medium rare" on the floor; translating those produces a quiz about words
+     * nobody uses, which tests vocabulary instead of the material.
+     */
+    private function languageBrief(string $language): string
     {
-        return <<<'PROMPT'
+        [$yes, $no] = TrainingQuiz::booleanOptionsFor($language);
+
+        return match ($language) {
+            'ms' => <<<PROMPT
+
+            WRITE EVERYTHING IN BAHASA MALAYSIA — every prompt, every option and
+            every explanation. Malaysian Malay, NOT Indonesian: use `wang` not
+            `uang`, `kereta` not `mobil`, `boleh` not `bisa`. The material below
+            may be in English; read it in English and ask in Malay.
+
+            Keep kitchen and service terms that Malaysian staff actually say in
+            English — chiller, medium rare, allergen, briefing — rather than
+            translating them into words nobody uses on a floor. You are testing
+            the method, not their vocabulary.
+
+            For "true_false" the options are exactly ["{$yes}", "{$no}"].
+            PROMPT,
+
+            'id' => <<<PROMPT
+
+            WRITE EVERYTHING IN BAHASA INDONESIA — every prompt, every option and
+            every explanation. Indonesian, NOT Malaysian Malay: use `uang` not
+            `wang`, `bisa` not `boleh`, `mobil` not `kereta`. The material below
+            may be in English; read it in English and ask in Indonesian.
+
+            Keep kitchen and service terms that staff actually say in English —
+            chiller, medium rare, allergen — rather than translating them into
+            words nobody uses in a working kitchen.
+
+            For "true_false" the options are exactly ["{$yes}", "{$no}"].
+            PROMPT,
+
+            default => <<<PROMPT
+
+            Write everything in English.
+            For "true_false" the options are exactly ["{$yes}", "{$no}"].
+            PROMPT,
+        };
+    }
+
+    private function systemPrompt(string $language = 'en'): string
+    {
+        $base = <<<'PROMPT'
         You write training quizzes for restaurant and cafe staff.
 
         Rules:
@@ -196,13 +256,25 @@ class QuizGeneratorService
 
         "correct" holds ZERO-BASED indexes into that question's own "options".
         "mcq" has exactly 4 options and exactly 1 correct index.
-        "true_false" has exactly the options ["True","False"] and 1 correct index.
+        "true_false" has exactly 2 options and 1 correct index.
         "multi" has 4 to 6 options and 2 or 3 correct indexes.
+
+        The JSON KEYS above are always these literal English strings, whatever
+        language the questions themselves are written in. So are the values of
+        "type" and "difficulty" — they are an interface, not prose, and
+        translating them makes the reply unreadable.
         PROMPT;
+
+        return $base . "\n" . $this->languageBrief($language);
     }
 
-    private function userPrompt(string $material, TrainingCourse $course, int $count, string $difficulty): string
-    {
+    private function userPrompt(
+        string $material,
+        TrainingCourse $course,
+        int $count,
+        string $difficulty,
+        string $language = 'en',
+    ): string {
         $mix = match ($difficulty) {
             'easy'   => 'Keep every question easy — this is a first-day check.',
             'hard'   => 'Make every question hard — this is a recertification for experienced staff.',
@@ -216,10 +288,18 @@ class QuizGeneratorService
 
         $title = $course->title;
 
+        // Repeated here as well as in the system prompt. A single mention at
+        // the top is the thing a long document pushes out of view, and the
+        // symptom — the first two questions in Malay and the rest drifting back
+        // to English — reads as a broken feature rather than a missed
+        // instruction.
+        $inLanguage = 'Write the questions in ' . (TrainingQuiz::LANGUAGES[$language] ?? 'English') . '.';
+
         return <<<PROMPT
         Write exactly {$count} questions about the training material below.
 
         Course title: {$title}
+        {$inLanguage}
         {$mix}
         {$shape}
 

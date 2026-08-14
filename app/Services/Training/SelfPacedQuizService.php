@@ -2,7 +2,7 @@
 
 namespace App\Services\Training;
 
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\TrainingAnswer;
 use App\Models\TrainingAttempt;
 use App\Models\TrainingQuestion;
@@ -31,11 +31,11 @@ class SelfPacedQuizService
     }
 
     /**
-     * The trainee's live attempt at this quiz, resumed or freshly started.
+     * This employee's live attempt at this quiz, resumed or freshly started.
      *
      * @throws \RuntimeException when they have used their allowance up
      */
-    public function startOrResume(TrainingQuiz $quiz, LmsUser $trainee): TrainingAttempt
+    public function startOrResume(TrainingQuiz $quiz, Employee $employee): TrainingAttempt
     {
         $quiz->loadMissing('questions');
 
@@ -45,7 +45,7 @@ class SelfPacedQuizService
 
         $open = TrainingAttempt::query()
             ->where('training_quiz_id', $quiz->id)
-            ->where('lms_user_id', $trainee->id)
+            ->where('employee_id', $employee->id)
             ->where('mode', 'self')
             ->whereNull('completed_at')
             ->latest('id')
@@ -55,7 +55,7 @@ class SelfPacedQuizService
             return $open;
         }
 
-        $remaining = $quiz->attemptsRemaining($trainee->id);
+        $remaining = $quiz->attemptsRemaining($employee->id);
 
         if ($remaining !== null && $remaining <= 0) {
             throw new \RuntimeException('You have used all your attempts at this quiz.');
@@ -70,8 +70,8 @@ class SelfPacedQuizService
         return TrainingAttempt::create([
             'company_id'       => $quiz->company_id,
             'training_quiz_id' => $quiz->id,
-            'lms_user_id'      => $trainee->id,
-            'outlet_id'        => $trainee->outlet_id,
+            'employee_id'      => $employee->id,
+            'outlet_id'        => $employee->outlet_id,
             'mode'             => 'self',
             'started_at'       => now(),
             'question_order'   => $ids->values()->all(),
@@ -156,7 +156,7 @@ class SelfPacedQuizService
     {
         $attempt = $this->scoring->finalise($attempt->fresh('answers'), $attempt->quiz);
 
-        $this->certificates->issueFor($attempt->fresh(['quiz.course', 'trainee']));
+        $this->certificates->issueFor($attempt->fresh(['quiz.course', 'employee']));
 
         return $attempt->fresh();
     }

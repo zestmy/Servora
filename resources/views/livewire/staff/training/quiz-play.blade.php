@@ -6,7 +6,7 @@
     animation rather than a JS timer: it is a picture of the clock, and the
     clock itself is on the server (see App\Livewire\Lms\QuizPlay).
 --}}
-<div class="mx-auto max-w-2xl"
+<div class="p-4"
      x-data="{ expired: false }"
      wire:key="q-{{ $question->id }}">
 

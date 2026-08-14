@@ -1,4 +1,4 @@
-<div class="mx-auto max-w-2xl">
+<div class="p-4">
     @if (session()->has('error'))
         <div class="alert-danger mb-4">
             <x-icon name="alert" size="h-5 w-5" class="flex-shrink-0" />
@@ -10,7 +10,7 @@
         <div class="empty-state">
             <p class="empty-title">Nothing to show</p>
             <p class="empty-body">This quiz has no result for you yet.</p>
-            <a href="{{ route('lms.courses') }}" class="btn-primary mt-3">Back to training</a>
+            <a href="{{ route('clock.staff.learn') }}" class="btn-primary mt-3">Back to training</a>
         </div>
     @else
         <div class="card p-8 text-center">
@@ -115,12 +115,12 @@
 
         <div class="flex flex-wrap gap-2 mt-5">
             @if ($attempt->quiz?->course)
-                <a href="{{ route('lms.courses.show', $attempt->quiz->course->id) }}" class="btn-secondary">
+                <a href="{{ route('clock.staff.learn.course', $attempt->quiz->course->id) }}" class="btn-secondary">
                     Back to the course
                 </a>
             @endif
-            <a href="{{ route('lms.progress') }}" class="btn-primary">My progress</a>
-            <a href="{{ route('lms.courses') }}" class="btn-ghost">All training</a>
+            <a href="{{ route('clock.staff.learn.progress') }}" class="btn-primary">My progress</a>
+            <a href="{{ route('clock.staff.learn') }}" class="btn-ghost">All training</a>
         </div>
     @endif
 </div>

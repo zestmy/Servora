@@ -49,6 +49,11 @@
                                 <p class="font-medium text-gray-900">{{ $quiz->title }}</p>
                                 <p class="text-xs text-gray-600">
                                     {{ $quiz->course?->title ?? 'No course attached' }}
+                                    {{-- Only when it is NOT English: a badge on every row is noise,
+                                         and the thing worth spotting is the one that differs. --}}
+                                    @if (($quiz->language ?? 'en') !== 'en')
+                                        <span class="badge-neutral ml-1">{{ $quiz->languageLabel() }}</span>
+                                    @endif
                                     @if ($quiz->generated_by_ai)
                                         <span class="badge-brand ml-1">AI drafted</span>
                                     @endif

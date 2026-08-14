@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TrainingCertificate extends Model
 {
     protected $fillable = [
-        'company_id', 'lms_user_id', 'training_course_id', 'training_quiz_id',
+        'company_id', 'employee_id', 'training_course_id', 'training_quiz_id',
         'training_attempt_id', 'serial', 'recipient_name', 'title',
         'percent', 'issued_at', 'expires_on', 'revoked_at',
     ];
@@ -41,9 +41,9 @@ class TrainingCertificate extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function trainee(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(LmsUser::class, 'lms_user_id');
+        return $this->belongsTo(Employee::class);
     }
 
     public function course(): BelongsTo

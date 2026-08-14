@@ -98,6 +98,8 @@
                         <p class="help">
                             The AI reads only what is in the box above and writes questions about it —
                             nothing from outside. You review every question before it goes live.
+                            The material and the questions do not have to share a language: an English
+                            SOP can be asked about in Malay.
                         </p>
 
                         @if (! $aiReady)
@@ -121,6 +123,14 @@
                                         <option value="mixed">Mixed</option>
                                         <option value="easy">Easy — induction</option>
                                         <option value="hard">Hard — recertification</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="label" for="q-language">Language</label>
+                                    <select id="q-language" wire:model="questionLanguage" class="input">
+                                        @foreach (\App\Models\TrainingQuiz::LANGUAGES as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
                                     </select>
                                 </div>
                                 <button type="button" wire:click="generateQuiz" class="btn-primary"

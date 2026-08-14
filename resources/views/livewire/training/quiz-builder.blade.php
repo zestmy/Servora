@@ -39,6 +39,14 @@
                             <option value="hard">Hard</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="label" for="regen-language">Language</label>
+                        <select id="regen-language" wire:model.live="language" class="input">
+                            @foreach (\App\Models\TrainingQuiz::LANGUAGES as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <label class="flex items-center gap-2 pb-2 text-sm text-gray-800">
                         <input type="checkbox" wire:model="replaceExisting" class="rounded-control border-gray-300">
                         Replace the current questions
@@ -238,6 +246,20 @@
                     <label class="label" for="quiz-description">Description</label>
                     <textarea id="quiz-description" wire:model="description" rows="2" class="input"></textarea>
                 </div>
+                <div>
+                    <label class="label" for="quiz-language">Question language</label>
+                    <select id="quiz-language" wire:model.live="language" class="input">
+                        @foreach (\App\Models\TrainingQuiz::LANGUAGES as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p class="help">
+                        What the AI writes the questions in. The course material can be in any
+                        language — an English SOP can be asked about in Malay.
+                    </p>
+                    @error('language') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="label" for="quiz-status-edit">Status</label>

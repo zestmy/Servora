@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Training;
 use App\Http\Controllers\Controller;
 use App\Models\TrainingCertificate;
 use App\Scopes\CompanyScope;
+use App\Services\Staff\StaffSession;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
 
@@ -24,26 +25,28 @@ class CertificatePdfController extends Controller
     /**
      * Download a certificate.
      *
-     * Two guards, because two different people arrive here. A signed-in
-     * manager may take any certificate in THEIR company; a trainee may take
-     * only their own. The global scope handles the first when a web user is
-     * signed in, so the lookup drops it and re-checks by hand — otherwise a
-     * trainee on the `lms` guard, whose company_id happens to match, would
-     * satisfy the scope and be able to fetch a colleague's.
+     * Two callers, and neither is an ordinary route gate. A signed-in manager
+     * on the `web` guard may take any certificate in THEIR company; the person
+     * it belongs to arrives from the staff app, which is a PIN session rather
+     * than a guard — so `auth` middleware could not express either half.
+     *
+     * The company scope is dropped and re-checked by hand because it would
+     * otherwise be satisfied by whichever guard happened to be signed in,
+     * which is not the same question as "is this yours".
      */
-    public function show(int $id)
+    public function show(int $id, StaffSession $staff)
     {
         $certificate = TrainingCertificate::withoutGlobalScope(CompanyScope::class)
-            ->with(['trainee:id,name,company_id', 'course:id,title', 'company'])
+            ->with(['employee:id,name,company_id', 'course:id,title', 'company'])
             ->findOrFail($id);
 
-        $webUser = Auth::user();
-        $trainee = Auth::guard('lms')->user();
+        $webUser  = Auth::user();
+        $employee = $staff->employee();
 
         $allowed = ($webUser
                 && $webUser->company_id === $certificate->company_id
                 && $webUser->can('training.view'))
-            || ($trainee && $trainee->id === $certificate->lms_user_id);
+            || ($employee && $employee->id === $certificate->employee_id);
 
         abort_unless($allowed, 403);
 

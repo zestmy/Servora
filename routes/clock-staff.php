@@ -54,6 +54,17 @@ $group->group(function () {
     Route::get('/login', ClockLogin::class)->name('clock.staff.login');
 
     /*
+     * Joining a live session — OUTSIDE the PIN gate, deliberately.
+     *
+     * Most of the value of a live round is running one at a shift briefing
+     * where the casuals have no account yet: they type a nickname and play.
+     * See the migration note on training_session_players. A signed-in employee
+     * reaching the same URL is picked up from the staff session and gets their
+     * score onto their report card; everybody else still gets to play.
+     */
+    Route::get('/live/{pin?}', \App\Livewire\Staff\Training\LivePlay::class)->name('clock.staff.live');
+
+    /*
      * The outlet kiosk.
      *
      * Alongside the staff app rather than inside it, because it authenticates
@@ -97,9 +108,18 @@ $group->group(function () {
     });
 
     Route::middleware('clock.staff')->group(function () {
-        // A bare /staff has to land somewhere: it is what gets typed from
-        // memory, and what a shared link gets trimmed to.
-        Route::redirect('/', '/staff/clock')->name('clock.staff.home');
+        /*
+         * A bare /staff has to land somewhere: it is what gets typed from
+         * memory, and what a shared link gets trimmed to.
+         *
+         * IT LANDS ON THE LEADERBOARD, not the clock. That is a deliberate
+         * trade and the cost is real — clocking in is one tap further away for
+         * everybody, every shift, and those taps are made by people standing in
+         * a doorway. It buys the thing the learning module exists for: a board
+         * nobody sees motivates nobody. The clock is the FIRST tab in the bar,
+         * so the extra tap is exactly one and always in the same place.
+         */
+        Route::redirect('/', '/staff/learn/leaderboard')->name('clock.staff.home');
 
         Route::get('/clock', ClockPunch::class)->name('clock.staff.punch');
         Route::get('/punches', ClockHistory::class)->name('clock.staff.history');
@@ -117,6 +137,34 @@ $group->group(function () {
         // person looks for things about themselves — the tab bar is full, and
         // a seventh tab would drop the grid to four columns.
         Route::get('/account', \App\Livewire\Clock\Staff\Account::class)->name('clock.staff.account');
+
+        /*
+         * Learning, on the SAME PIN session as everything else here.
+         *
+         * It used to live in the LMS portal, whose login is invitation-only —
+         * somebody registers and a manager approves them. That is right for the
+         * SOP library and wrong for training, where the point is that the whole
+         * floor is on it: 31 approved trainees against 57 active employees.
+         *
+         * No permission checks. The staff apps have no abilities of their own —
+         * an employee is not a login, see StaffSession — so what somebody may
+         * open is decided by their POSTING, which every screen applies through
+         * visibleToOutlets().
+         */
+        Route::get('/learn/leaderboard', \App\Livewire\Staff\Training\Leaderboard::class)
+            ->name('clock.staff.leaderboard');
+        Route::get('/learn', \App\Livewire\Staff\Training\Index::class)
+            ->name('clock.staff.learn');
+        Route::get('/learn/progress', \App\Livewire\Staff\Training\MyProgress::class)
+            ->name('clock.staff.learn.progress');
+        // Before /learn/{id}, or "leaderboard" and "progress" would be read as
+        // course ids and 404 on a numeric lookup.
+        Route::get('/learn/{id}', \App\Livewire\Staff\Training\CourseView::class)
+            ->whereNumber('id')
+            ->name('clock.staff.learn.course');
+        Route::get('/learn/quiz/{id}', \App\Livewire\Staff\Training\QuizPlay::class)
+            ->whereNumber('id')
+            ->name('clock.staff.learn.quiz');
 
         Route::get('/leave', ClockLeave::class)->name('clock.staff.leave');
         // Their own MC back again — a plain controller, because Livewire

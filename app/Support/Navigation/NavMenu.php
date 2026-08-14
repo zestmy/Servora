@@ -264,7 +264,13 @@ final class NavMenu
                 // read as a wall. Sections must stay CONTIGUOUS — the caption is
                 // emitted when the section changes, so splitting one in two
                 // prints its heading twice.
-                'label' => 'Learning & Development',
+                //
+                // "Learning", not "Learning & Development": every other group in
+                // this panel is one word or a short pair — Procurement, Labels,
+                // Sales, HR — and a four-word label was the odd one out at the
+                // width the sidebar actually has. The permission GROUP keeps the
+                // longer name, because that list is read rather than scanned.
+                'label' => 'Learning',
                 'icon'  => 'academic',
                 'items' => [
                     ['route' => 'training.courses',       'label' => 'Courses',        'permission' => 'training.view',    'section' => 'Content'],

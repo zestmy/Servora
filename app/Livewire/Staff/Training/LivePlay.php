@@ -1,13 +1,14 @@
 <?php
 
-namespace App\Livewire\Lms;
+namespace App\Livewire\Staff\Training;
 
+use App\Models\Employee;
 use App\Models\TrainingAnswer;
 use App\Models\TrainingSession;
 use App\Models\TrainingSessionPlayer;
 use App\Scopes\CompanyScope;
+use App\Services\Staff\StaffSession;
 use App\Services\Training\LiveSessionService;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
@@ -41,10 +42,10 @@ class LivePlay extends Component
     {
         $this->pin = trim((string) ($pin ?? request()->query('pin', '')));
 
-        $trainee = Auth::guard('lms')->user();
+        $employee = $this->employee();
 
-        if ($trainee) {
-            $this->nickname = $trainee->name;
+        if ($employee) {
+            $this->nickname = $employee->name;
         }
 
         // Rejoin whatever room this browser was already in.
@@ -75,11 +76,11 @@ class LivePlay extends Component
             return;
         }
 
-        $trainee = Auth::guard('lms')->user();
+        $employee = $this->employee();
 
         // A trainee may only join their own company's room. A PIN is a room
         // number, not an invitation across tenants.
-        if ($trainee && $trainee->company_id !== $session->company_id) {
+        if ($employee && $employee->company_id !== $session->company_id) {
             $this->joinError = 'That PIN belongs to another company.';
 
             return;
@@ -91,7 +92,7 @@ class LivePlay extends Component
             return;
         }
 
-        $player = $sessions->join($session, $this->nickname, $trainee);
+        $player = $sessions->join($session, $this->nickname, $employee);
 
         $this->sessionId = $session->id;
         $this->playerId  = $player->id;
@@ -105,6 +106,22 @@ class LivePlay extends Component
 
         $this->sessionId = null;
         $this->playerId  = null;
+    }
+
+    /**
+     * The signed-in employee, or null for a walk-up player.
+     *
+     * Resolved from the container each time rather than held on the component:
+     * a Livewire property round-trips through the browser, and a learner
+     * identity that can be edited client-side is one somebody can answer as.
+     *
+     * Null is a normal answer here. A live round at a shift briefing is most of
+     * the point, and the casuals in that room have no account yet — they type a
+     * nickname and play. They just do not get it onto a report card.
+     */
+    private function employee(): ?Employee
+    {
+        return app(StaffSession::class)->employee();
     }
 
     private function session(): ?TrainingSession
@@ -192,7 +209,7 @@ class LivePlay extends Component
         $player  = $this->player();
 
         if (! $session || ! $player) {
-            return view('livewire.lms.live-join', ['joinError' => $this->joinError])
+            return view('livewire.staff.training.live-join', ['joinError' => $this->joinError])
                 ->layout('layouts.live', ['title' => 'Join a live session']);
         }
 
@@ -208,7 +225,7 @@ class LivePlay extends Component
                 ->exists();
         }
 
-        return view('livewire.lms.live-play', [
+        return view('livewire.staff.training.live-play', [
             'session'         => $session,
             'player'          => $player,
             'question'        => $question,

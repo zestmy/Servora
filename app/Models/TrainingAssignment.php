@@ -17,7 +17,7 @@ class TrainingAssignment extends Model
 {
     protected $fillable = [
         'company_id', 'training_course_id', 'training_path_id',
-        'lms_user_id', 'outlet_id', 'due_on', 'is_mandatory', 'note', 'assigned_by',
+        'employee_id', 'outlet_id', 'due_on', 'is_mandatory', 'note', 'assigned_by',
     ];
 
     protected $casts = [
@@ -45,9 +45,9 @@ class TrainingAssignment extends Model
         return $this->belongsTo(TrainingPath::class, 'training_path_id');
     }
 
-    public function trainee(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(LmsUser::class, 'lms_user_id');
+        return $this->belongsTo(Employee::class);
     }
 
     public function outlet(): BelongsTo
@@ -61,18 +61,16 @@ class TrainingAssignment extends Model
     }
 
     /**
-     * Assignments that land on this trainee: theirs by name, plus everything
-     * required of any outlet they hold.
+     * Assignments that land on this employee: theirs by name, plus everything
+     * required of the outlet they are posted to.
      */
-    public function scopeForTrainee(Builder $query, LmsUser $trainee): Builder
+    public function scopeForEmployee(Builder $query, Employee $employee): Builder
     {
-        $outletIds = $trainee->accessibleOutletIds();
+        return $query->where(function ($q) use ($employee) {
+            $q->where('employee_id', $employee->id);
 
-        return $query->where(function ($q) use ($trainee, $outletIds) {
-            $q->where('lms_user_id', $trainee->id);
-
-            if ($outletIds !== []) {
-                $q->orWhereIn('outlet_id', $outletIds);
+            if ($employee->outlet_id) {
+                $q->orWhere('outlet_id', $employee->outlet_id);
             }
         });
     }
@@ -89,6 +87,6 @@ class TrainingAssignment extends Model
 
     public function audienceName(): string
     {
-        return $this->trainee?->name ?? $this->outlet?->name ?? 'Everyone';
+        return $this->employee?->name ?? $this->outlet?->name ?? 'Everyone';
     }
 }

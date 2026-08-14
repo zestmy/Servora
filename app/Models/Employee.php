@@ -534,6 +534,68 @@ class Employee extends Model
         return $this->belongsTo(Section::class);
     }
 
+    // ── Learning ──────────────────────────────────────────────────────────
+    //
+    // Prefixed `training*` rather than the shorter `attempts()`/`certificates()`
+    // this model would otherwise want: `certifications()` already exists here
+    // and means something else entirely — a food handler card or a halal
+    // certificate recorded against the person, not something they earned by
+    // passing a quiz. Two nearly-identical names on one model is how the wrong
+    // one gets eager-loaded.
+
+    public function trainingAttempts(): HasMany
+    {
+        return $this->hasMany(TrainingAttempt::class);
+    }
+
+    public function trainingCertificates(): HasMany
+    {
+        return $this->hasMany(TrainingCertificate::class);
+    }
+
+    public function trainingAssignments(): HasMany
+    {
+        return $this->hasMany(TrainingAssignment::class);
+    }
+
+    public function trainingPathProgress(): HasMany
+    {
+        return $this->hasMany(TrainingPathProgress::class);
+    }
+
+    /**
+     * Initials for the leaderboard avatar.
+     *
+     * Two letters from two words where there are two, otherwise the first two
+     * of the only one — a mononym would render a single letter in a circle
+     * sized for a pair, which reads as a rendering fault rather than a name.
+     */
+    public function initials(): string
+    {
+        $parts = array_values(array_filter(preg_split('/\s+/', trim((string) $this->name)) ?: []));
+
+        if (count($parts) >= 2) {
+            return mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1));
+        }
+
+        return mb_strtoupper(mb_substr((string) $this->name, 0, 2));
+    }
+
+    /**
+     * The outlets whose training this person can see.
+     *
+     * An employee is posted to one outlet, so this is that outlet — but it is a
+     * LIST because TrainingCourse::scopeVisibleToOutlets takes one, and an
+     * empty list there means "everything", which is what somebody with no
+     * posting should get rather than nothing at all.
+     *
+     * @return array<int, int>
+     */
+    public function trainingOutletIds(): array
+    {
+        return $this->outlet_id ? [(int) $this->outlet_id] : [];
+    }
+
     /** This employee's superior — who their leave goes to. */
     public function superior(): BelongsTo
     {

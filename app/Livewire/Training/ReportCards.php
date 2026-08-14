@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training;
 
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\Outlet;
 use App\Services\Training\ReportCardService;
 use App\Traits\RequiresActiveCompany;
@@ -60,11 +60,11 @@ class ReportCards extends Component
         if ($this->selectedId) {
             // Company-scoped lookup, so a hand-typed id from another tenant is
             // simply not found rather than rendered.
-            $trainee = LmsUser::where('company_id', $companyId)->find((int) $this->selectedId);
+            $employee = Employee::where('company_id', $companyId)->find((int) $this->selectedId);
 
-            $card = $trainee ? $service->for($trainee) : null;
+            $card = $employee ? $service->for($employee) : null;
 
-            if (! $trainee) {
+            if (! $employee) {
                 $this->selectedId = '';
             }
         }

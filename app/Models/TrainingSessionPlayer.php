@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class TrainingSessionPlayer extends Model
 {
     protected $fillable = [
-        'training_session_id', 'lms_user_id', 'nickname',
+        'training_session_id', 'employee_id', 'nickname',
         'score', 'streak', 'best_streak', 'correct_count', 'answered_count',
         'joined_at', 'last_seen_at',
     ];
@@ -54,9 +54,10 @@ class TrainingSessionPlayer extends Model
         return $this->belongsTo(TrainingSession::class, 'training_session_id');
     }
 
-    public function trainee(): BelongsTo
+    /** Null for a nickname-only player — see the migration note on the table. */
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(LmsUser::class, 'lms_user_id');
+        return $this->belongsTo(Employee::class);
     }
 
     public function attempt(): HasOne

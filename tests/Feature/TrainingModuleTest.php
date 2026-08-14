@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\TrainingAssignment;
 use App\Models\TrainingCourse;
@@ -38,7 +38,7 @@ class TrainingModuleTest extends TestCase
     private Outlet $outlet;
     private Outlet $otherOutlet;
     private User $manager;
-    private LmsUser $trainee;
+    private Employee $employee;
 
     protected function setUp(): void
     {
@@ -61,32 +61,33 @@ class TrainingModuleTest extends TestCase
             'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
         ]);
 
-        $this->trainee = LmsUser::create([
+        $this->employee = Employee::create([
             'company_id' => $this->company->id,
             'outlet_id'  => $this->outlet->id,
             'name'       => 'Aisyah Rahman',
             'email'      => 'aisyah' . uniqid() . '@example.test',
-            'password'   => 'secret-not-used',
-            'status'     => 'approved',
+            'is_active'  => true,
         ]);
-        $this->trainee->outlets()->sync([$this->outlet->id]);
     }
 
     /**
-     * Sign a trainee in the way production does.
+     * Sign an employee in the way the staff app does.
      *
-     * NOT actingAs($trainee, 'lms'): that calls shouldUse('lms'), which makes
-     * the trainee guard the application's DEFAULT guard for the rest of the
-     * test. Nothing does that in production, and it sends every piece of `web`
-     * middleware down a path built for an App\Models\User — EnsureAccountActive
-     * calls isSystemRole() on whatever $request->user() hands it, so the
-     * assertion under test never runs and a 500 arrives instead. Setting the
-     * guard's user reproduces a signed-in trainee exactly, without moving the
-     * default.
+     * The staff apps are NOT a Laravel guard — see App\Services\Staff\StaffSession
+     * for why: an employee is not a login, and conflating the two would let a
+     * PIN start behaving like an account. So there is no actingAs() for this,
+     * and reaching for one would test something that does not exist.
+     *
+     * VIA EMAIL, not PIN, and that is the representative case rather than a
+     * convenience: the session validates against the credential that opened it,
+     * and on a real company most staff have an email and no PIN at all — 48 of
+     * 57 at the one this was built against. Signing in with 'pin' here would
+     * find no fingerprint and hand back null, which is exactly what would happen
+     * to most of the workforce.
      */
-    private function asTrainee(LmsUser $trainee): static
+    private function asStaff(Employee $employee): static
     {
-        $this->app['auth']->guard('lms')->setUser($trainee);
+        app(\App\Services\Staff\StaffSession::class)->signIn($employee, 'email');
 
         return $this;
     }
@@ -147,7 +148,7 @@ class TrainingModuleTest extends TestCase
         $theirs->outlets()->sync([$this->otherOutlet->id]);
 
         $visible = TrainingCourse::published()
-            ->visibleToOutlets($this->trainee->accessibleOutletIds())
+            ->visibleToOutlets($this->employee->trainingOutletIds())
             ->pluck('title')
             ->all();
 
@@ -167,7 +168,7 @@ class TrainingModuleTest extends TestCase
         $quiz    = $this->quiz();
         $service = app(SelfPacedQuizService::class);
 
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
 
         foreach ($quiz->questions as $i => $question) {
             // Three right, the last one wrong: 75%, which clears a 70 pass mark.
@@ -196,11 +197,11 @@ class TrainingModuleTest extends TestCase
         $quiz    = $this->quiz();
         $service = app(SelfPacedQuizService::class);
 
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         $service->answer($attempt, $quiz->questions[0], [0], 3.0);
         $service->answer($attempt, $quiz->questions[1], [0], 3.0);
 
-        $resumed = $service->startOrResume($quiz, $this->trainee);
+        $resumed = $service->startOrResume($quiz, $this->employee);
 
         $this->assertSame($attempt->id, $resumed->id);
         $this->assertSame(2, $service->resumeIndex($resumed));
@@ -212,7 +213,7 @@ class TrainingModuleTest extends TestCase
     {
         $quiz    = $this->quiz();
         $service = app(SelfPacedQuizService::class);
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
 
         $service->answer($attempt, $quiz->questions[0], [1], 4.0);
         $service->answer($attempt, $quiz->questions[0], [0], 4.0);
@@ -226,14 +227,14 @@ class TrainingModuleTest extends TestCase
         $quiz    = $this->quiz(null, ['max_attempts' => 1]);
         $service = app(SelfPacedQuizService::class);
 
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         foreach ($quiz->questions as $question) {
             $service->answer($attempt, $question, [0], 2.0);
         }
         $service->finish($attempt);
 
         $this->expectException(\RuntimeException::class);
-        $service->startOrResume($quiz->fresh(), $this->trainee);
+        $service->startOrResume($quiz->fresh(), $this->employee);
     }
 
     // ── Live ──────────────────────────────────────────────────────────────
@@ -249,7 +250,7 @@ class TrainingModuleTest extends TestCase
         $this->assertSame(4, $session->questionCount());
         $this->assertMatchesRegularExpression('/^\d{6}$/', $session->pin);
 
-        $signedIn  = $sessions->join($session, 'Aisyah', $this->trainee);
+        $signedIn  = $sessions->join($session, 'Aisyah', $this->employee);
         $anonymous = $sessions->join($session, 'Chef');
 
         // A nickname-only player still gets a scoreboard row and an attempt —
@@ -298,7 +299,7 @@ class TrainingModuleTest extends TestCase
         $quiz     = $this->quiz();
         $sessions = app(LiveSessionService::class);
         $session  = $sessions->open($quiz, $this->outlet->id, $this->manager->id);
-        $player   = $sessions->join($session, 'Aisyah', $this->trainee);
+        $player   = $sessions->join($session, 'Aisyah', $this->employee);
 
         $sessions->start($session);
         $session->refresh();
@@ -353,7 +354,7 @@ class TrainingModuleTest extends TestCase
         $service = app(SelfPacedQuizService::class);
 
         foreach ([[0, 1, 1, 1], [0, 0, 0, 0]] as $run) {
-            $attempt = $service->startOrResume($quiz, $this->trainee);
+            $attempt = $service->startOrResume($quiz, $this->employee);
             foreach ($quiz->questions as $i => $question) {
                 $service->answer($attempt, $question, [$run[$i]], 5.0);
             }
@@ -377,14 +378,14 @@ class TrainingModuleTest extends TestCase
 
         // Every "Allergens" question wrong, every "Food safety" one right.
         foreach (range(1, 2) as $ignored) {
-            $attempt = $service->startOrResume($quiz, $this->trainee);
+            $attempt = $service->startOrResume($quiz, $this->employee);
             foreach ($quiz->questions as $question) {
                 $service->answer($attempt, $question, $question->topic === 'Allergens' ? [1] : [0], 4.0);
             }
             $service->finish($attempt);
         }
 
-        $card = app(ReportCardService::class)->for($this->trainee);
+        $card = app(ReportCardService::class)->for($this->employee);
 
         $this->assertSame(2, $card['attempts']);
         $this->assertCount(1, $card['weak_topics']);
@@ -409,7 +410,7 @@ class TrainingModuleTest extends TestCase
             'due_on'             => now()->subDay()->toDateString(),
         ]);
 
-        $outstanding = app(ReportCardService::class)->outstanding($this->trainee);
+        $outstanding = app(ReportCardService::class)->outstanding($this->employee);
 
         $this->assertCount(1, $outstanding);
         $this->assertSame('Chiller discipline', $outstanding[0]['title']);
@@ -428,13 +429,13 @@ class TrainingModuleTest extends TestCase
         ]);
 
         $service = app(SelfPacedQuizService::class);
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         foreach ($quiz->questions as $question) {
             $service->answer($attempt, $question, [0], 3.0);
         }
         $service->finish($attempt);
 
-        $this->assertCount(0, app(ReportCardService::class)->outstanding($this->trainee));
+        $this->assertCount(0, app(ReportCardService::class)->outstanding($this->employee));
     }
 
     // ── Certificates ──────────────────────────────────────────────────────
@@ -452,18 +453,18 @@ class TrainingModuleTest extends TestCase
 
         $serials = [];
         foreach (range(1, 2) as $ignored) {
-            $attempt = $service->startOrResume($quiz, $this->trainee);
+            $attempt = $service->startOrResume($quiz, $this->employee);
             foreach ($quiz->questions as $question) {
                 $service->answer($attempt, $question, [0], 3.0);
             }
             $service->finish($attempt);
 
-            $serials[] = $this->trainee->certificates()->first()->serial;
+            $serials[] = $this->employee->trainingCertificates()->first()->serial;
         }
 
-        $this->assertSame(1, $this->trainee->certificates()->count());
+        $this->assertSame(1, $this->employee->trainingCertificates()->count());
         $this->assertSame($serials[0], $serials[1]);
-        $this->assertNotNull($this->trainee->certificates()->first()->expires_on);
+        $this->assertNotNull($this->employee->trainingCertificates()->first()->expires_on);
     }
 
     public function test_failing_issues_no_certificate(): void
@@ -471,13 +472,13 @@ class TrainingModuleTest extends TestCase
         $quiz = $this->quiz(null, ['issues_certificate' => true]);
 
         $service = app(SelfPacedQuizService::class);
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         foreach ($quiz->questions as $question) {
             $service->answer($attempt, $question, [1], 3.0);
         }
         $service->finish($attempt);
 
-        $this->assertSame(0, $this->trainee->certificates()->count());
+        $this->assertSame(0, $this->employee->trainingCertificates()->count());
     }
 
     /** Serials get read down a phone, so the ambiguous glyphs are excluded. */
@@ -496,17 +497,17 @@ class TrainingModuleTest extends TestCase
         $quiz   = $this->quiz($course, ['issues_certificate' => true]);
 
         $service = app(SelfPacedQuizService::class);
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         foreach ($quiz->questions as $question) {
             $service->answer($attempt, $question, [0], 3.0);
         }
         $service->finish($attempt);
 
-        $certificate = $this->trainee->certificates()->first();
+        $certificate = $this->employee->trainingCertificates()->first();
 
         app(CertificateService::class)->revoke($certificate);
 
-        $this->asTrainee($this->trainee)
+        $this->asStaff($this->employee)
             ->get(route('training.certificates.pdf', $certificate->id))
             ->assertStatus(410);
     }
@@ -518,23 +519,23 @@ class TrainingModuleTest extends TestCase
         $quiz   = $this->quiz($course, ['issues_certificate' => true]);
 
         $service = app(SelfPacedQuizService::class);
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         foreach ($quiz->questions as $question) {
             $service->answer($attempt, $question, [0], 3.0);
         }
         $service->finish($attempt);
 
-        $certificate = $this->trainee->certificates()->first();
+        $certificate = $this->employee->trainingCertificates()->first();
 
-        $colleague = LmsUser::create([
+        $colleague = Employee::create([
             'company_id' => $this->company->id,
+            'outlet_id'  => $this->outlet->id,
             'name'       => 'Someone Else',
             'email'      => 'else' . uniqid() . '@example.test',
-            'password'   => 'secret-not-used',
-            'status'     => 'approved',
+            'is_active'  => true,
         ]);
 
-        $this->asTrainee($colleague)
+        $this->asStaff($colleague)
             ->get(route('training.certificates.pdf', $certificate->id))
             ->assertForbidden();
     }
@@ -590,6 +591,41 @@ class TrainingModuleTest extends TestCase
         $this->assertSame('draft', $quiz->status);
     }
 
+    // ── Question language ─────────────────────────────────────────────────
+
+    public function test_a_quiz_defaults_to_english_and_can_be_set_to_malay_or_indonesian(): void
+    {
+        $quiz = $this->quiz();
+
+        $this->assertSame('en', $quiz->language);
+        $this->assertSame('English', $quiz->languageLabel());
+
+        $quiz->update(['language' => 'ms']);
+        $this->assertSame('Bahasa Malaysia', $quiz->fresh()->languageLabel());
+
+        $quiz->update(['language' => 'id']);
+        $this->assertSame('Bahasa Indonesia', $quiz->fresh()->languageLabel());
+    }
+
+    /**
+     * The true/false wording follows the quiz's language.
+     *
+     * One constant feeds both the AI prompt and the question editor, because a
+     * hand-added "True/False" in an otherwise Malay paper is exactly the
+     * inconsistency staff notice and authors do not.
+     */
+    public function test_true_false_wording_follows_the_language(): void
+    {
+        $this->assertSame(['True', 'False'], TrainingQuiz::booleanOptionsFor('en'));
+        $this->assertSame(['Betul', 'Salah'], TrainingQuiz::booleanOptionsFor('ms'));
+        $this->assertSame(['Benar', 'Salah'], TrainingQuiz::booleanOptionsFor('id'));
+
+        // An unknown or missing tag falls back rather than returning nothing —
+        // a two-option question with no options cannot be answered at all.
+        $this->assertSame(['True', 'False'], TrainingQuiz::booleanOptionsFor(null));
+        $this->assertSame(['True', 'False'], TrainingQuiz::booleanOptionsFor('zz'));
+    }
+
     // ── Scoring wiring ────────────────────────────────────────────────────
 
     /** finalise() sums the ROWS, so a re-answer cannot inflate the total. */
@@ -599,7 +635,7 @@ class TrainingModuleTest extends TestCase
         $service = app(SelfPacedQuizService::class);
         $scoring = app(ScoringService::class);
 
-        $attempt = $service->startOrResume($quiz, $this->trainee);
+        $attempt = $service->startOrResume($quiz, $this->employee);
         $service->answer($attempt, $quiz->questions[0], [1], 2.0);
         $service->answer($attempt, $quiz->questions[0], [0], 2.0);
 
@@ -649,8 +685,8 @@ class TrainingModuleTest extends TestCase
         $sessions = app(LiveSessionService::class);
         $session  = $sessions->open($quiz, $this->outlet->id, $this->manager->id);
 
-        $first  = $sessions->join($session, 'Aisyah', $this->trainee);
-        $second = $sessions->join($session, 'Aisyah', $this->trainee);
+        $first  = $sessions->join($session, 'Aisyah', $this->employee);
+        $second = $sessions->join($session, 'Aisyah', $this->employee);
 
         $this->assertSame($first->id, $second->id);
         $this->assertSame(1, TrainingSession::find($session->id)->players()->count());

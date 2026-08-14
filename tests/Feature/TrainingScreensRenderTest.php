@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\TrainingAssignment;
 use App\Models\TrainingCourse;
@@ -38,7 +38,7 @@ class TrainingScreensRenderTest extends TestCase
     private Company $company;
     private Outlet $outlet;
     private User $manager;
-    private LmsUser $trainee;
+    private Employee $employee;
     private TrainingCourse $course;
     private TrainingQuiz $quiz;
 
@@ -76,15 +76,13 @@ class TrainingScreensRenderTest extends TestCase
         ]);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->trainee = LmsUser::create([
+        $this->employee = Employee::create([
             'company_id' => $this->company->id,
             'outlet_id'  => $this->outlet->id,
             'name'       => 'Aisyah Rahman',
             'email'      => 'render' . uniqid() . '@example.test',
-            'password'   => 'secret-not-used',
-            'status'     => 'approved',
+            'is_active'  => true,
         ]);
-        $this->trainee->outlets()->sync([$this->outlet->id]);
 
         $this->course = TrainingCourse::create([
             'company_id'    => $this->company->id,
@@ -207,7 +205,7 @@ class TrainingScreensRenderTest extends TestCase
     {
         $sessions = app(LiveSessionService::class);
         $session  = $sessions->open($this->quiz, $this->outlet->id, $this->manager->id, 'Tuesday briefing');
-        $sessions->join($session, 'Aisyah', $this->trainee);
+        $sessions->join($session, 'Aisyah', $this->employee);
 
         // Lobby — the PIN is the whole screen.
         Livewire::actingAs($this->manager)
@@ -259,11 +257,11 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('Leaderboard');
     }
 
-    public function test_the_report_cards_screen_renders_a_selected_trainee(): void
+    public function test_the_report_cards_screen_renders_a_selected_employee(): void
     {
         // An attempt, so the card has something to draw rather than an empty state.
         $service = app(SelfPacedQuizService::class);
-        $attempt = $service->startOrResume($this->quiz, $this->trainee);
+        $attempt = $service->startOrResume($this->quiz, $this->employee);
         $service->answer($attempt, $this->quiz->questions->first(), [0], 3.0);
         $service->finish($attempt);
 
@@ -271,7 +269,7 @@ class TrainingScreensRenderTest extends TestCase
             ->test(\App\Livewire\Training\ReportCards::class)
             ->assertOk()
             ->assertSee('Aisyah Rahman')
-            ->call('select', $this->trainee->id)
+            ->call('select', $this->employee->id)
             ->assertOk()
             ->assertSee('What to work on')
             ->assertSee('Recent attempts');
@@ -297,31 +295,33 @@ class TrainingScreensRenderTest extends TestCase
         }
     }
 
-    // ── Trainee ───────────────────────────────────────────────────────────
+    // ── Staff app ─────────────────────────────────────────────────────────
 
-    private function asTrainee(): static
+    private function asStaff(): static
     {
-        // See TrainingModuleTest for why this is not actingAs(..., 'lms').
-        $this->app['auth']->guard('lms')->setUser($this->trainee);
+        // The staff apps are a PIN session, not a guard — see StaffSession.
+        // Via email, not PIN: most staff have no PIN, and the session validates
+        // against whichever credential opened it. See TrainingModuleTest.
+        app(\App\Services\Staff\StaffSession::class)->signIn($this->employee, 'email');
 
         return $this;
     }
 
-    public function test_the_trainee_course_list_renders(): void
+    public function test_the_staff_course_list_renders(): void
     {
-        $this->asTrainee();
+        $this->asStaff();
 
-        Livewire::test(\App\Livewire\Lms\Courses::class)
+        Livewire::test(\App\Livewire\Staff\Training\Index::class)
             ->assertOk()
             ->assertSee('Chiller discipline')
             ->assertSee('Front of house induction');
     }
 
-    public function test_the_trainee_course_page_renders(): void
+    public function test_the_staff_course_page_renders(): void
     {
-        $this->asTrainee();
+        $this->asStaff();
 
-        Livewire::test(\App\Livewire\Lms\CourseView::class, ['id' => $this->course->id])
+        Livewire::test(\App\Livewire\Staff\Training\CourseView::class, ['id' => $this->course->id])
             ->assertOk()
             ->assertSee('Chillers run between 0 and 4 degrees.')
             ->assertSee('Chiller quiz');
@@ -329,9 +329,9 @@ class TrainingScreensRenderTest extends TestCase
 
     public function test_playing_a_quiz_renders_the_question_then_the_result(): void
     {
-        $this->asTrainee();
+        $this->asStaff();
 
-        $component = Livewire::test(\App\Livewire\Lms\QuizPlay::class, ['id' => $this->quiz->id])
+        $component = Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
             ->assertOk()
             ->assertSee('What temperature does a chiller hold?');
 
@@ -347,19 +347,50 @@ class TrainingScreensRenderTest extends TestCase
 
     public function test_the_progress_screen_renders(): void
     {
-        $this->asTrainee();
+        $this->asStaff();
 
-        Livewire::test(\App\Livewire\Lms\MyProgress::class)
+        Livewire::test(\App\Livewire\Staff\Training\MyProgress::class)
             ->assertOk()
             ->assertSee('My progress')
-            ->assertSee('Leaderboard');
+            // Not the board: that is its own tab now, and the same numbers in
+            // two places is how the two start disagreeing.
+            ->assertSee('Aisyah Rahman');
+    }
+
+    /**
+     * The board — which is also what the staff app now opens on, so a failure
+     * here is not one screen being wrong, it is the app's front door.
+     */
+    public function test_the_leaderboard_renders_with_and_without_a_score(): void
+    {
+        $this->asStaff();
+
+        // Nothing taken yet. It has to say so rather than invent a rank.
+        Livewire::test(\App\Livewire\Staff\Training\Leaderboard::class)
+            ->assertOk()
+            ->assertSee('Leaderboard')
+            ->assertSee('No score yet');
+
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($this->quiz, $this->employee);
+        $service->answer($attempt, $this->quiz->questions->first(), [0], 3.0);
+        $service->finish($attempt);
+
+        Livewire::test(\App\Livewire\Staff\Training\Leaderboard::class)
+            ->assertOk()
+            ->assertSee('Aisyah Rahman')
+            ->assertSee('accuracy')
+            // Both scopes draw; the branch board is the default.
+            ->set('scope', 'company')
+            ->assertOk()
+            ->assertSee('Aisyah Rahman');
     }
 
     public function test_the_live_join_screen_renders_and_a_bad_pin_is_reported(): void
     {
-        $this->asTrainee();
+        $this->asStaff();
 
-        Livewire::test(\App\Livewire\Lms\LivePlay::class)
+        Livewire::test(\App\Livewire\Staff\Training\LivePlay::class)
             ->assertOk()
             ->assertSee('Join a live session')
             ->set('pin', '000000')
@@ -373,9 +404,9 @@ class TrainingScreensRenderTest extends TestCase
         $sessions = app(LiveSessionService::class);
         $session  = $sessions->open($this->quiz, $this->outlet->id, $this->manager->id);
 
-        $this->asTrainee();
+        $this->asStaff();
 
-        $component = Livewire::test(\App\Livewire\Lms\LivePlay::class)
+        $component = Livewire::test(\App\Livewire\Staff\Training\LivePlay::class)
             ->set('pin', $session->pin)
             ->set('nickname', 'Aisyah')
             ->call('join')

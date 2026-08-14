@@ -116,8 +116,9 @@ class NavigationPanelTest extends TestCase
             'HR',
             // Sits after HR because that is where the Training Portal came
             // from, so the link somebody already knows is one group further
-            // down rather than somewhere unrelated.
-            'Learning & Development',
+            // down rather than somewhere unrelated. One word, like every other
+            // group in this panel — the permission group keeps the long name.
+            'Learning',
             'Business Intelligence',
             'Settings',
         ], $labels);

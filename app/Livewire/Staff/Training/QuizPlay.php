@@ -1,27 +1,23 @@
 <?php
 
-namespace App\Livewire\Lms;
+namespace App\Livewire\Staff\Training;
 
 use App\Models\TrainingAttempt;
 use App\Models\TrainingQuiz;
+use App\Services\Staff\StaffSession;
 use App\Services\Training\SelfPacedQuizService;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
- * Take a quiz on your own.
+ * Take a quiz on your own, on the staff phone.
  *
  * THE CLOCK IS SERVER-SIDE, and that is the only defensible way to do it. The
- * countdown a trainee watches is a CSS animation, but the seconds that decide
- * their points come from the difference between two server timestamps — when
- * the question was handed over, and when the answer arrived. A client-reported
+ * countdown somebody watches is a CSS animation, but the seconds that decide
+ * their points are the difference between two server timestamps — when the
+ * question was handed over, and when the answer arrived. A client-reported
  * elapsed time is a number the client can choose, and points are on a
  * leaderboard their colleagues can see.
- *
- * `startedAt` is held on the component rather than the database because a
- * per-question timestamp column would be a write per question for something
- * that only has to survive one round trip.
  */
 class QuizPlay extends Component
 {
@@ -32,10 +28,9 @@ class QuizPlay extends Component
     /** Server time the current question was handed over, ISO-8601. */
     public string $startedAt = '';
 
-    /** Option indexes the trainee has tapped, as strings from the checkboxes. */
+    /** Option indexes tapped, as strings from the buttons. */
     public array $chosen = [];
 
-    /** After answering: the result of the question just answered. */
     public bool $showFeedback = false;
     public bool $lastCorrect = false;
     public int $lastPoints = 0;
@@ -44,22 +39,21 @@ class QuizPlay extends Component
 
     public bool $finished = false;
 
-    public function mount(int $id, SelfPacedQuizService $service): void
+    public function mount(int $id, SelfPacedQuizService $service, StaffSession $staff): void
     {
-        $trainee = Auth::guard('lms')->user();
+        $employee = $staff->employee();
 
         $quiz = TrainingQuiz::query()
-            ->where('company_id', $trainee->company_id)
+            ->where('company_id', $employee->company_id)
             ->published()
             ->findOrFail($id);
 
         $this->quizId = $quiz->id;
 
         try {
-            $attempt = $service->startOrResume($quiz, $trainee);
+            $attempt = $service->startOrResume($quiz, $employee);
         } catch (\RuntimeException $e) {
             session()->flash('error', $e->getMessage());
-
             $this->finished = true;
 
             return;
@@ -78,13 +72,11 @@ class QuizPlay extends Component
         $this->startedAt = now()->toIso8601String();
     }
 
-    private function attempt(): TrainingAttempt
+    private function attempt(StaffSession $staff): TrainingAttempt
     {
-        $trainee = Auth::guard('lms')->user();
-
-        // Scoped to the trainee, so an attempt id belonging to somebody else
-        // is not found rather than played.
-        return TrainingAttempt::where('lms_user_id', $trainee->id)
+        // Scoped to the employee, so an attempt id belonging to a colleague is
+        // simply not found rather than played.
+        return TrainingAttempt::where('employee_id', $staff->employee()?->id)
             ->with('quiz')
             ->findOrFail($this->attemptId);
     }
@@ -112,28 +104,27 @@ class QuizPlay extends Component
         }
     }
 
-    public function submit(SelfPacedQuizService $service): void
+    public function submit(SelfPacedQuizService $service, StaffSession $staff): void
     {
         if ($this->showFeedback || $this->finished) {
             return;
         }
 
-        $attempt  = $this->attempt();
+        $attempt  = $this->attempt($staff);
         $question = $service->questionAt($attempt, $this->index);
 
         if (! $question) {
-            $this->finish($service);
+            $this->finish($service, $staff);
 
             return;
         }
 
-        // Server clock, both ends. See the class note.
         $seconds = $this->startedAt
             ? max(0.0, (float) Carbon::parse($this->startedAt)->diffInMilliseconds(now()) / 1000)
             : (float) $question->secondsValue($attempt->quiz);
 
-        // Never pay for time the trainee did not have: a page left open over a
-        // break must score as a timeout, not as a negative bonus.
+        // Never pay for time the person did not have: a page left open over a
+        // break scores as a timeout, not as a negative bonus.
         $seconds = min($seconds, (float) $question->secondsValue($attempt->quiz));
 
         $answer = $service->answer($attempt, $question, array_map('intval', $this->chosen), $seconds);
@@ -146,19 +137,19 @@ class QuizPlay extends Component
     }
 
     /** The clock ran out with nothing chosen. */
-    public function timeout(SelfPacedQuizService $service): void
+    public function timeout(SelfPacedQuizService $service, StaffSession $staff): void
     {
         if ($this->showFeedback || $this->finished) {
             return;
         }
 
         $this->chosen = [];
-        $this->submit($service);
+        $this->submit($service, $staff);
     }
 
-    public function nextQuestion(SelfPacedQuizService $service): void
+    public function nextQuestion(SelfPacedQuizService $service, StaffSession $staff): void
     {
-        $attempt = $this->attempt();
+        $attempt = $this->attempt($staff);
 
         $this->index++;
         $this->chosen       = [];
@@ -166,55 +157,55 @@ class QuizPlay extends Component
         $this->startedAt    = now()->toIso8601String();
 
         if ($this->index >= count((array) $attempt->question_order)) {
-            $this->finish($service);
+            $this->finish($service, $staff);
         }
     }
 
-    private function finish(SelfPacedQuizService $service): void
+    private function finish(SelfPacedQuizService $service, StaffSession $staff): void
     {
-        $service->finish($this->attempt());
+        $service->finish($this->attempt($staff));
         $this->finished = true;
     }
 
-    public function render(SelfPacedQuizService $service)
+    public function render(SelfPacedQuizService $service, StaffSession $staff)
     {
         if ($this->finished || ! $this->attemptId) {
-            $attempt = $this->attemptId ? $this->attempt()->fresh(['quiz.course', 'answers']) : null;
+            $attempt = $this->attemptId
+                ? $this->attempt($staff)->fresh(['quiz.course', 'answers'])
+                : null;
 
-            return view('livewire.lms.quiz-result', [
+            return view('livewire.staff.training.quiz-result', [
                 'attempt'     => $attempt,
                 'certificate' => $attempt?->certificate()->first(),
-            ])->layout('layouts.lms', ['title' => 'Result']);
+            ])->layout('layouts.clock-staff', ['title' => 'Result']);
         }
 
-        $attempt  = $this->attempt();
+        $attempt  = $this->attempt($staff);
         $question = $service->questionAt($attempt, $this->index);
 
         if (! $question) {
-            $this->finish($service);
+            $this->finish($service, $staff);
 
-            return view('livewire.lms.quiz-result', [
-                'attempt'     => $this->attempt()->fresh(['quiz.course', 'answers']),
-                'certificate' => $this->attempt()->certificate()->first(),
-            ])->layout('layouts.lms', ['title' => 'Result']);
+            return view('livewire.staff.training.quiz-result', [
+                'attempt'     => $this->attempt($staff)->fresh(['quiz.course', 'answers']),
+                'certificate' => $this->attempt($staff)->certificate()->first(),
+            ])->layout('layouts.clock-staff', ['title' => 'Result']);
         }
 
         $options = $question->optionList();
 
-        // Shuffled per render would reshuffle on every Livewire round trip and
-        // move the option under the trainee's thumb. Seeded on the attempt and
-        // the question, so it is stable for this person and this question while
-        // still differing between people.
+        // Seeded on the attempt and the question rather than shuffled per
+        // render: a fresh shuffle on every Livewire round trip would move the
+        // option out from under somebody's thumb.
+        $order = range(0, count($options) - 1);
+
         if ($attempt->quiz->shuffle_options) {
-            $order = range(0, count($options) - 1);
             mt_srand($attempt->id * 1000 + $question->id);
             shuffle($order);
             mt_srand();
-        } else {
-            $order = range(0, count($options) - 1);
         }
 
-        return view('livewire.lms.quiz-play', [
+        return view('livewire.staff.training.quiz-play', [
             'attempt'  => $attempt,
             'quiz'     => $attempt->quiz,
             'question' => $question,
@@ -222,6 +213,6 @@ class QuizPlay extends Component
             'order'    => $order,
             'total'    => count((array) $attempt->question_order),
             'seconds'  => $question->secondsValue($attempt->quiz),
-        ])->layout('layouts.lms', ['title' => $attempt->quiz->title]);
+        ])->layout('layouts.clock-staff', ['title' => $attempt->quiz->title]);
     }
 }

@@ -56,6 +56,8 @@ class CourseForm extends Component
     public bool $showGenerate = false;
     public int $questionCount = 8;
     public string $questionDifficulty = 'mixed';
+    /** What the AI writes the questions in — the material can be anything. */
+    public string $questionLanguage = 'en';
 
     public function mount(?int $id = null): void
     {
@@ -255,6 +257,13 @@ class CourseForm extends Component
         }
 
         $quiz = $course->quizzes()->first() ?? $generator->draftQuizFor($course);
+
+        // Saved before generating, because the generator reads it off the row —
+        // see QuizBuilder::regenerate() for the same reasoning.
+        if ($quiz->language !== $this->questionLanguage) {
+            $quiz->update(['language' => $this->questionLanguage]);
+            $quiz->refresh();
+        }
 
         try {
             $result = $generator->generateForCourse(

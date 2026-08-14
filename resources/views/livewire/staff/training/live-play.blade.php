@@ -67,8 +67,8 @@
         </div>
 
         <div class="mt-4 flex gap-2">
-            <a href="{{ route('lms.progress') }}" class="btn-primary flex-1 text-center">My progress</a>
-            <a href="{{ route('lms.courses') }}" class="btn-ghost flex-1 text-center">Training</a>
+            <a href="{{ route('clock.staff.learn.progress') }}" class="btn-primary flex-1 text-center">My progress</a>
+            <a href="{{ route('clock.staff.learn') }}" class="btn-ghost flex-1 text-center">Training</a>
         </div>
 
     @elseif ($session->status === 'reveal')

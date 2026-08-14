@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class TrainingAttempt extends Model
 {
     protected $fillable = [
-        'company_id', 'training_quiz_id', 'lms_user_id', 'outlet_id',
+        'company_id', 'training_quiz_id', 'employee_id', 'outlet_id',
         'training_session_id', 'training_session_player_id', 'mode',
         'started_at', 'completed_at', 'score', 'max_score',
         'correct_count', 'question_count', 'percent', 'passed', 'question_order',
@@ -51,9 +51,17 @@ class TrainingAttempt extends Model
         return $this->belongsTo(TrainingQuiz::class, 'training_quiz_id');
     }
 
-    public function trainee(): BelongsTo
+    /**
+     * The learner.
+     *
+     * An employee, reached with the staff PIN they already clock in with — or,
+     * for the majority who have no PIN, a code emailed to the address on their
+     * record. It used to be an LMS trainee, which was invitation-only and
+     * therefore reached a fraction of the workforce.
+     */
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(LmsUser::class, 'lms_user_id');
+        return $this->belongsTo(Employee::class);
     }
 
     public function outlet(): BelongsTo

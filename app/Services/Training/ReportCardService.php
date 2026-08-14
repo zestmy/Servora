@@ -2,7 +2,7 @@
 
 namespace App\Services\Training;
 
-use App\Models\LmsUser;
+use App\Models\Employee;
 use App\Models\TrainingAnswer;
 use App\Models\TrainingAssignment;
 use App\Models\TrainingAttempt;
@@ -37,16 +37,16 @@ class ReportCardService
 
     /**
      * @return array{
-     *   trainee: LmsUser, attempts: int, passed: int, average: float,
+     *   employee: Employee, attempts: int, passed: int, average: float,
      *   points: int, best_streak: int, last_activity: ?\Illuminate\Support\Carbon,
      *   topics: Collection, weak_topics: Collection, recent: Collection,
      *   outstanding: Collection, certificates: Collection, position: ?array
      * }
      */
-    public function for(LmsUser $trainee): array
+    public function for(Employee $employee): array
     {
         $attempts = TrainingAttempt::query()
-            ->where('lms_user_id', $trainee->id)
+            ->where('employee_id', $employee->id)
             ->completed()
             ->with(['quiz:id,title,training_course_id', 'quiz.course:id,title'])
             ->orderByDesc('completed_at')
@@ -55,12 +55,12 @@ class ReportCardService
         $topics = $this->topicBreakdown($attempts->pluck('id')->all());
 
         return [
-            'trainee'       => $trainee,
+            'employee'      => $employee,
             'attempts'      => $attempts->count(),
             'passed'        => $attempts->where('passed', true)->count(),
             'average'       => $attempts->isNotEmpty() ? round($attempts->avg('percent'), 1) : 0.0,
             'points'        => (int) $attempts->sum('score'),
-            'best_streak'   => (int) ($trainee->attempts()->with('player')->get()
+            'best_streak'   => (int) ($employee->trainingAttempts()->with('player')->get()
                 ->max(fn ($a) => $a->player?->best_streak ?? 0) ?? 0),
             'last_activity' => $attempts->first()?->completed_at,
             'topics'        => $topics,
@@ -69,9 +69,9 @@ class ReportCardService
                     && $t['accuracy'] < self::WEAK_THRESHOLD * 100
             )->values(),
             'recent'        => $attempts->take(10)->values(),
-            'outstanding'   => $this->outstanding($trainee),
-            'certificates'  => $trainee->certificates()->with('course:id,title')->latest('issued_at')->get(),
-            'position'      => $this->leaderboard->positionOf($trainee->company_id, $trainee->id, 'month'),
+            'outstanding'   => $this->outstanding($employee),
+            'certificates'  => $employee->trainingCertificates()->with('course:id,title')->latest('issued_at')->get(),
+            'position'      => $this->leaderboard->positionOf($employee->company_id, $employee->id, 'month'),
         ];
     }
 
@@ -111,7 +111,7 @@ class ReportCardService
     }
 
     /**
-     * What this trainee still owes.
+     * What this employee still owes.
      *
      * An assignment is outstanding until there is a PASSED attempt at one of
      * the target's quizzes. Completing a course by reading it is not evidence
@@ -119,15 +119,15 @@ class ReportCardService
      *
      * @return Collection<int, array{assignment: TrainingAssignment, title: string, due_on: mixed, overdue: bool}>
      */
-    public function outstanding(LmsUser $trainee): Collection
+    public function outstanding(Employee $employee): Collection
     {
         $assignments = TrainingAssignment::query()
-            ->forTrainee($trainee)
+            ->forEmployee($employee)
             ->with(['course.quizzes:id,training_course_id', 'path.items.course.quizzes:id,training_course_id'])
             ->get();
 
         $passedQuizIds = TrainingAttempt::query()
-            ->where('lms_user_id', $trainee->id)
+            ->where('employee_id', $employee->id)
             ->where('passed', true)
             ->completed()
             ->pluck('training_quiz_id')
@@ -169,35 +169,39 @@ class ReportCardService
      */
     public function roster(int $companyId, ?int $outletId = null, string $search = ''): Collection
     {
-        $trainees = LmsUser::query()
+        /*
+         * EVERY ACTIVE EMPLOYEE, not everyone who has taken something.
+         *
+         * The roster is a completion report, and a completion report that lists
+         * only the people who turned up cannot show you the ones who did not.
+         * Somebody with no attempts is exactly who this screen is for, which is
+         * why they appear with a null average rather than being filtered out.
+         */
+        $employees = Employee::query()
             ->where('company_id', $companyId)
-            ->approved()
+            ->where('is_active', true)
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->when($search, fn ($q) => $q->where(function ($q2) use ($search) {
-                $q2->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%");
+                $q2->where('name', 'like', "%{$search}%")
+                   ->orWhere('email', 'like', "%{$search}%")
+                   ->orWhere('staff_id', 'like', "%{$search}%");
             }))
             ->with('outlet:id,name')
             ->orderBy('name')
             ->get();
 
-        if ($outletId) {
-            $trainees = $trainees->filter(
-                fn (LmsUser $t) => in_array($outletId, $t->accessibleOutletIds(), true)
-                    || $t->accessibleOutletIds() === []
-            )->values();
-        }
-
         $stats = TrainingAttempt::query()
             ->where('company_id', $companyId)
             ->completed()
-            ->whereIn('lms_user_id', $trainees->pluck('id'))
+            ->whereIn('employee_id', $employees->pluck('id'))
             ->get()
-            ->groupBy('lms_user_id');
+            ->groupBy('employee_id');
 
-        return $trainees->map(function (LmsUser $trainee) use ($stats) {
-            $theirs = $stats->get($trainee->id, collect());
+        return $employees->map(function (Employee $employee) use ($stats) {
+            $theirs = $stats->get($employee->id, collect());
 
             return [
-                'trainee'  => $trainee,
+                'employee' => $employee,
                 'attempts' => $theirs->count(),
                 'average'  => $theirs->isNotEmpty() ? round($theirs->avg('percent'), 1) : null,
                 'passed'   => $theirs->where('passed', true)->count(),

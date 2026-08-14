@@ -137,10 +137,10 @@
                             @error('outletId') <p class="error-text">{{ $message }}</p> @enderror
                             <p class="help">New starters at this branch inherit it automatically.</p>
                         @else
-                            <select wire:model="traineeId" class="input" aria-label="Trainee">
+                            <select wire:model="traineeId" class="input" aria-label="Staff member">
                                 <option value="">Choose a person…</option>
                                 @foreach ($trainees as $trainee)
-                                    <option value="{{ $trainee->id }}">{{ $trainee->name }} — {{ $trainee->email }}</option>
+                                    <option value="{{ $trainee->id }}">{{ $trainee->name }}{{ $trainee->staff_id ? ' — ' . $trainee->staff_id : '' }}</option>
                                 @endforeach
                             </select>
                             @error('traineeId') <p class="error-text">{{ $message }}</p> @enderror

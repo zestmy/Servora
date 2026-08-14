@@ -54,7 +54,7 @@
                         <tr wire:key="cert-{{ $certificate->id }}">
                             <td class="px-4 py-3">
                                 <p class="font-medium text-gray-900">{{ $certificate->recipient_name }}</p>
-                                <p class="text-xs text-gray-600">{{ $certificate->trainee?->email }}</p>
+                                <p class="text-xs text-gray-600">{{ $certificate->employee?->email }}</p>
                             </td>
                             <td class="px-4 py-3 text-gray-700">{{ $certificate->title }}</td>
                             <td class="px-4 py-3 font-mono text-xs text-gray-700">{{ $certificate->serial }}</td>

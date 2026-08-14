@@ -28,8 +28,44 @@ class TrainingQuiz extends Model
         'archived'  => 'Archived',
     ];
 
+    /**
+     * What the questions are asked in — see the migration for why `ms` and `id`
+     * are separate rather than one Malay option.
+     */
+    public const LANGUAGES = [
+        'en' => 'English',
+        'ms' => 'Bahasa Malaysia',
+        'id' => 'Bahasa Indonesia',
+    ];
+
+    /**
+     * True/false wording per language.
+     *
+     * Here rather than in the question editor because BOTH sides need it and
+     * they must agree: the editor fills these in when somebody picks the
+     * true/false type, and the AI is told to use exactly these words. Two
+     * copies would drift, and a quiz with "True/False" in an otherwise Malay
+     * paper is the kind of thing staff notice and authors do not.
+     */
+    public const BOOLEAN_OPTIONS = [
+        'en' => ['True', 'False'],
+        'ms' => ['Betul', 'Salah'],
+        'id' => ['Benar', 'Salah'],
+    ];
+
+    /** @return array<int, string> */
+    public static function booleanOptionsFor(?string $language): array
+    {
+        return self::BOOLEAN_OPTIONS[$language] ?? self::BOOLEAN_OPTIONS['en'];
+    }
+
+    public function languageLabel(): string
+    {
+        return self::LANGUAGES[$this->language] ?? self::LANGUAGES['en'];
+    }
+
     protected $fillable = [
-        'company_id', 'training_course_id', 'title', 'description', 'status',
+        'company_id', 'training_course_id', 'title', 'description', 'language', 'status',
         'pass_mark', 'default_seconds', 'default_points',
         'speed_bonus', 'streak_bonus', 'shuffle_questions', 'shuffle_options',
         'max_attempts', 'issues_certificate',
@@ -63,6 +99,7 @@ class TrainingQuiz extends Model
      */
     protected $attributes = [
         'status'             => 'draft',
+        'language'           => 'en',
         'pass_mark'          => 70,
         'default_seconds'    => 20,
         'default_points'     => 1000,
@@ -128,14 +165,14 @@ class TrainingQuiz extends Model
      * the room, and a staff member should not be locked out of the shift
      * briefing because they practised twice at home.
      */
-    public function attemptsRemaining(?int $lmsUserId): ?int
+    public function attemptsRemaining(?int $employeeId): ?int
     {
-        if ($this->max_attempts <= 0 || ! $lmsUserId) {
+        if ($this->max_attempts <= 0 || ! $employeeId) {
             return null; // unlimited
         }
 
         $used = $this->attempts()
-            ->where('lms_user_id', $lmsUserId)
+            ->where('employee_id', $employeeId)
             ->where('mode', 'self')
             ->whereNotNull('completed_at')
             ->count();

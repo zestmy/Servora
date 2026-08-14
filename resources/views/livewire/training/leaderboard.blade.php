@@ -53,7 +53,7 @@
                 </thead>
                 <tbody>
                     @forelse ($board as $row)
-                        <tr wire:key="lb-{{ $row['trainee_id'] }}" class="{{ $row['rank'] === 1 ? 'bg-brand-50/50' : '' }}">
+                        <tr wire:key="lb-{{ $row['employee_id'] }}" class="{{ $row['rank'] === 1 ? 'bg-brand-50/50' : '' }}">
                             <td class="px-4 py-3">
                                 <span class="flex items-center gap-1.5">
                                     @if ($row['rank'] <= 3)
