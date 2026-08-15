@@ -272,9 +272,40 @@
                 </div>
             @endif
 
-            <button type="button" wire:click="nextQuestion" class="btn-primary w-full mt-4">
-                {{ $index + 1 >= $total ? 'See my result' : 'Next question' }}
-            </button>
+            {{-- ── Next, by tap or by clock ──
+
+                 With auto-advance set, the same interval pattern as the
+                 question timer: its own x-data so each feedback screen gets a
+                 fresh count, `fired` so a morph race cannot advance twice, and
+                 an isConnected check instead of hand-run teardown — a morph
+                 can remove this element without anything getting the chance
+                 to clean up. The button stays either way: the clock is a
+                 default, not a cage, and tapping is always allowed to be
+                 faster than waiting. --}}
+            @php $auto = (int) ($quiz->auto_advance_seconds ?? 0); @endphp
+
+            @if ($auto > 0)
+                <div wire:key="autonext-{{ $question->id }}"
+                     x-data="{ left: {{ $auto }}, fired: false }"
+                     x-init="const tick = setInterval(() => {
+                                 if (! $el.isConnected) { clearInterval(tick); return; }
+                                 left = Math.max(0, left - 1);
+                                 if (left === 0 && ! fired) {
+                                     fired = true;
+                                     clearInterval(tick);
+                                     $wire.nextQuestion();
+                                 }
+                             }, 1000)">
+                    <button type="button" wire:click="nextQuestion" class="btn-primary w-full mt-4">
+                        {{ $index + 1 >= $total ? 'See my result' : 'Next question' }}
+                        <span class="ml-2 tabular-nums opacity-80" x-text="'· ' + left"></span>
+                    </button>
+                </div>
+            @else
+                <button type="button" wire:click="nextQuestion" class="btn-primary w-full mt-4">
+                    {{ $index + 1 >= $total ? 'See my result' : 'Next question' }}
+                </button>
+            @endif
         </div>
     @else
         <button type="button" wire:click="submit" class="btn-primary w-full mt-4"

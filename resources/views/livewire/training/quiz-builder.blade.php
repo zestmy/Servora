@@ -314,20 +314,36 @@
                     @error('wrongPenaltyPercent') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- ── Auto-next ──
+
+                     Zero by default, deliberately. A quick menu round plays
+                     best with the Kahoot rhythm — verdict, beat, next — but on
+                     a compliance paper the explanation under a wrong answer IS
+                     the training, and a page that turns itself is a page
+                     half-read. The author knows which quiz they are writing. --}}
+                <div class="pt-1">
+                    <label class="label" for="quiz-autonext">Auto-next question</label>
+                    <div class="flex items-center gap-2">
+                        <input id="quiz-autonext" type="number" min="0" max="60"
+                               wire:model="autoAdvanceSeconds" class="input w-24">
+                        <span class="text-sm text-gray-700">seconds on the answer screen</span>
+                    </div>
+                    <p class="help">
+                        0 waits for the trainee to tap Next. Anything else shows the verdict and
+                        explanation for that many seconds, then moves on by itself — tapping Next
+                        still skips ahead sooner.
+                    </p>
+                    @error('autoAdvanceSeconds') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+
                 {{-- ── Background music ──
 
-                     TWO WAYS IN, and they are not equivalent. An uploaded file
-                     is a native <audio> element in the same document as the
-                     button, so the tap authorises it on every platform and it
-                     draws nothing. A YouTube link is an embed, and a user
-                     gesture belongs to the frame it happened in — so it plays
-                     on Android and on a computer and NOT on an iPhone, whatever
-                     is done on our side of the iframe.
-
-                     Both are offered because the link is the quick way to try
-                     something. The copy says which is which, because a field
-                     that works on the author's laptop and fails on the floor's
-                     phones is only fair if it says so. --}}
+                     AN UPLOADED FILE, full stop. It becomes a native <audio>
+                     element in the same document as the Start button, so the
+                     tap authorises it on every platform and nothing is drawn
+                     on screen. The YouTube link that used to sit under this
+                     was removed after both halves of the embed route failed on
+                     real hardware. --}}
                 <div>
                     <p class="label">Background music</p>
 
@@ -349,33 +365,18 @@
                     <input id="quiz-music-file" type="file" wire:model="musicFile" accept="audio/*" class="input">
                     <p class="help mt-1" wire:loading wire:target="musicFile">Uploading…</p>
                     <p class="help">
-                        An mp3 or m4a, up to 12&nbsp;MB. This is the option that plays on every phone,
+                        An mp3 or m4a, up to 12&nbsp;MB. Plays on every phone,
                         iPhones included.
                     </p>
                     @error('musicFile') <p class="error-text">{{ $message }}</p> @enderror
 
-                    {{-- The link field stays, and its YouTube half is now
-                         reference only. Both halves of the embed route were
-                         tested on a real iPhone: Apple blocks the start (no
-                         gesture crosses into a cross-origin iframe) and YouTube
-                         stops the continuation (the player pauses the moment it
-                         is off-screen — background listening is the feature
-                         Premium sells). A DIRECT AUDIO URL is different in
-                         kind: it feeds the same <audio> element as an upload
-                         and plays everywhere. --}}
-                    <label class="label mt-3" for="quiz-music">…or a link</label>
-                    <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
-                           placeholder="https://www.youtube.com/watch?v=…">
-                    <p class="help">
-                        Used only when no file is uploaded. A DIRECT AUDIO LINK — one ending .mp3,
-                        .m4a, .ogg or .wav — behaves exactly like an upload and plays on every
-                        phone. <span class="font-medium text-gray-700">A YouTube link cannot be
-                        background music on a phone</span>: phones refuse to start an embed from the
-                        page, and YouTube pauses a player the moment it is out of sight — background
-                        listening is what YouTube Premium sells. A YouTube link saved here is kept on
-                        the quiz but plays nothing for staff; upload the file instead.
-                    </p>
-                    @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
+                    {{-- NO LINK FIELD. A YouTube link cannot be background
+                         music on a phone — Apple blocks the start and YouTube
+                         pauses an off-screen player, both halves tested on real
+                         hardware — and a field that fails on the floor's phones
+                         while working on the author's laptop earns its removal.
+                         Direct audio URLs already saved keep playing; the
+                         column is never overwritten. --}}
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-gray-800">

@@ -1285,6 +1285,85 @@ class TrainingScreensRenderTest extends TestCase
         $component->call('heartbeat')->assertOk()->assertSee('Top of the room');
     }
 
+    // ── Auto-next ─────────────────────────────────────────────────────────
+
+    /**
+     * The builder saves the auto-next seconds, no longer offers a link field,
+     * and — the part that would fail silently — leaves music_url ALONE.
+     *
+     * The YouTube field is gone from the form, but the column keeps whatever
+     * it holds: a direct audio URL saved there still plays through
+     * musicFileUrl(), and a settings save that nulled it would be a quiet data
+     * loss discovered on the restaurant floor.
+     */
+    public function test_the_builder_saves_auto_next_and_keeps_its_hands_off_music_url(): void
+    {
+        $this->quiz->update(['music_url' => 'https://cdn.example.com/track.mp3']);
+
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->assertOk()
+            ->assertSee('Auto-next question')
+            // The link field is gone — input and label both.
+            ->assertDontSee('wire:model="musicUrl"', escape: false)
+            ->assertDontSee('…or a link')
+            ->set('autoAdvanceSeconds', 7)
+            ->call('saveSettings')
+            ->assertHasNoErrors();
+
+        $this->quiz->refresh();
+        $this->assertSame(7, $this->quiz->auto_advance_seconds);
+        $this->assertSame('https://cdn.example.com/track.mp3', $this->quiz->music_url);
+    }
+
+    /** Out of range never reaches the row. */
+    public function test_the_auto_next_seconds_are_bounded(): void
+    {
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->set('autoAdvanceSeconds', 90)
+            ->call('saveSettings')
+            ->assertHasErrors(['autoAdvanceSeconds']);
+
+        $this->assertSame(0, $this->quiz->fresh()->auto_advance_seconds);
+    }
+
+    /**
+     * The answer screen turns its own page only when the quiz says so.
+     *
+     * With a seconds value the feedback card carries the keyed countdown that
+     * calls nextQuestion; at zero — the default, and every pre-existing quiz —
+     * the markup is byte-for-byte the old manual button. The countdown itself
+     * is a browser behaviour, but WHICH page was rendered is decidable here.
+     */
+    public function test_the_answer_screen_turns_its_own_page_only_when_asked(): void
+    {
+        $this->asStaff();
+
+        $feedback = function () {
+            return Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+                ->call('begin')
+                ->call('choose', 0, false)
+                ->call('submit')
+                ->assertOk();
+        };
+
+        // Default: no timer anywhere near the Next button.
+        $feedback()->assertDontSee('autonext-', escape: false);
+
+        $this->quiz->update(['auto_advance_seconds' => 5]);
+        // A fresh attempt, or begin() would RESUME the half-answered one above
+        // — past its only answered question, straight onto the result screen.
+        $this->quiz->attempts()->delete();
+
+        $feedback()
+            ->assertSee('autonext-', escape: false)
+            // Seeded with the quiz's own number, and the tap survives: the
+            // clock is a default, not a cage.
+            ->assertSee('left: 5', escape: false)
+            ->assertSee('wire:click="nextQuestion"', escape: false);
+    }
+
     // ── Routes ────────────────────────────────────────────────────────────
 
     /** The gates on the routes themselves, not just the components behind them. */

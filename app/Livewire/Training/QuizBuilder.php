@@ -51,7 +51,12 @@ class QuizBuilder extends Component
     public bool $streakBonus = true;
     /** Share of a question's points a wrong answer costs. 0 = nothing. */
     public int $wrongPenaltyPercent = 0;
-    public string $musicUrl = '';
+    /**
+     * Seconds the answer screen stays up before turning its own page.
+     * 0 — the default — keeps the tap: the trainee moves on when they have
+     * read the explanation.
+     */
+    public int $autoAdvanceSeconds = 0;
     public bool $shuffleQuestions = true;
     public bool $shuffleOptions = true;
     public int $maxAttempts = 0;
@@ -135,7 +140,7 @@ class QuizBuilder extends Component
         $this->speedBonus        = $quiz->speed_bonus;
         $this->streakBonus       = $quiz->streak_bonus;
         $this->wrongPenaltyPercent = (int) $quiz->wrong_penalty_percent;
-        $this->musicUrl          = (string) $quiz->music_url;
+        $this->autoAdvanceSeconds = (int) $quiz->auto_advance_seconds;
         $this->musicPath         = $quiz->music_path;
         $this->shuffleQuestions  = $quiz->shuffle_questions;
         $this->shuffleOptions    = $quiz->shuffle_options;
@@ -216,7 +221,7 @@ class QuizBuilder extends Component
             'defaultPoints'  => ['required', 'integer', 'min:100', 'max:5000'],
             'maxAttempts'    => ['required', 'integer', 'min:0', 'max:20'],
             'wrongPenaltyPercent' => ['required', 'integer', 'min:0', 'max:100'],
-            'musicUrl'       => ['nullable', 'string', 'max:500', 'url'],
+            'autoAdvanceSeconds' => ['required', 'integer', 'min:0', 'max:60'],
             // 12 MB covers a five-minute track at a sensible bitrate. The box
             // has 1.97 GB of RAM and a modest disk — see the capacity note —
             // so this is a ceiling rather than a formality.
@@ -242,7 +247,15 @@ class QuizBuilder extends Component
             'speed_bonus'        => $this->speedBonus,
             'streak_bonus'       => $this->streakBonus,
             'wrong_penalty_percent' => $data['wrongPenaltyPercent'],
-            'music_url'          => $data['musicUrl'] ?: null,
+            /*
+             * music_url is deliberately NOT written any more. The field left
+             * the form — a YouTube link cannot be background music on a phone,
+             * tested both ways on real hardware — but the COLUMN keeps its
+             * value untouched, because a direct audio URL saved there still
+             * plays through musicFileUrl() and destroying it on the next
+             * unrelated settings save would be a quiet data loss.
+             */
+            'auto_advance_seconds' => $data['autoAdvanceSeconds'],
             'music_path'         => $this->musicFile
                 ? $this->musicFile->store('training/music', 'public')
                 : $this->musicPath,
