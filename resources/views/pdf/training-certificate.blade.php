@@ -69,7 +69,7 @@
            first, ink after. */
         .body { position: fixed; top: 0; left: 0; right: 0; padding: 22mm 32mm 0 32mm; text-align: center; }
 
-        .logo { max-height: 42px; max-width: 170px; }
+        .logo { max-height: 68px; max-width: 260px; }
         .company {
             font-size: 12px; font-weight: bold; letter-spacing: 2px;
             text-transform: uppercase; color: #334155;
