@@ -136,9 +136,26 @@
                 <button type="submit"
                         aria-label="Signed in as {{ $staff->name }} — sign out"
                         class="flex min-h-[2.75rem] items-center gap-2 rounded-full bg-white/15 pl-1 pr-3 active:bg-white/25">
+                    {{-- Their own face, when there is one on file.
+
+                         The initials stay UNDERNEATH rather than as an
+                         either/or: a photo that 404s — deleted from disk, or a
+                         path left behind by a restore — then degrades to the
+                         disc it always was instead of to a broken-image icon
+                         in the middle of the header on every screen in the app.
+
+                         Same route as the boards use, which is a PIN-session
+                         route rather than the manager's hr.view one. See
+                         StaffPhotoController. --}}
                     <span aria-hidden="true"
-                          class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
+                          class="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
                         {{ $initials }}
+
+                        @if ($staff->photo_path)
+                            <img src="{{ route('clock.staff.photo', $staff->id) }}" alt="" loading="lazy"
+                                 class="absolute inset-0 h-full w-full object-cover"
+                                 onerror="this.remove()">
+                        @endif
                     </span>
                     <span class="text-xs font-medium">Sign out</span>
                 </button>
