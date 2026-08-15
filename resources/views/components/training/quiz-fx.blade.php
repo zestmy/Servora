@@ -9,86 +9,48 @@
     the moment the quiz begins. Nothing here occupies space in the layout, so
     "first child" costs the page nothing.
 
-    SOUND IS SYNTHESISED, NOT A FILE. Three reasons, and the first is enough:
-    the staff app is a PWA used on a kitchen floor with patchy wifi, and an mp3
-    that has not finished downloading is a correct answer with no reward — the
-    one moment the feedback had to land. Web Audio has no such failure mode, it
-    is instant, and there is nothing to cache. The other two: no licensing
-    question over a sound effect shipped to merchants, and no 200 KB of audio in
-    a bundle for a two-note chime.
+    SOUND EFFECTS ARE SYNTHESISED, NOT FILES. Three reasons, and the first is
+    enough: the staff app is a PWA used on a kitchen floor with patchy wifi, and
+    an mp3 that has not finished downloading is a correct answer with no reward
+    — the one moment the feedback had to land. Web Audio has no such failure
+    mode, it is instant, and there is nothing to cache. The other two: no
+    licensing question over a sound effect shipped to merchants, and no 200 KB
+    of audio in a bundle for a two-note chime.
 
     ON AN IPHONE, THE RINGER SWITCH SILENCES WEB AUDIO. Media elements ignore
     it; an AudioContext does not. So the chime honestly cannot be made to play
     on a handset in silent mode, and the flash, the shake and the vibration are
     not decoration around it — for a phone on silent they ARE the feedback.
 
-    MUSIC GOES THROUGH THE YOUTUBE PLAYER API, and two things about it are
-    load-bearing rather than incidental.
+    ── THE MUSIC IS AN <audio> ELEMENT, AND ONLY THAT ──
 
-    THE PLAYER IS BUILT AT PAGE LOAD; ONLY PLAYBACK WAITS FOR THE TAP.
-    Constructing a player needs no user gesture — playing does. The first
-    version did both on the Start tap with an `await` on the API script in
-    between, and an await ends the gesture, so playVideo() arrived unauthorised
-    and was refused in silence. That is "the music does not autoplay". Every
-    path from the tap to playVideo() is now synchronous.
+    There is no YouTube player here any more, and its removal is the fix rather
+    than a simplification. An embed cannot be made to play on an iPhone: a user
+    gesture belongs to the FRAME it happened in, playVideo() reaches the player
+    by postMessage into a cross-origin iframe, and the activation does not cross
+    that boundary. Four attempts went into working around it — building the
+    player inside the tap, showing it, hiding it, revealing it on failure — and
+    the honest summary is that the only two outcomes available were silence or a
+    YouTube window sitting on top of the quiz. Both were reported, correctly, as
+    broken.
 
-    THE PLAYER LIVES ON <body>, BUILT IN JAVASCRIPT, not in this template. A
-    teleported node's lifetime is tied to the <template> that declared it, and
-    this component re-renders on every question — so the iframe was being
-    destroyed mid-quiz. That is "the music stops when I move to the next
-    question". Nothing Livewire morphs can reach it now.
+    A native <audio> element has none of the problem. It lives in the same
+    document as the button, so the tap authorises it directly, on every platform
+    — which is exactly how the wedding-invitation sites that do this well work,
+    including the one this was finally diagnosed against. One element, one
+    play(), a floating button to stop it, and nothing on screen.
 
-    THE PLAYER IS VISIBLE WHILE IT PLAYS, and that is not decoration — it is
-    the difference between sound and silence on an iPhone. This worked once and
-    was broken by hiding it: the player was moved off-screen behind
-    `-translate-x-[200vw]` and `opacity: 0` on the reasoning that a small
-    YouTube card was clutter. WebKit does not play media in a frame it does not
-    consider visible, so from that commit there was no sound on iOS at all.
-
-    Two properties, then, and both are load-bearing:
-
-      1. The player is CREATED INSIDE the tap, not at page load. WebKit is far
-         more willing to start media in a frame that was built during a gesture.
-      2. The player is ON SCREEN whenever it is playing. Small, bottom-left,
-         clear of the primary button and the tab bar — but rendered.
-
-    Its own controls are on, so if a platform still refuses there is something
-    to press. That is a fallback rather than the design.
-
-    AN UPLOADED TRACK SIDESTEPS ALL OF IT. A native <audio> element lives in
-    the same document as the Start button, so the tap authorises it directly —
-    which is how every wedding-invitation site on the Malaysian internet plays a
-    song on an iPhone. When a quiz has a file it is used and YouTube is not
-    touched at all; the iframe path remains for quizzes that only have a link.
+    The cost is that a merchant has to upload a track instead of pasting a link.
+    That is a real cost and it is the right one: a link that plays on the
+    author's laptop and not on the floor's phones is worse than a field that
+    asks for a file.
 
     Props:
-      music       a YouTube embed URL, or null
-      musicFile   an uploaded audio URL, or null. Preferred over the link.
+      musicFile  an uploaded audio URL, or null for a quiz with no track
 --}}
-@props(['music' => null, 'musicFile' => null])
+@props(['musicFile' => null])
 
-@php
-    // The API takes an id and a playlist, not an embed URL — so the pieces are
-    // pulled back out of the URL the model built. The model keeps the parsing
-    // that decides what is SAFE; this is only the shape the API wants.
-    $musicId = null;
-    $musicList = null;
-
-    if ($music) {
-        if (preg_match('~/embed/([A-Za-z0-9_-]{11})~', $music, $m)) {
-            $musicId = $m[1];
-        }
-
-        if (preg_match('~[?&]list=([A-Za-z0-9_-]{12,})~', $music, $m)) {
-            $musicList = $m[1];
-        }
-    }
-
-    // The file wins. A quiz carrying both plays the one that works everywhere.
-    $hasMusic = $musicFile || $musicId || $musicList;
-@endphp
-
-<div x-data="quizFx(@js($musicId), @js($musicList), @js($musicFile))"
+<div x-data="quizFx(@js($musicFile))"
      @answer-scored.window="react($event.detail)"
      @start-music.window="autostart()"
      class="contents">
@@ -134,17 +96,13 @@
         </div>
     </template>
 
-    {{-- The controls, floating bottom-right. 44px each, because they are
-         pressed with the same hands as everything else in this app, and clear
-         of the full-width primary button that lives at the bottom of every
-         quiz screen. --}}
+    {{-- The controls, floating bottom-right and clear of the tab bar. 44px
+         each, because they are pressed with the same hands as everything else
+         in this app. Nothing else is drawn: the track has no window, which is
+         the whole point of using an audio element. --}}
     <template x-teleport="body">
-        {{-- Above the tab bar, not on top of it. The staff layout ends in a
-             fixed row of tabs about 4rem tall, and these were landing on
-             "Board" — a floating control that covers navigation is a control
-             that gets pressed by accident. --}}
         <div class="fixed bottom-[5.5rem] right-4 z-50 flex flex-col gap-2">
-            @if ($hasMusic)
+            @if ($musicFile)
                 <button type="button" @click="toggleMusic()"
                         class="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-white shadow-e3
                                active:scale-95 transition"
@@ -165,26 +123,6 @@
             </button>
         </div>
     </template>
-
-    {{-- NO "TAP PLAY" NOTICE. There was one, and it was right about the
-         mechanism and wrong about the screen: a black label floating over the
-         options of a timed question, on every question, is a thing to get past
-         rather than a thing to read. The player itself appearing is the whole
-         message — it is a play button, and people know what those are.
-
-         The honest fix for a merchant is upstream anyway: upload a track and
-         no iPhone ever has to be asked for anything. --}}
-
-    {{-- THE PLAYER IS NOT IN THIS TEMPLATE, and that is the fix for "the music
-         stops when I move to the next question". It was a teleported node, and
-         a teleport's lifetime is tied to the <template> that declared it: every
-         Livewire re-render — a question, a feedback panel, the next question —
-         risked that template being replaced, which destroys the teleported
-         iframe and the track with it.
-
-         So the container is built in JavaScript and appended to <body> once,
-         outside anything Blade owns. Nothing Livewire morphs can reach it. See
-         mountPlayer() below. --}}
 </div>
 
 @once
@@ -205,14 +143,12 @@
 
                 window.Alpine.__quizFxRegistered = true;
 
-                window.Alpine.data('quizFx', (musicId, musicList, musicFile) => ({
+                window.Alpine.data('quizFx', (musicFile) => ({
                     sound: localStorage.getItem('quizSound') !== 'off',
                     // Never restored from storage. Music that starts itself
                     // because of a choice made on a different shift is the
                     // thing a phone gets put face down for.
                     musicOn: false,
-                    musicId: musicId,
-                    musicList: musicList,
                     musicFile: musicFile,
                     flash: null,
                     // What the ribbon says, and what it is worth. Both come
@@ -223,31 +159,10 @@
                     ctx: null,
 
                     /*
-                     * THE PLAYER IS BUILT AT PAGE LOAD, NOT ON THE TAP.
-                     *
-                     * Reported as "music is not auto-play". Constructing a
-                     * YouTube player needs no user gesture; only PLAYBACK does
-                     * — and the old code did both on the Start tap, with an
-                     * `await` on the API script in between. That await ends the
-                     * gesture, so by the time playVideo() was reachable the
-                     * browser had stopped counting it as user-initiated and
-                     * refused, silently, on exactly the platform that matters
-                     * (iOS). Building the player while the start screen is
-                     * being read leaves the tap with one synchronous call to
-                     * make.
-                     */
-                    /*
-                     * The <audio> element is built up front; the YouTube player
-                     * is NOT.
-                     *
-                     * An audio element is same-frame and inert until play() is
-                     * called, so building it early only helps it buffer. A
-                     * YouTube player built at page load is an iframe created
-                     * outside any gesture, in a container that is not yet on
-                     * screen — and WebKit decides very early whether a frame
-                     * may produce sound. The version of this that demonstrably
-                     * worked on an iPhone built the player INSIDE the tap, and
-                     * that is restored: see mountPlayer's caller.
+                     * The element is built at page load, which is free: an
+                     * <audio> element makes no sound until play() is called,
+                     * and having it in the document early lets it buffer while
+                     * somebody reads the start screen.
                      */
                     init() {
                         if (this.musicFile) {
@@ -256,17 +171,12 @@
                     },
 
                     /**
-                     * The uploaded track, as a plain <audio> element.
+                     * The track, on <body>, built in JavaScript.
                      *
-                     * On <body> and built in JavaScript for the same reason the
-                     * YouTube player is: a node this component owns would be
-                     * destroyed by the morph between two questions, and the
-                     * music with it.
-                     *
-                     * There is nothing clever here, and that is the point. It
-                     * is in the same document as the button, so play() called
-                     * from the tap is authorised on every platform including
-                     * iOS — which is the whole reason a file beats an embed.
+                     * Not in the template: a node this component owns would be
+                     * destroyed by the morph between two questions and the
+                     * music with it. Built here, nothing Livewire morphs can
+                     * reach it.
                      */
                     mountAudio() {
                         if (window.__quizAudio?.isConnected) {
@@ -396,288 +306,56 @@
 
                     // ── Music ─────────────────────────────────────────────
 
-                    /**
-                     * Load YouTube's API once, and resolve when it is ready.
-                     *
-                     * onYouTubeIframeAPIReady is a single global YouTube calls
-                     * exactly once, so it is wired to a promise rather than
-                     * being overwritten by whichever screen asked last.
-                     */
-                    youtube() {
-                        if (window.__ytReady) {
-                            return window.__ytReady;
-                        }
-
-                        window.__ytReady = new Promise((resolve) => {
-                            if (window.YT && window.YT.Player) {
-                                resolve(window.YT);
-
-                                return;
-                            }
-
-                            window.onYouTubeIframeAPIReady = () => resolve(window.YT);
-
-                            const tag = document.createElement('script');
-                            tag.src = 'https://www.youtube.com/iframe_api';
-                            document.head.appendChild(tag);
-                        });
-
-                        return window.__ytReady;
-                    },
-
-                    /**
-                     * Build the off-screen player, once per document.
-                     *
-                     * The container is created HERE rather than in the Blade,
-                     * because a teleported node dies with the template that
-                     * declared it and this one has to outlive every Livewire
-                     * re-render between question one and the result. Parked far
-                     * off-screen rather than display:none — a frame that has
-                     * been hidden outright is what iOS refuses to play media
-                     * in; one that is merely somewhere else is not.
-                     */
-                    async mountPlayer() {
-                        if (window.__quizPlayerMount?.isConnected) {
-                            return;
-                        }
-
-                        /*
-                         * A CONTAINER, with the player's target INSIDE it.
-                         *
-                         * new YT.Player(el) REPLACES the element it is given
-                         * with the iframe. Passing the tracked node therefore
-                         * detached it the instant the player was ready — so
-                         * `isConnected` was permanently false (rebuilding the
-                         * player on every press) and revealPlayer() restyled a
-                         * node that was no longer in the document, which is why
-                         * the "tap play" prompt appeared with no player under
-                         * it. The container survives; only the inner div is
-                         * consumed.
-                         */
-                        const container = document.createElement('div');
-                        container.id = 'quiz-music-player';
-
-                        const target = document.createElement('div');
-                        container.appendChild(target);
-
-                        document.body.appendChild(container);
-                        window.__quizPlayerMount = container;
-
-                        // On screen from the moment it exists. A frame created
-                        // off-screen may never be allowed to make a sound.
-                        this.revealPlayer();
-
-                        const YT = await this.youtube();
-
-                        window.__quizPlayer = new YT.Player(target, {
-                            videoId: this.musicId || undefined,
-                            playerVars: {
-                                // playsinline keeps iOS from throwing the video
-                                // fullscreen over the question being answered.
-                                playsinline: 1,
-                                /*
-                                 * CONTROLS ON, though the player spends almost
-                                 * all its life off-screen. When iOS refuses the
-                                 * API call this frame is the only thing that
-                                 * can start the music, and it can only do that
-                                 * if there is something in it to tap. Creating
-                                 * a second player at that point would mean
-                                 * loading the track twice.
-                                 */
-                                controls: 1,
-                                modestbranding: 1,
-                                rel: 0,
-                                loop: 1,
-                                // NOT autoplay: nothing may make noise before
-                                // somebody has asked for it.
-                                autoplay: 0,
-                                ...(this.musicList
-                                    ? { list: this.musicList, listType: 'playlist' }
-                                    : { playlist: this.musicId }),
-                            },
-                            events: {
-                                onReady: (e) => {
-                                    // Backing music, not the main event: loud
-                                    // enough to hear under a chime, quiet
-                                    // enough to talk over.
-                                    e.target.setVolume(35);
-
-                                    /*
-                                     * The player is built from the tap, so this
-                                     * fires a moment after it with the
-                                     * document's activation still behind it —
-                                     * which is exactly the sequence that played
-                                     * on an iPhone before any of this was
-                                     * "improved".
-                                     */
-                                    if (this.musicOn) {
-                                        e.target.playVideo();
-                                    }
-                                },
-                                /*
-                                 * A single video ends rather than looping when
-                                 * the `playlist` trick is refused, and a quiz
-                                 * that falls silent half way through is worse
-                                 * than one with no music at all.
-                                 */
-                                onStateChange: (e) => {
-                                    // Playing at last — whether from the API or
-                                    // from a tap on the frame. Put it away.
-                                    if (e.data === YT.PlayerState.PLAYING) {
-                                        this.musicOn = true;
-                                        this.revealPlayer();
-                                    }
-
-                                    if (e.data === YT.PlayerState.ENDED && this.musicOn) {
-                                        e.target.seekTo(0);
-                                        e.target.playVideo();
-                                    }
-                                },
-                            },
-                        });
-                    },
-
-    /** Out of sight, and only when nothing is playing. */
-                    parkPlayer() {
-                        const mount = window.__quizPlayerMount;
-
-                        if (mount) {
-                            mount.setAttribute('aria-hidden', 'true');
-                            mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
-                                + 'width:160px;height:90px;opacity:0;pointer-events:none;';
-                            this.fillContainer(mount);
-                        }
-                    },
-
-                    /**
-                     * On screen, small, bottom-LEFT.
-                     *
-                     * Shown whenever the track is playing rather than only when
-                     * something has gone wrong. WebKit will not play media in a
-                     * frame it does not consider visible — hiding this is
-                     * exactly what silenced the music on iPhones — and the
-                     * left-hand corner keeps it off the primary button and off
-                     * the thumb that rests on the right.
-                     */
-                    revealPlayer() {
-                        const mount = window.__quizPlayerMount;
-
-                        if (! mount) {
-                            return;
-                        }
-
-                        mount.removeAttribute('aria-hidden');
-                        mount.style.cssText = 'position:fixed;bottom:5.5rem;left:1rem;z-index:40;'
-                            + 'width:150px;height:84px;border-radius:12px;overflow:hidden;'
-                            + 'box-shadow:0 8px 24px rgba(15,23,42,.28);';
-
-                        this.fillContainer(mount);
-                    },
-
-                    /** The iframe fills whatever the container currently is. */
-                    fillContainer(container) {
-                        const frame = container.querySelector('iframe');
-
-                        if (frame) {
-                            frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
-                        }
-                    },
-
-                    /** The Start tap. Music begins if the quiz has any. */
+                    /** The Start tap. */
                     autostart() {
-                        if (! this.musicFile && ! this.musicId && ! this.musicList) {
-                            return;
-                        }
-
-                        if (! this.musicOn) {
+                        if (this.musicFile && ! this.musicOn) {
                             this.toggleMusic();
                         }
                     },
 
-                    /*
-                     * SYNCHRONOUS, DELIBERATELY. Every path from the tap to
-                     * playVideo() has to be free of `await`: an await ends the
-                     * user gesture, and playback outside a gesture is refused
-                     * without an error. Where there is no player yet, one is
-                     * BUILT here rather than played — creating the frame inside
-                     * the tap is what the version that worked on an iPhone did,
-                     * and onReady starts it a moment later with the document's
-                     * activation still behind it.
+                    /**
+                     * SYNCHRONOUS, and that is the whole trick.
+                     *
+                     * Same document, same frame, no await between the tap and
+                     * play() — so the gesture authorises it on every platform,
+                     * iPhone included. The catch is for a file that 404s or a
+                     * codec the phone will not take, neither of which should
+                     * stop the quiz.
                      */
                     toggleMusic() {
+                        if (! this.musicFile) {
+                            return;
+                        }
+
                         this.musicOn = ! this.musicOn;
 
-                        /*
-                         * A FILE NEEDS NO FALLBACK. Same document, same frame,
-                         * so the tap authorises it — there is nothing to check
-                         * afterwards and nothing to reveal. The catch is for a
-                         * file that 404s or a codec the phone will not take,
-                         * neither of which should stop the quiz.
-                         */
-                        if (this.musicFile) {
-                            const audio = window.__quizAudio;
-
-                            if (! audio?.isConnected) {
-                                this.mountAudio();
-                            }
-
-                            try {
-                                this.musicOn
-                                    ? window.__quizAudio?.play()?.catch?.(() => {})
-                                    : window.__quizAudio?.pause();
-                            } catch (e) {}
-
-                            return;
-                        }
-
-                        /*
-                         * A player whose iframe has been swapped out from under
-                         * it — wire:navigate outlives the document that built
-                         * it — is dropped rather than talked to.
-                         */
-                        if (! window.__quizPlayer?.getIframe?.()?.isConnected) {
-                            try { window.__quizPlayer?.destroy?.(); } catch (e) {}
-                            window.__quizPlayer = null;
-                        }
-
-                        if (this.musicOn && ! window.__quizPlayer) {
-                            // Built INSIDE this gesture, which is what the
-                            // version that worked on an iPhone did. onReady
-                            // starts it.
-                            this.mountPlayer();
-
-                            return;
+                        if (! window.__quizAudio?.isConnected) {
+                            this.mountAudio();
                         }
 
                         try {
-                            if (this.musicOn) {
-                                window.__quizPlayer?.playVideo?.();
-                            } else {
-                                window.__quizPlayer?.pauseVideo?.();
-                            }
+                            this.musicOn
+                                ? window.__quizAudio?.play()?.catch?.(() => {})
+                                : window.__quizAudio?.pause();
                         } catch (e) {}
-
-                        // Visible while it plays — see revealPlayer(). Hiding
-                        // it is what silenced iPhones.
-                        this.musicOn ? this.revealPlayer() : this.parkPlayer();
-
                     },
 
                     /** Drop the music while a verdict is being heard. */
                     duck() {
-                        const player = window.__quizPlayer;
+                        const audio = window.__quizAudio;
 
-                        if (! this.musicOn || ! player?.setVolume) {
+                        if (! this.musicOn || ! audio) {
                             return;
                         }
 
-                        // Swallowed on purpose: a player torn down by a
-                        // navigation mid-question must never take the answer
-                        // feedback down with it. Ducking is the least important
+                        // Swallowed on purpose: ducking is the least important
                         // thing happening at this moment.
                         try {
-                            player.setVolume(10);
-                            setTimeout(() => { try { player.setVolume(35); } catch (e) {} }, 900);
+                            audio.volume = 0.12;
+                            clearTimeout(this._duck);
+                            this._duck = setTimeout(() => {
+                                try { audio.volume = 0.35; } catch (e) {}
+                            }, 900);
                         } catch (e) {}
                     },
                 }));

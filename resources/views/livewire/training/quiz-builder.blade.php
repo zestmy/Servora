@@ -316,15 +316,18 @@
 
                 {{-- ── Background music ──
 
-                     TWO WAYS IN, and the file is the one that works
-                     everywhere. A YouTube embed cannot autoplay on an iPhone —
-                     a user gesture belongs to the frame it happened in, and
-                     reaching the player means crossing into a cross-origin
-                     iframe — so on iOS a link asks the staff member for one tap
-                     on the player itself. An uploaded track is a native <audio>
-                     element in the same document as the Start button, and it
-                     simply plays. --}}
-                <div class="pt-1">
+                     AN UPLOADED FILE, and nothing else. A YouTube link was
+                     offered first and withdrawn: an embed cannot be made to
+                     play on an iPhone, because a user gesture belongs to the
+                     frame it happened in and reaching the player means crossing
+                     into a cross-origin iframe. Every workaround produced
+                     either silence or a YouTube window sitting on top of the
+                     quiz, and both were reported as broken.
+
+                     A native <audio> element is in the same document as the
+                     button, so the tap authorises it on every platform, and it
+                     shows nothing at all. --}}
+                <div>
                     <p class="label">Background music</p>
 
                     @if ($musicPath || $musicFile)
@@ -350,14 +353,13 @@
                     </p>
                     @error('musicFile') <p class="error-text">{{ $message }}</p> @enderror
 
-                    <label class="label mt-3" for="quiz-music">…or a YouTube link</label>
-                    <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
-                           placeholder="https://www.youtube.com/watch?v=…">
-                    <p class="help">
-                        Used only when no file is uploaded. Plays by itself on Android and on a
-                        computer; on an iPhone the player appears and asks for one tap.
-                    </p>
-                    @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
+                    {{-- THE YOUTUBE FIELD IS GONE. It could not be made to play
+                         on an iPhone — a gesture belongs to the frame it
+                         happened in, and reaching an embedded player means
+                         crossing into a cross-origin iframe — so the only two
+                         outcomes it ever produced were silence or a YouTube
+                         window sitting on top of the quiz. A file plays
+                         everywhere and shows nothing. --}}
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-gray-800">

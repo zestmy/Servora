@@ -759,7 +759,9 @@ class TrainingScreensRenderTest extends TestCase
      */
     public function test_the_quiz_screens_keep_the_music_wiring_intact(): void
     {
-        $this->quiz->update(['music_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
+        // An uploaded track, which is the only mechanism now: a YouTube embed
+        // cannot be made to play on an iPhone, so the field went with it.
+        $this->quiz->update(['music_path' => 'training/music/track.m4a']);
 
         $this->asStaff();
 
@@ -767,14 +769,16 @@ class TrainingScreensRenderTest extends TestCase
             ->assertOk()
             ->assertSee('start-music', escape: false)
             ->assertSee('quizFx(', escape: false)
-            // The id appears in the script that CREATES the element, which is
-            // the whole point; what must never come back is a Blade-rendered
-            // element carrying it.
-            ->assertDontSee('id="quiz-music-player"', escape: false);
+            // NO IFRAME, on any screen. A YouTube player is what produced both
+            // "no sound on my iPhone" and "that annoying window", and its
+            // return would reintroduce one or the other.
+            ->assertDontSee('youtube', escape: false)
+            ->assertDontSee('<iframe', escape: false);
 
         $question = $start->call('begin')->assertOk()
             ->assertSee('quizFx(', escape: false)
-            ->assertDontSee('id="quiz-music-player"', escape: false);
+            ->assertDontSee('youtube', escape: false)
+            ->assertDontSee('<iframe', escape: false);
 
         // First child on both, which is the property the morph relies on.
         foreach ([$start->html(), $question->html()] as $html) {
