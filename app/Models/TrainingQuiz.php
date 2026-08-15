@@ -242,11 +242,38 @@ class TrainingQuiz extends Model
      * gesture belongs to the frame it happened in. That is the whole reason the
      * YouTube embed cannot autoplay on an iPhone and this can.
      */
+    /** Audio a browser can hand to an <audio> element without an iframe. */
+    public const PLAYABLE_AUDIO = ['mp3', 'm4a', 'aac', 'ogg', 'oga', 'wav'];
+
+    /**
+     * The track, as something an <audio> element can play.
+     *
+     * An uploaded file first — and then, if the link field holds a DIRECT AUDIO
+     * URL rather than a YouTube page, that. The distinction is the whole
+     * difference between music that plays on an iPhone and music that does not:
+     * an audio URL becomes a media element in this document, where the tap on
+     * Start authorises it, while a YouTube link can only ever become a
+     * cross-origin iframe that the gesture cannot reach into.
+     *
+     * Somebody who already has the file hosted somewhere — a CDN, their own
+     * site, a shared drive with a direct link — should not have to download and
+     * re-upload it to get sound on the floor's phones.
+     */
     public function musicFileUrl(): ?string
     {
-        return $this->music_path
-            ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->music_path)
-            : null;
+        if ($this->music_path) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->music_path);
+        }
+
+        $link = trim((string) $this->music_url);
+
+        if ($link === '' || ! str_starts_with($link, 'https://')) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo(parse_url($link, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION));
+
+        return in_array($extension, self::PLAYABLE_AUDIO, true) ? $link : null;
     }
 
     /**

@@ -1167,6 +1167,39 @@ class TrainingModuleTest extends TestCase
         $this->assertNull($quiz->musicEmbedUrl());
     }
 
+    /**
+     * A DIRECT AUDIO LINK is treated as a file, not as an embed.
+     *
+     * The difference decides whether an iPhone makes a sound: an audio URL
+     * becomes a media element in this document, where the tap on Start
+     * authorises it, while a YouTube link can only become a cross-origin iframe
+     * the gesture cannot reach into. Somebody who already has the track hosted
+     * should not have to download and re-upload it.
+     */
+    public function test_a_direct_audio_link_plays_as_a_file(): void
+    {
+        $quiz = $this->quiz();
+
+        $quiz->music_url = 'https://cdn.example.com/tracks/lounge.m4a';
+        $this->assertSame('https://cdn.example.com/tracks/lounge.m4a', $quiz->musicFileUrl());
+        // And it is NOT offered to the iframe path.
+        $this->assertNull($quiz->musicEmbedUrl());
+
+        // A YouTube link is the other way round.
+        $quiz->music_url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+        $this->assertNull($quiz->musicFileUrl());
+        $this->assertNotNull($quiz->musicEmbedUrl());
+
+        // An uploaded file still wins over anything in the link field.
+        $quiz->music_path = 'training/music/track.m4a';
+        $this->assertStringContainsString('training/music/track.m4a', $quiz->musicFileUrl());
+
+        // http, or a page that merely mentions audio, is not a track.
+        $quiz->music_path = null;
+        $quiz->music_url  = 'http://cdn.example.com/tracks/lounge.m4a';
+        $this->assertNull($quiz->musicFileUrl());
+    }
+
     // ── Scheduled challenges ──────────────────────────────────────────────
 
     /**

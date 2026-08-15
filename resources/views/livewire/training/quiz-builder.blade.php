@@ -361,13 +361,15 @@
                          gesture belongs to the frame it happened in and reaching
                          an embedded player means crossing into a cross-origin
                          iframe. The file above is the answer for phones. --}}
-                    <label class="label mt-3" for="quiz-music">…or a YouTube link</label>
+                    <label class="label mt-3" for="quiz-music">…or a link</label>
                     <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
                            placeholder="https://www.youtube.com/watch?v=…">
                     <p class="help">
-                        Used only when no file is uploaded, and it plays out of sight — on Android
-                        and on a computer. <span class="font-medium text-gray-700">iPhones cannot
-                        play an embed</span>, so upload a file if your floor is on iPhones.
+                        A DIRECT AUDIO LINK — one ending .mp3, .m4a, .ogg or .wav — behaves exactly
+                        like an upload and plays on every phone. A YouTube link plays out of sight on
+                        Android and on a computer, but
+                        <span class="font-medium text-gray-700">iPhones cannot play an embed</span>
+                        at all. Used only when no file is uploaded.
                     </p>
                     @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
