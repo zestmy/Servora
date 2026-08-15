@@ -21,6 +21,7 @@ class Company extends Model
         'ordering_mode', 'require_pr_approval', 'default_tax_country', 'price_alert_threshold',
         'onboarding_completed_at', 'registered_via', 'trial_ends_at',
         'ingredients_locked', 'recipes_locked',
+        'cert_signatory_name', 'cert_signatory_title', 'cert_signatory_company', 'cert_signature_path',
     ];
 
     protected $casts = [

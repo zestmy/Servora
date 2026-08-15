@@ -123,6 +123,10 @@ Route::get('/tools/salary-calculator', App\Livewire\Marketing\SalaryCalculator::
 Route::get('/tools/ea-form-generator', App\Livewire\Marketing\EaFormGenerator::class)
     ->name('tools.ea-form');
 
+// Public certificate verification (loginless, QR from the printed certificate)
+Route::get('/verify/certificate/{serial}', [\App\Http\Controllers\Training\CertificateVerifyController::class, 'show'])
+    ->name('certificate.verify');
+
 // Public video share (loginless, QR from printed SOP PDF)
 Route::get('/v/{token}', [\App\Http\Controllers\VideoShareController::class, 'show'])->name('video.share');
 Route::get('/v/{token}/data', [\App\Http\Controllers\VideoShareController::class, 'data'])->name('video.share.data');

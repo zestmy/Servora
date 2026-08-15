@@ -628,6 +628,84 @@ class TrainingModuleTest extends TestCase
         );
     }
 
+    /**
+     * What the certificate PRINTS, asserted on the template's HTML rather
+     * than the PDF binary: the signatory block when one is configured, and
+     * always a QR — embedded as a data URI, because dompdf fetches nothing
+     * remote and a URL would render as a blank square.
+     */
+    public function test_the_certificate_prints_the_signatory_and_a_verification_qr(): void
+    {
+        $course = $this->course(['is_compliance' => true]);
+        $quiz   = $this->quiz($course, ['issues_certificate' => true]);
+
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($quiz, $this->employee);
+        foreach ($quiz->questions as $question) {
+            $service->answer($attempt, $question, [0], 3.0);
+        }
+        $service->finish($attempt);
+
+        $certificate = $this->employee->trainingCertificates()->first();
+
+        $this->company->update([
+            'cert_signatory_name'    => 'Sarah Tan',
+            'cert_signatory_title'   => 'Head of Training',
+            'cert_signatory_company' => 'ZEST Hospitality Academy',
+        ]);
+
+        $html = view('pdf.training-certificate', [
+            'certificate' => $certificate->fresh(),
+            'company'     => $this->company->fresh(),
+        ])->render();
+
+        $this->assertStringContainsString('Sarah Tan', $html);
+        $this->assertStringContainsString('Head of Training', $html);
+        $this->assertStringContainsString('ZEST Hospitality Academy', $html);
+        $this->assertStringContainsString('Scan to verify', $html);
+        $this->assertStringContainsString('data:image/png;base64', $html);
+    }
+
+    /**
+     * The page behind the QR. Public and loginless — the scanner is an
+     * auditor or the next employer, not a user — and each state of the record
+     * gives its own verdict. An unknown serial is a 404 wearing the same
+     * page, so a guessed URL learns nothing beyond "no".
+     */
+    public function test_the_verification_page_answers_for_every_state_of_the_certificate(): void
+    {
+        $course = $this->course(['is_compliance' => true]);
+        $quiz   = $this->quiz($course, ['issues_certificate' => true]);
+
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($quiz, $this->employee);
+        foreach ($quiz->questions as $question) {
+            $service->answer($attempt, $question, [0], 3.0);
+        }
+        $service->finish($attempt);
+
+        $certificate = $this->employee->trainingCertificates()->first();
+
+        // Valid, to anybody, with the facts the paper carries.
+        $this->get('/verify/certificate/' . $certificate->serial)
+            ->assertOk()
+            ->assertSee('Valid certificate')
+            ->assertSee($certificate->recipient_name)
+            ->assertSee($certificate->title)
+            ->assertSee($certificate->serial);
+
+        // Revoked is a verdict of its own, not a disappearance.
+        app(CertificateService::class)->revoke($certificate);
+        $this->get('/verify/certificate/' . $certificate->serial)
+            ->assertOk()
+            ->assertSee('Revoked certificate');
+
+        // An unknown serial: the not-found verdict, on a 404.
+        $this->get('/verify/certificate/SRV-NOPE-0000')
+            ->assertNotFound()
+            ->assertSee('Not found');
+    }
+
     // ── Column defaults in memory ─────────────────────────────────────────
 
     /**

@@ -95,4 +95,25 @@ class TrainingCertificate extends Model
             default            => 'Valid',
         };
     }
+
+    /**
+     * The public URL the certificate's QR code encodes.
+     *
+     * Built onto the MAIN domain by hand, for the same reason LabelQrService
+     * does: the PDF is usually downloaded from a company subdomain, where
+     * url() would produce a {slug}.domain link — and /verify is not on the
+     * subdomain allowlist, so that link only works via a redirect. The main
+     * domain is where the page actually lives.
+     */
+    public function verifyUrl(): string
+    {
+        $domain = config('app.domain');
+
+        if ($domain) {
+            return 'https://' . $domain . '/verify/certificate/' . $this->serial;
+        }
+
+        // Local dev, where there is only one domain.
+        return url('/verify/certificate/' . $this->serial);
+    }
 }

@@ -1285,6 +1285,33 @@ class TrainingScreensRenderTest extends TestCase
         $component->call('heartbeat')->assertOk()->assertSee('Top of the room');
     }
 
+    // ── The signatory ─────────────────────────────────────────────────────
+
+    /**
+     * The signatory panel writes onto the company row, which is where the
+     * certificate reads it live at render time.
+     */
+    public function test_the_signatory_can_be_configured_from_the_certificates_screen(): void
+    {
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\Certificates::class)
+            ->assertOk()
+            ->assertSee('Signatory')
+            ->call('openSignatory')
+            ->assertSet('showSignatory', true)
+            ->set('signatoryName', 'Sarah Tan')
+            ->set('signatoryTitle', 'Head of Training')
+            ->set('signatoryCompany', 'ZEST Hospitality Academy')
+            ->call('saveSignatory')
+            ->assertHasNoErrors()
+            ->assertSet('showSignatory', false);
+
+        $this->company->refresh();
+        $this->assertSame('Sarah Tan', $this->company->cert_signatory_name);
+        $this->assertSame('Head of Training', $this->company->cert_signatory_title);
+        $this->assertSame('ZEST Hospitality Academy', $this->company->cert_signatory_company);
+    }
+
     // ── Auto-next ─────────────────────────────────────────────────────────
 
     /**

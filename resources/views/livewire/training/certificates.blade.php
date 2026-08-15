@@ -2,7 +2,15 @@
     <x-training.flash />
 
     <x-page-header title="Certificates" eyebrow="Learning & Development"
-                   subtitle="Proof your team is current — and warning when they are about to stop being." />
+                   subtitle="Proof your team is current — and warning when they are about to stop being.">
+        <x-slot:actions>
+            @can('training.manage')
+                <button type="button" wire:click="openSignatory" class="btn-secondary">
+                    <x-icon name="cog" size="h-4 w-4" /> Signatory
+                </button>
+            @endcan
+        </x-slot:actions>
+    </x-page-header>
 
     <div class="toolbar mb-4">
         <div class="flex flex-wrap items-center gap-3 w-full">
@@ -112,4 +120,91 @@
     </div>
 
     <div class="mt-4">{{ $certificates->links() }}</div>
+
+    {{-- ── The signatory ──
+
+         One signatory for the whole company, printed on every certificate the
+         moment it is saved — the PDF is rendered live from the row, so there
+         is no reissue step and nothing to backfill. --}}
+    @if ($showSignatory)
+        <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4"
+             wire:key="signatory-modal">
+            <div class="mx-auto mt-10 max-w-lg">
+                <div class="panel p-6 space-y-4">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900">Certificate signatory</h2>
+                        <p class="help">
+                            Printed in the signature block of every certificate, including ones
+                            already earned — they are rendered fresh on each download. Leave it
+                            empty to close certificates with the company name alone.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="label" for="sig-name">Name</label>
+                        <input id="sig-name" type="text" wire:model="signatoryName" class="input"
+                               placeholder="e.g. Sarah Tan">
+                        @error('signatoryName') <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="label" for="sig-title">Designation</label>
+                        <input id="sig-title" type="text" wire:model="signatoryTitle" class="input"
+                               placeholder="e.g. Head of Training">
+                        @error('signatoryTitle') <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="label" for="sig-company">Company name</label>
+                        <input id="sig-company" type="text" wire:model="signatoryCompany" class="input"
+                               placeholder="As it should appear under the signature">
+                        <p class="help">May differ from the operating company — an academy arm or HQ entity.</p>
+                        @error('signatoryCompany') <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <p class="label">Signature image</p>
+
+                        @php
+                            /* The extension check keeps temporaryUrl() from throwing
+                               on a not-yet-converted HEIC — a throw here is a dead
+                               modal, not a missing thumbnail. */
+                            $signaturePreviewable = $signatureFile && is_object($signatureFile) && in_array(
+                                strtolower($signatureFile->getClientOriginalExtension()),
+                                ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                                true,
+                            );
+                        @endphp
+
+                        @if ($signaturePreviewable || $signaturePath)
+                            <div class="mb-2 rounded-surface border border-gray-200 bg-gray-50 p-3">
+                                <img class="max-h-16"
+                                     src="{{ $signaturePreviewable ? $signatureFile->temporaryUrl() : Storage::disk('public')->url($signaturePath) }}"
+                                     alt="Signature">
+                                @if ($signaturePath && ! $signatureFile)
+                                    <button type="button" wire:click="removeSignature"
+                                            data-confirm-delete="Remove the signature image? Certificates print without a pen stroke until a new one is uploaded."
+                                            class="mt-2 text-xs text-gray-600 hover:text-danger-600">Remove</button>
+                                @endif
+                            </div>
+                        @endif
+
+                        <label class="sr-only" for="sig-file">Upload a signature image</label>
+                        <input id="sig-file" type="file" wire:model="signatureFile" accept="image/*" class="input">
+                        <p class="help mt-1" wire:loading wire:target="signatureFile">Uploading…</p>
+                        <p class="help">
+                            A dark pen stroke on a white or transparent background prints best.
+                            PNG with transparency sits cleanly on the certificate's paper.
+                        </p>
+                        @error('signatureFile') <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" wire:click="$set('showSignatory', false)" class="btn-ghost">Cancel</button>
+                        <button type="button" wire:click="saveSignatory" class="btn-primary">Save signatory</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
