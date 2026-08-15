@@ -30,18 +30,29 @@
     the one this was diagnosed against. One element, one play(), a floating
     button to stop it, nothing on screen.
 
-    A YOUTUBE LINK IS AN EMBED, AND CANNOT PLAY ON AN IPHONE. A user gesture
-    belongs to the FRAME it happened in; playVideo() reaches the player by
-    postMessage into a cross-origin iframe and the activation does not cross
-    that boundary. Four attempts went into working around it — building the
-    player inside the tap, showing it, hiding it, revealing it on failure — and
-    the only two outcomes available were silence or a YouTube window sitting on
-    top of the quiz.
+    A YOUTUBE LINK IS AN EMBED, and the audited account of what an embed can do
+    on an iPhone is narrower than the categorical "cannot play" this comment
+    used to state. What is true: a user gesture belongs to the FRAME it
+    happened in, so playVideo() sent by postMessage into a cross-origin iframe
+    carries no activation — every earlier version here relied on exactly that
+    call (the last one built the player in the tap with autoplay:0 and played
+    from onReady, which fires in a LATER TASK, outside the gesture) and could
+    not have worked.
 
-    So the embed is kept, and kept OUT OF SIGHT. It plays on Android and on a
-    computer, where a hidden frame is allowed to make sound; on iOS it does not
-    play, and no window appears to suggest otherwise. That is the honest shape
-    of the trade, and the quiz builder says so beside the field.
+    What that does NOT rule out, and what this version does: create the IFRAME
+    ITSELF synchronously inside the tap, with autoplay=1 carried in its URL and
+    allow="autoplay" on the element. Then no postMessage is needed for the
+    first play at all — user activation propagates to a browsing context
+    created during the gesture, and the allow attribute delegates autoplay to
+    the cross-origin frame where Permissions Policy is honoured. The API is
+    attached to the already-playing iframe afterwards, purely for pause, resume
+    and ducking, where the await can no longer break anything.
+
+    Apple documents no guarantee for any of this, so the builder's copy asks
+    the merchant to test on their own phones and the uploaded FILE remains the
+    certain path. The frame stays parked off-screen — never display:none, which
+    is the one hiding method media is refused in, and never on screen, because
+    a window over the quiz was the other half of this feature's history.
 
     Props:
       music      a YouTube embed URL, or null
@@ -187,24 +198,59 @@
                     init() {
                         if (this.musicFile) {
                             this.mountAudio();
+
+                            return;
+                        }
+
+                        if (this.musicId || this.musicList) {
+                            // Warm the API script. Loading a script needs no
+                            // gesture; only playing does — and having YT ready
+                            // means the tap can wrap the iframe immediately.
+                            this.youtube();
                         }
                     },
 
+                    /** The embed URL, with autoplay CARRIED IN IT. */
+                    embedSrc() {
+                        const params = new URLSearchParams({
+                            autoplay: '1',
+                            playsinline: '1',
+                            controls: '0',
+                            rel: '0',
+                            loop: '1',
+                            enablejsapi: '1',
+                            origin: window.location.origin,
+                        });
+
+                        if (this.musicList) {
+                            params.set('list', this.musicList);
+                            params.set('listType', 'playlist');
+
+                            return 'https://www.youtube-nocookie.com/embed/'
+                                + (this.musicId || 'videoseries') + '?' + params.toString();
+                        }
+
+                        // A single video only loops when it also names itself
+                        // as the playlist — YouTube's own quirk.
+                        params.set('playlist', this.musicId);
+
+                        return 'https://www.youtube-nocookie.com/embed/'
+                            + this.musicId + '?' + params.toString();
+                    },
+
                     /**
-                     * The YouTube player, off-screen and never shown.
+                     * The iframe, born INSIDE the tap. See the note at the top:
+                     * with autoplay=1 in the URL and allow="autoplay" on the
+                     * element, the child document's first play needs no
+                     * postMessage — which is the only kind of play an iPhone
+                     * was ever going to refuse.
                      *
-                     * Built on the tap rather than at page load — a frame
-                     * created during a gesture is the one a browser is most
-                     * willing to let make a sound — and parked where nothing
-                     * can see it, because a window over the quiz was the other
-                     * half of this feature's history.
-                     *
-                     * A CONTAINER with a throwaway div inside it: new
-                     * YT.Player() REPLACES the element it is given, so passing
-                     * the tracked node would detach it the moment the player
-                     * was ready.
+                     * SYNCHRONOUS to the appendChild. The API wrap that follows
+                     * is async and only exists for pause, resume and ducking —
+                     * by then the frame is already playing or already refused,
+                     * and nothing the wrap does can change which.
                      */
-                    async mountPlayer() {
+                    mountEmbedSync() {
                         if (window.__quizPlayerMount?.isConnected) {
                             return;
                         }
@@ -212,50 +258,48 @@
                         const container = document.createElement('div');
                         container.id = 'quiz-music-player';
                         container.setAttribute('aria-hidden', 'true');
+                        // Off-screen, never display:none — the one hiding
+                        // method media is refused in. Real size, so the frame
+                        // is rendered.
                         container.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
-                            + 'width:160px;height:90px;opacity:0;pointer-events:none;';
+                            + 'width:320px;height:180px;overflow:hidden;pointer-events:none;';
 
-                        const target = document.createElement('div');
-                        container.appendChild(target);
+                        const frame = document.createElement('iframe');
+                        frame.src = this.embedSrc();
+                        frame.title = 'Background music';
+                        frame.allow = 'autoplay; encrypted-media';
+                        frame.style.cssText = 'width:100%;height:100%;border:0;';
 
+                        container.appendChild(frame);
                         document.body.appendChild(container);
                         window.__quizPlayerMount = container;
 
-                        const YT = await this.youtube();
-
-                        window.__quizPlayer = new YT.Player(target, {
-                            videoId: this.musicId || undefined,
-                            playerVars: {
-                                playsinline: 1,
-                                controls: 0,
-                                modestbranding: 1,
-                                rel: 0,
-                                loop: 1,
-                                autoplay: 0,
-                                ...(this.musicList
-                                    ? { list: this.musicList, listType: 'playlist' }
-                                    : { playlist: this.musicId }),
-                            },
-                            events: {
-                                onReady: (e) => {
-                                    // Backing music, not the main event.
-                                    e.target.setVolume(35);
-
-                                    if (this.musicOn) {
-                                        e.target.playVideo();
-                                    }
-                                },
-                                onStateChange: (e) => {
-                                    // A single video ends rather than looping
-                                    // when the playlist trick is refused, and a
-                                    // quiz that falls silent half way through is
-                                    // worse than one with no music at all.
-                                    if (e.data === YT.PlayerState.ENDED && this.musicOn) {
-                                        e.target.seekTo(0);
-                                        e.target.playVideo();
-                                    }
-                                },
-                            },
+                        this.youtube().then((YT) => {
+                            try {
+                                window.__quizPlayer = new YT.Player(frame, {
+                                    events: {
+                                        onReady: (e) => {
+                                            // Backing music, not the main
+                                            // event. iOS ignores programmatic
+                                            // volume; elsewhere this tucks it
+                                            // under the chime.
+                                            try { e.target.setVolume(35); } catch (err) {}
+                                        },
+                                        onStateChange: (e) => {
+                                            // The playlist trick covers the
+                                            // loop; this covers the platforms
+                                            // that refuse the trick, because a
+                                            // quiz that falls silent half way
+                                            // through is worse than one with no
+                                            // music at all.
+                                            if (e.data === YT.PlayerState.ENDED && this.musicOn) {
+                                                e.target.seekTo(0);
+                                                e.target.playVideo();
+                                            }
+                                        },
+                                    },
+                                });
+                            } catch (e) {}
                         });
                     },
 
@@ -464,18 +508,29 @@
                         // A player whose iframe was swapped out from under it —
                         // wire:navigate outlives the document that built it — is
                         // dropped rather than talked to.
-                        if (! window.__quizPlayer?.getIframe?.()?.isConnected) {
+                        if (! window.__quizPlayerMount?.isConnected) {
                             try { window.__quizPlayer?.destroy?.(); } catch (e) {}
                             window.__quizPlayer = null;
                         }
 
-                        if (this.musicOn && ! window.__quizPlayer) {
-                            // Built inside the gesture; onReady starts it.
-                            this.mountPlayer();
+                        if (this.musicOn && ! window.__quizPlayerMount?.isConnected) {
+                            /*
+                             * FIRST PLAY. The iframe is created here, inside
+                             * the gesture, with autoplay in its URL — no
+                             * postMessage involved. This is the call that has
+                             * to stay synchronous.
+                             */
+                            this.mountEmbedSync();
 
                             return;
                         }
 
+                        /*
+                         * Later toggles go through the API. A media element
+                         * that has played once in its document may be resumed
+                         * programmatically, so the postMessage restriction that
+                         * decided the first play no longer applies.
+                         */
                         try {
                             this.musicOn
                                 ? window.__quizPlayer?.playVideo?.()

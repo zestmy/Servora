@@ -365,11 +365,14 @@
                     <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
                            placeholder="https://www.youtube.com/watch?v=…">
                     <p class="help">
-                        A DIRECT AUDIO LINK — one ending .mp3, .m4a, .ogg or .wav — behaves exactly
-                        like an upload and plays on every phone. A YouTube link plays out of sight on
-                        Android and on a computer, but
-                        <span class="font-medium text-gray-700">iPhones cannot play an embed</span>
-                        at all. Used only when no file is uploaded.
+                        Used only when no file is uploaded. A DIRECT AUDIO LINK — one ending .mp3,
+                        .m4a, .ogg or .wav — behaves exactly like an upload and plays on every phone.
+                        A YouTube link plays out of sight, no window over the quiz; it is reliable on
+                        Android and on a computer, and on iPhones it now uses the same start-on-tap
+                        technique the invitation-card sites use —
+                        <span class="font-medium text-gray-700">test it on one of your floor's
+                        phones</span>, and if it stays silent there, the file is the option Apple
+                        guarantees.
                     </p>
                     @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
