@@ -57,6 +57,11 @@
                                         via PrintNode #{{ $printer->printnode_printer_id }}
                                         @if ($printer->printnode_paper) · {{ $printer->printnode_paper }} @endif
                                     </span>
+                                @elseif ($printer->driver === 'agent')
+                                    <span class="block text-xs text-brand-600">
+                                        via {{ $printer->printAgent?->name ?? 'agent (removed)' }} · {{ $printer->agent_printer_name }}
+                                        @if ($printer->agent_paper) · {{ $printer->agent_paper }} @endif
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center">
@@ -159,10 +164,79 @@
                                     @endforeach
                                 </select>
                                 <p class="mt-1 text-xs text-gray-600">
-                                    Browser prints from whichever PC the chef is using. PrintNode prints from the
-                                    server to a printer registered with your PrintNode account.
+                                    Browser prints from whichever PC the chef is using. Servora agent prints from
+                                    the server through a
+                                    <a href="{{ route('labels.agents') }}" class="text-brand-600 hover:underline">paired agent</a>
+                                    on the outlet PC — no subscription. PrintNode does the same through
+                                    PrintNode's paid service.
                                 </p>
                             </div>
+
+                            @if ($driver === 'agent')
+                                <div class="p-3 bg-gray-50 rounded-lg space-y-2">
+                                    <label class="text-xs font-semibold text-gray-600">Print agent <span class="text-danger-500">*</span></label>
+
+                                    @if (! $outlet_id)
+                                        <p class="px-3 py-2 bg-warning-50 border border-warning-200 text-warning-700 text-xs rounded-lg">
+                                            Pick the outlet first — agents belong to one outlet.
+                                        </p>
+                                    @elseif (! $this->agentOptions)
+                                        <p class="px-3 py-2 bg-warning-50 border border-warning-200 text-warning-700 text-xs rounded-lg">
+                                            No agent is paired at this outlet yet. Set one up under
+                                            <a href="{{ route('labels.agents') }}" class="underline">Label agents</a>.
+                                        </p>
+                                    @endif
+
+                                    <select wire:model.live="print_agent_id" class="w-full text-sm rounded-lg border-gray-300">
+                                        <option value="">— Select —</option>
+                                        @foreach ($this->agentOptions as $agent)
+                                            <option value="{{ $agent->id }}">
+                                                {{ $agent->name }} ({{ $agent->statusLabel() }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('print_agent_id')" class="mt-1" />
+
+                                    <div class="pt-1">
+                                        <label class="text-xs font-semibold text-gray-600">Printer on that PC <span class="text-danger-500">*</span></label>
+                                        <select wire:model.live="agent_printer_name" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                            <option value="">— Select —</option>
+                                            @foreach ($this->agentPrinterOptions as $reported)
+                                                <option value="{{ $reported['name'] }}">
+                                                    {{ $reported['name'] }}@if ($reported['is_default']) — Windows default @endif
+                                                </option>
+                                            @endforeach
+                                            {{-- Keep a saved selection visible even when the agent hasn't
+                                                 reported yet, so opening the form can't silently blank it —
+                                                 the same guard as the PrintNode picker below. --}}
+                                            @if ($agent_printer_name && ! collect($this->agentPrinterOptions)->contains('name', $agent_printer_name))
+                                                <option value="{{ $agent_printer_name }}">{{ $agent_printer_name }} (not in current list)</option>
+                                            @endif
+                                        </select>
+                                        <x-input-error :messages="$errors->get('agent_printer_name')" class="mt-1" />
+                                    </div>
+
+                                    <div class="pt-1">
+                                        <label class="text-xs font-semibold text-gray-600">Paper / form</label>
+                                        <select wire:model="agent_paper" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                            <option value="">Driver default</option>
+                                            @foreach ($this->agentPaperOptions as $paper)
+                                                <option value="{{ $paper['name'] }}">
+                                                    {{ $paper['name'] }}@if ($paper['size']) — {{ $paper['size'] }} @endif
+                                                </option>
+                                            @endforeach
+                                            @if ($agent_paper && ! collect($this->agentPaperOptions)->contains('name', $agent_paper))
+                                                <option value="{{ $agent_paper }}">{{ $agent_paper }} (not in current list)</option>
+                                            @endif
+                                        </select>
+                                        <p class="mt-1 text-xs text-gray-600">
+                                            Leave on driver default only if that default is already your label
+                                            stock. If it isn't, the driver rotates or shrinks the label to fit
+                                            its own paper — pick the {{ $width_mm }} × {{ $height_mm }} mm form here instead.
+                                        </p>
+                                    </div>
+                                </div>
+                            @endif
 
                             @if ($driver === 'printnode')
                                 <div class="p-3 bg-gray-50 rounded-lg space-y-2">

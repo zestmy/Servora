@@ -11,11 +11,11 @@ use App\Models\LabelPrinter;
  * data problem and a chef mid-shift should get a label rather than a stack
  * trace.
  *
- * A printer explicitly set to 'printnode' does NOT fall back, even when the
- * key or remote printer is missing. That printer is deliberately not
+ * A printer explicitly set to 'printnode' or 'agent' does NOT fall back,
+ * even when its remote half is missing. That printer is deliberately not
  * attached to this PC, so browser printing would send the label to whatever
  * local printer happens to be default — or silently nowhere. Printing to the
- * wrong machine is worse than a clear error, and PrintNodeDriver's errors are
+ * wrong machine is worse than a clear error, and both drivers' errors are
  * written to be shown to the person standing there.
  */
 class DriverFactory
@@ -23,6 +23,7 @@ class DriverFactory
     public function __construct(
         private BrowserDriver $browser,
         private PrintNodeDriver $printNode,
+        private AgentDriver $agent,
     ) {
     }
 
@@ -35,6 +36,7 @@ class DriverFactory
     {
         return match ($driver) {
             'printnode' => $this->printNode,
+            'agent'     => $this->agent,
             default     => $this->browser,
         };
     }

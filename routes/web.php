@@ -11,6 +11,7 @@
  */
 require __DIR__ . '/labels-staff.php';
 require __DIR__ . '/clock-staff.php';
+require __DIR__ . '/print-agent.php';
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -396,6 +397,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels/templates/{template}/design', \App\Livewire\Labels\TemplateDesigner::class)->name('labels.templates.design')->middleware('can:labels.manage');
     Route::get('/labels/shelf-life', \App\Livewire\Labels\ShelfLifeGrid::class)->name('labels.shelf-life')->middleware('can:labels.manage');
     Route::get('/labels/printers', \App\Livewire\Labels\Printers::class)->name('labels.printers')->middleware('can:labels.manage');
+    Route::get('/labels/agents', \App\Livewire\Labels\Agents::class)->name('labels.agents')->middleware('can:labels.manage');
     Route::get('/labels/settings', \App\Livewire\Labels\Settings::class)->name('labels.settings')->middleware('can:labels.manage');
 
     /*

@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // it exists because iOS never refetches an installed PWA's manifest.
             'staff.landing'       => \App\Http\Middleware\LandOnStaffHome::class,
             'clock.kiosk'         => \App\Http\Middleware\KioskAuthenticate::class,
+            'print.agent'         => \App\Http\Middleware\PrintAgentAuthenticate::class,
         ]);
 
         /*
@@ -57,6 +58,21 @@ return Application::configure(basePath: dirname(__DIR__))
             'staff/kiosk/enrol/start',
             'staff/kiosk/enrol/stop',
             'staff/kiosk/enrol/capture',
+            /*
+             * The print agent's POSTs, including pairing. Unlike the kiosk's
+             * pairing (a browser form, which stays protected), the agent's
+             * caller is a native binary with no cookies at all: header-token
+             * auth for the job routes, the single-use pairing code for
+             * /pair. Nothing here can be driven by ambient authority. Both
+             * mounts are listed because the path differs by environment —
+             * agent/* behind a subdomain in production, agent-api/* locally.
+             */
+            'agent/pair',
+            'agent/jobs/*/status',
+            'agent/printers',
+            'agent-api/pair',
+            'agent-api/jobs/*/status',
+            'agent-api/printers',
         ]);
 
         // Force all non-LMS traffic to the main domain (must run early)
