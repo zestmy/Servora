@@ -102,6 +102,10 @@ const SCREENS = [
     { path: '/reports/cost-summary' },
     { path: '/analytics' },
 
+    // Labels. Only the screen added after this check existed — the older
+    // label screens predate the list and should be added when next touched.
+    { path: '/labels/agents' },
+
     // Settings — every one of these is a list with a header action row, which
     // is the shape that produced most of the bugs this check was written for.
     { path: '/settings' },
