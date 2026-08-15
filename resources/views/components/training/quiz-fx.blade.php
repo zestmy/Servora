@@ -323,6 +323,23 @@
                      * begins the quiz, making the play button and the Start
                      * button the same tap. See the note at the top.
                      */
+                    /*
+                     * IN THE PAGE'S FLOW, not floating. The first version of
+                     * this card was fixed above the tab bar, and it sat on top
+                     * of the Start button — its whole design read back as a bug
+                     * report.
+                     *
+                     * The iframe still cannot live inside the Livewire
+                     * component: the morph at begin() would destroy it and the
+                     * track with it, and reparenting an iframe reloads it. So
+                     * the start screen reserves a SLOT in normal flow
+                     * ([data-music-slot], in the blade) and the player, mounted
+                     * on the SCROLL CONTAINER where the morph cannot reach it,
+                     * is positioned exactly over that slot. Same scroller, so
+                     * it scrolls with the page; the slot reserves its space, so
+                     * it covers nothing; not the component's node, so begin()
+                     * cannot kill it.
+                     */
                     mountEmbedCard() {
                         if (window.__quizPlayerMount?.isConnected) {
                             return;
@@ -332,40 +349,67 @@
                         container.id = 'quiz-music-player';
                         window.__quizPlayerMount = container;
 
-                        const label = document.createElement('p');
-                        label.textContent = 'Tap \u25B6 to start the quiz with music';
-                        label.style.cssText = 'margin:0;padding:8px 12px;font-size:12px;'
-                            + 'font-weight:600;color:#fff;text-align:center;';
-
-                        const wrap = document.createElement('div');
-                        wrap.style.cssText = 'width:100%;aspect-ratio:16/9;';
-
                         const frame = document.createElement('iframe');
                         frame.src = this.embedSrc(false);
                         frame.title = 'Background music';
                         frame.allow = 'autoplay; encrypted-media';
                         frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
 
-                        wrap.appendChild(frame);
-                        container.appendChild(label);
-                        container.appendChild(wrap);
+                        container.appendChild(frame);
 
-                        // Above the tab bar, clear of the Start button, and on
-                        // the start screen only — parkEmbed() takes it away the
-                        // moment the track runs or the quiz begins without it.
-                        container.style.cssText = 'position:fixed;left:50%;'
-                            + 'transform:translateX(-50%);bottom:5.5rem;z-index:50;'
-                            + 'width:min(92vw,22rem);border-radius:12px;overflow:hidden;'
-                            + 'background:#111827;box-shadow:0 12px 32px rgba(15,23,42,.35);';
+                        const scroller = document.querySelector('.app-scroll');
 
-                        document.body.appendChild(container);
+                        if (scroller && document.querySelector('[data-music-slot]')) {
+                            if (getComputedStyle(scroller).position === 'static') {
+                                scroller.style.position = 'relative';
+                            }
+
+                            scroller.appendChild(container);
+                            this.positionCard();
+
+                            // Orientation changes and late-loading images both
+                            // move the slot; follow it.
+                            window.__quizCardReposition = () => this.positionCard();
+                            window.addEventListener('resize', window.__quizCardReposition);
+                            setTimeout(window.__quizCardReposition, 500);
+                        } else {
+                            // No slot on this screen: park it and let the
+                            // buttons drive it, rather than float over anything.
+                            document.body.appendChild(container);
+                            this.parkEmbed();
+                        }
 
                         this.attachPlayer(frame);
+                    },
+
+                    /** Lay the player exactly over the space the page reserved. */
+                    positionCard() {
+                        const mount = window.__quizPlayerMount;
+                        const slot = document.querySelector('[data-music-slot]');
+                        const scroller = document.querySelector('.app-scroll');
+
+                        if (! mount?.isConnected || ! slot || ! scroller) {
+                            return;
+                        }
+
+                        const a = slot.getBoundingClientRect();
+                        const b = scroller.getBoundingClientRect();
+
+                        mount.style.cssText = 'position:absolute;z-index:10;'
+                            + 'top:' + (a.top - b.top + scroller.scrollTop) + 'px;'
+                            + 'left:' + (a.left - b.left + scroller.scrollLeft) + 'px;'
+                            + 'width:' + a.width + 'px;height:' + a.height + 'px;'
+                            + 'border-radius:12px;overflow:hidden;background:#111827;';
                     },
 
                     /** Off-screen — never display:none, which media is refused in. */
                     parkEmbed() {
                         const mount = window.__quizPlayerMount;
+
+                        if (window.__quizCardReposition) {
+                            window.removeEventListener('resize', window.__quizCardReposition);
+                            window.__quizCardReposition = null;
+                        }
 
                         if (mount) {
                             mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
@@ -749,6 +793,11 @@
 
                     try { window.__quizPlayerMount?.remove(); } catch (e) {}
                     window.__quizPlayerMount = null;
+
+                    if (window.__quizCardReposition) {
+                        window.removeEventListener('resize', window.__quizCardReposition);
+                        window.__quizCardReposition = null;
+                    }
                 });
             };
 

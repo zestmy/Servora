@@ -877,9 +877,13 @@ class TrainingScreensRenderTest extends TestCase
             // iframe over the quiz was the half people complained about.
             ->assertDontSee('<iframe', escape: false)
             // The start screen listens for the card's tap, which is what makes
-            // the play button double as Start on an iPhone.
+            // the play button double as Start on an iPhone…
             ->assertSee('music-started', escape: false)
-            ->assertSee('data-quiz-music', escape: false);
+            ->assertSee('data-quiz-music', escape: false)
+            // …and reserves in-flow space for the player, so it covers
+            // nothing. The ELEMENT, not the bare string — the shared script
+            // block mentions the selector on every screen.
+            ->assertSee('<div data-music-slot', escape: false);
     }
 
     public function test_the_quiz_screens_keep_the_music_wiring_intact(): void
@@ -898,7 +902,10 @@ class TrainingScreensRenderTest extends TestCase
             // shared script block and is only called if a quiz has a link and
             // no file, so the assertion is about the markup: an iframe over the
             // quiz is the half of this feature people complained about.
-            ->assertDontSee('<iframe', escape: false);
+            ->assertDontSee('<iframe', escape: false)
+            // A FILE quiz gets no player slot either — nothing to tap. The
+            // ELEMENT, not the bare string, which the script block mentions.
+            ->assertDontSee('<div data-music-slot', escape: false);
 
         $question = $start->call('begin')->assertOk()
             ->assertSee('quizFx(', escape: false)

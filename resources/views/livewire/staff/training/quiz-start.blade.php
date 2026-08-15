@@ -121,6 +121,27 @@
                 @endif
             </ul>
 
+            {{-- ── The music, in flow ──
+
+                 The one tap iOS honours for a YouTube embed lands INSIDE the
+                 player, so the player is laid into the page here, in space this
+                 slot reserves — the floating version covered the Start button.
+                 The element itself is mounted over this slot from quiz-fx; see
+                 mountEmbedCard() for why it cannot simply live here. One tap on
+                 its play button starts the music and the quiz together. --}}
+            @if ($quiz->musicEmbedUrl() && ! $quiz->musicFileUrl())
+                <div class="mt-5">
+                    <p class="label">Music</p>
+                    <p class="help">
+                        Tap play below to start the quiz with music — or press Start to begin
+                        without it.
+                    </p>
+                    <div data-music-slot
+                         class="mt-2 w-full overflow-hidden rounded-surface bg-gray-100"
+                         style="aspect-ratio: 16 / 9"></div>
+                </div>
+            @endif
+
             {{-- THE TAP THAT STARTS THE MUSIC. `startMusic` is dispatched to
                  the window and quiz-fx picks it up synchronously, inside this
                  gesture — the only moment a browser will begin playback. The
