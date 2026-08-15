@@ -1,4 +1,5 @@
 import './bootstrap';
+import './quiz-fx';
 
 /**
  * Scroll reveal.
