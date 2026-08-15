@@ -444,17 +444,33 @@
                             return;
                         }
 
-                        const mount = document.createElement('div');
-                        mount.id = 'quiz-music-player';
+                        /*
+                         * A CONTAINER, with the player's target INSIDE it.
+                         *
+                         * new YT.Player(el) REPLACES the element it is given
+                         * with the iframe. Passing the tracked node therefore
+                         * detached it the instant the player was ready — so
+                         * `isConnected` was permanently false (rebuilding the
+                         * player on every press) and revealPlayer() restyled a
+                         * node that was no longer in the document, which is why
+                         * the "tap play" prompt appeared with no player under
+                         * it. The container survives; only the inner div is
+                         * consumed.
+                         */
+                        const container = document.createElement('div');
+                        container.id = 'quiz-music-player';
 
-                        document.body.appendChild(mount);
-                        window.__quizPlayerMount = mount;
+                        const target = document.createElement('div');
+                        container.appendChild(target);
+
+                        document.body.appendChild(container);
+                        window.__quizPlayerMount = container;
 
                         this.parkPlayer();
 
                         const YT = await this.youtube();
 
-                        window.__quizPlayer = new YT.Player(mount, {
+                        window.__quizPlayer = new YT.Player(target, {
                             videoId: this.musicId || undefined,
                             playerVars: {
                                 // playsinline keeps iOS from throwing the video
@@ -526,6 +542,7 @@
                             mount.setAttribute('aria-hidden', 'true');
                             mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
                                 + 'width:160px;height:90px;opacity:0;pointer-events:none;';
+                            this.fillContainer(mount);
                         }
                     },
 
@@ -545,7 +562,18 @@
                             + 'width:160px;height:90px;border-radius:12px;overflow:hidden;'
                             + 'box-shadow:0 8px 24px rgba(15,23,42,.28);';
 
+                        this.fillContainer(mount);
+
                         this.needsTap = true;
+                    },
+
+                    /** The iframe fills whatever the container currently is. */
+                    fillContainer(container) {
+                        const frame = container.querySelector('iframe');
+
+                        if (frame) {
+                            frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+                        }
                     },
 
                     /**
