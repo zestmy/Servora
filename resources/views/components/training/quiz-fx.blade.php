@@ -50,21 +50,37 @@
 
     TESTED ON A REAL IPHONE (Aug 2026): REFUSED. The gesture-born frame with
     autoplay in its URL is the fifth and strongest technique tried, and it is
-    the last one there is — what remains after it is a tap INSIDE a visible
-    player, which is a product decision, not an engineering one. The code stays
-    because it is the correct behaviour for Android and desktop, where it
-    plays; on iOS it fails silently, and the builder's copy now says so
-    plainly. The uploaded FILE (or a direct audio link) is the iPhone path.
+    the last one there is — what remains is a tap INSIDE a visible player.
 
-    The frame stays parked off-screen — never display:none, which is the one
-    hiding method media is refused in, and never on screen, because a window
-    over the quiz was the other half of this feature's history.
+    SO THAT TAP IS OFFERED ON THE START SCREEN, AS THE START ITSELF. A small
+    player card sits above the tab bar on the start screen only; tapping its
+    play button starts the music — the gesture lands inside the frame, which is
+    the one gesture iOS honours — and the PLAYING event then begins the quiz,
+    so one tap does both. The card parks itself off-screen the moment the track
+    is running and never appears over a question. Somebody who presses Start
+    instead has answered "no music" (on an iPhone; on Android the Start button
+    starts the track too, via the delegated-autoplay path that platform allows).
+
+    The parked frame is never display:none — the one hiding method media is
+    refused in — and never on screen mid-quiz, because a window over the quiz
+    was the other half of this feature's history. Leaving the quiz removes the
+    player entirely: music that follows somebody to the leaderboard is a bug,
+    not ambience.
 
     Props:
       music      a YouTube embed URL, or null
       musicFile  an uploaded audio URL, or null. Used in preference to the link.
 --}}
-@props(['music' => null, 'musicFile' => null])
+@props([
+    'music'     => null,
+    'musicFile' => null,
+    /*
+     * True on the START SCREEN only: offer the tap-to-play card for embed
+     * quizzes. The question screen passes nothing — the card must never be
+     * born over a question.
+     */
+    'offerTap'  => false,
+])
 
 @php
     // The API wants an id and a playlist, not an embed URL. The model keeps the
@@ -85,9 +101,12 @@
     $hasMusic = $musicFile || $musicId || $musicList;
 @endphp
 
-<div x-data="quizFx(@js($musicFile), @js($musicId), @js($musicList))"
+<div x-data="quizFx(@js($musicFile), @js($musicId), @js($musicList), @js((bool) $offerTap))"
      @answer-scored.window="react($event.detail)"
      @start-music.window="autostart()"
+     {{-- The marker the navigation cleanup looks for: a page without it is a
+          page the music must not follow anybody onto. --}}
+     @if ($hasMusic) data-quiz-music @endif
      class="contents">
 
     {{-- ── The verdict ──
@@ -178,7 +197,7 @@
 
                 window.Alpine.__quizFxRegistered = true;
 
-                window.Alpine.data('quizFx', (musicFile, musicId, musicList) => ({
+                window.Alpine.data('quizFx', (musicFile, musicId, musicList, offerTap) => ({
                     sound: localStorage.getItem('quizSound') !== 'off',
                     // Never restored from storage. Music that starts itself
                     // because of a choice made on a different shift is the
@@ -187,6 +206,7 @@
                     musicFile: musicFile,
                     musicId: musicId,
                     musicList: musicList,
+                    offerTap: offerTap,
                     flash: null,
                     // What the ribbon says, and what it is worth. Both come
                     // from the SERVER's answer row — the word follows the
@@ -213,15 +233,26 @@
                             // gesture; only playing does — and having YT ready
                             // means the tap can wrap the iframe immediately.
                             this.youtube();
+
+                            // The offer, on the start screen only. Creating an
+                            // iframe with autoplay=0 needs no gesture; the tap
+                            // it exists to receive happens inside it.
+                            if (this.offerTap) {
+                                this.mountEmbedCard();
+                            }
                         }
                     },
 
-                    /** The embed URL, with autoplay CARRIED IN IT. */
-                    embedSrc() {
+                    /**
+                     * The embed URL. The gesture-born frame carries autoplay
+                     * in it; the offer card carries autoplay=0 and YouTube's
+                     * own controls, because its play button IS the offer.
+                     */
+                    embedSrc(autoplay) {
                         const params = new URLSearchParams({
-                            autoplay: '1',
+                            autoplay: autoplay ? '1' : '0',
                             playsinline: '1',
-                            controls: '0',
+                            controls: autoplay ? '0' : '1',
                             rel: '0',
                             loop: '1',
                             enablejsapi: '1',
@@ -271,7 +302,7 @@
                             + 'width:320px;height:180px;overflow:hidden;pointer-events:none;';
 
                         const frame = document.createElement('iframe');
-                        frame.src = this.embedSrc();
+                        frame.src = this.embedSrc(true);
                         frame.title = 'Background music';
                         frame.allow = 'autoplay; encrypted-media';
                         frame.style.cssText = 'width:100%;height:100%;border:0;';
@@ -280,6 +311,70 @@
                         document.body.appendChild(container);
                         window.__quizPlayerMount = container;
 
+                        this.attachPlayer(frame);
+                    },
+
+                    /**
+                     * The tap-to-play card, start screen only.
+                     *
+                     * The one gesture iOS honours for an embed is a tap inside
+                     * the player, so the player is put where the person is
+                     * about to tap anyway — and the PLAYING event that follows
+                     * begins the quiz, making the play button and the Start
+                     * button the same tap. See the note at the top.
+                     */
+                    mountEmbedCard() {
+                        if (window.__quizPlayerMount?.isConnected) {
+                            return;
+                        }
+
+                        const container = document.createElement('div');
+                        container.id = 'quiz-music-player';
+                        window.__quizPlayerMount = container;
+
+                        const label = document.createElement('p');
+                        label.textContent = 'Tap \u25B6 to start the quiz with music';
+                        label.style.cssText = 'margin:0;padding:8px 12px;font-size:12px;'
+                            + 'font-weight:600;color:#fff;text-align:center;';
+
+                        const wrap = document.createElement('div');
+                        wrap.style.cssText = 'width:100%;aspect-ratio:16/9;';
+
+                        const frame = document.createElement('iframe');
+                        frame.src = this.embedSrc(false);
+                        frame.title = 'Background music';
+                        frame.allow = 'autoplay; encrypted-media';
+                        frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+
+                        wrap.appendChild(frame);
+                        container.appendChild(label);
+                        container.appendChild(wrap);
+
+                        // Above the tab bar, clear of the Start button, and on
+                        // the start screen only — parkEmbed() takes it away the
+                        // moment the track runs or the quiz begins without it.
+                        container.style.cssText = 'position:fixed;left:50%;'
+                            + 'transform:translateX(-50%);bottom:5.5rem;z-index:50;'
+                            + 'width:min(92vw,22rem);border-radius:12px;overflow:hidden;'
+                            + 'background:#111827;box-shadow:0 12px 32px rgba(15,23,42,.35);';
+
+                        document.body.appendChild(container);
+
+                        this.attachPlayer(frame);
+                    },
+
+                    /** Off-screen — never display:none, which media is refused in. */
+                    parkEmbed() {
+                        const mount = window.__quizPlayerMount;
+
+                        if (mount) {
+                            mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
+                                + 'width:320px;height:180px;overflow:hidden;pointer-events:none;';
+                        }
+                    },
+
+                    /** Pause/resume/duck/loop — never the first play on iOS. */
+                    attachPlayer(frame) {
                         this.youtube().then((YT) => {
                             try {
                                 window.__quizPlayer = new YT.Player(frame, {
@@ -292,6 +387,22 @@
                                             try { e.target.setVolume(35); } catch (err) {}
                                         },
                                         onStateChange: (e) => {
+                                            /*
+                                             * Playing — by the card tap or by
+                                             * the Start button. Park the frame
+                                             * and, on the start screen, begin
+                                             * the quiz: this is what makes the
+                                             * card's play button the Start
+                                             * button. begin() guards itself, so
+                                             * the double fire on the Android
+                                             * path costs nothing.
+                                             */
+                                            if (e.data === YT.PlayerState.PLAYING) {
+                                                this.musicOn = true;
+                                                this.parkEmbed();
+                                                window.dispatchEvent(new CustomEvent('music-started'));
+                                            }
+
                                             // The playlist trick covers the
                                             // loop; this covers the platforms
                                             // that refuse the trick, because a
@@ -476,9 +587,44 @@
 
                     /** The Start tap. */
                     autostart() {
-                        if ((this.musicFile || this.musicId || this.musicList) && ! this.musicOn) {
-                            this.toggleMusic();
+                        if (this.musicFile) {
+                            if (! this.musicOn) {
+                                this.toggleMusic();
+                            }
+
+                            return;
                         }
+
+                        if (! this.musicId && ! this.musicList) {
+                            return;
+                        }
+
+                        /*
+                         * The quiz is starting, so the offer card must not
+                         * outlive the start screen — whatever happens next.
+                         */
+                        this.parkEmbed();
+
+                        if (this.musicOn) {
+                            return;
+                        }
+
+                        this.musicOn = true;
+
+                        if (window.__quizPlayerMount?.isConnected) {
+                            /*
+                             * Synchronous, inside the Start tap. With
+                             * allow="autoplay" delegated this plays on Android
+                             * and desktop; an iPhone that skipped the card
+                             * refuses, silently — which is the choice the
+                             * person just made by pressing Start instead.
+                             */
+                            try { window.__quizPlayer?.playVideo?.(); } catch (e) {}
+
+                            return;
+                        }
+
+                        this.mountEmbedSync();
                     },
 
                     /**
@@ -579,6 +725,31 @@
                         } catch (e) {}
                     },
                 }));
+
+                /*
+                 * LEAVING THE QUIZ STOPS THE MUSIC. The audio element and the
+                 * player live on <body> so the morph between questions cannot
+                 * kill them — which also means a wire:navigate to any other
+                 * page cannot kill them, and a track that follows somebody to
+                 * the leaderboard is a bug, not ambience. Every quiz screen
+                 * with music marks itself; a page without the marker is a page
+                 * the music must not play on.
+                 */
+                document.addEventListener('livewire:navigated', () => {
+                    if (document.querySelector('[data-quiz-music]')) {
+                        return;
+                    }
+
+                    try { window.__quizAudio?.pause(); } catch (e) {}
+                    try { window.__quizAudio?.remove(); } catch (e) {}
+                    window.__quizAudio = null;
+
+                    try { window.__quizPlayer?.destroy?.(); } catch (e) {}
+                    window.__quizPlayer = null;
+
+                    try { window.__quizPlayerMount?.remove(); } catch (e) {}
+                    window.__quizPlayerMount = null;
+                });
             };
 
             window.Alpine

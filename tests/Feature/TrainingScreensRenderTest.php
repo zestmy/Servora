@@ -872,10 +872,14 @@ class TrainingScreensRenderTest extends TestCase
             ->assertOk()
             // The id reaches the component…
             ->assertSee('dQw4w9WgXcQ', escape: false)
-            // …but no player is rendered into the page. It is built in
-            // JavaScript, off-screen, on the tap — a window over the quiz was
-            // the half of this feature people complained about.
-            ->assertDontSee('<iframe', escape: false);
+            // …but no player is rendered into the page — the tap-to-play card
+            // and the parked frame are built in JavaScript. A server-rendered
+            // iframe over the quiz was the half people complained about.
+            ->assertDontSee('<iframe', escape: false)
+            // The start screen listens for the card's tap, which is what makes
+            // the play button double as Start on an iPhone.
+            ->assertSee('music-started', escape: false)
+            ->assertSee('data-quiz-music', escape: false);
     }
 
     public function test_the_quiz_screens_keep_the_music_wiring_intact(): void

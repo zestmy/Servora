@@ -367,10 +367,11 @@
                     <p class="help">
                         Used only when no file is uploaded. A DIRECT AUDIO LINK — one ending .mp3,
                         .m4a, .ogg or .wav — behaves exactly like an upload and plays on every phone.
-                        A YouTube link plays out of sight on Android and on a computer;
-                        <span class="font-medium text-gray-700">iPhones stay silent on a YouTube
-                        link</span> — every known technique has been tried against a real one — so
-                        use the file or a direct audio link if your floor is on iPhones.
+                        A YouTube link plays out of sight: on Android and computers the Start button
+                        starts it, and on iPhones — which refuse a YouTube embed from any button
+                        outside the player — the start screen shows a small
+                        <span class="font-medium text-gray-700">tap-to-play card, and that one tap
+                        starts the music and the quiz together</span>.
                     </p>
                     @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>

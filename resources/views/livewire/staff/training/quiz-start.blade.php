@@ -13,14 +13,19 @@
     Nothing has been created at this point. Backing out costs nothing, which
     matters most on a one-shot challenge where a mis-tap used to burn the run.
 --}}
-<div class="p-4" x-data="{ chosen: @js($language) }">
+<div class="p-4" x-data="{ chosen: @js($language) }"
+     {{-- Fired by the tap-to-play card the moment the track is running: on an
+          iPhone that tap is the only way music can start, so it doubles as
+          Start — one tap, both things. begin() guards itself against firing
+          twice. --}}
+     @music-started.window="$wire.begin()">
 
     {{-- FIRST CHILD, and it stays the first child of the question screen too.
          Everything it renders is fixed or teleported, so the position costs the
          layout nothing — but it is what lets Livewire morph the component from
          this screen to the next without tearing the music player down, which
          would stop the track at the exact moment the quiz begins. --}}
-    <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" :music-file="$quiz->musicFileUrl()" />
+    <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" :music-file="$quiz->musicFileUrl()" :offer-tap="true" />
 
     @if (session()->has('error'))
         <div class="alert-danger mb-4">
