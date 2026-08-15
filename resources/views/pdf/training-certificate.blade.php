@@ -32,6 +32,18 @@
          * position:fixed in dompdf means "relative to the page", which is
          * precisely what a border and a footer want.
          */
+        /* The sheet itself: a felt-paper texture pinned to the page, so the
+           certificate prints as a piece of paper rather than a white void.
+           Painted first in document order — dompdf's z-index is unreliable,
+           but its painter's order is not, so everything after it sits on top.
+           Sized to the full A4 landscape page, NOT left in flow: an image in
+           flow is exactly the kind of thing that once pushed this sheet onto
+           a blank second page. */
+        .paper {
+            position: fixed; top: 0; left: 0;
+            width: 297mm; height: 210mm;
+        }
+
         .edge {
             position: fixed; top: 7mm; left: 7mm; right: 7mm; bottom: 7mm;
             border: 3px solid #0d9488;
@@ -49,7 +61,13 @@
         .corner-bl { bottom: 13mm; left: 13mm; border-bottom: 2px solid #0d9488; border-left: 2px solid #0d9488; }
         .corner-br { bottom: 13mm; right: 13mm; border-bottom: 2px solid #0d9488; border-right: 2px solid #0d9488; }
 
-        .body { padding: 22mm 32mm 0 32mm; text-align: center; }
+        /* Fixed like everything else — NOT a stylistic choice. dompdf paints
+           the normal flow first and position:fixed elements after it, so the
+           moment the paper sheet went in, in-flow content was painted UNDER
+           an opaque page-sized image. Everything on this certificate is now
+           fixed, and inside the fixed layer document order decides: paper
+           first, ink after. */
+        .body { position: fixed; top: 0; left: 0; right: 0; padding: 22mm 32mm 0 32mm; text-align: center; }
 
         .logo { max-height: 42px; max-width: 170px; }
         .company {
@@ -140,6 +158,18 @@
 
 {{-- Decoration first, and all of it fixed. Nothing below this point can push
      the page over. --}}
+@php
+    // A data URI, like the logo below: dompdf's remote fetching is off, so a
+    // URL would render as a blank. Guarded, because a certificate must never
+    // fail to issue over a missing decoration.
+    $paperFile = public_path('images/certificate-paper.jpg');
+    $paper     = is_file($paperFile)
+        ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($paperFile))
+        : null;
+@endphp
+@if ($paper)
+    <img src="{{ $paper }}" class="paper" alt="">
+@endif
 <div class="edge"></div>
 <div class="edge-inner"></div>
 <div class="corner corner-tl"></div>
