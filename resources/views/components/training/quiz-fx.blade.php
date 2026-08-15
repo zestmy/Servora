@@ -142,7 +142,11 @@
          of the full-width primary button that lives at the bottom of every
          quiz screen. --}}
     <template x-teleport="body">
-        <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {{-- Above the tab bar, not on top of it. The staff layout ends in a
+             fixed row of tabs about 4rem tall, and these were landing on
+             "Board" — a floating control that covers navigation is a control
+             that gets pressed by accident. --}}
+        <div class="fixed bottom-[5.5rem] right-4 z-50 flex flex-col gap-2">
             @if ($hasMusic)
                 <button type="button" @click="toggleMusic()"
                         class="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-white shadow-e3
@@ -165,20 +169,14 @@
         </div>
     </template>
 
-    @if ($hasMusic)
-        {{-- The label that appears with the player when iOS has refused. The
-             PLAYER itself is not in this template — see mountPlayer() — but
-             this is, because it is ordinary chrome and can be rebuilt by any
-             morph without costing anything. --}}
-        <template x-teleport="body">
-            <div x-show="needsTap" style="display:none"
-                 class="fixed bottom-[9.5rem] right-4 z-50 w-40 rounded-surface bg-gray-900 px-3 py-2 text-center">
-                <p class="text-[11px] font-medium leading-snug text-white">
-                    Tap play to start the music
-                </p>
-            </div>
-        </template>
-    @endif
+    {{-- NO "TAP PLAY" NOTICE. There was one, and it was right about the
+         mechanism and wrong about the screen: a black label floating over the
+         options of a timed question, on every question, is a thing to get past
+         rather than a thing to read. The player itself appearing is the whole
+         message — it is a play button, and people know what those are.
+
+         The honest fix for a merchant is upstream anyway: upload a track and
+         no iPhone ever has to be asked for anything. --}}
 
     {{-- THE PLAYER IS NOT IN THIS TEMPLATE, and that is the fix for "the music
          stops when I move to the next question". It was a teleported node, and
@@ -543,7 +541,7 @@
                         }
 
                         mount.removeAttribute('aria-hidden');
-                        mount.style.cssText = 'position:fixed;bottom:6.5rem;right:1rem;z-index:50;'
+                        mount.style.cssText = 'position:fixed;bottom:11rem;right:1rem;z-index:50;'
                             + 'width:160px;height:90px;border-radius:12px;overflow:hidden;'
                             + 'box-shadow:0 8px 24px rgba(15,23,42,.28);';
 
