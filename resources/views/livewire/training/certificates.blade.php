@@ -127,9 +127,17 @@
          moment it is saved — the PDF is rendered live from the row, so there
          is no reissue step and nothing to backfill. --}}
     @if ($showSignatory)
-        <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4"
+        {{-- Teleported to body like every training modal: layouts.app wraps
+             pages in `.page-enter`, whose animation fill mode leaves a
+             transform behind, and a transformed ancestor becomes the
+             containing block for position:fixed — the overlay clips to the
+             content column instead of covering the window. See the note on
+             the assignments modal. --}}
+        @teleport('body')
+        <div class="fixed inset-0 z-overlay overflow-y-auto bg-gray-900/50 p-4
+                    flex items-start justify-center sm:items-center"
              wire:key="signatory-modal">
-            <div class="mx-auto mt-10 max-w-lg">
+            <div class="my-auto w-full max-w-lg">
                 <div class="panel p-6 space-y-4">
                     <div>
                         <h2 class="text-base font-semibold text-gray-900">Certificate signatory</h2>
@@ -206,5 +214,6 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 </div>
