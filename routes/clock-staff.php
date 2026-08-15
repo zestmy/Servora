@@ -197,6 +197,17 @@ $group->group(function () {
         // where the result went. See the component.
         Route::get('/learn/certificates', \App\Livewire\Staff\Training\MyCertificates::class)
             ->name('clock.staff.learn.certificates');
+        /*
+         * The document a course was built from, streamed inline.
+         *
+         * A plain controller because it streams a file, and before /learn/{id}
+         * for the same reason the other named paths are — a segment that looks
+         * like a word must not be read as a course id.
+         */
+        Route::get('/learn/{course}/material', [\App\Http\Controllers\Training\CourseMaterialController::class, 'show'])
+            ->whereNumber('course')
+            ->name('clock.staff.learn.material');
+
         // Before /learn/{id}, or "leaderboard" and "progress" would be read as
         // course ids and 404 on a numeric lookup.
         Route::get('/learn/{id}', \App\Livewire\Staff\Training\CourseView::class)

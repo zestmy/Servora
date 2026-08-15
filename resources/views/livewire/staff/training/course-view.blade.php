@@ -66,15 +66,61 @@
              class="rounded-surface mb-5 w-full object-cover max-h-72">
     @endif
 
-    {{-- The material.
+    {{-- ── The material ──
 
-         Rendered as escaped text with the line breaks kept, not as HTML. It is
-         imported from PDFs and pasted from documents, which means it is
-         untrusted input by any reasonable definition, and a course page is
-         shown to every member of staff in the company. --}}
-    <div class="card p-6 mb-6">
-        <div class="prose-sm max-w-none whitespace-pre-wrap text-[15px] leading-relaxed text-gray-800">{{ $course->content }}</div>
-    </div>
+         THE ORIGINAL DOCUMENT WHERE THERE IS ONE. The importer pulls the words
+         out of a PDF so the AI can read them, and that text is fine for a
+         machine and poor for a person: a menu or an SOP is laid out — tables,
+         photographs of the dish, sections in the order somebody works through
+         them — and extraction flattens all of it into a wall of prose. Staff
+         were reading the wall while the document it came from sat on disk.
+
+         THE TEXT STAYS, underneath and collapsed. A phone that will not draw a
+         PDF still has to be able to read the course, and the extracted text is
+         also exactly what the quiz was written from — so somebody revising for
+         it is better served by the words the questions came out of. --}}
+    @if ($course->sourceIsPdf())
+        <div class="card overflow-hidden mb-4">
+            <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2.5">
+                <p class="min-w-0 truncate text-xs font-medium text-gray-700">
+                    {{ $course->source_filename ?: 'Course material' }}
+                </p>
+                {{-- Full screen hands it to the browser's own PDF viewer, which
+                     on a phone is far better than anything embedded: pinch to
+                     zoom, and a page control that belongs to the platform. --}}
+                <a href="{{ route('clock.staff.learn.material', $course->id) }}"
+                   target="_blank" rel="noopener"
+                   class="btn-secondary btn-sm shrink-0">Full screen</a>
+            </div>
+
+            {{-- 70vh: tall enough to read a page of a menu without scrolling
+                 the page itself, short enough that the quiz button below stays
+                 reachable. --}}
+            <iframe src="{{ route('clock.staff.learn.material', $course->id) }}"
+                    title="{{ $course->title }}"
+                    class="h-[70vh] w-full border-0 bg-gray-100"></iframe>
+        </div>
+
+        @if ($course->content)
+            <details class="card p-4 mb-6">
+                <summary class="cursor-pointer list-none text-sm font-medium text-gray-900">
+                    Read it as text
+                    <span class="block help">
+                        Plainer, and it is the version the quiz was written from.
+                    </span>
+                </summary>
+                <div class="prose-sm mt-3 max-w-none whitespace-pre-wrap border-t border-gray-100 pt-3 text-[15px] leading-relaxed text-gray-800">{{ $course->content }}</div>
+            </details>
+        @endif
+    @else
+        {{-- Rendered as escaped text with the line breaks kept, not as HTML. It
+             is imported from documents and pasted from who knows where, which
+             makes it untrusted input by any reasonable definition, and a course
+             page is shown to every member of staff in the company. --}}
+        <div class="card p-6 mb-6">
+            <div class="prose-sm max-w-none whitespace-pre-wrap text-[15px] leading-relaxed text-gray-800">{{ $course->content }}</div>
+        </div>
+    @endif
 
 
     {{-- ── The quizzes ──

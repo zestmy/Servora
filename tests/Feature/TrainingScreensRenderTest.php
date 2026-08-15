@@ -528,6 +528,88 @@ class TrainingScreensRenderTest extends TestCase
             ->assertViewHas('quizzes', fn ($quizzes) => $quizzes->count() === 1);
     }
 
+    /**
+     * The course shows the ORIGINAL PDF, not just the extracted text.
+     *
+     * The importer pulls words out of a document so the AI can read them, and
+     * that text is fine for a machine and poor for a person: a menu or an SOP
+     * is laid out, and extraction flattens the tables, the photographs and the
+     * running order into a wall of prose. The document was already on disk;
+     * staff were being shown the wall.
+     *
+     * The text stays underneath, because a phone that will not draw a PDF still
+     * has to be able to read the course.
+     */
+    public function test_a_course_with_a_pdf_shows_the_document(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        \Illuminate\Support\Facades\Storage::disk('local')
+            ->put('training/sources/menu.pdf', '%PDF-1.4 fake');
+
+        $this->course->update([
+            'source_type'     => 'upload',
+            'source_path'     => 'training/sources/menu.pdf',
+            'source_filename' => 'Dotty menu.pdf',
+        ]);
+
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\CourseView::class, ['id' => $this->course->id])
+            ->assertOk()
+            ->assertSee('Dotty menu.pdf')
+            ->assertSee('Full screen')
+            // The extracted text is still reachable, just not the headline.
+            ->assertSee('Read it as text')
+            ->assertSee('Chillers run between 0 and 4 degrees.');
+
+        // And it streams inline to somebody who may open the course.
+        $this->get(route('clock.staff.learn.material', $this->course->id))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    /** A .docx cannot be embedded, so the text remains the material. */
+    public function test_a_course_with_a_word_document_still_shows_text(): void
+    {
+        $this->course->update([
+            'source_type'     => 'upload',
+            'source_path'     => 'training/sources/module.docx',
+            'source_filename' => 'Welcome module.docx',
+        ]);
+
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\CourseView::class, ['id' => $this->course->id])
+            ->assertOk()
+            ->assertDontSee('Full screen')
+            ->assertSee('Chillers run between 0 and 4 degrees.');
+
+        $this->get(route('clock.staff.learn.material', $this->course->id))->assertNotFound();
+    }
+
+    /**
+     * A course somebody may not open is a document they may not read.
+     *
+     * The two rules must not be able to disagree, so the controller asks the
+     * model the same question the course screen does rather than a similar one.
+     */
+    public function test_the_material_is_refused_for_an_unpublished_course(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        \Illuminate\Support\Facades\Storage::disk('local')
+            ->put('training/sources/menu.pdf', '%PDF-1.4 fake');
+
+        $this->course->update([
+            'source_path'     => 'training/sources/menu.pdf',
+            'source_filename' => 'Dotty menu.pdf',
+            'status'          => 'draft',
+        ]);
+
+        $this->asStaff();
+
+        $this->get(route('clock.staff.learn.material', $this->course->id))->assertNotFound();
+    }
+
     public function test_the_staff_course_page_renders(): void
     {
         $this->asStaff();

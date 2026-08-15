@@ -156,6 +156,22 @@ class TrainingCourse extends Model
             ?? $this->quizzes()->orderBy('id')->first();
     }
 
+    /**
+     * Whether the document this course was built from can be READ by staff.
+     *
+     * PDFs only, and that is the honest limit rather than a first pass: a
+     * browser renders a PDF and does not render a .docx, so embedding one would
+     * be offering a download dressed as a page. The extracted text remains the
+     * material for everything else — and remains available underneath the PDF,
+     * because a phone that will not draw one still has to be able to read the
+     * course.
+     */
+    public function sourceIsPdf(): bool
+    {
+        return $this->source_path
+            && strtolower(pathinfo($this->source_path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
     public function sourceLabel(): string
     {
         return self::SOURCE_TYPES[$this->source_type] ?? 'Written here';
