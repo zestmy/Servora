@@ -15,7 +15,7 @@ class TrainingAnswer extends Model
 {
     protected $fillable = [
         'training_attempt_id', 'training_question_id', 'chosen',
-        'is_correct', 'points_awarded', 'seconds_taken', 'seconds_allowed',
+        'is_correct', 'points_awarded', 'seconds_taken', 'seconds_allowed', 'language',
     ];
 
     protected $casts = [

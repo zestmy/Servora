@@ -162,6 +162,7 @@ class SelfPacedQuizService
         TrainingQuestion $question,
         array $chosen,
         float $secondsTaken,
+        ?string $language = null,
     ): TrainingAnswer {
         return $this->scoring->recordAnswer(
             $attempt,
@@ -170,6 +171,9 @@ class SelfPacedQuizService
             $chosen,
             $secondsTaken,
             $question->isCorrect($chosen) ? $this->currentStreak($attempt) + 1 : 0,
+            // What this question was READ in. Defaults to the language the
+            // attempt started in, which is right until somebody switches.
+            $language ?? $attempt->language,
         );
     }
 

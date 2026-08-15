@@ -28,8 +28,38 @@
         <p class="text-sm font-medium text-gray-600">
             Question {{ $index + 1 }} of {{ $total }}
         </p>
+        {{-- ── Change language, mid-quiz ──
+
+             It was a label. Somebody who starts in English and finds it heavier
+             going than they expected had to abandon the attempt to read it in
+             Malay, which on a one-shot challenge means not reading it at all.
+
+             SAFE, because a translation is only words: same questions, same
+             order, same answer key. The rest of the run simply renders
+             differently, and the ANSWER ROWS record what each question was
+             actually read in — an attempt read in two languages cannot be
+             described by one column on the attempt.
+
+             The clock keeps running. Switching costs the seconds it takes,
+             which is the honest price; resetting it would make this a way of
+             buying twenty more seconds on a hard question. --}}
         @if ($quiz->isMultilingual())
-            <p class="text-xs text-gray-600">{{ \App\Models\TrainingQuiz::LANGUAGES[$language] ?? '' }}</p>
+            <div class="flex items-center gap-1">
+                @foreach ($quiz->availableLanguages() as $code => $label)
+                    <button type="button" wire:key="lang-{{ $code }}"
+                            wire:click="switchLanguage('{{ $code }}')"
+                            aria-pressed="{{ $language === $code ? 'true' : 'false' }}"
+                            class="rounded-control px-2 py-1.5 text-xs font-medium transition
+                                   {{ $language === $code
+                                      ? 'bg-brand-600 text-white'
+                                      : 'bg-gray-100 text-gray-700 active:bg-gray-200' }}">
+                        {{-- The short form: three of these have to fit beside a
+                             question counter on a 375px screen. --}}
+                        {{ Str::upper($code) }}
+                        <span class="sr-only">{{ $label }}</span>
+                    </button>
+                @endforeach
+            </div>
         @endif
     </div>
 

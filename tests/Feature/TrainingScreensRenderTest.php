@@ -916,6 +916,79 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('Chiller quiz');
     }
 
+    /**
+     * The language can change part-way through, and the rows remember.
+     *
+     * Somebody who starts in English and finds it heavier going than expected
+     * should not have to abandon the attempt to read it in Malay — which on a
+     * one-shot challenge means not reading it at all. It is safe because a
+     * translation is only words: same questions, same order, same answer key.
+     *
+     * What it breaks is the RECORD, and that is what this pins. A single
+     * language on the attempt can only lie about a run read in two, so each
+     * answer carries the language it was actually read in.
+     */
+    public function test_the_language_can_be_changed_mid_quiz(): void
+    {
+        $second = $this->quiz->questions()->create([
+            'type' => 'mcq', 'prompt' => 'Which shelf holds raw chicken?',
+            'options' => ['Bottom', 'Top'], 'correct' => [0], 'sort_order' => 2,
+        ]);
+
+        foreach ($this->quiz->fresh('questions')->questions as $i => $question) {
+            \App\Models\TrainingQuestionTranslation::create([
+                'training_question_id' => $question->id,
+                'language'             => 'ms',
+                'prompt'               => 'Soalan Melayu ' . ($i + 1),
+                'options'              => array_map(
+                    fn ($o) => 'Pilihan ' . $o,
+                    array_keys($question->optionList()),
+                ),
+            ]);
+        }
+
+        $this->asStaff();
+
+        $play = Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('begin')
+            ->assertSet('language', 'en')
+            ->assertSee('What temperature does a chiller hold?');
+
+        // Question one, read in English.
+        $play->call('choose', 0, false)->call('submit')->call('nextQuestion');
+
+        // Switch, mid-run. The remaining questions arrive in Malay.
+        $play->call('switchLanguage', 'ms')
+            ->assertSet('language', 'ms')
+            ->assertSee('Soalan Melayu 2')
+            ->assertDontSee('Which shelf holds raw chicken?');
+
+        $play->call('choose', 0, false)->call('submit');
+
+        $answers = \App\Models\TrainingAnswer::whereIn(
+            'training_question_id',
+            [$this->quiz->questions->first()->id, $second->id],
+        )->pluck('language', 'training_question_id');
+
+        $this->assertSame('en', $answers[$this->quiz->questions->first()->id]);
+        $this->assertSame('ms', $answers[$second->id]);
+
+        // The attempt still says where the run STARTED, which is its job.
+        $this->assertSame('en', \App\Models\TrainingAttempt::latest('id')->first()->language);
+    }
+
+    /** A language nobody translated cannot be forced from the browser. */
+    public function test_switching_to_an_unoffered_language_is_refused(): void
+    {
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('begin')
+            ->call('switchLanguage', 'id')
+            ->assertSet('language', 'en')
+            ->assertSee('What temperature does a chiller hold?');
+    }
+
     /** The wall of certificates, and its empty state. */
     public function test_the_staff_certificates_screen_renders(): void
     {

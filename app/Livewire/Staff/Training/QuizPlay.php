@@ -185,6 +185,41 @@ class QuizPlay extends StaffComponent
             ->findOrFail($this->attemptId);
     }
 
+    /**
+     * Change language part-way through.
+     *
+     * ALLOWED, and safe, because a translation is only words: the questions,
+     * their order and the answer key are identical in every language, so the
+     * rest of the run simply renders differently. Somebody who starts in
+     * English and finds it heavier going than they expected should not have to
+     * abandon the attempt to read it in Malay.
+     *
+     * THE CLOCK IS NOT RESET. The seconds that decide points are measured from
+     * the server stamp taken when the question was handed over, and switching
+     * does not touch it — so a language change costs the time it takes, which
+     * is the honest price. Resetting would make the switcher a way of buying
+     * another twenty seconds on a hard question.
+     *
+     * Nothing is written to the attempt: the ANSWER rows carry the language now
+     * (see the migration), because an attempt read in two languages cannot be
+     * described by one column.
+     */
+    public function switchLanguage(string $code): void
+    {
+        if ($this->finished) {
+            return;
+        }
+
+        // Re-checked against what the quiz actually offers — this arrives from
+        // the browser, and an unoffered language would leave somebody reading
+        // English they did not ask for from here on.
+        $offered = $this->quiz()->availableLanguages();
+
+        if (isset($offered[$code])) {
+            $this->language = $code;
+        }
+    }
+
     /** Tapping an option. Single-answer types replace; multi toggles. */
     public function choose(int $optionIndex, bool $multi): void
     {
@@ -231,7 +266,13 @@ class QuizPlay extends StaffComponent
         // break scores as a timeout, not as a negative bonus.
         $seconds = min($seconds, (float) $question->secondsValue($attempt->quiz));
 
-        $answer = $service->answer($attempt, $question, array_map('intval', $this->chosen), $seconds);
+        $answer = $service->answer(
+            $attempt,
+            $question,
+            array_map('intval', $this->chosen),
+            $seconds,
+            $this->language,
+        );
 
         $this->showFeedback       = true;
         $this->lastCorrect        = $answer->is_correct;

@@ -145,6 +145,7 @@ class ScoringService
         array $chosen,
         float $secondsTaken,
         int $streak = 0,
+        ?string $language = null,
     ): TrainingAnswer {
         $isCorrect = $question->isCorrect($chosen);
 
@@ -174,6 +175,13 @@ class ScoringService
                 'points_awarded'  => $points,
                 'seconds_taken'   => round($secondsTaken, 2),
                 'seconds_allowed' => $question->secondsValue($quiz),
+                /*
+                 * What THIS question was read in, which is not necessarily what
+                 * the attempt started in — somebody may switch language
+                 * part-way. Recorded per row because that is the only place it
+                 * can be true. See the migration.
+                 */
+                'language'        => $language,
             ],
         );
     }
