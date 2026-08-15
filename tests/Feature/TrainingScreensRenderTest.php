@@ -757,6 +757,45 @@ class TrainingScreensRenderTest extends TestCase
      *    A `quiz-music-player` div appearing in a Blade template again would
      *    reintroduce bug 2 exactly.
      */
+    /**
+     * A link and a file together: the FILE wins, and no iframe is rendered.
+     *
+     * The two are not equivalent — an embed cannot play on an iPhone — so a
+     * quiz carrying both must use the one that works everywhere, and must not
+     * quietly load the other alongside it.
+     */
+    public function test_an_uploaded_track_wins_over_a_youtube_link(): void
+    {
+        $this->quiz->update([
+            'music_path' => 'training/music/track.m4a',
+            'music_url'  => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        ]);
+
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->assertOk()
+            ->assertSee('track.m4a', escape: false)
+            ->assertDontSee('dQw4w9WgXcQ', escape: false);
+    }
+
+    /** With only a link, the player is wired but nothing is drawn on screen. */
+    public function test_a_youtube_link_is_played_out_of_sight(): void
+    {
+        $this->quiz->update(['music_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
+
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->assertOk()
+            // The id reaches the component…
+            ->assertSee('dQw4w9WgXcQ', escape: false)
+            // …but no player is rendered into the page. It is built in
+            // JavaScript, off-screen, on the tap — a window over the quiz was
+            // the half of this feature people complained about.
+            ->assertDontSee('<iframe', escape: false);
+    }
+
     public function test_the_quiz_screens_keep_the_music_wiring_intact(): void
     {
         // An uploaded track, which is the only mechanism now: a YouTube embed
@@ -769,15 +808,14 @@ class TrainingScreensRenderTest extends TestCase
             ->assertOk()
             ->assertSee('start-music', escape: false)
             ->assertSee('quizFx(', escape: false)
-            // NO IFRAME, on any screen. A YouTube player is what produced both
-            // "no sound on my iPhone" and "that annoying window", and its
-            // return would reintroduce one or the other.
-            ->assertDontSee('youtube', escape: false)
+            // NO PLAYER IS RENDERED, on any screen. The API loader lives in the
+            // shared script block and is only called if a quiz has a link and
+            // no file, so the assertion is about the markup: an iframe over the
+            // quiz is the half of this feature people complained about.
             ->assertDontSee('<iframe', escape: false);
 
         $question = $start->call('begin')->assertOk()
             ->assertSee('quizFx(', escape: false)
-            ->assertDontSee('youtube', escape: false)
             ->assertDontSee('<iframe', escape: false);
 
         // First child on both, which is the property the morph relies on.

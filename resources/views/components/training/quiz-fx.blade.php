@@ -22,35 +22,53 @@
     on a handset in silent mode, and the flash, the shake and the vibration are
     not decoration around it — for a phone on silent they ARE the feedback.
 
-    ── THE MUSIC IS AN <audio> ELEMENT, AND ONLY THAT ──
+    ── A FILE FIRST, A YOUTUBE LINK SECOND ──
 
-    There is no YouTube player here any more, and its removal is the fix rather
-    than a simplification. An embed cannot be made to play on an iPhone: a user
-    gesture belongs to the FRAME it happened in, playVideo() reaches the player
-    by postMessage into a cross-origin iframe, and the activation does not cross
+    AN UPLOADED FILE IS A NATIVE <audio> ELEMENT, in the same document as the
+    button, so the tap authorises it directly on every platform — which is
+    exactly how the wedding-invitation sites that do this well work, including
+    the one this was diagnosed against. One element, one play(), a floating
+    button to stop it, nothing on screen.
+
+    A YOUTUBE LINK IS AN EMBED, AND CANNOT PLAY ON AN IPHONE. A user gesture
+    belongs to the FRAME it happened in; playVideo() reaches the player by
+    postMessage into a cross-origin iframe and the activation does not cross
     that boundary. Four attempts went into working around it — building the
     player inside the tap, showing it, hiding it, revealing it on failure — and
-    the honest summary is that the only two outcomes available were silence or a
-    YouTube window sitting on top of the quiz. Both were reported, correctly, as
-    broken.
+    the only two outcomes available were silence or a YouTube window sitting on
+    top of the quiz.
 
-    A native <audio> element has none of the problem. It lives in the same
-    document as the button, so the tap authorises it directly, on every platform
-    — which is exactly how the wedding-invitation sites that do this well work,
-    including the one this was finally diagnosed against. One element, one
-    play(), a floating button to stop it, and nothing on screen.
-
-    The cost is that a merchant has to upload a track instead of pasting a link.
-    That is a real cost and it is the right one: a link that plays on the
-    author's laptop and not on the floor's phones is worse than a field that
-    asks for a file.
+    So the embed is kept, and kept OUT OF SIGHT. It plays on Android and on a
+    computer, where a hidden frame is allowed to make sound; on iOS it does not
+    play, and no window appears to suggest otherwise. That is the honest shape
+    of the trade, and the quiz builder says so beside the field.
 
     Props:
-      musicFile  an uploaded audio URL, or null for a quiz with no track
+      music      a YouTube embed URL, or null
+      musicFile  an uploaded audio URL, or null. Used in preference to the link.
 --}}
-@props(['musicFile' => null])
+@props(['music' => null, 'musicFile' => null])
 
-<div x-data="quizFx(@js($musicFile))"
+@php
+    // The API wants an id and a playlist, not an embed URL. The model keeps the
+    // parsing that decides what is SAFE; this is only the shape the API takes.
+    $musicId = null;
+    $musicList = null;
+
+    if ($music && ! $musicFile) {
+        if (preg_match('~/embed/([A-Za-z0-9_-]{11})~', $music, $m)) {
+            $musicId = $m[1];
+        }
+
+        if (preg_match('~[?&]list=([A-Za-z0-9_-]{12,})~', $music, $m)) {
+            $musicList = $m[1];
+        }
+    }
+
+    $hasMusic = $musicFile || $musicId || $musicList;
+@endphp
+
+<div x-data="quizFx(@js($musicFile), @js($musicId), @js($musicList))"
      @answer-scored.window="react($event.detail)"
      @start-music.window="autostart()"
      class="contents">
@@ -102,7 +120,7 @@
          the whole point of using an audio element. --}}
     <template x-teleport="body">
         <div class="fixed bottom-[5.5rem] right-4 z-50 flex flex-col gap-2">
-            @if ($musicFile)
+            @if ($hasMusic)
                 <button type="button" @click="toggleMusic()"
                         class="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-white shadow-e3
                                active:scale-95 transition"
@@ -143,13 +161,15 @@
 
                 window.Alpine.__quizFxRegistered = true;
 
-                window.Alpine.data('quizFx', (musicFile) => ({
+                window.Alpine.data('quizFx', (musicFile, musicId, musicList) => ({
                     sound: localStorage.getItem('quizSound') !== 'off',
                     // Never restored from storage. Music that starts itself
                     // because of a choice made on a different shift is the
                     // thing a phone gets put face down for.
                     musicOn: false,
                     musicFile: musicFile,
+                    musicId: musicId,
+                    musicList: musicList,
                     flash: null,
                     // What the ribbon says, and what it is worth. Both come
                     // from the SERVER's answer row — the word follows the
@@ -168,6 +188,104 @@
                         if (this.musicFile) {
                             this.mountAudio();
                         }
+                    },
+
+                    /**
+                     * The YouTube player, off-screen and never shown.
+                     *
+                     * Built on the tap rather than at page load — a frame
+                     * created during a gesture is the one a browser is most
+                     * willing to let make a sound — and parked where nothing
+                     * can see it, because a window over the quiz was the other
+                     * half of this feature's history.
+                     *
+                     * A CONTAINER with a throwaway div inside it: new
+                     * YT.Player() REPLACES the element it is given, so passing
+                     * the tracked node would detach it the moment the player
+                     * was ready.
+                     */
+                    async mountPlayer() {
+                        if (window.__quizPlayerMount?.isConnected) {
+                            return;
+                        }
+
+                        const container = document.createElement('div');
+                        container.id = 'quiz-music-player';
+                        container.setAttribute('aria-hidden', 'true');
+                        container.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
+                            + 'width:160px;height:90px;opacity:0;pointer-events:none;';
+
+                        const target = document.createElement('div');
+                        container.appendChild(target);
+
+                        document.body.appendChild(container);
+                        window.__quizPlayerMount = container;
+
+                        const YT = await this.youtube();
+
+                        window.__quizPlayer = new YT.Player(target, {
+                            videoId: this.musicId || undefined,
+                            playerVars: {
+                                playsinline: 1,
+                                controls: 0,
+                                modestbranding: 1,
+                                rel: 0,
+                                loop: 1,
+                                autoplay: 0,
+                                ...(this.musicList
+                                    ? { list: this.musicList, listType: 'playlist' }
+                                    : { playlist: this.musicId }),
+                            },
+                            events: {
+                                onReady: (e) => {
+                                    // Backing music, not the main event.
+                                    e.target.setVolume(35);
+
+                                    if (this.musicOn) {
+                                        e.target.playVideo();
+                                    }
+                                },
+                                onStateChange: (e) => {
+                                    // A single video ends rather than looping
+                                    // when the playlist trick is refused, and a
+                                    // quiz that falls silent half way through is
+                                    // worse than one with no music at all.
+                                    if (e.data === YT.PlayerState.ENDED && this.musicOn) {
+                                        e.target.seekTo(0);
+                                        e.target.playVideo();
+                                    }
+                                },
+                            },
+                        });
+                    },
+
+                    /**
+                     * Load YouTube's API once, and resolve when it is ready.
+                     *
+                     * onYouTubeIframeAPIReady is a single global YouTube calls
+                     * exactly once, so it is wired to a promise rather than
+                     * being overwritten by whichever screen asked last.
+                     */
+                    youtube() {
+                        if (window.__ytReady) {
+                            return window.__ytReady;
+                        }
+
+                        window.__ytReady = new Promise((resolve) => {
+                            if (window.YT && window.YT.Player) {
+                                resolve(window.YT);
+
+                                return;
+                            }
+
+                            window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+
+                            const tag = document.createElement('script');
+                            tag.src = 'https://www.youtube.com/iframe_api';
+                            document.head.appendChild(tag);
+                        });
+
+                        return window.__ytReady;
                     },
 
                     /**
@@ -308,7 +426,7 @@
 
                     /** The Start tap. */
                     autostart() {
-                        if (this.musicFile && ! this.musicOn) {
+                        if ((this.musicFile || this.musicId || this.musicList) && ! this.musicOn) {
                             this.toggleMusic();
                         }
                     },
@@ -323,28 +441,69 @@
                      * stop the quiz.
                      */
                     toggleMusic() {
-                        if (! this.musicFile) {
+                        if (! this.musicFile && ! this.musicId && ! this.musicList) {
                             return;
                         }
 
                         this.musicOn = ! this.musicOn;
 
-                        if (! window.__quizAudio?.isConnected) {
-                            this.mountAudio();
+                        if (this.musicFile) {
+                            if (! window.__quizAudio?.isConnected) {
+                                this.mountAudio();
+                            }
+
+                            try {
+                                this.musicOn
+                                    ? window.__quizAudio?.play()?.catch?.(() => {})
+                                    : window.__quizAudio?.pause();
+                            } catch (e) {}
+
+                            return;
+                        }
+
+                        // A player whose iframe was swapped out from under it —
+                        // wire:navigate outlives the document that built it — is
+                        // dropped rather than talked to.
+                        if (! window.__quizPlayer?.getIframe?.()?.isConnected) {
+                            try { window.__quizPlayer?.destroy?.(); } catch (e) {}
+                            window.__quizPlayer = null;
+                        }
+
+                        if (this.musicOn && ! window.__quizPlayer) {
+                            // Built inside the gesture; onReady starts it.
+                            this.mountPlayer();
+
+                            return;
                         }
 
                         try {
                             this.musicOn
-                                ? window.__quizAudio?.play()?.catch?.(() => {})
-                                : window.__quizAudio?.pause();
+                                ? window.__quizPlayer?.playVideo?.()
+                                : window.__quizPlayer?.pauseVideo?.();
                         } catch (e) {}
                     },
 
                     /** Drop the music while a verdict is being heard. */
                     duck() {
+                        if (! this.musicOn) {
+                            return;
+                        }
+
+                        if (! this.musicFile) {
+                            try {
+                                window.__quizPlayer?.setVolume?.(10);
+                                clearTimeout(this._duck);
+                                this._duck = setTimeout(() => {
+                                    try { window.__quizPlayer?.setVolume?.(35); } catch (e) {}
+                                }, 900);
+                            } catch (e) {}
+
+                            return;
+                        }
+
                         const audio = window.__quizAudio;
 
-                        if (! this.musicOn || ! audio) {
+                        if (! audio) {
                             return;
                         }
 

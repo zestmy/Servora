@@ -316,17 +316,18 @@
 
                 {{-- ── Background music ──
 
-                     AN UPLOADED FILE, and nothing else. A YouTube link was
-                     offered first and withdrawn: an embed cannot be made to
-                     play on an iPhone, because a user gesture belongs to the
-                     frame it happened in and reaching the player means crossing
-                     into a cross-origin iframe. Every workaround produced
-                     either silence or a YouTube window sitting on top of the
-                     quiz, and both were reported as broken.
+                     TWO WAYS IN, and they are not equivalent. An uploaded file
+                     is a native <audio> element in the same document as the
+                     button, so the tap authorises it on every platform and it
+                     draws nothing. A YouTube link is an embed, and a user
+                     gesture belongs to the frame it happened in — so it plays
+                     on Android and on a computer and NOT on an iPhone, whatever
+                     is done on our side of the iframe.
 
-                     A native <audio> element is in the same document as the
-                     button, so the tap authorises it on every platform, and it
-                     shows nothing at all. --}}
+                     Both are offered because the link is the quick way to try
+                     something. The copy says which is which, because a field
+                     that works on the author's laptop and fails on the floor's
+                     phones is only fair if it says so. --}}
                 <div>
                     <p class="label">Background music</p>
 
@@ -353,13 +354,22 @@
                     </p>
                     @error('musicFile') <p class="error-text">{{ $message }}</p> @enderror
 
-                    {{-- THE YOUTUBE FIELD IS GONE. It could not be made to play
-                         on an iPhone — a gesture belongs to the frame it
-                         happened in, and reaching an embedded player means
-                         crossing into a cross-origin iframe — so the only two
-                         outcomes it ever produced were silence or a YouTube
-                         window sitting on top of the quiz. A file plays
-                         everywhere and shows nothing. --}}
+                    {{-- The link, kept because it is the quick way to try a
+                         track — and labelled with what it cannot do. It plays
+                         hidden, so no window ever appears over the quiz; on an
+                         iPhone that means it does not play at all, because a
+                         gesture belongs to the frame it happened in and reaching
+                         an embedded player means crossing into a cross-origin
+                         iframe. The file above is the answer for phones. --}}
+                    <label class="label mt-3" for="quiz-music">…or a YouTube link</label>
+                    <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
+                           placeholder="https://www.youtube.com/watch?v=…">
+                    <p class="help">
+                        Used only when no file is uploaded, and it plays out of sight — on Android
+                        and on a computer. <span class="font-medium text-gray-700">iPhones cannot
+                        play an embed</span>, so upload a file if your floor is on iPhones.
+                    </p>
+                    @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-gray-800">

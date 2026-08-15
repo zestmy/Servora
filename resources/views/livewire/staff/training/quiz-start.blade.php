@@ -20,7 +20,7 @@
          layout nothing — but it is what lets Livewire morph the component from
          this screen to the next without tearing the music player down, which
          would stop the track at the exact moment the quiz begins. --}}
-    <x-training.quiz-fx :music-file="$quiz->musicFileUrl()" />
+    <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" :music-file="$quiz->musicFileUrl()" />
 
     @if (session()->has('error'))
         <div class="alert-danger mb-4">

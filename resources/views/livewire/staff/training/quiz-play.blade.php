@@ -22,7 +22,7 @@
 
     {{-- First child, same as on the start screen — see the note there. The
          morph between the two must not tear the music player down. --}}
-    <x-training.quiz-fx :music-file="$quiz->musicFileUrl()" />
+    <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" :music-file="$quiz->musicFileUrl()" />
 
     <div class="mb-4 flex items-center justify-between gap-3">
         <p class="text-sm font-medium text-gray-600">
