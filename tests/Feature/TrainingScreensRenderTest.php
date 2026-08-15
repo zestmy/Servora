@@ -883,6 +883,7 @@ class TrainingScreensRenderTest extends TestCase
         Livewire::test(\App\Livewire\Staff\Training\Leaderboard::class)
             ->assertOk()
             ->assertSee('Allergen quiz')
+            ->assertSee('Every quiz')
             ->assertViewHas('board', fn ($board) => $board->count() === 1);
 
         // Filtered to the quiz they have NOT taken: nobody.
@@ -893,6 +894,26 @@ class TrainingScreensRenderTest extends TestCase
             // And the "not started" list is hidden, because it would be a
             // different claim under the same heading.
             ->assertViewHas('notStarted', fn ($rows) => $rows->isEmpty());
+    }
+
+    /**
+     * The quiz filter appears even when there is only one quiz.
+     *
+     * It was hidden below two, on the reasoning that a one-option filter is
+     * redundant — true, and beside the point: the company this was built for
+     * has one live quiz, so the control never appeared and the feature read as
+     * missing. A redundant dropdown costs a line; an invisible one costs a
+     * conversation.
+     */
+    public function test_the_quiz_filter_shows_with_a_single_quiz(): void
+    {
+        $this->asStaff();
+
+        Livewire::test(\App\Livewire\Staff\Training\Leaderboard::class)
+            ->assertOk()
+            ->assertViewHas('quizzes', fn ($quizzes) => $quizzes->count() === 1)
+            ->assertSee('Every quiz')
+            ->assertSee('Chiller quiz');
     }
 
     /** The wall of certificates, and its empty state. */

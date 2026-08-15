@@ -68,8 +68,15 @@
          the allergen paper" are different questions, and only the second is any
          use when somebody is following up one piece of training. Its own row
          because the titles are long and a third control on the line above would
-         squeeze all three. --}}
-    @if ($quizzes->count() > 1)
+         squeeze all three.
+
+         SHOWN WHENEVER THERE IS A QUIZ AT ALL, including when there is only
+         one. It was hidden below two on the reasoning that a one-option filter
+         is redundant — which is true and beside the point: this company has one
+         live quiz, so the control never appeared, and a feature that cannot be
+         seen has not been delivered. A redundant dropdown costs a line; an
+         invisible one costs a conversation. --}}
+    @if ($quizzes->isNotEmpty())
         <div>
             <label class="sr-only" for="board-quiz">Quiz</label>
             <select id="board-quiz" wire:model.live="quizId" class="input text-sm">
