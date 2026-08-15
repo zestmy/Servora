@@ -38,25 +38,22 @@
     destroyed mid-quiz. That is "the music stops when I move to the next
     question". Nothing Livewire morphs can reach it now.
 
-    AND ON IOS, NONE OF THAT IS ENOUGH. A gesture belongs to the FRAME it
-    happened in. playVideo() reaches the player by postMessage into a
-    cross-origin iframe, and WebKit does not carry the parent page's activation
-    across that boundary — so the tap on Start authorises nothing as far as
-    youtube-nocookie.com is concerned, and playback is refused however
-    synchronous the call was. That is why "no sound on iPhone" survived being
-    fixed twice: both fixes were real, and neither could have been sufficient.
+    THE PLAYER IS VISIBLE WHILE IT PLAYS, and that is not decoration — it is
+    the difference between sound and silence on an iPhone. This worked once and
+    was broken by hiding it: the player was moved off-screen behind
+    `-translate-x-[200vw]` and `opacity: 0` on the reasoning that a small
+    YouTube card was clutter. WebKit does not play media in a frame it does not
+    consider visible, so from that commit there was no sound on iOS at all.
 
-    The only gesture iOS accepts is one INSIDE the player. So the API call is
-    still made — it works on Android and on the desktop — and then the result
-    is CHECKED. If playback did not start, the player is brought on screen with
-    its own controls, above the floating button, and one tap on it starts the
-    music for the rest of the quiz; the API drives it from then on, because by
-    then the frame has been activated. It parks itself off-screen again the
-    moment it is playing.
+    Two properties, then, and both are load-bearing:
 
-    Guessing which platform needs this would be wrong — Safari's policy varies
-    by version and by whether the user has played media on the site before.
-    Asking the player what it actually did is the only thing that stays true.
+      1. The player is CREATED INSIDE the tap, not at page load. WebKit is far
+         more willing to start media in a frame that was built during a gesture.
+      2. The player is ON SCREEN whenever it is playing. Small, bottom-left,
+         clear of the primary button and the tab bar — but rendered.
+
+    Its own controls are on, so if a platform still refuses there is something
+    to press. That is a fallback rather than the design.
 
     AN UPLOADED TRACK SIDESTEPS ALL OF IT. A native <audio> element lives in
     the same document as the Start button, so the tap authorises it directly —
@@ -214,13 +211,6 @@
                     // because of a choice made on a different shift is the
                     // thing a phone gets put face down for.
                     musicOn: false,
-                    /*
-                     * Playback was asked for and did not happen — so the
-                     * player comes on screen to be tapped. See the note at the
-                     * top: on iOS the only gesture that counts is one inside
-                     * the frame.
-                     */
-                    needsTap: false,
                     musicId: musicId,
                     musicList: musicList,
                     musicFile: musicFile,
@@ -246,15 +236,22 @@
                      * being read leaves the tap with one synchronous call to
                      * make.
                      */
+                    /*
+                     * The <audio> element is built up front; the YouTube player
+                     * is NOT.
+                     *
+                     * An audio element is same-frame and inert until play() is
+                     * called, so building it early only helps it buffer. A
+                     * YouTube player built at page load is an iframe created
+                     * outside any gesture, in a container that is not yet on
+                     * screen — and WebKit decides very early whether a frame
+                     * may produce sound. The version of this that demonstrably
+                     * worked on an iPhone built the player INSIDE the tap, and
+                     * that is restored: see mountPlayer's caller.
+                     */
                     init() {
                         if (this.musicFile) {
                             this.mountAudio();
-
-                            return;
-                        }
-
-                        if (this.musicId || this.musicList) {
-                            this.mountPlayer();
                         }
                     },
 
@@ -466,7 +463,9 @@
                         document.body.appendChild(container);
                         window.__quizPlayerMount = container;
 
-                        this.parkPlayer();
+                        // On screen from the moment it exists. A frame created
+                        // off-screen may never be allowed to make a sound.
+                        this.revealPlayer();
 
                         const YT = await this.youtube();
 
@@ -503,9 +502,14 @@
                                     // enough to talk over.
                                     e.target.setVolume(35);
 
-                                    // Somebody pressed Start while the API was
-                                    // still loading. The document still has
-                                    // their tap behind it, so this is allowed.
+                                    /*
+                                     * The player is built from the tap, so this
+                                     * fires a moment after it with the
+                                     * document's activation still behind it —
+                                     * which is exactly the sequence that played
+                                     * on an iPhone before any of this was
+                                     * "improved".
+                                     */
                                     if (this.musicOn) {
                                         e.target.playVideo();
                                     }
@@ -520,9 +524,8 @@
                                     // Playing at last — whether from the API or
                                     // from a tap on the frame. Put it away.
                                     if (e.data === YT.PlayerState.PLAYING) {
-                                        this.needsTap = false;
                                         this.musicOn = true;
-                                        this.parkPlayer();
+                                        this.revealPlayer();
                                     }
 
                                     if (e.data === YT.PlayerState.ENDED && this.musicOn) {
@@ -534,7 +537,7 @@
                         });
                     },
 
-                    /** Off-screen, inert, and impossible to tap by accident. */
+    /** Out of sight, and only when nothing is playing. */
                     parkPlayer() {
                         const mount = window.__quizPlayerMount;
 
@@ -547,8 +550,14 @@
                     },
 
                     /**
-                     * On screen, above the floating buttons, with its own
-                     * controls — the one thing iOS will accept a tap on.
+                     * On screen, small, bottom-LEFT.
+                     *
+                     * Shown whenever the track is playing rather than only when
+                     * something has gone wrong. WebKit will not play media in a
+                     * frame it does not consider visible — hiding this is
+                     * exactly what silenced the music on iPhones — and the
+                     * left-hand corner keeps it off the primary button and off
+                     * the thumb that rests on the right.
                      */
                     revealPlayer() {
                         const mount = window.__quizPlayerMount;
@@ -558,13 +567,11 @@
                         }
 
                         mount.removeAttribute('aria-hidden');
-                        mount.style.cssText = 'position:fixed;bottom:11rem;right:1rem;z-index:50;'
-                            + 'width:160px;height:90px;border-radius:12px;overflow:hidden;'
+                        mount.style.cssText = 'position:fixed;bottom:5.5rem;left:1rem;z-index:40;'
+                            + 'width:150px;height:84px;border-radius:12px;overflow:hidden;'
                             + 'box-shadow:0 8px 24px rgba(15,23,42,.28);';
 
                         this.fillContainer(mount);
-
-                        this.needsTap = true;
                     },
 
                     /** The iframe fills whatever the container currently is. */
@@ -574,34 +581,6 @@
                         if (frame) {
                             frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
                         }
-                    },
-
-                    /**
-                     * Did it actually start?
-                     *
-                     * The only honest way to know. A browser that refuses
-                     * playback does not throw and does not return false — it
-                     * simply does nothing, which is why this was invisible for
-                     * two rounds of fixes. A second is long enough for a track
-                     * to reach BUFFERING even on a slow kitchen connection.
-                     */
-                    confirmPlaying() {
-                        clearTimeout(this._confirm);
-
-                        this._confirm = setTimeout(() => {
-                            if (! this.musicOn) {
-                                return;
-                            }
-
-                            let state = -1;
-
-                            try { state = window.__quizPlayer?.getPlayerState?.() ?? -1; } catch (e) {}
-
-                            // 1 playing, 3 buffering — both mean it was allowed.
-                            if (state !== 1 && state !== 3) {
-                                this.revealPlayer();
-                            }
-                        }, 1100);
                     },
 
                     /** The Start tap. Music begins if the quiz has any. */
@@ -619,11 +598,11 @@
                      * SYNCHRONOUS, DELIBERATELY. Every path from the tap to
                      * playVideo() has to be free of `await`: an await ends the
                      * user gesture, and playback outside a gesture is refused
-                     * without an error — which is the whole of the "music does
-                     * not autoplay on my iPhone" report. The player was already
-                     * built at page load precisely so this can be a single
-                     * call. If it is somehow not ready yet, onReady picks up
-                     * the flag set here.
+                     * without an error. Where there is no player yet, one is
+                     * BUILT here rather than played — creating the frame inside
+                     * the tap is what the version that worked on an iPhone did,
+                     * and onReady starts it a moment later with the document's
+                     * activation still behind it.
                      */
                     toggleMusic() {
                         this.musicOn = ! this.musicOn;
@@ -651,6 +630,25 @@
                             return;
                         }
 
+                        /*
+                         * A player whose iframe has been swapped out from under
+                         * it — wire:navigate outlives the document that built
+                         * it — is dropped rather than talked to.
+                         */
+                        if (! window.__quizPlayer?.getIframe?.()?.isConnected) {
+                            try { window.__quizPlayer?.destroy?.(); } catch (e) {}
+                            window.__quizPlayer = null;
+                        }
+
+                        if (this.musicOn && ! window.__quizPlayer) {
+                            // Built INSIDE this gesture, which is what the
+                            // version that worked on an iPhone did. onReady
+                            // starts it.
+                            this.mountPlayer();
+
+                            return;
+                        }
+
                         try {
                             if (this.musicOn) {
                                 window.__quizPlayer?.playVideo?.();
@@ -659,20 +657,10 @@
                             }
                         } catch (e) {}
 
-                        if (this.musicOn) {
-                            // Ask the player, a beat later, whether it was
-                            // actually allowed to start.
-                            this.confirmPlaying();
-                        } else {
-                            this.needsTap = false;
-                            this.parkPlayer();
-                        }
+                        // Visible while it plays — see revealPlayer(). Hiding
+                        // it is what silenced iPhones.
+                        this.musicOn ? this.revealPlayer() : this.parkPlayer();
 
-                        // A player torn down by a navigation is rebuilt rather
-                        // than left as a dead button.
-                        if (this.musicOn && ! window.__quizPlayerMount?.isConnected) {
-                            this.mountPlayer();
-                        }
                     },
 
                     /** Drop the music while a verdict is being heard. */
