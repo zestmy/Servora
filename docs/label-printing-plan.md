@@ -61,6 +61,10 @@ management, the audit log. They just can't be the device that prints.
 
 ### PrintNode — built 2026-07-31
 
+> **2026-08-15:** a self-hosted replacement is proposed in
+> [print-agent-plan.md](print-agent-plan.md) — same driver seam, no subscription.
+> Nothing below changes while any printer still uses `driver = 'printnode'`.
+
 Shipped after v1, and it cost almost nothing above the transport layer, which is
 the point decision 2 was making.
 
@@ -888,12 +892,12 @@ Not blocking:
    business. In or out?
 7. **Central Kitchen** — when CK produces for an outlet, does the label print at CK
    carrying the *destination* outlet's name? The data exists as of commit 8479538.
-8. **PrintNode account model** — BYO key is built. Do you also want master/child
+8. ~~**PrintNode account model** — BYO key is built. Do you also want master/child
    provisioning, where Servora holds an Integrator plan and creates a child account
-   per company? That removes tenant onboarding friction and lets you bill for it, but
-   you carry the per-printer cost and it needs an account-lifecycle flow (create on
-   subscribe, suspend on cancel). The original scoping answer was "support both";
-   only the BYO half exists today.
+   per company?~~ **Superseded 2026-08-15** by the self-hosted print agent proposal
+   ([print-agent-plan.md](print-agent-plan.md)): pairing binds an agent to a
+   company and outlet, so there is no account to provision and no per-printer fee
+   to carry. BYO key stays as-is for any tenant that still chooses PrintNode.
 9. ~~**Job reconciliation**~~ — **Built 2026-07-31**, `labels:reconcile-jobs` every ten
    minutes. A webhook would be lower-latency than polling if volume ever makes the
    sweep expensive.
