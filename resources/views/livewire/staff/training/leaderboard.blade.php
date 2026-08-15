@@ -64,6 +64,23 @@
         </select>
     </div>
 
+    {{-- One quiz, or all of them. "Who is best overall" and "who did best on
+         the allergen paper" are different questions, and only the second is any
+         use when somebody is following up one piece of training. Its own row
+         because the titles are long and a third control on the line above would
+         squeeze all three. --}}
+    @if ($quizzes->count() > 1)
+        <div>
+            <label class="sr-only" for="board-quiz">Quiz</label>
+            <select id="board-quiz" wire:model.live="quizId" class="input text-sm">
+                <option value="">Every quiz</option>
+                @foreach ($quizzes as $quiz)
+                    <option value="{{ $quiz->id }}">{{ $quiz->title }}</option>
+                @endforeach
+            </select>
+        </div>
+    @endif
+
     @if ($board->isEmpty())
         <div class="empty-state">
             <x-icon name="trophy" size="h-8 w-8" class="text-gray-500" />

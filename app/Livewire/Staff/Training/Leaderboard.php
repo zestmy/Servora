@@ -3,6 +3,7 @@
 namespace App\Livewire\Staff\Training;
 
 use App\Livewire\Clock\Staff\StaffComponent;
+use App\Models\TrainingQuiz;
 use App\Services\Training\LeaderboardService;
 use Livewire\Attributes\Url;
 
@@ -31,17 +32,39 @@ class Leaderboard extends StaffComponent
     #[Url(as: 'scope', except: 'outlet')]
     public string $scope = 'outlet';
 
+    /**
+     * One quiz, or all of them.
+     *
+     * "Who is best overall" and "who did best on the allergen paper" are
+     * different questions, and only the second is any use when a manager is
+     * following up one piece of training.
+     */
+    #[Url(as: 'quiz', except: '')]
+    public string $quizId = '';
+
     public function render(LeaderboardService $leaderboard)
     {
         $employee = $this->staff();
 
         $outletId = $this->scope === 'outlet' ? $employee?->outlet_id : null;
 
+        // Re-checked against what this person may actually be offered, so a
+        // quiz id typed into the URL cannot name a paper for another section.
+        $quizzes = TrainingQuiz::query()
+            ->where('company_id', $employee->company_id)
+            ->published()
+            ->forAudience($employee->section_id, $employee->trainingOutletIds())
+            ->whereHas('questions')
+            ->orderBy('title')
+            ->get(['id', 'title']);
+
+        $quizId = $quizzes->contains('id', (int) $this->quizId) ? (int) $this->quizId : null;
+
         $board = $leaderboard->board(
             (int) $employee->company_id,
             $this->period,
             $outletId,
-            null,
+            $quizId,
             50,
         );
 
@@ -56,6 +79,7 @@ class Leaderboard extends StaffComponent
 
         return view('livewire.staff.training.leaderboard', [
             'board'      => $board,
+            'quizzes'    => $quizzes,
             'employee'   => $employee,
             'me'         => $me,
             'position'   => $position,
@@ -66,11 +90,13 @@ class Leaderboard extends StaffComponent
              * have. See LeaderboardService::notStarted for why this is a nudge
              * list rather than a wall of shame, and what keeps it that way.
              */
-            'notStarted' => $leaderboard->notStarted(
-                (int) $employee->company_id,
-                $this->period,
-                $outletId,
-            ),
+            // Hidden when the board is filtered to one paper: "has not taken
+            // ANY quiz" is a statement about a person, and the same list under
+            // a one-quiz filter would be a different claim under the same
+            // heading.
+            'notStarted' => $quizId
+                ? collect()
+                : $leaderboard->notStarted((int) $employee->company_id, $this->period, $outletId),
         ])->layout('layouts.clock-staff', $this->shell('Leaderboard'));
     }
 }

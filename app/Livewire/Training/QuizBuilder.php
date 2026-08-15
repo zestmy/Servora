@@ -8,6 +8,7 @@ use App\Services\Training\QuizGeneratorService;
 use App\Traits\RequiresActiveCompany;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Edit a quiz and its questions.
@@ -21,6 +22,7 @@ use Livewire\Component;
 class QuizBuilder extends Component
 {
     use RequiresActiveCompany;
+    use WithFileUploads;
 
     public int $quizId;
 
@@ -57,6 +59,23 @@ class QuizBuilder extends Component
 
     // Question editor
     public ?int $editingId = null;
+
+    /**
+     * Which language the editor is editing.
+     *
+     * Empty means the quiz's own — the original, where the type, the points and
+     * above all the ANSWER KEY live. A language code means the translation, and
+     * only the words are editable there: prompt, options and explanation. A
+     * translation that could change which option is correct would be a second
+     * answer key, and the first thing to go wrong would be a Malay reader being
+     * marked down for the right answer.
+     *
+     * Machine translation is the reason this exists at all. An unreviewed
+     * Malay rendering of a safety question is exactly the thing somebody has to
+     * be able to correct by hand, and until now the only remedy was to
+     * translate the whole paper again and hope.
+     */
+    public string $editingLanguage = '';
     public string $qType = 'mcq';
     public string $qPrompt = '';
     public array $qOptions = ['', '', '', ''];
@@ -84,6 +103,19 @@ class QuizBuilder extends Component
      */
     public string $translateTo = '';
 
+    /**
+     * An uploaded backing track, and the one already on the quiz.
+     *
+     * A FILE, not only a YouTube link, because the link cannot autoplay on an
+     * iPhone and never will: a user gesture belongs to the frame it happened
+     * in, and playVideo() crosses into a cross-origin iframe. A native <audio>
+     * element sits in the same document as the Start button, so the tap
+     * authorises it directly. See the migration.
+     */
+    public $musicFile;
+
+    public ?string $musicPath = null;
+
     public function mount(int $id): void
     {
         $this->requireActiveCompany();
@@ -104,6 +136,7 @@ class QuizBuilder extends Component
         $this->streakBonus       = $quiz->streak_bonus;
         $this->wrongPenaltyPercent = (int) $quiz->wrong_penalty_percent;
         $this->musicUrl          = (string) $quiz->music_url;
+        $this->musicPath         = $quiz->music_path;
         $this->shuffleQuestions  = $quiz->shuffle_questions;
         $this->shuffleOptions    = $quiz->shuffle_options;
         $this->maxAttempts       = $quiz->max_attempts;
@@ -184,6 +217,10 @@ class QuizBuilder extends Component
             'maxAttempts'    => ['required', 'integer', 'min:0', 'max:20'],
             'wrongPenaltyPercent' => ['required', 'integer', 'min:0', 'max:100'],
             'musicUrl'       => ['nullable', 'string', 'max:500', 'url'],
+            // 12 MB covers a five-minute track at a sensible bitrate. The box
+            // has 1.97 GB of RAM and a modest disk — see the capacity note —
+            // so this is a ceiling rather than a formality.
+            'musicFile'      => ['nullable', 'file', 'mimetypes:audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/wav', 'max:12288'],
         ]);
 
         $quiz = TrainingQuiz::withCount('questions')->findOrFail($this->quizId);
@@ -206,6 +243,9 @@ class QuizBuilder extends Component
             'streak_bonus'       => $this->streakBonus,
             'wrong_penalty_percent' => $data['wrongPenaltyPercent'],
             'music_url'          => $data['musicUrl'] ?: null,
+            'music_path'         => $this->musicFile
+                ? $this->musicFile->store('training/music', 'public')
+                : $this->musicPath,
             'shuffle_questions'  => $this->shuffleQuestions,
             'shuffle_options'    => $this->shuffleOptions,
             'max_attempts'       => $data['maxAttempts'],
@@ -220,7 +260,23 @@ class QuizBuilder extends Component
         $quiz->sections()->sync(array_map('intval', $data['sectionIds'] ?? []));
         $quiz->outlets()->sync(array_map('intval', $data['outletIds'] ?? []));
 
+        $this->musicFile = null;
+        $this->musicPath = $quiz->fresh()->music_path;
+
         session()->flash('success', 'Quiz settings saved.');
+    }
+
+    /**
+     * Take the track off.
+     *
+     * The stored file is left on disk until Save, for the same reason the
+     * course cover is: a quiz edited and abandoned must come back with its
+     * music rather than having lost it to a click.
+     */
+    public function removeMusicFile(): void
+    {
+        $this->musicFile = null;
+        $this->musicPath = null;
     }
 
     // ── Questions ─────────────────────────────────────────────────────────
@@ -233,18 +289,44 @@ class QuizBuilder extends Component
 
     public function editQuestion(int $id): void
     {
-        $question = $this->question($id);
+        $this->editingLanguage = '';
 
-        $this->editingId    = $question->id;
-        $this->qType        = $question->type;
-        $this->qPrompt      = $question->prompt;
-        $this->qOptions     = $question->optionList();
-        $this->qCorrect     = array_map('strval', (array) $question->correct);
-        $this->qExplanation = (string) $question->explanation;
-        $this->qDifficulty  = $question->difficulty;
-        $this->qTopic       = (string) $question->topic;
-        $this->qPoints      = $question->points;
-        $this->qSeconds     = $question->seconds;
+        $this->loadQuestion($this->question($id));
+    }
+
+    /** Switch the editor between the original and a translation. */
+    public function updatedEditingLanguage(): void
+    {
+        if ($this->editingId) {
+            $this->loadQuestion($this->question($this->editingId));
+        }
+    }
+
+    private function loadQuestion(TrainingQuestion $question): void
+    {
+        $this->editingId   = $question->id;
+        $this->qType       = $question->type;
+        $this->qCorrect    = array_map('strval', (array) $question->correct);
+        $this->qDifficulty = $question->difficulty;
+        $this->qTopic      = (string) $question->topic;
+        $this->qPoints     = $question->points;
+        $this->qSeconds    = $question->seconds;
+
+        $translation = $this->editingLanguage
+            ? $question->translations()->where('language', $this->editingLanguage)->first()
+            : null;
+
+        /*
+         * A language with no row yet is seeded from the ORIGINAL rather than
+         * left blank. Somebody adding Malay to one question by hand is
+         * translating a sentence, not composing one, and an empty box makes
+         * them copy the English across first.
+         */
+        $this->qPrompt      = $translation?->prompt ?: $question->prompt;
+        $this->qOptions     = $translation && count($translation->optionList()) === count($question->optionList())
+            ? $translation->optionList()
+            : $question->optionList();
+        $this->qExplanation = (string) ($translation?->explanation ?? $question->explanation);
     }
 
     public function cancelQuestion(): void
@@ -340,6 +422,43 @@ class QuizBuilder extends Component
         }
 
         $quiz = TrainingQuiz::findOrFail($this->quizId);
+
+        /*
+         * EDITING A TRANSLATION TOUCHES THE WORDS AND NOTHING ELSE. The option
+         * COUNT is checked against the original because the answer key is a
+         * list of indexes into it — a translation with a different number of
+         * options does not read a little worse, it marks the wrong answer
+         * correct for everybody reading that language. The AI writer refuses
+         * the same mismatch for the same reason.
+         */
+        if ($this->editingId && $this->editingLanguage) {
+            $question = $this->question($this->editingId);
+
+            if (count($options) !== count($question->optionList())) {
+                $this->addError('qOptions', 'A translation must keep the same number of options as the original — '
+                    . count($question->optionList()) . ' here. The answer key is stored as positions in that list.');
+
+                return;
+            }
+
+            \App\Models\TrainingQuestionTranslation::updateOrCreate(
+                ['training_question_id' => $question->id, 'language' => $this->editingLanguage],
+                [
+                    'prompt'             => trim($this->qPrompt),
+                    'options'            => $options,
+                    'explanation'        => trim($this->qExplanation) ?: null,
+                    // Reviewed by a person now, whatever wrote it first.
+                    'machine_translated' => false,
+                ],
+            );
+
+            $this->resetQuestionForm();
+
+            session()->flash('success', (TrainingQuiz::LANGUAGES[$this->editingLanguage] ?? 'The translation')
+                . ' wording saved.');
+
+            return;
+        }
 
         $payload = [
             'type'        => count($correct) > 1 ? 'multi' : $this->qType,
@@ -498,7 +617,8 @@ class QuizBuilder extends Component
 
     private function resetQuestionForm(): void
     {
-        $this->editingId    = null;
+        $this->editingId       = null;
+        $this->editingLanguage = '';
         $this->qType        = 'mcq';
         $this->qPrompt      = '';
         $this->qOptions     = ['', '', '', ''];

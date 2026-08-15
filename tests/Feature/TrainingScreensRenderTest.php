@@ -788,6 +788,113 @@ class TrainingScreensRenderTest extends TestCase
         }
     }
 
+    /**
+     * A translation can be corrected by hand.
+     *
+     * It is machine-written, and until now the only remedy for a bad Malay
+     * rendering of a safety question was to translate the whole paper again
+     * and hope. The words are editable; the ANSWER KEY is not, because it is a
+     * list of positions into the option array and a translation that could
+     * change it would be a second answer key.
+     */
+    public function test_a_translation_can_be_edited_without_touching_the_answer_key(): void
+    {
+        $question = $this->quiz->questions->first();
+
+        \App\Models\TrainingQuestionTranslation::create([
+            'training_question_id' => $question->id,
+            'language'             => 'ms',
+            'prompt'               => 'Suhu peti sejuk?',
+            'options'              => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
+        ]);
+
+        $builder = Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->call('editQuestion', $question->id)
+            ->assertSet('qPrompt', 'What temperature does a chiller hold?')
+            // Switching loads the translated wording.
+            ->set('editingLanguage', 'ms')
+            ->assertSet('qPrompt', 'Suhu peti sejuk?');
+
+        $builder->set('qPrompt', 'Berapakah suhu peti sejuk?')
+            ->call('saveQuestion')
+            ->assertOk();
+
+        $translation = $question->translations()->where('language', 'ms')->first();
+
+        $this->assertSame('Berapakah suhu peti sejuk?', $translation->prompt);
+        // Reviewed by a person now, whatever wrote it first.
+        $this->assertFalse($translation->machine_translated);
+
+        // The original and its key are untouched.
+        $this->assertSame('What temperature does a chiller hold?', $question->fresh()->prompt);
+        $this->assertSame([0], array_map('intval', (array) $question->fresh()->correct));
+    }
+
+    /** A translation may not change how many options there are. */
+    public function test_a_translation_cannot_change_the_option_count(): void
+    {
+        $question = $this->quiz->questions->first();
+
+        \App\Models\TrainingQuestionTranslation::create([
+            'training_question_id' => $question->id,
+            'language'             => 'ms',
+            'prompt'               => 'Suhu peti sejuk?',
+            'options'              => ['0-4°C', '8°C', '12°C', 'Suhu bilik'],
+        ]);
+
+        Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->call('editQuestion', $question->id)
+            ->set('editingLanguage', 'ms')
+            // One option emptied — the answer key would land on the wrong word.
+            ->set('qOptions', ['0-4°C', '8°C', '', ''])
+            ->call('saveQuestion')
+            ->assertHasErrors('qOptions');
+
+        $this->assertCount(4, $question->translations()->where('language', 'ms')->first()->optionList());
+    }
+
+    /** The board can be narrowed to one quiz. */
+    public function test_the_staff_board_filters_by_quiz(): void
+    {
+        $other = TrainingQuiz::create([
+            'company_id'         => $this->company->id,
+            'training_course_id' => $this->course->id,
+            'title'              => 'Allergen quiz',
+            'status'             => 'published',
+        ]);
+
+        $other->questions()->create([
+            'type' => 'mcq', 'prompt' => 'Which is a nut?',
+            'options' => ['Almond', 'Rice'], 'correct' => [0],
+        ]);
+
+        $this->asStaff();
+
+        $service = app(SelfPacedQuizService::class);
+        $attempt = $service->startOrResume($this->quiz, $this->employee);
+        foreach ($this->quiz->questions as $question) {
+            $service->answer($attempt, $question, [0], 3.0);
+        }
+        $service->finish($attempt);
+
+        // Everything: they are on the board.
+        Livewire::test(\App\Livewire\Staff\Training\Leaderboard::class)
+            ->assertOk()
+            ->assertSee('Allergen quiz')
+            ->assertViewHas('board', fn ($board) => $board->count() === 1);
+
+        // Filtered to the quiz they have NOT taken: nobody.
+        Livewire::test(\App\Livewire\Staff\Training\Leaderboard::class)
+            ->set('quizId', (string) $other->id)
+            ->assertOk()
+            ->assertViewHas('board', fn ($board) => $board->isEmpty())
+            // And the "not started" list is hidden, because it would be a
+            // different claim under the same heading.
+            ->assertViewHas('notStarted', fn ($rows) => $rows->isEmpty());
+    }
+
     /** The wall of certificates, and its empty state. */
     public function test_the_staff_certificates_screen_renders(): void
     {

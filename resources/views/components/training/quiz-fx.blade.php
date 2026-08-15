@@ -58,10 +58,17 @@
     by version and by whether the user has played media on the site before.
     Asking the player what it actually did is the only thing that stays true.
 
+    AN UPLOADED TRACK SIDESTEPS ALL OF IT. A native <audio> element lives in
+    the same document as the Start button, so the tap authorises it directly —
+    which is how every wedding-invitation site on the Malaysian internet plays a
+    song on an iPhone. When a quiz has a file it is used and YouTube is not
+    touched at all; the iframe path remains for quizzes that only have a link.
+
     Props:
-      music  a YouTube embed URL, or null for a quiz with no backing track
+      music       a YouTube embed URL, or null
+      musicFile   an uploaded audio URL, or null. Preferred over the link.
 --}}
-@props(['music' => null])
+@props(['music' => null, 'musicFile' => null])
 
 @php
     // The API takes an id and a playlist, not an embed URL — so the pieces are
@@ -80,10 +87,11 @@
         }
     }
 
-    $hasMusic = $musicId || $musicList;
+    // The file wins. A quiz carrying both plays the one that works everywhere.
+    $hasMusic = $musicFile || $musicId || $musicList;
 @endphp
 
-<div x-data="quizFx(@js($musicId), @js($musicList))"
+<div x-data="quizFx(@js($musicId), @js($musicList), @js($musicFile))"
      @answer-scored.window="react($event.detail)"
      @start-music.window="autostart()"
      class="contents">
@@ -202,7 +210,7 @@
 
                 window.Alpine.__quizFxRegistered = true;
 
-                window.Alpine.data('quizFx', (musicId, musicList) => ({
+                window.Alpine.data('quizFx', (musicId, musicList, musicFile) => ({
                     sound: localStorage.getItem('quizSound') !== 'off',
                     // Never restored from storage. Music that starts itself
                     // because of a choice made on a different shift is the
@@ -217,6 +225,7 @@
                     needsTap: false,
                     musicId: musicId,
                     musicList: musicList,
+                    musicFile: musicFile,
                     flash: null,
                     // What the ribbon says, and what it is worth. Both come
                     // from the SERVER's answer row — the word follows the
@@ -240,9 +249,46 @@
                      * make.
                      */
                     init() {
+                        if (this.musicFile) {
+                            this.mountAudio();
+
+                            return;
+                        }
+
                         if (this.musicId || this.musicList) {
                             this.mountPlayer();
                         }
+                    },
+
+                    /**
+                     * The uploaded track, as a plain <audio> element.
+                     *
+                     * On <body> and built in JavaScript for the same reason the
+                     * YouTube player is: a node this component owns would be
+                     * destroyed by the morph between two questions, and the
+                     * music with it.
+                     *
+                     * There is nothing clever here, and that is the point. It
+                     * is in the same document as the button, so play() called
+                     * from the tap is authorised on every platform including
+                     * iOS — which is the whole reason a file beats an embed.
+                     */
+                    mountAudio() {
+                        if (window.__quizAudio?.isConnected) {
+                            return;
+                        }
+
+                        const audio = document.createElement('audio');
+                        audio.src = this.musicFile;
+                        audio.loop = true;
+                        audio.preload = 'auto';
+                        // Backing music, not the main event: audible under a
+                        // chime, quiet enough to talk over.
+                        audio.volume = 0.35;
+                        audio.setAttribute('playsinline', '');
+
+                        document.body.appendChild(audio);
+                        window.__quizAudio = audio;
                     },
 
                     /*
@@ -534,7 +580,7 @@
 
                     /** The Start tap. Music begins if the quiz has any. */
                     autostart() {
-                        if (! this.musicId && ! this.musicList) {
+                        if (! this.musicFile && ! this.musicId && ! this.musicList) {
                             return;
                         }
 
@@ -555,6 +601,29 @@
                      */
                     toggleMusic() {
                         this.musicOn = ! this.musicOn;
+
+                        /*
+                         * A FILE NEEDS NO FALLBACK. Same document, same frame,
+                         * so the tap authorises it — there is nothing to check
+                         * afterwards and nothing to reveal. The catch is for a
+                         * file that 404s or a codec the phone will not take,
+                         * neither of which should stop the quiz.
+                         */
+                        if (this.musicFile) {
+                            const audio = window.__quizAudio;
+
+                            if (! audio?.isConnected) {
+                                this.mountAudio();
+                            }
+
+                            try {
+                                this.musicOn
+                                    ? window.__quizAudio?.play()?.catch?.(() => {})
+                                    : window.__quizAudio?.pause();
+                            } catch (e) {}
+
+                            return;
+                        }
 
                         try {
                             if (this.musicOn) {

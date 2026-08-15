@@ -91,7 +91,7 @@ class TrainingQuiz extends Model
     protected $fillable = [
         'company_id', 'training_course_id', 'title', 'description', 'language', 'status',
         'pass_mark', 'default_seconds', 'default_points',
-        'speed_bonus', 'streak_bonus', 'wrong_penalty_percent', 'music_url', 'share_token',
+        'speed_bonus', 'streak_bonus', 'wrong_penalty_percent', 'music_url', 'music_path', 'share_token',
         'shuffle_questions', 'shuffle_options',
         'max_attempts', 'issues_certificate',
         'generated_by_ai', 'ai_model', 'generated_at', 'created_by',
@@ -232,6 +232,21 @@ class TrainingQuiz extends Model
 
         // Local dev, where the staff app lives on a path instead.
         return url('/staff/q/' . $token);
+    }
+
+    /**
+     * The uploaded backing track, as a URL the browser can play.
+     *
+     * PREFERRED OVER THE YOUTUBE LINK wherever both exist, because a native
+     * <audio> element lives in the same document as the Start button and a user
+     * gesture belongs to the frame it happened in. That is the whole reason the
+     * YouTube embed cannot autoplay on an iPhone and this can.
+     */
+    public function musicFileUrl(): ?string
+    {
+        return $this->music_path
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->music_path)
+            : null;
     }
 
     /**

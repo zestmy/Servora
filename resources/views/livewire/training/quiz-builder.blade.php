@@ -314,13 +314,48 @@
                     @error('wrongPenaltyPercent') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
 
+                {{-- ── Background music ──
+
+                     TWO WAYS IN, and the file is the one that works
+                     everywhere. A YouTube embed cannot autoplay on an iPhone —
+                     a user gesture belongs to the frame it happened in, and
+                     reaching the player means crossing into a cross-origin
+                     iframe — so on iOS a link asks the staff member for one tap
+                     on the player itself. An uploaded track is a native <audio>
+                     element in the same document as the Start button, and it
+                     simply plays. --}}
                 <div class="pt-1">
-                    <label class="label" for="quiz-music">Background music</label>
+                    <p class="label">Background music</p>
+
+                    @if ($musicPath || $musicFile)
+                        <div class="mb-2 rounded-surface border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-sm font-medium text-gray-900">
+                                {{ $musicFile ? 'Ready to save' : 'Current track' }}
+                            </p>
+                            @if ($musicPath && ! $musicFile)
+                                <audio controls preload="none" class="mt-2 w-full"
+                                       src="{{ Storage::disk('public')->url($musicPath) }}"></audio>
+                            @endif
+                            <button type="button" wire:click="removeMusicFile"
+                                    class="mt-2 text-xs text-gray-600 hover:text-danger-600">Remove</button>
+                        </div>
+                    @endif
+
+                    <label class="sr-only" for="quiz-music-file">Upload a track</label>
+                    <input id="quiz-music-file" type="file" wire:model="musicFile" accept="audio/*" class="input">
+                    <p class="help mt-1" wire:loading wire:target="musicFile">Uploading…</p>
+                    <p class="help">
+                        An mp3 or m4a, up to 12&nbsp;MB. This is the option that plays on every phone,
+                        iPhones included.
+                    </p>
+                    @error('musicFile') <p class="error-text">{{ $message }}</p> @enderror
+
+                    <label class="label mt-3" for="quiz-music">…or a YouTube link</label>
                     <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
                            placeholder="https://www.youtube.com/watch?v=…">
                     <p class="help">
-                        A YouTube link — a video or a playlist. It plays quietly behind the questions on
-                        the staff phone, muted until they tap the speaker. Leave it blank for silence.
+                        Used only when no file is uploaded. Plays by itself on Android and on a
+                        computer; on an iPhone the player appears and asks for one tap.
                     </p>
                     @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
