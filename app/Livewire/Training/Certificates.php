@@ -180,7 +180,11 @@ class Certificates extends Component
     public function render()
     {
         $certificates = TrainingCertificate::query()
-            ->with(['trainee:id,name,email', 'course:id,title'])
+            // The learner relation is `employee` — `trainee` died with the
+            // LmsUser learner. This eager-load only ever ran on a tab that had
+            // rows, which is how it survived: every empty tab renders fine, and
+            // the first company to actually hold a valid certificate got a 500.
+            ->with(['employee:id,name,email', 'course:id,title'])
             ->when($this->search, fn ($q) => $q->where(function ($q2) {
                 $q2->where('recipient_name', 'like', "%{$this->search}%")
                    ->orWhere('title', 'like', "%{$this->search}%")

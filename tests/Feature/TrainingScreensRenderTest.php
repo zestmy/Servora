@@ -425,14 +425,41 @@ class TrainingScreensRenderTest extends TestCase
             ->assertSee('Chiller discipline');
     }
 
+    /**
+     * WITH A ROW IN EVERY STATE, not against an empty table. The `trainee`
+     * eager-load bug shipped precisely because this test used to cycle the
+     * filters over nothing: an eager-load of a nonexistent relationship only
+     * throws once there are parent rows to load it for, so every empty tab
+     * rendered fine and the first company to hold a valid certificate got
+     * the 500.
+     */
     public function test_the_certificates_screen_renders_in_every_filter(): void
     {
+        $make = fn (string $serial, array $overrides) => \App\Models\TrainingCertificate::create(array_merge([
+            'company_id'         => $this->company->id,
+            'employee_id'        => $this->employee->id,
+            'training_course_id' => $this->course->id,
+            'serial'             => $serial,
+            'recipient_name'     => $this->employee->name,
+            'title'              => 'Chiller discipline',
+            'percent'            => 88.0,
+            'issued_at'          => now()->subMonth(),
+        ], $overrides));
+
+        $make('SRV-TEST-VALID', ['expires_on' => now()->addYear()]);
+        $make('SRV-TEST-EXPIRING', ['expires_on' => now()->addDays(10)]);
+        $make('SRV-TEST-EXPIRED', ['expires_on' => now()->subDay()]);
+        $make('SRV-TEST-REVOKED', ['revoked_at' => now()]);
+
         $component = Livewire::actingAs($this->manager)
             ->test(\App\Livewire\Training\Certificates::class)
             ->assertOk();
 
         foreach (['all', 'valid', 'expiring', 'expired', 'revoked'] as $filter) {
-            $component->set('filter', $filter)->assertOk();
+            $component->set('filter', $filter)
+                ->assertOk()
+                // The row actually rendered — each filter has one to show.
+                ->assertSee('SRV-TEST-');
         }
     }
 
