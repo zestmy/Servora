@@ -139,14 +139,62 @@ class EmployeeDocumentDeleteGateTest extends TestCase
     // ── What the gate must NOT take away ──────────────────────────────────
 
     /** Filing paperwork is the routine half and stays with anyone who can edit staff. */
-    public function test_uploading_still_works_without_the_delete_ability(): void
+    /**
+     * CHOOSING the file saves it. There is no second button to press.
+     *
+     * Reported as "Documents is not uploading or saving the chosen file", and
+     * the server had the evidence: five temporary uploads in one five-minute
+     * stretch and not a single document row written. Livewire pushes a file to
+     * temporary storage the moment it is CHOSEN, so those five were five files
+     * picked and an Upload button that never took — it sat inline beside the
+     * input and was disabled while the upload it was waiting for was still in
+     * flight, so an early press did nothing and read as a broken feature.
+     */
+    public function test_choosing_a_file_saves_the_document(): void
     {
         $user = $this->user(['hr.view', 'hr.employees.manage']);
 
         Livewire::actingAs($user)->test(EmployeeForm::class, ['id' => $this->employee->id])
             ->set('docType', 'identity')
+            ->set('docLabel', 'Passport')
+            ->set('docFile', \Illuminate\Http\UploadedFile::fake()->create('passport.pdf', 40, 'application/pdf'))
+            ->assertHasNoErrors()
+            // Cleared afterwards, so the next one starts from nothing rather
+            // than re-saving the last.
+            ->assertSet('docFile', null);
+
+        $this->assertDatabaseHas('employee_documents', [
+            'employee_id'   => $this->employee->id,
+            'type'          => 'identity',
+            'label'         => 'Passport',
+            'original_name' => 'passport.pdf',
+        ]);
+
+        $this->assertSame(1, EmployeeDocument::where('employee_id', $this->employee->id)->count());
+    }
+
+    /** A file too large to accept says so rather than vanishing. */
+    public function test_an_oversized_file_is_reported(): void
+    {
+        $user = $this->user(['hr.view', 'hr.employees.manage']);
+
+        Livewire::actingAs($user)->test(EmployeeForm::class, ['id' => $this->employee->id])
+            ->set('docFile', \Illuminate\Http\UploadedFile::fake()->create('huge.pdf', 20480, 'application/pdf'))
+            ->assertHasErrors('docFile');
+
+        $this->assertSame(0, EmployeeDocument::where('employee_id', $this->employee->id)->count());
+    }
+
+    public function test_uploading_still_works_without_the_delete_ability(): void
+    {
+        $user = $this->user(['hr.view', 'hr.employees.manage']);
+
+        // No ->call('uploadDocument'): choosing the file IS the upload now.
+        // Calling it again would find the field already cleared and complain
+        // that no file was chosen.
+        Livewire::actingAs($user)->test(EmployeeForm::class, ['id' => $this->employee->id])
+            ->set('docType', 'identity')
             ->set('docFile', \Illuminate\Http\UploadedFile::fake()->create('new.pdf', 8, 'application/pdf'))
-            ->call('uploadDocument')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('employee_documents', [

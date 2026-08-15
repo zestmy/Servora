@@ -1223,17 +1223,26 @@
                                    class="mt-1 w-full text-sm rounded-lg border-gray-300" placeholder="Optional" />
                             <x-input-error :messages="$errors->get('docLabel')" class="mt-1" />
                         </div>
+                        {{-- NO SEPARATE UPLOAD BUTTON. Choosing the file saves
+                             it — see EmployeeForm::updatedDocFile for the
+                             server-side evidence that the button was losing
+                             people's paperwork: five files chosen in five
+                             minutes, not one document row written, because
+                             Livewire uploads on CHOOSE and the button beside it
+                             is disabled while that upload is in flight. --}}
                         <div class="sm:col-span-2">
                             <label class="text-xs font-semibold text-gray-600">File</label>
-                            <div class="mt-1 flex items-center gap-2">
-                                <input type="file" wire:model="docFile" accept=".pdf,image/*"
-                                       class="w-full text-xs text-gray-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-control file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" />
-                                <button type="button" wire:click="uploadDocument" wire:loading.attr="disabled" wire:target="docFile,uploadDocument"
-                                        class="btn-secondary whitespace-nowrap">Upload</button>
+                            <input type="file" wire:model="docFile" accept=".pdf,image/*"
+                                   class="mt-1 w-full text-xs text-gray-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-control file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" />
+                            <p class="mt-1 text-[11px] text-gray-500">
+                                PDF or photo, up to 10 MB. Set the type and label first — the file saves
+                                as soon as you choose it.
+                            </p>
+                            <div wire:loading wire:target="docFile" class="mt-1 text-[11px] font-medium text-brand-700">
+                                Saving…
                             </div>
-                            <p class="mt-1 text-[11px] text-gray-500">PDF or photo, up to 10 MB.</p>
-                            <div wire:loading wire:target="docFile,uploadDocument" class="text-[11px] text-gray-500">Uploading…</div>
                             <x-input-error :messages="$errors->get('docFile')" class="mt-1" />
+                            <x-input-error :messages="$errors->get('docType')" class="mt-1" />
                         </div>
                     </div>
                 </div>

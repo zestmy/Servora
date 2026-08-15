@@ -673,6 +673,29 @@ class EmployeeForm extends Component
      * an upload silently discarded by Cancel is the sort of loss nobody thinks
      * to check for.
      */
+    /**
+     * Choosing the file IS the upload.
+     *
+     * There was a separate "Upload" button beside the file input, and the
+     * server-side evidence for why it had to go is unambiguous: five temporary
+     * uploads landed in one five-minute stretch and not one document row was
+     * written. Livewire pushes the file to temporary storage the moment it is
+     * CHOSEN, so those five are five files picked and the button never pressed
+     * — it sits inline to the right of the input, and it is disabled while the
+     * upload it is waiting for is still in flight, so an early press does
+     * nothing and looks like the feature is broken.
+     *
+     * Everything else in this product saves a chosen file straight away. This
+     * was the one screen that asked for a second confirmation, and it was
+     * costing people their paperwork.
+     */
+    public function updatedDocFile(): void
+    {
+        if ($this->docFile) {
+            $this->uploadDocument();
+        }
+    }
+
     public function uploadDocument(): void
     {
         if (! $this->employeeId) {
