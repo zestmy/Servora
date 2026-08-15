@@ -11,6 +11,7 @@ use App\Models\HrOption;
 use App\Models\Outlet;
 use App\Models\Section;
 use App\Services\ImageStorageService;
+use App\Traits\RejectsUnpreviewableUploads;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,6 +29,7 @@ use Livewire\WithFileUploads;
  */
 class EmployeeForm extends Component
 {
+    use RejectsUnpreviewableUploads;
     use WithFileUploads;
 
     public ?int   $employeeId       = null;
@@ -637,6 +639,42 @@ class EmployeeForm extends Component
 
         return CertificationType::active()->ordered()->get()
             ->reject(fn ($t) => in_array((string) $t->id, $taken, true));
+    }
+
+    /**
+     * Make the photo previewable the moment it lands, or refuse it politely.
+     *
+     * THE BUG THIS FIXES was reported as "I cannot remove or change the photo
+     * — when saved it's back to the previous one", and the mechanism is worth
+     * spelling out because every word of that report was a symptom of one
+     * line. The blade calls $photo->temporaryUrl() to draw the preview, and
+     * for an iPhone HEIC that call THROWS — a 500 on the render that follows
+     * choosing the file. The request dies, the chosen photo is lost, the old
+     * one stays on screen — "back to previous photo" — and because the
+     * poisoned $photo rides along in the component state, every LATER request
+     * 500s on the same line, which is why Remove looked broken too.
+     *
+     * Three other upload forms already route through this trait; this one
+     * never did. HEIC is converted to JPEG where Imagick can (so iPhone
+     * originals still work), and anything unconvertible is cleared with the
+     * message that tells an iPhone owner what to change. The try/catch is the
+     * last line of defence: whatever a corrupt file does, the answer is a
+     * validation error, never a dead form.
+     */
+    public function updatedPhoto(): void
+    {
+        if (! is_object($this->photo)) {
+            return;
+        }
+
+        try {
+            $this->photo = $this->keepPreviewableUpload($this->photo, 'photo');
+        } catch (\Throwable $e) {
+            report($e);
+
+            $this->photo = null;
+            $this->addError('photo', 'That photo could not be read. iPhone tip: Settings → Camera → Formats → Most Compatible, or share it as JPEG.');
+        }
     }
 
     /**

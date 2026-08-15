@@ -7,6 +7,7 @@ use App\Models\Recipe;
 use App\Models\TrainingCourse;
 use App\Services\Training\QuizGeneratorService;
 use App\Services\Training\SourceTextExtractor;
+use App\Traits\RejectsUnpreviewableUploads;
 use App\Traits\RequiresActiveCompany;
 use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,7 @@ use Livewire\WithFileUploads;
  */
 class CourseForm extends Component
 {
+    use RejectsUnpreviewableUploads;
     use RequiresActiveCompany;
     use ValidatesCompanyOutlet;
     use WithFileUploads;
@@ -95,6 +97,27 @@ class CourseForm extends Component
         $this->recertifyMonths  = $course->recertify_months;
         $this->outletIds        = $course->outlets->pluck('id')->map(fn ($id) => (string) $id)->all();
         $this->coverPath        = $course->cover_path;
+    }
+
+    /**
+     * Same trap as the employee photo, same cure: the cover preview calls
+     * temporaryUrl(), which throws for an iPhone HEIC and kills the form. See
+     * EmployeeForm::updatedPhoto for the full account.
+     */
+    public function updatedCover(): void
+    {
+        if (! is_object($this->cover)) {
+            return;
+        }
+
+        try {
+            $this->cover = $this->keepPreviewableUpload($this->cover, 'cover');
+        } catch (\Throwable $e) {
+            report($e);
+
+            $this->cover = null;
+            $this->addError('cover', 'That image could not be read. iPhone tip: Settings → Camera → Formats → Most Compatible, or share it as JPEG.');
+        }
     }
 
     /**

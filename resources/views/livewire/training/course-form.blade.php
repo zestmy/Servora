@@ -229,7 +229,16 @@
                     <label class="label" for="course-cover">Cover image</label>
 
                     @php
-                        $coverPreview = $cover
+                        /* The extension check keeps temporaryUrl() from
+                           throwing on a not-yet-converted HEIC — a throw here
+                           is a dead form, not a missing thumbnail. */
+                        $coverPreviewable = $cover && in_array(
+                            strtolower($cover->getClientOriginalExtension()),
+                            ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                            true,
+                        );
+
+                        $coverPreview = $coverPreviewable
                             ? $cover->temporaryUrl()
                             : ($coverPath ? Storage::disk('public')->url($coverPath) : null);
                     @endphp

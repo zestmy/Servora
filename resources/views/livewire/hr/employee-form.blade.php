@@ -173,8 +173,21 @@
             @php
                 /* Resolved once: the thumbnail and the enlarged view must be the
                    same image, and a freshly-uploaded photo has a different source
-                   from a stored one. */
-                $photoSrc = $photo
+                   from a stored one.
+
+                   The extension check is load-bearing, not fussy: temporaryUrl()
+                   THROWS for anything Livewire cannot preview (an iPhone HEIC,
+                   before updatedPhoto() converts it), and a throw here is a 500
+                   on every render until the state is abandoned — which is
+                   exactly the dead form that was reported. A file the check
+                   rejects falls back to the stored photo. */
+                $photoPreviewable = $photo && in_array(
+                    strtolower($photo->getClientOriginalExtension()),
+                    ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                    true,
+                );
+
+                $photoSrc = $photoPreviewable
                     ? $photo->temporaryUrl()
                     : (($photoPath && $employeeId && (auth()->user()?->canDo('hr.view') ?? false))
                         ? route('hr.employees.photo', $employeeId)
