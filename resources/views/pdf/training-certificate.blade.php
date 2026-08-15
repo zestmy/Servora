@@ -64,7 +64,7 @@
 
         .logo { max-height: 60px; max-width: 240px; }
         .company {
-            font-size: 13px; font-weight: bold; letter-spacing: 3px;
+            font-size: 15px; font-weight: bold; letter-spacing: 3px;
             text-transform: uppercase; color: #334155;
         }
 
@@ -75,20 +75,20 @@
         .display {
             margin-top: 7mm;
             font-family: 'Times New Roman', Times, serif;
-            font-size: 34px; letter-spacing: 12px; color: #0f172a;
+            font-size: 38px; letter-spacing: 12px; color: #0f172a;
         }
         .display-sub {
             margin-top: 2mm;
-            font-size: 10px; letter-spacing: 7px; text-transform: uppercase;
+            font-size: 12px; letter-spacing: 7px; text-transform: uppercase;
             color: #0d9488; font-weight: bold;
         }
 
-        .presented { margin-top: 8mm; font-size: 11px; color: #64748b; font-style: italic; }
+        .presented { margin-top: 8mm; font-size: 13px; color: #64748b; font-style: italic; }
 
         .name {
             margin-top: 3mm;
             font-family: 'Times New Roman', Times, serif;
-            font-size: 44px; font-weight: bold; color: #0f172a;
+            font-size: 48px; font-weight: bold; color: #0f172a;
             letter-spacing: 0.5px;
         }
 
@@ -104,11 +104,11 @@
             background: #b08d3e; border-radius: 3px;
         }
 
-        .for { margin-top: 5mm; font-size: 12px; color: #475569; }
+        .for { margin-top: 5mm; font-size: 14px; color: #475569; }
         .course {
             margin-top: 2.5mm;
             font-family: 'Times New Roman', Times, serif;
-            font-size: 25px; font-weight: bold; color: #0d9488;
+            font-size: 28px; font-weight: bold; color: #0d9488;
         }
 
         /* ── The seal ──
@@ -127,11 +127,11 @@
         }
         .seal .pct {
             margin-top: 7mm;
-            font-size: 22px; font-weight: bold; color: #8a6a2a; line-height: 1;
+            font-size: 24px; font-weight: bold; color: #8a6a2a; line-height: 1;
         }
         .seal .word {
             margin-top: 1.5mm;
-            font-size: 7.5px; letter-spacing: 2.5px; text-transform: uppercase; color: #a3823f;
+            font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: #a3823f;
         }
 
         /* ── The closing row: date | verification | signatory ──
@@ -145,25 +145,25 @@
         .closing .cell-qr { width: 20%; text-align: center; }
 
         .rule-line { border-top: 1px solid #94a3b8; padding-top: 2mm; }
-        .rule-label { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: #64748b; }
-        .rule-value { font-size: 11.5px; color: #1e293b; font-weight: bold; }
-        .rule-extra { margin-top: 0.8mm; font-size: 8.5px; color: #475569; }
+        .rule-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #64748b; }
+        .rule-value { font-size: 14px; color: #1e293b; font-weight: bold; }
+        .rule-extra { margin-top: 0.8mm; font-size: 11px; color: #475569; }
 
         .signature-img { max-height: 42px; max-width: 52mm; margin-bottom: 1.5mm; }
 
         .qr-img { width: 17mm; height: 17mm; }
         .qr-caption {
             margin-top: 1mm;
-            font-size: 6.5px; letter-spacing: 1.8px; text-transform: uppercase; color: #64748b;
+            font-size: 8.5px; letter-spacing: 1.8px; text-transform: uppercase; color: #64748b;
         }
 
         /* ── The small print ── */
         .footer { position: fixed; left: 26mm; right: 26mm; bottom: 13.5mm; }
         .footer table { width: 100%; border-collapse: collapse; }
-        .footer td { font-size: 7.5px; color: #94a3b8; vertical-align: bottom; }
+        .footer td { font-size: 9.5px; color: #94a3b8; vertical-align: bottom; }
         .footer td.r { text-align: right; }
         .serial {
-            font-family: 'Courier', monospace; font-size: 8.5px;
+            font-family: 'Courier', monospace; font-size: 10.5px;
             color: #334155; letter-spacing: 1px;
         }
     </style>
