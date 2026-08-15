@@ -48,11 +48,17 @@
     attached to the already-playing iframe afterwards, purely for pause, resume
     and ducking, where the await can no longer break anything.
 
-    Apple documents no guarantee for any of this, so the builder's copy asks
-    the merchant to test on their own phones and the uploaded FILE remains the
-    certain path. The frame stays parked off-screen — never display:none, which
-    is the one hiding method media is refused in, and never on screen, because
-    a window over the quiz was the other half of this feature's history.
+    TESTED ON A REAL IPHONE (Aug 2026): REFUSED. The gesture-born frame with
+    autoplay in its URL is the fifth and strongest technique tried, and it is
+    the last one there is — what remains after it is a tap INSIDE a visible
+    player, which is a product decision, not an engineering one. The code stays
+    because it is the correct behaviour for Android and desktop, where it
+    plays; on iOS it fails silently, and the builder's copy now says so
+    plainly. The uploaded FILE (or a direct audio link) is the iPhone path.
+
+    The frame stays parked off-screen — never display:none, which is the one
+    hiding method media is refused in, and never on screen, because a window
+    over the quiz was the other half of this feature's history.
 
     Props:
       music      a YouTube embed URL, or null
