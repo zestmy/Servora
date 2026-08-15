@@ -11,18 +11,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A physical label printer in an outlet.
  *
  * `driver` selects the transport. 'browser' prints through the chef's own
- * Chrome via kiosk printing; 'printnode' is stubbed for the day an outlet
- * needs unattended or tablet-driven printing.
+ * Chrome via kiosk printing; 'printnode' sends the PDF through PrintNode's
+ * cloud; 'agent' queues it for a paired Servora Print Agent on the outlet
+ * PC — see docs/print-agent-plan.md.
  */
 class LabelPrinter extends Model
 {
     public const DRIVERS = [
         'browser'   => 'Browser (kiosk printing)',
+        'agent'     => 'Servora agent',
         'printnode' => 'PrintNode',
     ];
 
     protected $fillable = [
         'company_id', 'outlet_id', 'name', 'driver', 'printnode_printer_id', 'printnode_paper',
+        'print_agent_id', 'agent_printer_name', 'agent_paper',
         'default_template_id', 'width_mm', 'height_mm', 'is_active',
         'offset_x_mm', 'offset_y_mm', 'rotate_90',
     ];
@@ -54,6 +57,11 @@ class LabelPrinter extends Model
     public function defaultTemplate(): BelongsTo
     {
         return $this->belongsTo(LabelTemplate::class, 'default_template_id');
+    }
+
+    public function printAgent(): BelongsTo
+    {
+        return $this->belongsTo(PrintAgent::class);
     }
 
     public function scopeActive(Builder $query): Builder

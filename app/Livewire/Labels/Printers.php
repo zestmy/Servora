@@ -6,6 +6,7 @@ use App\Models\LabelPrinter;
 use App\Models\LabelSetting;
 use App\Models\LabelTemplate;
 use App\Models\Outlet;
+use App\Models\PrintAgent;
 use App\Services\LabelRenderService;
 use App\Services\Labels\DefaultTemplates;
 use App\Services\Labels\PrintNodeClient;
@@ -19,9 +20,13 @@ use Livewire\Component;
  * Label printers, one record per physical printer in an outlet.
  *
  * The record exists mainly to carry the loaded label stock size, which is
- * what the rendered document's page size comes from. The driver column is
- * shown but effectively fixed to 'browser' — PrintNode has no
- * implementation behind it yet, so offering it would be a dead end.
+ * what the rendered document's page size comes from. The driver picks the
+ * transport: browser, a Servora print agent on the outlet PC, or PrintNode.
+ *
+ * The agent picker is a structural mirror of the PrintNode one — agent,
+ * then that agent's reported printers, then that printer's reported papers
+ * — except it reads the inventory JSON off print_agents instead of calling
+ * a remote API, so it is instant and needs no error path.
  */
 class Printers extends Component
 {
@@ -55,6 +60,12 @@ class Printers extends Component
 
     public ?string $printnode_paper = null;
 
+    public ?int $print_agent_id = null;
+
+    public ?string $agent_printer_name = null;
+
+    public ?string $agent_paper = null;
+
     /** Populated on demand — one API call, not one per render. */
     public array $remotePrinters = [];
 
@@ -80,6 +91,17 @@ class Printers extends Component
             'printnode_printer_id' => 'nullable|required_if:driver,printnode|string|max:50',
             // Optional: unset means "accept the driver default".
             'printnode_paper'      => 'nullable|string|max:100',
+            // Same shape for the agent driver: both halves required, or the
+            // driver throws at print time. The agent must be the OUTLET'S
+            // OWN — an agent vouches for one outlet, and a printer served by
+            // another room's PC prints labels nobody will ever see.
+            'print_agent_id'       => ['nullable', 'required_if:driver,agent', 'integer',
+                Rule::exists('print_agents', 'id')
+                    ->where('company_id', Auth::user()->company_id)
+                    ->where('outlet_id', $this->outlet_id)
+                    ->whereNull('revoked_at')],
+            'agent_printer_name'   => 'nullable|required_if:driver,agent|string|max:200',
+            'agent_paper'          => 'nullable|string|max:100',
         ];
     }
 
@@ -124,6 +146,83 @@ class Printers extends Component
     public function updatedPrintnodePrinterId(): void
     {
         $this->printnode_paper = null;
+    }
+
+    /** Same clearing rule down the agent path: printer follows agent... */
+    public function updatedPrintAgentId(): void
+    {
+        $this->agent_printer_name = null;
+        $this->agent_paper        = null;
+    }
+
+    /** ...and paper follows printer. */
+    public function updatedAgentPrinterName(): void
+    {
+        $this->agent_paper = null;
+    }
+
+    /**
+     * Agents belong to one outlet, so a change of outlet invalidates the
+     * selection the same way a change of agent invalidates the printer.
+     */
+    public function updatedOutletId(): void
+    {
+        $this->print_agent_id     = null;
+        $this->agent_printer_name = null;
+        $this->agent_paper        = null;
+    }
+
+    /**
+     * Active agents at the selected outlet, for the picker. Revoked ones
+     * are out (their token is dead); unpaired ones show flagged, because
+     * picking one is how you find out pairing never finished.
+     *
+     * @return array<int, PrintAgent>
+     */
+    #[Computed]
+    public function agentOptions(): array
+    {
+        if (! $this->outlet_id) {
+            return [];
+        }
+
+        return PrintAgent::query()
+            ->where('outlet_id', $this->outlet_id)
+            ->active()
+            ->orderBy('name')
+            ->get()
+            ->all();
+    }
+
+    /**
+     * Printers the selected agent reported.
+     *
+     * @return array<int, array{name: string, is_default: bool, status: ?string, papers: array}>
+     */
+    #[Computed]
+    public function agentPrinterOptions(): array
+    {
+        $agent = collect($this->agentOptions)->firstWhere('id', $this->print_agent_id);
+
+        return $agent?->reportedPrinters() ?? [];
+    }
+
+    /**
+     * Papers the selected agent printer reported.
+     *
+     * @return array<int, array{name: string, size: ?string}>
+     */
+    #[Computed]
+    public function agentPaperOptions(): array
+    {
+        if (! $this->agent_printer_name) {
+            return [];
+        }
+
+        $printer = collect($this->agentPrinterOptions)
+            ->firstWhere('name', $this->agent_printer_name);
+
+        return $printer['papers'] ?? [];
     }
 
     /**
@@ -186,6 +285,9 @@ class Printers extends Component
         $this->driver              = $printer->driver ?: 'browser';
         $this->printnode_printer_id = $printer->printnode_printer_id;
         $this->printnode_paper      = $printer->printnode_paper;
+        $this->print_agent_id       = $printer->print_agent_id;
+        $this->agent_printer_name   = $printer->agent_printer_name;
+        $this->agent_paper          = $printer->agent_paper;
 
         if ($this->driver === 'printnode') {
             $this->loadRemotePrinters();
@@ -209,13 +311,22 @@ class Printers extends Component
             'offset_y_mm'         => (float) $this->offset_y_mm,
             'rotate_90'           => $this->rotate_90,
             'driver'              => $this->driver,
-            // Cleared when switching back to browser, so a stale remote id
-            // can't quietly come back into play later.
+            // Cleared when switching to another driver, so a stale remote
+            // id can't quietly come back into play later.
             'printnode_printer_id' => $this->driver === 'printnode'
                 ? $this->printnode_printer_id
                 : null,
             'printnode_paper'      => $this->driver === 'printnode'
                 ? ($this->printnode_paper ?: null)
+                : null,
+            'print_agent_id'       => $this->driver === 'agent'
+                ? $this->print_agent_id
+                : null,
+            'agent_printer_name'   => $this->driver === 'agent'
+                ? $this->agent_printer_name
+                : null,
+            'agent_paper'          => $this->driver === 'agent'
+                ? ($this->agent_paper ?: null)
                 : null,
         ];
 
@@ -269,6 +380,9 @@ class Printers extends Component
         $this->driver              = 'browser';
         $this->printnode_printer_id = null;
         $this->printnode_paper      = null;
+        $this->print_agent_id       = null;
+        $this->agent_printer_name   = null;
+        $this->agent_paper          = null;
         $this->remotePrinters      = [];
         $this->remoteError         = null;
         $this->resetValidation();

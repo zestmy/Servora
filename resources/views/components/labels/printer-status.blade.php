@@ -34,9 +34,10 @@
 @elseif ($status === \App\Services\Labels\PrinterStatus::OFFLINE)
     <span {{ $attributes->merge(['class' => 'badge-danger']) }}>Offline</span>
 @else
-    {{-- No key, no link, or PrintNode unreachable. Says so plainly rather
-         than implying the printer itself is at fault. --}}
-    <span {{ $attributes->merge(['class' => 'badge-neutral']) }} title="Servora could not reach PrintNode to check">
+    {{-- No key, no link, no paired agent, or the remote service was
+         unreachable. Says so plainly rather than implying the printer
+         itself is at fault. --}}
+    <span {{ $attributes->merge(['class' => 'badge-neutral']) }} title="Servora could not check this printer — its remote link may not be set up">
         Status unknown
     </span>
 @endif

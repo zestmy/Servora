@@ -1,10 +1,11 @@
 # Servora Print Agent — Plan
 
-> Status: **proposal**. Nothing here is built. Drafted 2026-08-15 to answer one
-> question: what replaces PrintNode so tenants stop paying its per-computer
-> subscription? Companion to [label-printing-plan.md](label-printing-plan.md), which
-> owns the label domain; this doc owns one transport and the shippable artifact
-> behind it.
+> Status: **phase 1 (server) built, 2026-08-15** — see §7 for what that covers and
+> §9 for what building it changed. Phases 2–3 (the agent binary, docs/verification)
+> are not started. Drafted 2026-08-15 to answer one question: what replaces
+> PrintNode so tenants stop paying its per-computer subscription? Companion to
+> [label-printing-plan.md](label-printing-plan.md), which owns the label domain;
+> this doc owns one transport and the shippable artifact behind it.
 
 PrintNode exists in the codebase for exactly one scenario: staff on a phone or
 tablet → server → *something on the outlet PC* → the label printer. The "something"
@@ -77,10 +78,10 @@ The queue the agent drains.
 | Column | Notes |
 |---|---|
 | `company_id`, `print_agent_id`, `label_printer_id` | |
-| `batch_id` | → `label_print_batches`. One batch = one document = one job, as with PrintNode |
+| ~~`batch_id`~~ | not built — the link runs the other way, through `label_print_batches.driver_job_id`, see §9. One batch = one document = one job, as with PrintNode |
 | `printer_name` | the Windows queue name, **copied from the printer record at submit time** — editing the printer later must not retarget an in-flight job |
 | `payload` | MEDIUMBLOB, the rendered PDF |
-| `title`, `options` json | `{paper, rotate}` |
+| `title`, `options` json | `{paper}` — rotation is baked into the PDF instead, see §9 |
 | `status` | `pending → delivered → done \| error \| expired` |
 | `claimed_at`, `finished_at`, `expires_at`, `error_message` | |
 
@@ -154,11 +155,10 @@ grows past ~100 agents, long-poll is the revisit; the wire contract doesn't chan
   insert a `print_jobs` row, return `{status: 'queued', document: null, job_id}`.
   One new arm in `DriverFactory`'s match, one new entry in `LabelPrinter::DRIVERS`.
 - **Rotation.** PrintNode did `rotate_90` via a job option; SumatraPDF has no rotate
-  flag. Do it server-side: set `/Rotate 90` in the PDF page dictionary after dompdf
-  renders. **This is the one piece with no existing precedent — spike it first**
-  (phase 1) before committing. Fallback: "rotate_90 unsupported on the agent driver
-  in v1" — acceptable, since the printer-setup notes record that rotation was almost
-  never the real fix (paper size was).
+  flag. Done server-side: `PdfRotate::rotate90()` sets `/Rotate 90` in the PDF page
+  dictionaries after dompdf renders. This was the one piece with no existing
+  precedent; **the spike is built and proven** — including the xref rebuild that
+  makes it printable rather than merely viewable. See §9.
 - **`PrinterStatus`** gains a branch: `driver === 'agent'` → `ONLINE` when the
   agent's `last_seen_at` is fresh within **2 minutes** (the agent polls every 3 s;
   two minutes is ~40 missed polls — tighter than the kiosk's 10 because a chef is
@@ -293,12 +293,14 @@ behaviour changes.
 
 ## 7. Phasing
 
-**Phase 1 — server.** Migrations (`print_agents`, `print_jobs`, three columns on
-`label_printers`), `PrintAgentService`, `PrintAgentAuthenticate`,
+**Phase 1 — server** — *built 2026-08-15.* Migrations (`print_agents`, `print_jobs`,
+three columns on `label_printers`), `PrintAgentService`, `PrintAgentAuthenticate`,
 `routes/print-agent.php` + CSRF exemptions, `AgentDriver` + `DriverFactory` arm +
 `LabelPrinter::DRIVERS`, `PrinterStatus` branch, reconciler expiry sweep,
-`labels:prune-print-jobs`, the Agents screen and the Printers picker. Fully testable
-with a fake agent driven by curl. Includes the `/Rotate` spike.
+`labels:prune-print-jobs`, the Agents screen (`/labels/agents`) and the Printers
+picker. Tested with a fake agent driven over plain HTTP (`PrintAgentTest`), which is
+the point: the whole wire surface is four JSON endpoints. The `/Rotate` spike is
+built and proven — see §9.
 
 **Phase 2 — agent v1 (Windows).** Go binary: pair / poll / print / ack, printer +
 paper enumeration (or the free-text fallback), service self-install, bundled
@@ -325,3 +327,43 @@ driver is the bottleneck.
 4. Any near-term Zebra-fleet demand that would pull ZPL passthrough forward?
 5. Keep the PrintNode driver indefinitely as the escape hatch, or sunset it once
    the agent is proven in the field?
+
+---
+
+## 9. Phase 1 build notes — where it deviated from this plan
+
+Two deliberate deviations, both discovered at the implementation seam:
+
+**`print_jobs` carries no `batch_id`.** The plan gave it one, but
+`LabelDriver::submit()` receives labels and a printer — not the batch, which
+`LabelPrintService` only stamps after the driver returns. Threading the batch
+through would have widened the interface for one driver's convenience. Instead the
+link runs the other way, exactly as it already does for PrintNode:
+`label_print_batches.driver_job_id` holds the job id, and `AgentJobs::propagate()`
+walks it backwards (`driver = 'agent'`, `driver_job_id = job id`) when an ack or
+the expiry sweep needs to settle `label_prints`. One batch = one document = one job
+was already the invariant; it carries the join.
+
+**Rotation is baked into the PDF, not sent as a job option.** The plan left
+`options.rotate` in the schema with the `/Rotate` question open. The spike answered
+it: `PdfRotate::rotate90()` sets `/Rotate 90` on every page dictionary of the
+dompdf output and — the part that makes it shippable — REBUILDS the xref table,
+because inserting bytes shifts every offset after them, and while desktop viewers
+repair a broken xref silently, print pipelines are exactly where that generosity
+ends. Verified against real dompdf output byte-for-byte (`PdfRotateTest`): every
+xref entry must point at exactly `N 0 obj`, `/Type /Pages` is never touched, and
+anything that is not dompdf's shape passes through unmodified — an un-rotated label
+beats a corrupt document. `options` therefore carries `paper` alone, and the agent
+never needs a rotate flag SumatraPDF doesn't have.
+
+Two security choices worth naming, both inherited then narrowed:
+
+- The pairing POST is CSRF-exempt where the kiosk's is not — the kiosk pairs from
+  a browser form (cookies to spend), the agent from a native binary (none). The
+  exemption is by construction, not policy.
+- The token never renders anywhere. It goes from the pair response into the
+  agent's config file; the UI shows only the pairing code, worth ten minutes and
+  one outlet.
+
+And one addition: the poll doubles as the heartbeat (throttled write, the kiosk's
+55-second rule), so there is no ping endpoint to keep in step with it.

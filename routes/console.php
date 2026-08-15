@@ -24,11 +24,17 @@ Schedule::command('price:monitor')->dailyAt('07:00');
 // (checks for reports due based on their delivery_time setting)
 Schedule::command('reports:send-scheduled')->everyFifteenMinutes();
 
-// Find out what actually happened to PrintNode label jobs. Every ten
-// minutes because a chef asking "did that print?" wants an answer within
-// the shift, not tomorrow. withoutOverlapping because a slow PrintNode
-// response must not stack runs on top of each other.
+// Find out what actually happened to PrintNode label jobs, and expire
+// agent jobs nobody collected. Every ten minutes because a chef asking
+// "did that print?" wants an answer within the shift, not tomorrow.
+// withoutOverlapping because a slow PrintNode response must not stack runs
+// on top of each other.
 Schedule::command('labels:reconcile-jobs')->everyTenMinutes()->withoutOverlapping();
+
+// Remove settled print-agent job rows past their 7-day debugging window.
+// The PDFs themselves are already dropped at the moment each job settles;
+// this is skeleton cleanup, hourly like the SOP pruner.
+Schedule::command('labels:prune-print-jobs')->hourly()->withoutOverlapping();
 
 // Clear out rendered SOP export PDFs (~12 MB each) past their retention
 // window, and fail off any run whose worker died without reporting. Hourly
