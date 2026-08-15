@@ -13,19 +13,14 @@
     Nothing has been created at this point. Backing out costs nothing, which
     matters most on a one-shot challenge where a mis-tap used to burn the run.
 --}}
-<div class="p-4" x-data="{ chosen: @js($language) }"
-     {{-- Fired by the tap-to-play card the moment the track is running: on an
-          iPhone that tap is the only way music can start, so it doubles as
-          Start — one tap, both things. begin() guards itself against firing
-          twice. --}}
-     @music-started.window="$wire.begin()">
+<div class="p-4" x-data="{ chosen: @js($language) }">
 
     {{-- FIRST CHILD, and it stays the first child of the question screen too.
          Everything it renders is fixed or teleported, so the position costs the
          layout nothing — but it is what lets Livewire morph the component from
          this screen to the next without tearing the music player down, which
          would stop the track at the exact moment the quiz begins. --}}
-    <x-training.quiz-fx :music="$quiz->musicEmbedUrl()" :music-file="$quiz->musicFileUrl()" :offer-tap="true" />
+    <x-training.quiz-fx :music-file="$quiz->musicFileUrl()" />
 
     @if (session()->has('error'))
         <div class="alert-danger mb-4">
@@ -120,27 +115,6 @@
                     </li>
                 @endif
             </ul>
-
-            {{-- ── The music, in flow ──
-
-                 The one tap iOS honours for a YouTube embed lands INSIDE the
-                 player, so the player is laid into the page here, in space this
-                 slot reserves — the floating version covered the Start button.
-                 The element itself is mounted over this slot from quiz-fx; see
-                 mountEmbedCard() for why it cannot simply live here. One tap on
-                 its play button starts the music and the quiz together. --}}
-            @if ($quiz->musicEmbedUrl() && ! $quiz->musicFileUrl())
-                <div class="mt-5">
-                    <p class="label">Music</p>
-                    <p class="help">
-                        Tap play below to start the quiz with music — or press Start to begin
-                        without it.
-                    </p>
-                    <div data-music-slot
-                         class="mt-2 w-full overflow-hidden rounded-surface bg-gray-100"
-                         style="aspect-ratio: 16 / 9"></div>
-                </div>
-            @endif
 
             {{-- THE TAP THAT STARTS THE MUSIC. `startMusic` is dispatched to
                  the window and quiz-fx picks it up synchronously, inside this

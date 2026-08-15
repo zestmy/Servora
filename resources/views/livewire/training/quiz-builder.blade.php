@@ -354,24 +354,26 @@
                     </p>
                     @error('musicFile') <p class="error-text">{{ $message }}</p> @enderror
 
-                    {{-- The link, kept because it is the quick way to try a
-                         track — and labelled with what it cannot do. It plays
-                         hidden, so no window ever appears over the quiz; on an
-                         iPhone that means it does not play at all, because a
-                         gesture belongs to the frame it happened in and reaching
-                         an embedded player means crossing into a cross-origin
-                         iframe. The file above is the answer for phones. --}}
+                    {{-- The link field stays, and its YouTube half is now
+                         reference only. Both halves of the embed route were
+                         tested on a real iPhone: Apple blocks the start (no
+                         gesture crosses into a cross-origin iframe) and YouTube
+                         stops the continuation (the player pauses the moment it
+                         is off-screen — background listening is the feature
+                         Premium sells). A DIRECT AUDIO URL is different in
+                         kind: it feeds the same <audio> element as an upload
+                         and plays everywhere. --}}
                     <label class="label mt-3" for="quiz-music">…or a link</label>
                     <input id="quiz-music" type="url" wire:model="musicUrl" class="input"
                            placeholder="https://www.youtube.com/watch?v=…">
                     <p class="help">
                         Used only when no file is uploaded. A DIRECT AUDIO LINK — one ending .mp3,
-                        .m4a, .ogg or .wav — behaves exactly like an upload and plays on every phone.
-                        A YouTube link plays out of sight: on Android and computers the Start button
-                        starts it, and on iPhones — which refuse a YouTube embed from any button
-                        outside the player — the start screen shows a small
-                        <span class="font-medium text-gray-700">tap-to-play card, and that one tap
-                        starts the music and the quiz together</span>.
+                        .m4a, .ogg or .wav — behaves exactly like an upload and plays on every
+                        phone. <span class="font-medium text-gray-700">A YouTube link cannot be
+                        background music on a phone</span>: phones refuse to start an embed from the
+                        page, and YouTube pauses a player the moment it is out of sight — background
+                        listening is what YouTube Premium sells. A YouTube link saved here is kept on
+                        the quiz but plays nothing for staff; upload the file instead.
                     </p>
                     @error('musicUrl') <p class="error-text">{{ $message }}</p> @enderror
                 </div>

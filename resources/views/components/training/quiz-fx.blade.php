@@ -22,91 +22,46 @@
     on a handset in silent mode, and the flash, the shake and the vibration are
     not decoration around it — for a phone on silent they ARE the feedback.
 
-    ── A FILE FIRST, A YOUTUBE LINK SECOND ──
+    ── THE MUSIC IS AN <audio> ELEMENT, AND ONLY THAT ──
 
-    AN UPLOADED FILE IS A NATIVE <audio> ELEMENT, in the same document as the
-    button, so the tap authorises it directly on every platform — which is
-    exactly how the wedding-invitation sites that do this well work, including
-    the one this was diagnosed against. One element, one play(), a floating
-    button to stop it, nothing on screen.
+    This is the second time YouTube has been removed from this component, and
+    this time the verdict is complete, both halves tested on a real iPhone:
 
-    A YOUTUBE LINK IS AN EMBED, and the audited account of what an embed can do
-    on an iPhone is narrower than the categorical "cannot play" this comment
-    used to state. What is true: a user gesture belongs to the FRAME it
-    happened in, so playVideo() sent by postMessage into a cross-origin iframe
-    carries no activation — every earlier version here relied on exactly that
-    call (the last one built the player in the tap with autoplay:0 and played
-    from onReady, which fires in a LATER TASK, outside the gesture) and could
-    not have worked.
+    APPLE BLOCKS THE START. A user gesture belongs to the frame it happened in,
+    so no button on this page can start an embed — proven five ways, ending
+    with the gesture-born iframe carrying autoplay in its own URL. The one tap
+    iOS honours is inside the player, and that was built: a card in the page's
+    flow whose play button started the music and the quiz together. It worked.
 
-    What that does NOT rule out, and what this version does: create the IFRAME
-    ITSELF synchronously inside the tap, with autoplay=1 carried in its URL and
-    allow="autoplay" on the element. Then no postMessage is needed for the
-    first play at all — user activation propagates to a browsing context
-    created during the gesture, and the allow attribute delegates autoplay to
-    the cross-origin frame where Permissions Policy is honoured. The API is
-    attached to the already-playing iframe afterwards, purely for pause, resume
-    and ducking, where the await can no longer break anything.
+    YOUTUBE STOPS THE CONTINUATION. The moment that playing player was parked
+    off-screen for the first question, the track stopped — on the same phone,
+    same session. Whether WebKit's off-screen media policy or the player's own
+    visibility check pulled the trigger is academic: an embed will play only
+    while it is LOOKED AT, and background listening is precisely the feature
+    YouTube sells as Premium. A quiz's backing track is the exact thing the
+    embed is built to refuse to be.
 
-    TESTED ON A REAL IPHONE (Aug 2026): REFUSED. The gesture-born frame with
-    autoplay in its URL is the fifth and strongest technique tried, and it is
-    the last one there is — what remains is a tap INSIDE a visible player.
+    A native <audio> element has neither problem. Same document as the button,
+    so the tap authorises it on every platform; no visibility policing, so it
+    plays parked, backgrounded and ignored — which is how the wedding-card
+    sites this was diagnosed against do it, every one of them with a file.
 
-    SO THAT TAP IS OFFERED ON THE START SCREEN, AS THE START ITSELF. A small
-    player card sits above the tab bar on the start screen only; tapping its
-    play button starts the music — the gesture lands inside the frame, which is
-    the one gesture iOS honours — and the PLAYING event then begins the quiz,
-    so one tap does both. The card parks itself off-screen the moment the track
-    is running and never appears over a question. Somebody who presses Start
-    instead has answered "no music" (on an iPhone; on Android the Start button
-    starts the track too, via the delegated-autoplay path that platform allows).
-
-    The parked frame is never display:none — the one hiding method media is
-    refused in — and never on screen mid-quiz, because a window over the quiz
-    was the other half of this feature's history. Leaving the quiz removes the
-    player entirely: music that follows somebody to the leaderboard is a bug,
-    not ambience.
+    The builder keeps its link field because a DIRECT AUDIO URL (.mp3, .m4a,
+    .ogg, .wav) is treated as a file and works identically. A YouTube URL saved
+    there is kept on the record but plays nothing on a staff phone, and the
+    field says so.
 
     Props:
-      music      a YouTube embed URL, or null
-      musicFile  an uploaded audio URL, or null. Used in preference to the link.
+      musicFile  an uploaded audio URL, or null for a quiz with no track
 --}}
-@props([
-    'music'     => null,
-    'musicFile' => null,
-    /*
-     * True on the START SCREEN only: offer the tap-to-play card for embed
-     * quizzes. The question screen passes nothing — the card must never be
-     * born over a question.
-     */
-    'offerTap'  => false,
-])
+@props(['musicFile' => null])
 
-@php
-    // The API wants an id and a playlist, not an embed URL. The model keeps the
-    // parsing that decides what is SAFE; this is only the shape the API takes.
-    $musicId = null;
-    $musicList = null;
-
-    if ($music && ! $musicFile) {
-        if (preg_match('~/embed/([A-Za-z0-9_-]{11})~', $music, $m)) {
-            $musicId = $m[1];
-        }
-
-        if (preg_match('~[?&]list=([A-Za-z0-9_-]{12,})~', $music, $m)) {
-            $musicList = $m[1];
-        }
-    }
-
-    $hasMusic = $musicFile || $musicId || $musicList;
-@endphp
-
-<div x-data="quizFx(@js($musicFile), @js($musicId), @js($musicList), @js((bool) $offerTap))"
+<div x-data="quizFx(@js($musicFile))"
      @answer-scored.window="react($event.detail)"
      @start-music.window="autostart()"
      {{-- The marker the navigation cleanup looks for: a page without it is a
           page the music must not follow anybody onto. --}}
-     @if ($hasMusic) data-quiz-music @endif
+     @if ($musicFile) data-quiz-music @endif
      class="contents">
 
     {{-- ── The verdict ──
@@ -156,7 +111,7 @@
          the whole point of using an audio element. --}}
     <template x-teleport="body">
         <div class="fixed bottom-[5.5rem] right-4 z-50 flex flex-col gap-2">
-            @if ($hasMusic)
+            @if ($musicFile)
                 <button type="button" @click="toggleMusic()"
                         class="flex h-11 w-11 items-center justify-center rounded-full bg-gray-900 text-white shadow-e3
                                active:scale-95 transition"
@@ -197,16 +152,13 @@
 
                 window.Alpine.__quizFxRegistered = true;
 
-                window.Alpine.data('quizFx', (musicFile, musicId, musicList, offerTap) => ({
+                window.Alpine.data('quizFx', (musicFile) => ({
                     sound: localStorage.getItem('quizSound') !== 'off',
                     // Never restored from storage. Music that starts itself
                     // because of a choice made on a different shift is the
                     // thing a phone gets put face down for.
                     musicOn: false,
                     musicFile: musicFile,
-                    musicId: musicId,
-                    musicList: musicList,
-                    offerTap: offerTap,
                     flash: null,
                     // What the ribbon says, and what it is worth. Both come
                     // from the SERVER's answer row — the word follows the
@@ -224,273 +176,7 @@
                     init() {
                         if (this.musicFile) {
                             this.mountAudio();
-
-                            return;
                         }
-
-                        if (this.musicId || this.musicList) {
-                            // Warm the API script. Loading a script needs no
-                            // gesture; only playing does — and having YT ready
-                            // means the tap can wrap the iframe immediately.
-                            this.youtube();
-
-                            // The offer, on the start screen only. Creating an
-                            // iframe with autoplay=0 needs no gesture; the tap
-                            // it exists to receive happens inside it.
-                            if (this.offerTap) {
-                                this.mountEmbedCard();
-                            }
-                        }
-                    },
-
-                    /**
-                     * The embed URL. The gesture-born frame carries autoplay
-                     * in it; the offer card carries autoplay=0 and YouTube's
-                     * own controls, because its play button IS the offer.
-                     */
-                    embedSrc(autoplay) {
-                        const params = new URLSearchParams({
-                            autoplay: autoplay ? '1' : '0',
-                            playsinline: '1',
-                            controls: autoplay ? '0' : '1',
-                            rel: '0',
-                            loop: '1',
-                            enablejsapi: '1',
-                            origin: window.location.origin,
-                        });
-
-                        if (this.musicList) {
-                            params.set('list', this.musicList);
-                            params.set('listType', 'playlist');
-
-                            return 'https://www.youtube-nocookie.com/embed/'
-                                + (this.musicId || 'videoseries') + '?' + params.toString();
-                        }
-
-                        // A single video only loops when it also names itself
-                        // as the playlist — YouTube's own quirk.
-                        params.set('playlist', this.musicId);
-
-                        return 'https://www.youtube-nocookie.com/embed/'
-                            + this.musicId + '?' + params.toString();
-                    },
-
-                    /**
-                     * The iframe, born INSIDE the tap. See the note at the top:
-                     * with autoplay=1 in the URL and allow="autoplay" on the
-                     * element, the child document's first play needs no
-                     * postMessage — which is the only kind of play an iPhone
-                     * was ever going to refuse.
-                     *
-                     * SYNCHRONOUS to the appendChild. The API wrap that follows
-                     * is async and only exists for pause, resume and ducking —
-                     * by then the frame is already playing or already refused,
-                     * and nothing the wrap does can change which.
-                     */
-                    mountEmbedSync() {
-                        if (window.__quizPlayerMount?.isConnected) {
-                            return;
-                        }
-
-                        const container = document.createElement('div');
-                        container.id = 'quiz-music-player';
-                        container.setAttribute('aria-hidden', 'true');
-                        // Off-screen, never display:none — the one hiding
-                        // method media is refused in. Real size, so the frame
-                        // is rendered.
-                        container.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
-                            + 'width:320px;height:180px;overflow:hidden;pointer-events:none;';
-
-                        const frame = document.createElement('iframe');
-                        frame.src = this.embedSrc(true);
-                        frame.title = 'Background music';
-                        frame.allow = 'autoplay; encrypted-media';
-                        frame.style.cssText = 'width:100%;height:100%;border:0;';
-
-                        container.appendChild(frame);
-                        document.body.appendChild(container);
-                        window.__quizPlayerMount = container;
-
-                        this.attachPlayer(frame);
-                    },
-
-                    /**
-                     * The tap-to-play card, start screen only.
-                     *
-                     * The one gesture iOS honours for an embed is a tap inside
-                     * the player, so the player is put where the person is
-                     * about to tap anyway — and the PLAYING event that follows
-                     * begins the quiz, making the play button and the Start
-                     * button the same tap. See the note at the top.
-                     */
-                    /*
-                     * IN THE PAGE'S FLOW, not floating. The first version of
-                     * this card was fixed above the tab bar, and it sat on top
-                     * of the Start button — its whole design read back as a bug
-                     * report.
-                     *
-                     * The iframe still cannot live inside the Livewire
-                     * component: the morph at begin() would destroy it and the
-                     * track with it, and reparenting an iframe reloads it. So
-                     * the start screen reserves a SLOT in normal flow
-                     * ([data-music-slot], in the blade) and the player, mounted
-                     * on the SCROLL CONTAINER where the morph cannot reach it,
-                     * is positioned exactly over that slot. Same scroller, so
-                     * it scrolls with the page; the slot reserves its space, so
-                     * it covers nothing; not the component's node, so begin()
-                     * cannot kill it.
-                     */
-                    mountEmbedCard() {
-                        if (window.__quizPlayerMount?.isConnected) {
-                            return;
-                        }
-
-                        const container = document.createElement('div');
-                        container.id = 'quiz-music-player';
-                        window.__quizPlayerMount = container;
-
-                        const frame = document.createElement('iframe');
-                        frame.src = this.embedSrc(false);
-                        frame.title = 'Background music';
-                        frame.allow = 'autoplay; encrypted-media';
-                        frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
-
-                        container.appendChild(frame);
-
-                        const scroller = document.querySelector('.app-scroll');
-
-                        if (scroller && document.querySelector('[data-music-slot]')) {
-                            if (getComputedStyle(scroller).position === 'static') {
-                                scroller.style.position = 'relative';
-                            }
-
-                            scroller.appendChild(container);
-                            this.positionCard();
-
-                            // Orientation changes and late-loading images both
-                            // move the slot; follow it.
-                            window.__quizCardReposition = () => this.positionCard();
-                            window.addEventListener('resize', window.__quizCardReposition);
-                            setTimeout(window.__quizCardReposition, 500);
-                        } else {
-                            // No slot on this screen: park it and let the
-                            // buttons drive it, rather than float over anything.
-                            document.body.appendChild(container);
-                            this.parkEmbed();
-                        }
-
-                        this.attachPlayer(frame);
-                    },
-
-                    /** Lay the player exactly over the space the page reserved. */
-                    positionCard() {
-                        const mount = window.__quizPlayerMount;
-                        const slot = document.querySelector('[data-music-slot]');
-                        const scroller = document.querySelector('.app-scroll');
-
-                        if (! mount?.isConnected || ! slot || ! scroller) {
-                            return;
-                        }
-
-                        const a = slot.getBoundingClientRect();
-                        const b = scroller.getBoundingClientRect();
-
-                        mount.style.cssText = 'position:absolute;z-index:10;'
-                            + 'top:' + (a.top - b.top + scroller.scrollTop) + 'px;'
-                            + 'left:' + (a.left - b.left + scroller.scrollLeft) + 'px;'
-                            + 'width:' + a.width + 'px;height:' + a.height + 'px;'
-                            + 'border-radius:12px;overflow:hidden;background:#111827;';
-                    },
-
-                    /** Off-screen — never display:none, which media is refused in. */
-                    parkEmbed() {
-                        const mount = window.__quizPlayerMount;
-
-                        if (window.__quizCardReposition) {
-                            window.removeEventListener('resize', window.__quizCardReposition);
-                            window.__quizCardReposition = null;
-                        }
-
-                        if (mount) {
-                            mount.style.cssText = 'position:fixed;bottom:0;left:-9999px;'
-                                + 'width:320px;height:180px;overflow:hidden;pointer-events:none;';
-                        }
-                    },
-
-                    /** Pause/resume/duck/loop — never the first play on iOS. */
-                    attachPlayer(frame) {
-                        this.youtube().then((YT) => {
-                            try {
-                                window.__quizPlayer = new YT.Player(frame, {
-                                    events: {
-                                        onReady: (e) => {
-                                            // Backing music, not the main
-                                            // event. iOS ignores programmatic
-                                            // volume; elsewhere this tucks it
-                                            // under the chime.
-                                            try { e.target.setVolume(35); } catch (err) {}
-                                        },
-                                        onStateChange: (e) => {
-                                            /*
-                                             * Playing — by the card tap or by
-                                             * the Start button. Park the frame
-                                             * and, on the start screen, begin
-                                             * the quiz: this is what makes the
-                                             * card's play button the Start
-                                             * button. begin() guards itself, so
-                                             * the double fire on the Android
-                                             * path costs nothing.
-                                             */
-                                            if (e.data === YT.PlayerState.PLAYING) {
-                                                this.musicOn = true;
-                                                this.parkEmbed();
-                                                window.dispatchEvent(new CustomEvent('music-started'));
-                                            }
-
-                                            // The playlist trick covers the
-                                            // loop; this covers the platforms
-                                            // that refuse the trick, because a
-                                            // quiz that falls silent half way
-                                            // through is worse than one with no
-                                            // music at all.
-                                            if (e.data === YT.PlayerState.ENDED && this.musicOn) {
-                                                e.target.seekTo(0);
-                                                e.target.playVideo();
-                                            }
-                                        },
-                                    },
-                                });
-                            } catch (e) {}
-                        });
-                    },
-
-                    /**
-                     * Load YouTube's API once, and resolve when it is ready.
-                     *
-                     * onYouTubeIframeAPIReady is a single global YouTube calls
-                     * exactly once, so it is wired to a promise rather than
-                     * being overwritten by whichever screen asked last.
-                     */
-                    youtube() {
-                        if (window.__ytReady) {
-                            return window.__ytReady;
-                        }
-
-                        window.__ytReady = new Promise((resolve) => {
-                            if (window.YT && window.YT.Player) {
-                                resolve(window.YT);
-
-                                return;
-                            }
-
-                            window.onYouTubeIframeAPIReady = () => resolve(window.YT);
-
-                            const tag = document.createElement('script');
-                            tag.src = 'https://www.youtube.com/iframe_api';
-                            document.head.appendChild(tag);
-                        });
-
-                        return window.__ytReady;
                     },
 
                     /**
@@ -631,44 +317,9 @@
 
                     /** The Start tap. */
                     autostart() {
-                        if (this.musicFile) {
-                            if (! this.musicOn) {
-                                this.toggleMusic();
-                            }
-
-                            return;
+                        if (this.musicFile && ! this.musicOn) {
+                            this.toggleMusic();
                         }
-
-                        if (! this.musicId && ! this.musicList) {
-                            return;
-                        }
-
-                        /*
-                         * The quiz is starting, so the offer card must not
-                         * outlive the start screen — whatever happens next.
-                         */
-                        this.parkEmbed();
-
-                        if (this.musicOn) {
-                            return;
-                        }
-
-                        this.musicOn = true;
-
-                        if (window.__quizPlayerMount?.isConnected) {
-                            /*
-                             * Synchronous, inside the Start tap. With
-                             * allow="autoplay" delegated this plays on Android
-                             * and desktop; an iPhone that skipped the card
-                             * refuses, silently — which is the choice the
-                             * person just made by pressing Start instead.
-                             */
-                            try { window.__quizPlayer?.playVideo?.(); } catch (e) {}
-
-                            return;
-                        }
-
-                        this.mountEmbedSync();
                     },
 
                     /**
@@ -681,80 +332,28 @@
                      * stop the quiz.
                      */
                     toggleMusic() {
-                        if (! this.musicFile && ! this.musicId && ! this.musicList) {
+                        if (! this.musicFile) {
                             return;
                         }
 
                         this.musicOn = ! this.musicOn;
 
-                        if (this.musicFile) {
-                            if (! window.__quizAudio?.isConnected) {
-                                this.mountAudio();
-                            }
-
-                            try {
-                                this.musicOn
-                                    ? window.__quizAudio?.play()?.catch?.(() => {})
-                                    : window.__quizAudio?.pause();
-                            } catch (e) {}
-
-                            return;
+                        if (! window.__quizAudio?.isConnected) {
+                            this.mountAudio();
                         }
 
-                        // A player whose iframe was swapped out from under it —
-                        // wire:navigate outlives the document that built it — is
-                        // dropped rather than talked to.
-                        if (! window.__quizPlayerMount?.isConnected) {
-                            try { window.__quizPlayer?.destroy?.(); } catch (e) {}
-                            window.__quizPlayer = null;
-                        }
-
-                        if (this.musicOn && ! window.__quizPlayerMount?.isConnected) {
-                            /*
-                             * FIRST PLAY. The iframe is created here, inside
-                             * the gesture, with autoplay in its URL — no
-                             * postMessage involved. This is the call that has
-                             * to stay synchronous.
-                             */
-                            this.mountEmbedSync();
-
-                            return;
-                        }
-
-                        /*
-                         * Later toggles go through the API. A media element
-                         * that has played once in its document may be resumed
-                         * programmatically, so the postMessage restriction that
-                         * decided the first play no longer applies.
-                         */
                         try {
                             this.musicOn
-                                ? window.__quizPlayer?.playVideo?.()
-                                : window.__quizPlayer?.pauseVideo?.();
+                                ? window.__quizAudio?.play()?.catch?.(() => {})
+                                : window.__quizAudio?.pause();
                         } catch (e) {}
                     },
 
                     /** Drop the music while a verdict is being heard. */
                     duck() {
-                        if (! this.musicOn) {
-                            return;
-                        }
-
-                        if (! this.musicFile) {
-                            try {
-                                window.__quizPlayer?.setVolume?.(10);
-                                clearTimeout(this._duck);
-                                this._duck = setTimeout(() => {
-                                    try { window.__quizPlayer?.setVolume?.(35); } catch (e) {}
-                                }, 900);
-                            } catch (e) {}
-
-                            return;
-                        }
-
                         const audio = window.__quizAudio;
 
-                        if (! audio) {
+                        if (! this.musicOn || ! audio) {
                             return;
                         }
 
@@ -771,13 +370,13 @@
                 }));
 
                 /*
-                 * LEAVING THE QUIZ STOPS THE MUSIC. The audio element and the
-                 * player live on <body> so the morph between questions cannot
-                 * kill them — which also means a wire:navigate to any other
-                 * page cannot kill them, and a track that follows somebody to
-                 * the leaderboard is a bug, not ambience. Every quiz screen
-                 * with music marks itself; a page without the marker is a page
-                 * the music must not play on.
+                 * LEAVING THE QUIZ STOPS THE MUSIC. The audio element lives on
+                 * <body> so the morph between questions cannot kill it — which
+                 * also means a wire:navigate to any other page cannot kill it,
+                 * and a track that follows somebody to the leaderboard is a
+                 * bug, not ambience. Every quiz screen with music marks itself;
+                 * a page without the marker is a page the music must not play
+                 * on.
                  */
                 document.addEventListener('livewire:navigated', () => {
                     if (document.querySelector('[data-quiz-music]')) {
@@ -787,17 +386,6 @@
                     try { window.__quizAudio?.pause(); } catch (e) {}
                     try { window.__quizAudio?.remove(); } catch (e) {}
                     window.__quizAudio = null;
-
-                    try { window.__quizPlayer?.destroy?.(); } catch (e) {}
-                    window.__quizPlayer = null;
-
-                    try { window.__quizPlayerMount?.remove(); } catch (e) {}
-                    window.__quizPlayerMount = null;
-
-                    if (window.__quizCardReposition) {
-                        window.removeEventListener('resize', window.__quizCardReposition);
-                        window.__quizCardReposition = null;
-                    }
                 });
             };
 

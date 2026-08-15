@@ -861,8 +861,18 @@ class TrainingScreensRenderTest extends TestCase
             ->assertDontSee('dQw4w9WgXcQ', escape: false);
     }
 
-    /** With only a link, the player is wired but nothing is drawn on screen. */
-    public function test_a_youtube_link_is_played_out_of_sight(): void
+    /**
+     * A YouTube link alone gives the phone NOTHING — no player, no slot, no
+     * dead music button.
+     *
+     * Both halves of the embed route died on a real iPhone: Apple blocks the
+     * start, and YouTube pauses the player the moment it is off-screen, which
+     * killed the music at question one. A control that cannot work is worse
+     * than no control, so a link-only quiz simply has no music affordance on
+     * the staff side. The link stays on the record; a direct audio URL in the
+     * same field still plays, because it feeds the <audio> element.
+     */
+    public function test_a_youtube_link_alone_offers_no_phone_playback(): void
     {
         $this->quiz->update(['music_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
 
@@ -870,20 +880,10 @@ class TrainingScreensRenderTest extends TestCase
 
         Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
             ->assertOk()
-            // The id reaches the component…
-            ->assertSee('dQw4w9WgXcQ', escape: false)
-            // …but no player is rendered into the page — the tap-to-play card
-            // and the parked frame are built in JavaScript. A server-rendered
-            // iframe over the quiz was the half people complained about.
+            ->assertDontSee('dQw4w9WgXcQ', escape: false)
             ->assertDontSee('<iframe', escape: false)
-            // The start screen listens for the card's tap, which is what makes
-            // the play button double as Start on an iPhone…
-            ->assertSee('music-started', escape: false)
-            ->assertSee('data-quiz-music', escape: false)
-            // …and reserves in-flow space for the player, so it covers
-            // nothing. The ELEMENT, not the bare string — the shared script
-            // block mentions the selector on every screen.
-            ->assertSee('<div data-music-slot', escape: false);
+            ->assertDontSee('data-music-slot', escape: false)
+            ->assertDontSee('Play music');
     }
 
     public function test_the_quiz_screens_keep_the_music_wiring_intact(): void
@@ -898,14 +898,12 @@ class TrainingScreensRenderTest extends TestCase
             ->assertOk()
             ->assertSee('start-music', escape: false)
             ->assertSee('quizFx(', escape: false)
-            // NO PLAYER IS RENDERED, on any screen. The API loader lives in the
-            // shared script block and is only called if a quiz has a link and
-            // no file, so the assertion is about the markup: an iframe over the
-            // quiz is the half of this feature people complained about.
+            // No iframe, on any screen — the embed route is gone entirely,
+            // both halves having died on a real iPhone.
             ->assertDontSee('<iframe', escape: false)
-            // A FILE quiz gets no player slot either — nothing to tap. The
-            // ELEMENT, not the bare string, which the script block mentions.
-            ->assertDontSee('<div data-music-slot', escape: false);
+            // The marker the leave-the-quiz cleanup keys on: a page without it
+            // is a page the music must not follow anybody onto.
+            ->assertSee('data-quiz-music', escape: false);
 
         $question = $start->call('begin')->assertOk()
             ->assertSee('quizFx(', escape: false)
