@@ -259,6 +259,29 @@ async function goto(page, url) {
     throw last;
 }
 
+/*
+ * One line of "what actually threw" from a 5xx response. With APP_DEBUG on,
+ * Laravel's error page carries the exception message in its <title> and the
+ * class + file in the body; with it off there is nothing to mine and this
+ * quietly returns nothing. Best-effort by design — a diagnosis helper must
+ * never be the thing that fails the run.
+ */
+async function errorHint(response) {
+    try {
+        const body = await response.text();
+
+        const title = body.match(/<title>([^<]{1,300})<\/title>/i)?.[1].trim();
+        // Ignition/Symfony pages title the page with the exception message.
+        if (title && !/^server error$/i.test(title)) return title;
+
+        // Fall back to the first exception-class-looking token with context.
+        const exc = body.match(/([A-Za-z0-9_\\]+(?:Exception|Error))[^<\n]{0,200}/)?.[0].trim();
+        return exc ?? null;
+    } catch {
+        return null;
+    }
+}
+
 async function signIn(page) {
     await goto(page, `${APP_URL}/login`);
     await page.fill('input[type=email]', EMAIL);
@@ -347,7 +370,14 @@ async function main() {
                 if (screen.optional && status === 404) { skipped++; continue; }
 
                 if (status >= 500) {
-                    unreachable.push({ width, name, status });
+                    /*
+                     * Keep the exception, not just the number. With APP_DEBUG
+                     * on (CI runs .env.example verbatim) the response body IS
+                     * the stack trace, and discarding it once cost a full
+                     * diagnose-by-hypothesis round on a /dashboard 500 that
+                     * only ever happened in CI.
+                     */
+                    unreachable.push({ width, name, status, hint: await errorHint(response) });
                 } else {
                     failures.push({ width, name, reason: `HTTP ${status} — is this path still right?` });
                 }
@@ -403,7 +433,10 @@ async function main() {
 
     if (unreachable.length) {
         console.warn(`\n${unreachable.length} screen(s) returned a server error and could NOT be measured:`);
-        for (const u of unreachable) console.warn(`  ${u.name} @ ${u.width}px — HTTP ${u.status}`);
+        for (const u of unreachable) {
+            console.warn(`  ${u.name} @ ${u.width}px — HTTP ${u.status}`);
+            if (u.hint) console.warn(`      ${u.hint}`);
+        }
         console.warn('These are not width problems, but they are coverage this run did not get.');
     }
 
