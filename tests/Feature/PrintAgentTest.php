@@ -265,6 +265,39 @@ class PrintAgentTest extends TestCase
         $this->assertSame('error', $print->refresh()->status);
     }
 
+    /**
+     * The ack must survive the production route shape, where {companySlug}
+     * precedes {job}.
+     *
+     * Found in production on the first real print: the controller took
+     * `int $job` from its signature, Laravel fills scalar route parameters
+     * positionally, and on the subdomain mount the first parameter is the
+     * company slug — so the ack 500'd with "dottys" cast to int. Every
+     * other test here uses the local /agent-api mount, which has no slug
+     * parameter and can never see this. This one registers the
+     * subdomain-constrained mount exactly as production does and drives
+     * the full pipeline — EnforceMainDomain included — with the real host
+     * shape.
+     */
+    public function test_ack_survives_the_subdomain_route_shape(): void
+    {
+        config(['app.domain' => 'servora.com.my']);
+        require base_path('routes/print-agent.php');
+
+        $token = $this->pairedToken();
+        $job   = $this->job();
+        [, $print] = $this->batchFor($job);
+
+        $host = $this->company->slug . '.servora.com.my';
+
+        $this->postJson("http://{$host}/agent/jobs/{$job->id}/status", [
+            'status' => 'error', 'message' => 'printing to "Adobe PDF" timed out after 2m0s',
+        ], ['X-Agent-Token' => $token])->assertOk();
+
+        $this->assertSame('error', $job->refresh()->status);
+        $this->assertSame('error', $print->refresh()->status);
+    }
+
     public function test_a_repeat_ack_does_not_flap_a_settled_job(): void
     {
         $token = $this->pairedToken();

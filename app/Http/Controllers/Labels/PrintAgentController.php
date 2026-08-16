@@ -120,8 +120,14 @@ class PrintAgentController extends Controller
      * Terminal ack: done or error, nothing in between. The agent reports
      * once per job; a repeat after a crash is ignored (first answer wins).
      */
-    public function jobStatus(Request $request, int $job): JsonResponse
+    public function jobStatus(Request $request): JsonResponse
     {
+        // By name, not by signature position: the production mount puts
+        // {companySlug} before {job}, and a positional scalar receives the
+        // slug there. The local /agent-api mount has no slug parameter, so
+        // only the subdomain shape ever saw the mismatch.
+        $job = (int) $request->route('job');
+
         $data = $request->validate([
             'status'  => 'required|in:done,error',
             'message' => 'nullable|string|max:500',
