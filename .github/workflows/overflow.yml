@@ -54,6 +54,18 @@ jobs:
           php-version: '8.2'
           extensions: pdo_mysql, mbstring, gd, zip, bcmath, intl
           coverage: none
+          # JIT OFF, and this is a diagnosis, not a preference. setup-php
+          # enables opcache.jit=1235 by default, and PHP 8.2's function-mode
+          # JIT miscompiles calls to a trait method used by two classes
+          # (php-src GH-17654, fixed in 8.3.19/8.4.5, never backported to
+          # 8.2): once the sweep's traffic primed the shared inline cache
+          # with Carbon\Carbon, the dashboard — the one screen doing
+          # CarbonImmutable arithmetic — 500'd on the paradox "must be of
+          # type CarbonImmutable, CarbonImmutable given". Reproduced
+          # byte-for-byte on a source-built 8.2.30 with jit=1235, clean
+          # with JIT off. JIT buys a layout check nothing. Production is
+          # unaffected: FPM defaults to jit_buffer_size=0.
+          ini-values: opcache.jit=disable, opcache.jit_buffer_size=0
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
