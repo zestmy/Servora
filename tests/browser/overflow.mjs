@@ -260,23 +260,35 @@ async function goto(page, url) {
 }
 
 /*
- * One line of "what actually threw" from a 5xx response. With APP_DEBUG on,
- * Laravel's error page carries the exception message in its <title> and the
- * class + file in the body; with it off there is nothing to mine and this
- * quietly returns nothing. Best-effort by design — a diagnosis helper must
- * never be the thing that fails the run.
+ * What actually came back from a 5xx: the FINAL url (goto follows
+ * redirects, so "the dashboard 500'd" can really mean "the dashboard
+ * redirected somewhere that 500'd"), the page title, headings, and any
+ * exception-class-looking token. With APP_DEBUG on the body is a stack
+ * trace and the title names the exception; with a rendered app page these
+ * pieces identify WHICH page answered. Best-effort by design — a diagnosis
+ * helper must never be the thing that fails the run.
  */
 async function errorHint(response) {
     try {
+        const parts = [];
+
+        const finalUrl = response.url();
+        if (finalUrl) parts.push(`answered by ${finalUrl}`);
+
         const body = await response.text();
 
         const title = body.match(/<title>([^<]{1,300})<\/title>/i)?.[1].trim();
-        // Ignition/Symfony pages title the page with the exception message.
-        if (title && !/^server error$/i.test(title)) return title;
+        if (title) parts.push(`title "${title}"`);
 
-        // Fall back to the first exception-class-looking token with context.
+        for (const h of body.matchAll(/<h[12][^>]*>([^<]{1,120})<\/h[12]>/gi)) {
+            const text = h[1].trim();
+            if (text) { parts.push(`heading "${text}"`); break; }
+        }
+
         const exc = body.match(/([A-Za-z0-9_\\]+(?:Exception|Error))[^<\n]{0,200}/)?.[0].trim();
-        return exc ?? null;
+        if (exc) parts.push(exc);
+
+        return parts.join(' — ') || null;
     } catch {
         return null;
     }
