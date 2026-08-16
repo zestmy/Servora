@@ -10,14 +10,25 @@
         </div>
     @endif
 
-    <div class="panel p-5">
-        <p class="text-lg font-semibold text-gray-900">{{ $this->staff()->name }}</p>
-        <p class="mt-0.5 text-sm text-gray-600">
-            {{ $this->staff()->outlet?->name ?? 'No outlet set' }}
-            @if ($this->staff()->designation)
-                · {{ $this->staff()->designation }}
-            @endif
-        </p>
+    {{-- Who you are signed in as, face first — the same shared avatar as the
+         labels account screen and the boards: photo over initials, so no
+         photo on file or a 404 degrades to the coloured disc, and the
+         component's default photoRoute is already this app's PIN-session
+         route. --}}
+    <div class="panel flex items-center gap-3 p-5">
+        <x-staff-avatar :name="$this->staff()->name"
+                        :employee="$this->staff()->id"
+                        :photo="$this->staff()->photo_path"
+                        size="h-12 w-12 text-sm" />
+        <div class="min-w-0">
+            <p class="truncate text-lg font-semibold text-gray-900">{{ $this->staff()->name }}</p>
+            <p class="mt-0.5 truncate text-sm text-gray-600">
+                {{ $this->staff()->outlet?->name ?? 'No outlet set' }}
+                @if ($this->staff()->designation)
+                    · {{ $this->staff()->designation }}
+                @endif
+            </p>
+        </div>
     </div>
 
     <div class="panel p-5">
