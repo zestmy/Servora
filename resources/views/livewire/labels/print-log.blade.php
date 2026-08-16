@@ -114,6 +114,15 @@
                         @if ($expandedId === $batch->id && $expanded)
                             <tr class="bg-gray-50/60">
                                 <td colspan="7" class="px-4 py-3">
+                                    @if ($expandedJobError)
+                                        {{-- The agent's own words, straight off the job row —
+                                             written on the outlet PC for whoever is standing
+                                             at the printer, which makes it the most useful
+                                             sentence support has. --}}
+                                        <p class="mb-2 px-3 py-2 bg-danger-50 border border-danger-200 text-danger-700 text-xs rounded-lg">
+                                            The print agent reported: {{ $expandedJobError }}
+                                        </p>
+                                    @endif
                                     <table class="table-surface text-xs">
                                         <thead>
                                             <tr>

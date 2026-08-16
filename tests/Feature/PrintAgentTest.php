@@ -422,6 +422,89 @@ class PrintAgentTest extends TestCase
         $this->assertSame(PrinterStatus::UNKNOWN, app(PrinterStatus::class)->for($printer));
     }
 
+    // ── Version nag ─────────────────────────────────────────────────────
+
+    public function test_php_and_go_agree_on_the_current_agent_version(): void
+    {
+        // The constant is v1's whole update mechanism: the Agents screen
+        // nags off it. If it drifts from the Go source, the nag either
+        // never fires or fires forever.
+        $go = file_get_contents(base_path('tools/print-agent/main.go'));
+
+        $this->assertSame(1, preg_match('~const Version = "([^"]+)"~', $go, $m),
+            'could not find the Version const in tools/print-agent/main.go');
+        $this->assertSame(PrintAgent::CURRENT_VERSION, $m[1],
+            'PrintAgent::CURRENT_VERSION must match tools/print-agent Version — bump both together');
+    }
+
+    public function test_outdated_is_older_only_never_newer_or_unknown(): void
+    {
+        $this->agent->agent_version = '0.9.0';
+        $this->assertTrue($this->agent->isOutdated());
+
+        $this->agent->agent_version = PrintAgent::CURRENT_VERSION;
+        $this->assertFalse($this->agent->isOutdated());
+
+        // Ahead of the server's constant (deploy raced an install): not a
+        // reason to tell someone to "update" backwards.
+        $this->agent->agent_version = '99.0.0';
+        $this->assertFalse($this->agent->isOutdated());
+
+        // Never reported at all: nothing to compare, nothing to nag.
+        $this->agent->agent_version = null;
+        $this->assertFalse($this->agent->isOutdated());
+    }
+
+    // ── Print log error surfacing ───────────────────────────────────────
+
+    public function test_print_log_shows_the_agents_error_for_a_failed_batch(): void
+    {
+        $token = $this->pairedToken();
+        $job   = $this->job();
+        [$batch] = $this->batchFor($job);
+
+        $this->postJson("/agent-api/jobs/{$job->id}/status", [
+            'status' => 'error', 'message' => 'SumatraPDF exited 1: out of labels',
+        ], ['X-Agent-Token' => $token])->assertOk();
+
+        \Livewire\Livewire::actingAs($this->logViewer())
+            ->test(\App\Livewire\Labels\PrintLog::class)
+            ->set('outletId', $this->outlet->id)
+            ->call('toggle', $batch->id)
+            ->assertSee('SumatraPDF exited 1: out of labels');
+    }
+
+    public function test_print_log_stays_quiet_when_the_job_row_was_pruned(): void
+    {
+        $this->pairedToken();
+        $job = $this->job(['status' => 'error']);
+        [$batch] = $this->batchFor($job);
+
+        // A week on, the pruner removed the job. The badge still carries
+        // the outcome; only the reason ages out — the screen must not err.
+        $job->delete();
+
+        \Livewire\Livewire::actingAs($this->logViewer())
+            ->test(\App\Livewire\Labels\PrintLog::class)
+            ->set('outletId', $this->outlet->id)
+            ->call('toggle', $batch->id)
+            ->assertDontSee('The print agent reported');
+    }
+
+    private function logViewer(): \App\Models\User
+    {
+        $user = \App\Models\User::factory()->create(['company_id' => $this->company->id]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->outlet->id]);
+
+        setPermissionsTeamId($this->company->id);
+        \Spatie\Permission\Models\Permission::findOrCreate('labels.view_log', 'web');
+        $user->givePermissionTo('labels.view_log');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return $user;
+    }
+
     // ── The manager screen ──────────────────────────────────────────────
 
     public function test_agents_screen_renders_and_pairs(): void

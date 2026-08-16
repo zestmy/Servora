@@ -45,6 +45,16 @@ class PrintAgent extends Model
      */
     public const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
+    /**
+     * The agent version the current install zip ships.
+     *
+     * MUST match `const Version` in tools/print-agent/main.go — a test
+     * reads the Go source and fails on drift, because this constant is the
+     * only update mechanism v1 has: the Agents screen nags any agent
+     * reporting something older.
+     */
+    public const CURRENT_VERSION = '1.0.0';
+
     protected $fillable = [
         'company_id', 'outlet_id', 'name', 'token_hash',
         'pairing_code', 'pairing_expires_at', 'paired_at',
@@ -132,6 +142,19 @@ class PrintAgent extends Model
             && $this->isPaired()
             && $this->last_seen_at !== null
             && $this->last_seen_at->gt(now()->subMinutes(self::HEARTBEAT_STALE_MINUTES));
+    }
+
+    /**
+     * Whether this agent is running an older build than the current zip.
+     *
+     * version_compare, not inequality: an agent somehow AHEAD of the
+     * server's constant (a deploy raced an install) must not be nagged to
+     * "update" backwards.
+     */
+    public function isOutdated(): bool
+    {
+        return $this->agent_version !== null
+            && version_compare($this->agent_version, self::CURRENT_VERSION, '<');
     }
 
     /** Whether the pairing code on this row can still be redeemed. */

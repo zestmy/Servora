@@ -1,13 +1,14 @@
 # Servora Print Agent — Plan
 
-> Status: **phases 1 (server) and 2 (Windows agent) built, 2026-08-15** — see §7
-> for what each covers and §9 for what building them changed. Phase 3 (live
-> end-to-end verification against real hardware) is not started. Drafted
-> 2026-08-15 to answer one question: what replaces PrintNode so tenants stop
-> paying its per-computer subscription? Companion to
-> [label-printing-plan.md](label-printing-plan.md), which owns the label domain;
-> this doc owns one transport and the shippable artifact behind it — the agent
-> itself lives in [tools/print-agent/](../tools/print-agent/).
+> Status: **phases 1–3 built, 2026-08-16** — see §7 for what each covers and §9
+> for what building them changed, including the live wire-protocol round-trip
+> phase 3 ran. **One step remains before recommending the agent to a tenant:
+> a print on real label hardware** (§7, phase 3). Drafted 2026-08-15 to answer
+> one question: what replaces PrintNode so tenants stop paying its per-computer
+> subscription? Companion to [label-printing-plan.md](label-printing-plan.md),
+> which owns the label domain; this doc owns one transport and the shippable
+> artifact behind it — the agent itself lives in
+> [tools/print-agent/](../tools/print-agent/).
 
 PrintNode exists in the codebase for exactly one scenario: staff on a phone or
 tablet → server → *something on the outlet PC* → the label printer. The "something"
@@ -316,10 +317,32 @@ cross-build. Dev bonus: the Linux path (`lp -d` / `lpstat`) came along nearly
 free, exactly as predicted — functional for development, unsupported in the
 field.
 
-**Phase 3 — polish.** Outlet setup guide (mirroring the existing "Outlet laptop
-setup" section), version nag, error surfacing in the print log, and a live
-end-to-end run against a real Deli/Zebra — the verification step PrintNode never
-got.
+**Phase 3 — polish + verification** — *built 2026-08-16, one caveat below.*
+
+- **Outlet setup guide**: lives in the agent's own
+  [README](../tools/print-agent/README.md) (shipped inside the install zip),
+  including the paper-form creation step and the SmartScreen click-through.
+- **Version nag**: `PrintAgent::CURRENT_VERSION` badges any agent reporting an
+  older build on the Agents screen. A test reads the Go source's `Version`
+  const and fails on drift — the constant is v1's entire update mechanism, so
+  the two halves are not allowed to disagree silently.
+- **Error surfacing**: an expanded agent batch in the print log shows the
+  agent's own error sentence off the job row ("SumatraPDF exited 1: …"). Jobs
+  are pruned after a week, so old batches keep the outcome badge and lose only
+  the reason — the screen tolerates the missing row, tested.
+- **Live end-to-end run — done over the real wire, not yet on real hardware.**
+  The actual Go binary was paired against the actual Laravel server over HTTP
+  and driven through the full lifecycle: pair (real code redemption), printer
+  inventory report, heartbeat, a real batch queued through
+  `LabelPrintService` → `AgentDriver`, collected by the polling agent, printed
+  through a captured print command (correct queue name, correct
+  `media=70 x 40 mm`, a valid `%PDF-1.7` document), acked `done`,
+  `label_prints` flipped to done, payload nulled, printer badge online — and
+  then the revocation path: the manager-side revoke killed the token and the
+  running agent logged `UNPAIRED` on its next poll and backed off. What this
+  deliberately does NOT claim: a physical label emerging from a Deli/Zebra
+  through SumatraPDF on Windows. That last hop needs a real printer and is the
+  one step left before recommending the agent to a tenant.
 
 **Later.** Linux agent (`lp -d` via CUPS — nearly free given Go), auto-update,
 spooler-level job tracking, ZPL/raw passthrough for printers where PDF-through-
