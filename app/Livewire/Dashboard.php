@@ -390,13 +390,17 @@ class Dashboard extends Component
 
         // Platform-wide activity: users.last_active_at (session-driver
         // independent), with the DB sessions table as legacy fallback.
+        // The or-pair is grouped in its own closure so that any constraint
+        // ever added to this query — a scope, a where — cannot silently
+        // change what the OR binds to.
         $activeSince = function ($since) {
-            return User::where('last_active_at', '>=', $since)
-                ->orWhereIn('id', DB::table('sessions')
-                    ->whereNotNull('user_id')
-                    ->where('last_activity', '>=', $since->timestamp)
-                    ->select('user_id'))
-                ->count();
+            return User::where(function ($q) use ($since) {
+                $q->where('last_active_at', '>=', $since)
+                    ->orWhereIn('id', DB::table('sessions')
+                        ->whereNotNull('user_id')
+                        ->where('last_activity', '>=', $since->timestamp)
+                        ->select('user_id'));
+            })->count();
         };
         $active24h = $activeSince($now->copy()->subDay());
         $active7d  = $activeSince($now->copy()->subDays(7));

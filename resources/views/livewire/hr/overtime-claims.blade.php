@@ -147,11 +147,15 @@
                 @endforeach
             </select>
 
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-500">From</span>
-                <input type="date" wire:model.live="dateFrom" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
-                <span class="text-sm text-gray-500">To</span>
-                <input type="date" wire:model.live="dateTo" max="{{ date('Y-m-d') }}" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+            {{-- Wraps and shrinks. A date input has an intrinsic minimum width,
+                 and this pair sits in a flex filter row whose line takes its
+                 cross size from the widest item — so on a 360px phone the pair
+                 pushed the page over the edge. Same fix as the Stocks
+                 Management / Sales / Purchasing filter rows. --}}
+            <div class="flex min-w-0 flex-wrap items-center gap-1">
+                <input type="date" wire:model.live="dateFrom" max="{{ date('Y-m-d') }}" aria-label="From date" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                <span class="text-xs text-gray-600">to</span>
+                <input type="date" wire:model.live="dateTo" max="{{ date('Y-m-d') }}" aria-label="To date" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
         </div>
     </div>

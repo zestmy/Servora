@@ -109,23 +109,32 @@
         @endif
     </div>
 
-    {{-- Tab Navigation --}}
-    <div class="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
-        @php
-            $tabs = [
-                'cost_summary'  => 'Cost Summary',
-                'performance'   => 'Performance',
-                'cost_analysis' => 'Cost Analysis',
-                'wastage'       => 'Wastage',
-                'labour_cost'   => 'Labour Cost',
-            ];
-        @endphp
-        @foreach ($tabs as $key => $label)
-            <button wire:click="switchTab('{{ $key }}')"
-                    class="px-4 py-2 text-sm font-medium rounded-md transition {{ $activeTab === $key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
-                {{ $label }}
-            </button>
-        @endforeach
+    {{-- Tab Navigation.
+
+         THE SCROLLER IS A SEPARATE, BLOCK-LEVEL WRAPPER. `w-fit` makes the
+         pill strip shrink-to-fit, so `overflow-x-auto` on the strip itself
+         could never engage — five tabs measured 476px inside a 360px phone
+         and pushed the whole page sideways. Scrolling belongs to a block box
+         that fills the width; the strip inside stays its natural size and
+         slides. Same fix as the Stocks Management `.seg` strip. --}}
+    <div class="mb-6 overflow-x-auto">
+        <div class="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+            @php
+                $tabs = [
+                    'cost_summary'  => 'Cost Summary',
+                    'performance'   => 'Performance',
+                    'cost_analysis' => 'Cost Analysis',
+                    'wastage'       => 'Wastage',
+                    'labour_cost'   => 'Labour Cost',
+                ];
+            @endphp
+            @foreach ($tabs as $key => $label)
+                <button wire:click="switchTab('{{ $key }}')"
+                        class="px-4 py-2 text-sm font-medium rounded-md transition whitespace-nowrap {{ $activeTab === $key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
     </div>
 
     {{-- ═══════════════════════════════════════════════════════════ --}}
