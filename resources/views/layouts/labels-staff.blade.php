@@ -185,9 +185,25 @@
                    : 'Signed in as ' . $staff->name . ' — change PIN or sign out' }}"
                class="shrink-0 flex min-h-[2.75rem] items-center gap-2 rounded-full pl-1 pr-2 active:bg-white/25
                       {{ $accountOpen ? 'bg-white/25' : 'bg-white/15' }}">
+                {{-- Their own face, when there is one on file — same treatment
+                     as the clock app's header: the photo sits OVER the
+                     initials rather than replacing them, so a photo that 404s
+                     (deleted from disk, or a path left behind by a restore)
+                     degrades to the disc instead of a broken-image icon.
+
+                     clock.staff.photo, not the manager's hr route: both staff
+                     PWAs share one PIN session on this subdomain, and that
+                     route is gated on exactly that session. See
+                     StaffPhotoController. --}}
                 <span aria-hidden="true"
-                      class="grid h-8 w-8 place-items-center rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
+                      class="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-white/25 text-[11px] font-bold tracking-wide">
                     {{ $initials }}
+
+                    @if ($staff->photo_path)
+                        <img src="{{ route('clock.staff.photo', $staff->id) }}" alt="" loading="lazy"
+                             class="absolute inset-0 h-full w-full object-cover"
+                             onerror="this.remove()">
+                    @endif
                 </span>
                 {{-- Initials only on a phone, where this bar is tight and the
                      full name would truncate to nothing useful anyway; the
