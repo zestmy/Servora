@@ -69,6 +69,10 @@ class EnforceMainDomain
             // Still allowed, or an installed PWA pointed at /clock would be
             // sent to the LMS login instead of following the redirect.
             || str_starts_with($path, '/clock')
+            // The print agent's wire surface (routes/print-agent.php). Its
+            // caller is a native binary that treats a redirect as a broken
+            // pairing, not a login page to render.
+            || str_starts_with($path, '/agent/')
             || str_starts_with($path, '/v/')
             || str_starts_with($path, '/livewire/')
         ) {

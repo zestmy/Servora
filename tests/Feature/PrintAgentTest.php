@@ -98,6 +98,47 @@ class PrintAgentTest extends TestCase
         $this->assertSame(hash('sha256', $token), $this->agent->token_hash);
     }
 
+    /**
+     * EnforceMainDomain must admit /agent/* on a company subdomain.
+     *
+     * Found in production on the first real pairing: the middleware runs
+     * before routing and admitted only /lms, /labels, /staff, /clock, /v/
+     * and /livewire/ on a subdomain, so the agent's pair POST was 302'd to
+     * the LMS login. The Go client follows redirects silently, so it read
+     * the login page as a 200 "success" with no token in it — the same
+     * class of bug as the certificate-download bounce pinned in
+     * TrainingModuleTest. The other tests here run against the /agent-api
+     * local mount, which this middleware never sees; this one drives the
+     * middleware directly with the production host shape.
+     */
+    public function test_company_subdomain_admits_the_agent_wire_surface(): void
+    {
+        config(['app.domain' => 'servora.com.my']);
+
+        $middleware = new \App\Http\Middleware\EnforceMainDomain();
+        $host = $this->company->slug . '.servora.com.my';
+
+        $reached = false;
+        $middleware->handle(
+            \Illuminate\Http\Request::create("https://{$host}/agent/pair", 'POST'),
+            function () use (&$reached) {
+                $reached = true;
+                return response()->json();
+            }
+        );
+        $this->assertTrue($reached, '/agent/* must pass EnforceMainDomain on a company subdomain');
+
+        // And the guard itself still stands: an unlisted path on the same
+        // host is bounced to the LMS door, proving the pass above is the
+        // allowlist working and not the middleware sitting this host out.
+        $bounced = $middleware->handle(
+            \Illuminate\Http\Request::create("https://{$host}/dashboard", 'GET'),
+            fn () => response()->json()
+        );
+        $this->assertSame(302, $bounced->getStatusCode());
+        $this->assertStringContainsString('/lms/login', $bounced->headers->get('Location'));
+    }
+
     // ── Auth ────────────────────────────────────────────────────────────
 
     public function test_jobs_endpoint_requires_the_agent_token(): void
