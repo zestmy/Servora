@@ -157,6 +157,23 @@ class PrintAgent extends Model
             && version_compare($this->agent_version, self::CURRENT_VERSION, '<');
     }
 
+    /**
+     * The install zip for the outlet PC, or null when this deployment
+     * doesn't host one.
+     *
+     * The zip is a hosted artifact (agent exe + pinned SumatraPDF, the
+     * build.sh output), not a repo file: it lives untracked in
+     * public/downloads/ on the server, so the button only renders where
+     * someone has actually put the current version's zip. Name must match
+     * build.sh's: servora-print-agent-<version>-windows-amd64.zip.
+     */
+    public static function downloadUrl(): ?string
+    {
+        $file = 'downloads/servora-print-agent-' . self::CURRENT_VERSION . '-windows-amd64.zip';
+
+        return file_exists(public_path($file)) ? asset($file) : null;
+    }
+
     /** Whether the pairing code on this row can still be redeemed. */
     public function hasLivePairingCode(): bool
     {

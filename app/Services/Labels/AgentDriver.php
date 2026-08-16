@@ -60,7 +60,7 @@ class AgentDriver implements LabelDriver
 
         if (! $agent || $agent->isRevoked() || ! $agent->isPaired()) {
             throw new RuntimeException(
-                'The print agent for this printer is not paired. Check Label Agents.'
+                'The print agent for this printer is not paired. Check Print Agents.'
             );
         }
 

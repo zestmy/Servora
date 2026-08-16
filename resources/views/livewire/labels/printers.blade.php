@@ -183,7 +183,7 @@
                                     @elseif (! $this->agentOptions)
                                         <p class="px-3 py-2 bg-warning-50 border border-warning-200 text-warning-700 text-xs rounded-lg">
                                             No agent is paired at this outlet yet. Set one up under
-                                            <a href="{{ route('labels.agents') }}" class="underline">Label agents</a>.
+                                            <a href="{{ route('labels.agents') }}" class="underline">Print agents</a>.
                                         </p>
                                     @endif
 

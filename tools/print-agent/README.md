@@ -23,9 +23,11 @@ machine-installed copy), its GPLv3 notice, and this file.
 
 ## Outlet setup (per PC, once)
 
-1. Unzip anywhere permanent — e.g. `C:\Servora\PrintAgent\`. The agent needs
-   `SumatraPDF.exe` sitting beside it.
-2. In Servora: **Labels → Label Agents → Add Agent**, name the PC, pick its
+1. Get the install zip — the **Download Agent** button on **Labels →
+   Print Agents** — and unzip it anywhere permanent, e.g.
+   `C:\Servora\PrintAgent\`. The agent needs `SumatraPDF.exe` sitting
+   beside it.
+2. In Servora: **Labels → Print Agents → Add Agent**, name the PC, pick its
    outlet, and read the pairing code off the screen (valid 10 minutes).
 3. On the PC, in a terminal:
 

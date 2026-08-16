@@ -11,17 +11,26 @@
             <p class="page-eyebrow">Labels / Agents</p>
             <h1 class="page-title mt-1">Print agents</h1>
         </div>
-        <button wire:click="openCreate" class="btn-primary">
-            <span class="sm:hidden">+ Add</span>
-            <span class="hidden sm:inline">+ Add Agent</span>
-        </button>
+        <div class="flex items-center gap-2">
+            @if ($downloadUrl = \App\Models\PrintAgent::downloadUrl())
+                <a href="{{ $downloadUrl }}" class="btn-secondary" download>
+                    <span class="sm:hidden">Download</span>
+                    <span class="hidden sm:inline">Download Agent v{{ \App\Models\PrintAgent::CURRENT_VERSION }}</span>
+                </a>
+            @endif
+            <button wire:click="openCreate" class="btn-primary">
+                <span class="sm:hidden">+ Add</span>
+                <span class="hidden sm:inline">+ Add Agent</span>
+            </button>
+        </div>
     </div>
 
     <div class="card p-5 mb-4">
         <p class="text-sm text-gray-600">
             A print agent is a small program on the outlet PC that prints labels sent from phones and
-            tablets — no PrintNode subscription. Add an agent here, then enter its pairing code on the
-            PC when the agent asks for it.
+            tablets — no PrintNode subscription. Download the agent onto the PC, add an agent here,
+            then enter its pairing code on the PC when the agent asks for it — the zip's README walks
+            through the four steps.
         </p>
         <p class="text-xs text-gray-500 mt-2">
             Server address for the agent: <code class="px-1 py-0.5 bg-gray-100 rounded">{{ $this->serverUrl() }}</code>

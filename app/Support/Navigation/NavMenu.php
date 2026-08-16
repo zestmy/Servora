@@ -195,7 +195,7 @@ final class NavMenu
                     ['route' => 'labels.shelf-life', 'label' => 'Shelf Life',     'permission' => 'labels.manage'],
                     ['route' => 'labels.templates',  'label' => 'Templates',      'permission' => 'labels.manage'],
                     ['route' => 'labels.printers',   'label' => 'Label Printers', 'permission' => 'labels.manage'],
-                    ['route' => 'labels.agents',     'label' => 'Label Agents',   'permission' => 'labels.manage'],
+                    ['route' => 'labels.agents',     'label' => 'Print Agents',   'permission' => 'labels.manage'],
                     ['route' => 'labels.settings',   'label' => 'Label Settings', 'permission' => 'labels.manage'],
                 ],
             ],
