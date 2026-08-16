@@ -1,9 +1,11 @@
 # Servora Print Agent — Plan
 
-> Status: **phases 1–3 built, 2026-08-16** — see §7 for what each covers and §9
-> for what building them changed, including the live wire-protocol round-trip
-> phase 3 ran. **One step remains before recommending the agent to a tenant:
-> a print on real label hardware** (§7, phase 3). Drafted 2026-08-15 to answer
+> Status: **merged to main, 2026-08-16** — phases 1–3 all shipped in one branch:
+> the server, the Windows agent, and the live wire-protocol round-trip. See §7
+> for what each phase covers and §9 for what building them changed. **One step
+> remains before switching a production printer to the agent driver: a print on
+> real label hardware** (§7, phase 3) — everything up to the Windows spooler is
+> proven, that last hop needs a physical printer. Drafted 2026-08-15 to answer
 > one question: what replaces PrintNode so tenants stop paying its per-computer
 > subscription? Companion to [label-printing-plan.md](label-printing-plan.md),
 > which owns the label domain; this doc owns one transport and the shippable

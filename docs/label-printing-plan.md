@@ -61,9 +61,12 @@ management, the audit log. They just can't be the device that prints.
 
 ### PrintNode — built 2026-07-31
 
-> **2026-08-15:** a self-hosted replacement is proposed in
-> [print-agent-plan.md](print-agent-plan.md) — same driver seam, no subscription.
-> Nothing below changes while any printer still uses `driver = 'printnode'`.
+> **2026-08-16:** the self-hosted replacement is BUILT and merged — the
+> `agent` driver and the Servora Print Agent, [print-agent-plan.md](print-agent-plan.md):
+> same driver seam, no subscription, wire-verified live. It is the recommended
+> transport for the tablet scenario once its remaining hardware check passes.
+> Everything below stays accurate and supported while any printer still uses
+> `driver = 'printnode'`.
 
 Shipped after v1, and it cost almost nothing above the transport layer, which is
 the point decision 2 was making.
