@@ -49,7 +49,15 @@
                             <td class="px-4 py-3 text-gray-600">
                                 {{ $agent->hostname ?? '—' }}
                                 @if ($agent->agent_version)
-                                    <span class="block text-xs text-gray-500">v{{ $agent->agent_version }}@if ($agent->os) · {{ $agent->os }}@endif</span>
+                                    <span class="block text-xs text-gray-500">
+                                        v{{ $agent->agent_version }}@if ($agent->os) · {{ $agent->os }}@endif
+                                        @if ($agent->isOutdated())
+                                            <span class="ml-1 px-1 py-0.5 rounded bg-warning-50 text-warning-700 text-[10px]"
+                                                  title="The current install zip ships v{{ \App\Models\PrintAgent::CURRENT_VERSION }} — re-download and replace the exe on this PC">
+                                                v{{ \App\Models\PrintAgent::CURRENT_VERSION }} available
+                                            </span>
+                                        @endif
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center text-gray-600">

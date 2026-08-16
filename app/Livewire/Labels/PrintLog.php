@@ -5,6 +5,7 @@ namespace App\Livewire\Labels;
 use App\Models\LabelPrintBatch;
 use App\Models\LabelSet;
 use App\Models\Outlet;
+use App\Models\PrintJob;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -109,9 +110,24 @@ class PrintLog extends Component
             ? LabelPrintBatch::with('prints')->find($this->expandedId)
             : null;
 
+        /*
+         * What the print agent actually said when an agent batch failed.
+         * The message lives on the job row, which is pruned after a week —
+         * a missing job is normal for old batches, and the status badge
+         * still carries the outcome; only the reason ages out.
+         */
+        $expandedJobError = null;
+
+        if ($expanded && $expanded->driver === 'agent' && $expanded->driver_job_id) {
+            $expandedJobError = PrintJob::query()
+                ->where('id', (int) $expanded->driver_job_id)
+                ->value('error_message');
+        }
+
         return view('livewire.labels.print-log', [
-            'batches'  => $batches,
-            'expanded' => $expanded,
+            'batches'          => $batches,
+            'expanded'         => $expanded,
+            'expandedJobError' => $expandedJobError,
             'outlets'  => Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get(),
             'sets'     => LabelSet::query()
                 ->when($this->outletId, fn ($q) => $q->where('outlet_id', $this->outletId))
