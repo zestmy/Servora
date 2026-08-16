@@ -235,7 +235,10 @@ function describeOverflow() {
  * second, so a single ERR_CONNECTION_REFUSED means "try again", not "the
  * screen is broken". Without this the whole run ends on one blip.
  */
-const TRANSIENT = /ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_SOCKET_NOT_CONNECTED/;
+// ERR_ABORTED joined the list after a docs-only PR failed on the very first
+// navigation: the supervisor loop was restarting `artisan serve` at that
+// moment, and an aborted navigation is the same server-gap as a refused one.
+const TRANSIENT = /ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_SOCKET_NOT_CONNECTED|ERR_ABORTED/;
 
 /** Poll until something answers again, rather than guessing how long a restart takes. */
 async function waitForServer(seconds = 30) {
