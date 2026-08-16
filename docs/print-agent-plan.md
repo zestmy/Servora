@@ -1,11 +1,13 @@
 # Servora Print Agent — Plan
 
-> Status: **phase 1 (server) built, 2026-08-15** — see §7 for what that covers and
-> §9 for what building it changed. Phases 2–3 (the agent binary, docs/verification)
-> are not started. Drafted 2026-08-15 to answer one question: what replaces
-> PrintNode so tenants stop paying its per-computer subscription? Companion to
+> Status: **phases 1 (server) and 2 (Windows agent) built, 2026-08-15** — see §7
+> for what each covers and §9 for what building them changed. Phase 3 (live
+> end-to-end verification against real hardware) is not started. Drafted
+> 2026-08-15 to answer one question: what replaces PrintNode so tenants stop
+> paying its per-computer subscription? Companion to
 > [label-printing-plan.md](label-printing-plan.md), which owns the label domain;
-> this doc owns one transport and the shippable artifact behind it.
+> this doc owns one transport and the shippable artifact behind it — the agent
+> itself lives in [tools/print-agent/](../tools/print-agent/).
 
 PrintNode exists in the codebase for exactly one scenario: staff on a phone or
 tablet → server → *something on the outlet PC* → the label printer. The "something"
@@ -302,9 +304,17 @@ picker. Tested with a fake agent driven over plain HTTP (`PrintAgentTest`), whic
 the point: the whole wire surface is four JSON endpoints. The `/Rotate` spike is
 built and proven — see §9.
 
-**Phase 2 — agent v1 (Windows).** Go binary: pair / poll / print / ack, printer +
-paper enumeration (or the free-text fallback), service self-install, bundled
-Sumatra, install zip.
+**Phase 2 — agent v1 (Windows)** — *built 2026-08-15*, in
+[tools/print-agent/](../tools/print-agent/). Go binary: pair / poll / print /
+ack, printer enumeration via `EnumPrinters` **with** paper-form names via
+`DeviceCapabilities(DC_PAPERNAMES/DC_PAPERSIZE)` (the free-text fallback wasn't
+needed), service self-install via kardianos/service, `build.sh` producing the
+install zip with a pinned SumatraPDF 3.5.2 and its GPL notice. The loop is
+tested off Windows against an httptest fake of the four endpoints, with the
+hardware behind two interfaces; the Windows half is compile-and-vet verified by
+cross-build. Dev bonus: the Linux path (`lp -d` / `lpstat`) came along nearly
+free, exactly as predicted — functional for development, unsupported in the
+field.
 
 **Phase 3 — polish.** Outlet setup guide (mirroring the existing "Outlet laptop
 setup" section), version nag, error surfacing in the print log, and a live
