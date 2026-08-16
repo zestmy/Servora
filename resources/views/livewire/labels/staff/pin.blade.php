@@ -7,10 +7,20 @@
     @endif
 
     {{-- Who you are signed in as. This is the screen someone lands on when
-         the wrong name is showing in the header, so it answers that first. --}}
-    <div class="card-pad mb-3">
-        <p class="text-lg font-semibold leading-tight text-gray-900">{{ $this->staff()->name }}</p>
-        <p class="mt-0.5 text-sm text-gray-600">{{ $this->outletName() ?: 'No outlet set' }}</p>
+         the wrong name is showing in the header, so it answers that first —
+         and a face answers it faster than a name. Same component as the
+         boards: photo over initials, so no photo on file (most of the floor)
+         or a 404 degrades to the coloured disc, and the default photoRoute
+         is already the PIN-session one this app is signed in with. --}}
+    <div class="card-pad mb-3 flex items-center gap-3">
+        <x-staff-avatar :name="$this->staff()->name"
+                        :employee="$this->staff()->id"
+                        :photo="$this->staff()->photo_path"
+                        size="h-12 w-12 text-sm" />
+        <div class="min-w-0">
+            <p class="truncate text-lg font-semibold leading-tight text-gray-900">{{ $this->staff()->name }}</p>
+            <p class="mt-0.5 truncate text-sm text-gray-600">{{ $this->outletName() ?: 'No outlet set' }}</p>
+        </div>
     </div>
 
     <div class="card-pad mb-3">
