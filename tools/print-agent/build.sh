@@ -42,6 +42,7 @@ Source code and license text: https://github.com/sumatrapdfreader/sumatrapdf
 EOF
 
 cp README.md "${STAGE}/README.md"
+cp SETUP.cmd "${STAGE}/SETUP.cmd"
 
 ( cd "$DIST" && zip -qr "servora-print-agent-${VERSION}-windows-amd64.zip" "$(basename "$STAGE")" )
 

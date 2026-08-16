@@ -29,24 +29,18 @@ machine-installed copy), its GPLv3 notice, and this file.
    beside it.
 2. In Servora: **Labels → Print Agents → Add Agent**, name the PC, pick its
    outlet, and read the pairing code off the screen (valid 10 minutes).
-3. On the PC, in a terminal:
+3. Double-click **`SETUP.cmd`** in the unzipped folder and accept the
+   administrator prompt. It asks two questions — the server address shown
+   on the Agents screen (e.g. `https://yourcompany.servora.com.my/agent`)
+   and the pairing code — then installs the Windows service. The service
+   starts now, survives reboots and logouts, and needs nobody signed in.
+   The token is saved to `%ProgramData%\Servora\PrintAgent\config.json` —
+   no human ever sees it.
 
-   ```
-   servora-print-agent.exe pair
-   ```
-
-   Enter the server address shown on the Agents screen (e.g.
-   `https://yourcompany.servora.com.my/agent`) and the code. The token is
-   saved to `%ProgramData%\Servora\PrintAgent\config.json` — no human ever
-   sees it.
-4. Install as a Windows service (Administrator terminal):
-
-   ```
-   servora-print-agent.exe install
-   ```
-
-   It starts now, survives reboots and logouts, and needs nobody signed in.
-5. Back in Servora: **Labels → Label Printers** — set the printer's driver to
+   Prefer a terminal, or need to script it? The same two steps by hand:
+   `servora-print-agent.exe pair`, then `servora-print-agent.exe install`
+   from an Administrator terminal.
+4. Back in Servora: **Labels → Label Printers** — set the printer's driver to
    *Servora agent*, pick this agent, pick the Windows printer it reported,
    and pick the **paper form** matching your label stock.
 

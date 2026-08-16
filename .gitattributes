@@ -1,4 +1,6 @@
 * text=auto eol=lf
+# cmd.exe misparses parenthesized blocks under LF endings
+*.cmd text eol=crlf
 
 *.blade.php diff=html
 *.css diff=css
