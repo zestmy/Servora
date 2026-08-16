@@ -13,10 +13,14 @@
         <h1 class="text-2xl font-bold text-gray-900 mt-0.5">Leaderboard</h1>
     </div>
 
-    {{-- Your own standing, before the list. --}}
+    {{-- Your own standing, before the list — with your own face, the same
+         shared avatar the rows below already wear. Photo over initials, so
+         no photo on file or a 404 degrades to the coloured disc. --}}
     <div class="rounded-surface bg-brand-600 p-4 text-white">
         <div class="flex items-center justify-between gap-3">
-            <div class="min-w-0">
+            <x-staff-avatar :name="$employee->name" :employee="$employee->id"
+                            :photo="$employee->photo_path" size="h-11 w-11 text-sm" />
+            <div class="min-w-0 flex-1">
                 <p class="text-xs text-brand-100">
                     {{ $scope === 'outlet' ? ($employee->outlet?->name ?? 'Your branch') : 'Whole company' }}
                     · {{ \App\Services\Training\LeaderboardService::PERIODS[$period] ?? $period }}
