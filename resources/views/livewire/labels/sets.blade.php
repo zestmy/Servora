@@ -33,6 +33,9 @@
             <button wire:click="openImport" class="btn-secondary">
                 Import a form
             </button>
+            <button wire:click="openSetImport" class="btn-secondary">
+                Copy from outlet
+            </button>
             <button wire:click="openCreate" class="btn-primary">
                 + New set
             </button>
@@ -318,6 +321,108 @@
                                             wire:loading.attr="disabled" wire:target="importTemplate">
                                         <span wire:loading.remove wire:target="importTemplate">Import</span>
                                         <span wire:loading wire:target="importTemplate">Importing…</span>
+                                    </button>
+                                @endif
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    {{-- Copy a print set from another outlet.
+
+         The outlets of one company mostly prep the same food, so a new
+         branch's "Chiller 1" is usually an existing branch's "Chiller 1"
+         retyped — and retyping is where items go missing. --}}
+    <div x-data="{ open: @entangle('showSetImport') }">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak @keydown.escape.window="open = false" class="fixed inset-0 z-[100] overflow-y-auto">
+                <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                <div class="relative min-h-full flex items-start sm:items-center justify-center p-4">
+                    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md" @click.stop>
+                        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-800">Copy a set from another outlet</h3>
+                            <button @click="open = false" class="text-gray-600 hover:text-gray-900 p-1">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <form wire:submit.prevent="importSet" class="p-5 space-y-4">
+                            @if ($outlets->count() < 2)
+                                <p class="text-sm text-gray-600">
+                                    There is only one outlet, so there is nowhere to copy from.
+                                </p>
+                            @else
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600">From outlet <span class="text-danger-500">*</span></label>
+                                    <select wire:model.live="importOutletId" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                        <option value="">Choose an outlet…</option>
+                                        @foreach ($outlets as $outlet)
+                                            @continue($outlet->id === (int) $outletId)
+                                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('importOutletId')" class="mt-1" />
+                                </div>
+
+                                @if ($importOutletId)
+                                    <div>
+                                        <label class="text-xs font-semibold text-gray-600">Set <span class="text-danger-500">*</span></label>
+                                        @if ($importSets->isEmpty())
+                                            <p class="mt-1 text-sm text-gray-600">That outlet has no print sets yet.</p>
+                                        @else
+                                            <select wire:model.live="importSetId" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                                <option value="">Choose a set…</option>
+                                                @foreach ($importSets as $s)
+                                                    <option value="{{ $s->id }}">
+                                                        {{ $s->name }} — {{ $s->lines_count }} item{{ $s->lines_count === 1 ? '' : 's' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        @endif
+                                        <x-input-error :messages="$errors->get('importSetId')" class="mt-1" />
+                                    </div>
+                                @endif
+
+                                @if ($set)
+                                    <div class="space-y-2">
+                                        <p class="text-xs font-semibold text-gray-600">Put the items in</p>
+                                        <label class="flex items-start gap-2 text-sm text-gray-700">
+                                            <input type="radio" wire:model.live="importSetTarget" value="current" class="mt-0.5">
+                                            <span>The set you have open — <strong>{{ $set->name }}</strong></span>
+                                        </label>
+                                        <label class="flex items-start gap-2 text-sm text-gray-700">
+                                            <input type="radio" wire:model.live="importSetTarget" value="new" class="mt-0.5">
+                                            <span>A new set</span>
+                                        </label>
+                                    </div>
+                                @endif
+
+                                @if (! $set || $importSetTarget === 'new')
+                                    <div>
+                                        <label class="text-xs font-semibold text-gray-600">Name the new set <span class="text-danger-500">*</span></label>
+                                        <input type="text" wire:model="importSetName" class="mt-1 w-full text-sm rounded-lg border-gray-300"
+                                               placeholder="e.g. Chiller 1, Grill Station" />
+                                        <x-input-error :messages="$errors->get('importSetName')" class="mt-1" />
+                                    </div>
+                                @endif
+
+                                <p class="help">
+                                    Items, order, quantities and label settings all come across.
+                                    Anything already in the target set is left alone, so importing
+                                    twice is safe.
+                                </p>
+                            @endif
+
+                            <div class="flex justify-end gap-2 pt-1">
+                                <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                                @if ($outlets->count() >= 2)
+                                    <button type="submit" class="btn-primary"
+                                            wire:loading.attr="disabled" wire:target="importSet">
+                                        <span wire:loading.remove wire:target="importSet">Import</span>
+                                        <span wire:loading wire:target="importSet">Importing…</span>
                                     </button>
                                 @endif
                             </div>

@@ -66,6 +66,25 @@ class Sets extends Component
     /** 'new' or 'current' — only offered when a set is open. */
     public string $importTarget = 'new';
 
+    /*
+     * Importing another outlet's set.
+     *
+     * The outlets of one company mostly prep the same food, so a new branch's
+     * "Chiller 1" is usually an existing branch's "Chiller 1" retyped — and
+     * retyping is where items go missing. Same argument as the form import,
+     * one outlet further along.
+     */
+    public bool $showSetImport = false;
+
+    public ?int $importOutletId = null;
+
+    public ?int $importSetId = null;
+
+    public string $importSetName = '';
+
+    /** 'new' or 'current' — only offered when a set is open. */
+    public string $importSetTarget = 'new';
+
     public bool $showStorage = true;
 
     /** Empty means "work it out from the items in the set". */
@@ -278,6 +297,76 @@ class Sets extends Component
         return implode('. ', $parts) . '.';
     }
 
+    // ── Import from another outlet ────────────────────────────────────────
+
+    public function openSetImport(): void
+    {
+        $this->importOutletId  = null;
+        $this->importSetId     = null;
+        $this->importSetName   = '';
+        $this->importSetTarget = $this->editingSetId ? 'current' : 'new';
+        $this->resetValidation();
+        $this->showSetImport = true;
+    }
+
+    public function closeSetImport(): void
+    {
+        $this->showSetImport = false;
+    }
+
+    /** A different outlet means a different list of sets to choose from. */
+    public function updatedImportOutletId(): void
+    {
+        $this->importSetId   = null;
+        $this->importSetName = '';
+    }
+
+    /** Name the copy after the set unless the person has typed their own. */
+    public function updatedImportSetId($value): void
+    {
+        $set = $value ? LabelSet::find($value) : null;
+
+        if ($set && trim($this->importSetName) === '') {
+            $this->importSetName = $set->name;
+        }
+    }
+
+    public function importSet(\App\Services\Labels\LabelSetImport $import): void
+    {
+        $this->validate(
+            [
+                'importOutletId' => ['required', 'integer', $this->outletExistsRule()],
+                'importSetId'    => 'required|integer',
+                'importSetName'  => 'required_if:importSetTarget,new|nullable|string|max:100',
+                'outletId'       => ['required', 'integer', $this->outletExistsRule()],
+            ],
+            [
+                'importOutletId.required' => 'Choose an outlet to import from.',
+                'importSetId.required'    => 'Choose a set to import.',
+            ]
+        );
+
+        // Scoped find: CompanyScope keeps this inside the company, and the
+        // outlet match keeps a crafted set id from reaching across outlets
+        // the dropdown never offered.
+        $source = LabelSet::forOutlet((int) $this->importOutletId)->findOrFail($this->importSetId);
+
+        if ($this->importSetTarget === 'current' && $this->editingSet()) {
+            $target = $this->editingSet();
+            [$added, $skipped, $missing] = $import->mergeLines($source, $target);
+        } else {
+            [$target, $added, $missing] = $import->copyToOutlet(
+                $source, (int) $this->outletId, $this->importSetName, Auth::id()
+            );
+            $skipped = 0;
+        }
+
+        $this->editingSetId  = $target->id;
+        $this->showSetImport = false;
+
+        session()->flash('success', $import->summary($source, $target, $added, $skipped, $missing));
+    }
+
     public function deleteSet(int $id): void
     {
         LabelSet::findOrFail($id)->delete();
@@ -431,6 +520,11 @@ class Sets extends Component
             // panels over already finds, so requiring purchasing admin to build
             // a print set would gate nothing and block a chef.
             'formTemplates' => FormTemplate::active()->ordered()->withCount('lines')->get(),
+            // Sets of whichever outlet the import modal has picked. Company
+            // scope applies; the empty state belongs to the modal.
+            'importSets' => $this->importOutletId
+                ? LabelSet::forOutlet((int) $this->importOutletId)->ordered()->withCount('lines')->get()
+                : collect(),
             'states'     => ShelfLifeRule::STORAGE_STATES,
             // This company's ranges, so the picker shows what will actually
             // print rather than the built-in defaults.
