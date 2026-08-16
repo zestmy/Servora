@@ -130,6 +130,23 @@ jobs:
           npm run test:overflow 2>&1 | tee /tmp/check.log
           status=${PIPESTATUS[0]}
           set -e
+          # THE EXCEPTIONS THEMSELVES, on every run — not only failures. A
+          # 5xx during the sweep is a warning, not a failure (it is not a
+          # width problem), so a passing run can still contain one, and its
+          # trace in laravel.log is the only evidence. A /dashboard 500 that
+          # only ever occurred in CI went undiagnosable because nothing
+          # printed it. Collapsed groups, so the check's own verdict stays
+          # the first thing anyone reads.
+          if grep -q "ERROR" storage/logs/laravel.log 2>/dev/null; then
+            echo "::group::laravel.log exceptions"
+            grep -A 20 "ERROR" storage/logs/laravel.log | tail -200
+            echo "::endgroup::"
+          fi
+          if grep -qE " 5[0-9][0-9] " /tmp/serve.log 2>/dev/null; then
+            echo "::group::serve log 5xx lines"
+            grep -E " 5[0-9][0-9] " /tmp/serve.log | tail -20
+            echo "::endgroup::"
+          fi
           if [ "$status" -ne 0 ]; then
             # LAST 40 LINES, and the check's own output repeated AFTER it.
             # `artisan serve` logs every request, so dumping the whole thing
@@ -138,22 +155,6 @@ jobs:
             echo "::group::server log (tail)"
             tail -40 /tmp/serve.log
             echo "::endgroup::"
-            # THE EXCEPTIONS THEMSELVES. A 5xx during the sweep lands in
-            # laravel.log with its full trace, but a 500 that happened three
-            # minutes into the run is nowhere near the serve log's tail — a
-            # /dashboard 500 that only ever occurred in CI went undiagnosable
-            # for exactly that reason. Collapsed groups, so the check's own
-            # verdict below stays the first thing anyone reads.
-            if grep -q "ERROR" storage/logs/laravel.log 2>/dev/null; then
-              echo "::group::laravel.log exceptions"
-              grep -A 20 "ERROR" storage/logs/laravel.log | tail -200
-              echo "::endgroup::"
-            fi
-            if grep -qE " 5[0-9][0-9] " /tmp/serve.log 2>/dev/null; then
-              echo "::group::serve log 5xx lines"
-              grep -E " 5[0-9][0-9] " /tmp/serve.log | tail -20
-              echo "::endgroup::"
-            fi
             echo "──────── overflow check said ────────"
             tail -60 /tmp/check.log
             exit "$status"
