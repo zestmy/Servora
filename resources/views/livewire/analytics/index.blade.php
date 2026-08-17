@@ -111,7 +111,7 @@
                     <span wire:loading wire:target="runAnalysis">Analyzing...</span>
                 </button>
 
-                <p class="text-xs text-gray-600 text-center">AI will analyze your operational data for {{ $periodLabel }} and provide actionable insights.</p>
+                <p class="text-xs text-gray-600 text-center">AI will read your sales and cost data for {{ $periodLabel }} and write a plain-English report with clear next steps.</p>
             </div>
 
             {{-- Right: Response --}}
@@ -232,7 +232,7 @@
                                                 <div class="bg-success-50 rounded-xl border border-success-100 p-4">
                                                     <div class="flex items-center gap-2 text-success-700 font-semibold text-sm mb-3">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                        Highlights
+                                                        What Went Well
                                                     </div>
                                                     <ul class="space-y-2">
                                                         @foreach ($outletInsights['highlights'] as $highlight)
@@ -249,7 +249,7 @@
                                                 <div class="bg-danger-50 rounded-xl border border-danger-100 p-4">
                                                     <div class="flex items-center gap-2 text-danger-700 font-semibold text-sm mb-3">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                                                        Areas of Attention
+                                                        What Needs Attention
                                                     </div>
                                                     <ul class="space-y-2">
                                                         @foreach ($outletInsights['concerns'] as $concern)
@@ -268,7 +268,7 @@
                                             <div class="card p-4">
                                                 <div class="flex items-center gap-2 text-brand-700 font-semibold text-sm mb-4">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                                    Recommendations
+                                                    What To Do Next
                                                 </div>
                                                 <div class="space-y-3">
                                                     @foreach ($outletInsights['recommendations'] as $rec)
@@ -304,7 +304,7 @@
                                             <div class="card p-6">
                                                 <div class="flex items-center gap-2 text-gray-700 font-semibold text-sm mb-4">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                    Detailed Analysis
+                                                    Full Report
                                                 </div>
                                                 <div class="prose prose-sm max-w-none prose-headings:text-gray-800 prose-p:text-gray-600">
                                                     {!! Str::markdown($outletInsights['detailed_analysis']) !!}
@@ -451,7 +451,7 @@
                                         <div class="bg-success-50 rounded-xl border border-success-100 p-4">
                                             <div class="flex items-center gap-2 text-success-700 font-semibold text-sm mb-3">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                Highlights
+                                                What Went Well
                                             </div>
                                             <ul class="space-y-2">
                                                 @foreach ($insights['highlights'] as $highlight)
@@ -468,7 +468,7 @@
                                         <div class="bg-danger-50 rounded-xl border border-danger-100 p-4">
                                             <div class="flex items-center gap-2 text-danger-700 font-semibold text-sm mb-3">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                                                Areas of Attention
+                                                What Needs Attention
                                             </div>
                                             <ul class="space-y-2">
                                                 @foreach ($insights['concerns'] as $concern)
@@ -487,7 +487,7 @@
                                     <div class="card p-4">
                                         <div class="flex items-center gap-2 text-brand-700 font-semibold text-sm mb-4">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                                            Recommendations
+                                            What To Do Next
                                         </div>
                                         <div class="space-y-3">
                                             @foreach ($insights['recommendations'] as $rec)
@@ -523,7 +523,7 @@
                                     <div class="card p-6">
                                         <div class="flex items-center gap-2 text-gray-700 font-semibold text-sm mb-4">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                            Detailed Analysis
+                                            Full Report
                                         </div>
                                         <div class="prose prose-sm max-w-none prose-headings:text-gray-800 prose-p:text-gray-600">
                                             {!! Str::markdown($insights['detailed_analysis']) !!}
@@ -552,7 +552,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-brand-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             </div>
                             <h3 class="text-sm font-semibold text-gray-700 mb-1">Ready to Analyze</h3>
-                            <p class="text-xs text-gray-600 max-w-sm">Select an analysis type and click "Run AI Analysis" to generate insights from your operational data.</p>
+                            <p class="text-xs text-gray-600 max-w-sm">Pick a report type and click "Run AI Analysis" to get a plain-English report on your sales and costs.</p>
                         </div>
                     @endif
                 </div>

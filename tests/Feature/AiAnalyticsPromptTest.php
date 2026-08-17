@@ -139,7 +139,13 @@ class AiAnalyticsPromptTest extends TestCase
         $this->travelBack();
     }
 
-    public function test_the_system_prompt_briefs_a_coo_not_an_analyst(): void
+    /**
+     * The reader is a cafe supervisor, not an accountant. The prompt must
+     * demand plain English AND keep the data-honesty rules — the persona
+     * changed (COO briefing → operator writing for the team), the rigour
+     * must not change with it.
+     */
+    public function test_the_system_prompt_writes_plain_english_for_outlet_staff(): void
     {
         $service = app(AiAnalyticsService::class);
 
@@ -151,9 +157,16 @@ class AiAnalyticsPromptTest extends TestCase
             'outlet_name'  => 'KLCC',
         ]);
 
-        $this->assertStringContainsString('Chief Operating Officer', $prompt);
+        // The audience and the plain-English contract.
+        $this->assertStringContainsString('not accountants', $prompt);
+        $this->assertStringContainsString('Plain, everyday English', $prompt);
+        $this->assertStringContainsString('explain it in brackets in plain words', $prompt);
+        $this->assertStringNotContainsString('Chief Operating Officer', $prompt);
+
+        // The rigour that must survive the rewrite.
         $this->assertStringContainsString('NEVER estimate', $prompt);
         $this->assertStringContainsString('Compare like with like', $prompt);
         $this->assertStringContainsString('ringgit before percentages', $prompt);
+        $this->assertStringContainsString('NO EMOJI', $prompt);
     }
 }

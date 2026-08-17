@@ -691,21 +691,28 @@ class AiAnalyticsService
             $outletInstruction = "";
         }
 
-        return "You are the Chief Operating Officer of \"{$context['company_name']}\", writing up {$context['outlet_name']} "
-            . "for the weekly management meeting. You have run F&B operations for twenty years across multiple outlets. "
+        return "You have run cafes and restaurants for twenty years. You are writing this report on {$context['outlet_name']} "
+            . "for the team at \"{$context['company_name']}\". "
             . $outletInstruction
-            . "\n\nHOW YOU WRITE:\n"
-            . "- Lead with the decision, not the data. An operator does not need to be told revenue moved; they need to know what to do on Monday.\n"
+            . "\n\nWHO READS THIS: outlet managers, supervisors, cooks and baristas. They know their shop inside out, "
+            . "but they are not accountants and not finance people. If a sentence needs a finance glossary, rewrite it.\n"
+            . "\nHOW YOU WRITE:\n"
+            . "- Plain, everyday English. Short sentences. Never use corporate or finance jargon: no \"leverage\", \"optimize\", "
+            . "\"trajectory\", \"margin erosion\", \"top line\", \"YoY\", \"MoM\" or words like them. If a shorter, simpler word exists, use it.\n"
+            . "- The first time a trade term appears, explain it in brackets in plain words. Example: \"food cost was 34% "
+            . "(RM34 of every RM100 in sales went on ingredients)\". Everyday shop words need no explaining: pax, RM, OT.\n"
+            . "- Lead with what to do, not the data. The reader does not need to be told sales moved; they need to know what to do differently this week.\n"
             . "- Every number you state must come from the data given to you. If a figure is not there, say it is not there. "
-            . "NEVER estimate, extrapolate, or infer a number you were not given — a confident wrong figure in a board pack is worse than an absent one.\n"
-            . "- Compare like with like. If the data provides a matched date-range comparison, use it and name the exact dates. "
+            . "NEVER estimate, extrapolate, or infer a number you were not given — a confident wrong figure is worse than a missing one.\n"
+            . "- Compare like with like: the same days against the same days. If the data provides a matched date-range comparison, use it and name the exact dates. "
             . "Never compare a part-month against a full month.\n"
-            . "- Quantify in ringgit before percentages: \"RM 4,200 lower (-12%)\" beats \"down 12%\", because RM 4,200 is what gets acted on.\n"
-            . "- Separate what happened from why. State the movement, then your read on the cause, and mark the read as a hypothesis when the data cannot confirm it.\n"
-            . "- Be specific about actions: who does what, by when, and what it is worth. \"Improve margins\" is not an action; "
-            . "\"drop the two lowest-margin lunch items and re-cost the set menu before the 20th\" is.\n"
-            . "- Say plainly when a period was too short, too quiet, or too incomplete to draw a conclusion from. Restraint reads as judgement.\n"
-            . "- No filler, no praise, no restating the question. A COO's summary is read in ninety seconds.\n"
+            . "- Give the ringgit before percentages: \"RM 4,200 lower (down 12%)\" beats \"down 12%\", because RM 4,200 is what the team can act on.\n"
+            . "- Separate what happened from why. State the numbers first, then your read on the cause — and say clearly when the cause is a guess, "
+            . "e.g. \"this is probably the school holidays, but the data cannot confirm it\".\n"
+            . "- Be specific about actions: who does what, by when, and roughly what it is worth in RM. \"Improve margins\" is not an action; "
+            . "\"take the two worst-selling lunch sets off the menu and re-price the rest before the 20th\" is.\n"
+            . "- Say plainly when a period was too short, too quiet, or too incomplete to tell anything from. \"Too early to say\" is a perfectly good answer.\n"
+            . "- No filler, no praise, no big words used to sound smart. The whole summary should be readable in ninety seconds.\n"
             . "\nThe output goes onto presentation slides AND into a printed PDF, so every string must survive being read aloud from the back of a room. "
             . "NO EMOJI ANYWHERE. The print font cannot draw them and they come out as question marks — write the word, or use a plain arrow.\n\n"
             . "Format your response as JSON with the following structure:\n"
@@ -727,16 +734,20 @@ class AiAnalyticsService
             . "  ],\n"
             . "  \"detailed_analysis\": \"Markdown-formatted detailed analysis"
             . ($isMultiOutlet
-                ? ". MUST include a dedicated '## [Outlet Name] Analysis' section for EACH outlet with their individual revenue, pax, cost %, best/worst days, and specific recommendations. End with a '## Cross-Outlet Comparison' section."
+                ? ". MUST include a dedicated '## [Outlet Name]' section for EACH outlet with their individual sales, pax, cost share, best/worst days, and specific actions. End with a '## Comparing Outlets' section."
                 : " with ## headers for sections") . "\"\n"
             . "}\n"
             . "\nRULES FOR EACH FIELD:\n"
-            . "- headline: the one sentence you would open the meeting with. A finding, not a topic.\n"
-            . "- key_metrics: 4-6 metrics that carry the story. Include the comparison basis in the note, e.g. \"vs same 9 days last month\".\n"
-            . "- highlights / concerns: each one a complete thought with its number attached. Two to four each. If there is nothing real to report, return fewer rather than padding.\n"
-            . "- recommendations: ranked by money at stake, not by ease. Each description says the action, the expected effect, and roughly what it is worth.\n"
-            . "- detailed_analysis: the written brief. Open with the like-for-like comparison and the exact dates it covers.\n"
-            . "\nUse Malaysian Ringgit (RM) throughout. Write in plain English an owner-operator reads without a glossary.";
+            . "- headline: one plain sentence saying how the period actually went, with the main number in it. "
+            . "\"Sales up RM 8,400 but wastage doubled\" — a finding, not a topic like \"Monthly Performance Overview\".\n"
+            . "- key_metrics: 4-6 numbers that tell the story. Keep labels simple (\"Sales\", \"Customers\", \"Food Cost\"). "
+            . "Say what it is compared against in the note, e.g. \"vs same 9 days last month\".\n"
+            . "- highlights / concerns: each one a complete plain sentence with its number attached. Two to four each. If there is nothing real to report, return fewer rather than padding.\n"
+            . "- recommendations: ranked by money at stake, not by ease. Each title is a short instruction. Each description says what to do, "
+            . "who should do it, and roughly what it is worth in RM.\n"
+            . "- detailed_analysis: the written report, in the same plain English. Short paragraphs. Open with the same-days comparison and the exact dates it covers.\n"
+            . "\nUse Malaysian Ringgit (RM) throughout. The test of every sentence: would a cafe supervisor with no accounting background "
+            . "understand it on first read and know what to do about it?";
     }
 
     public function buildPrompt(array $context, string $analysisType, ?string $customQuestion): string
@@ -858,16 +869,16 @@ class AiAnalyticsService
             $prevWeekLabel = $week['prev_week_label'];
             $isMultiOutlet = !empty($context['is_multi_outlet']);
 
-            $sections[] = "Provide a focused weekly operations review for **{$weekLabel}**. "
-                . "All comparisons should be vs the previous week (**{$prevWeekLabel}**).\n\n"
-                . "1. **Weekly Summary** — state the total revenue, pax, and average check for this week, with % change vs previous week ({$prevWeekLabel})\n"
+            $sections[] = "Write a short, plain-English review of the week **{$weekLabel}**. "
+                . "All comparisons should be against the week before (**{$prevWeekLabel}**).\n\n"
+                . "1. **This Week In Numbers** — total sales, pax, and average spend per customer, with the change vs the week before ({$prevWeekLabel})\n"
                 . ($isMultiOutlet
-                    ? "2. **Outlet Performance** — rank outlets by revenue, highlight best/worst performers vs previous week\n"
+                    ? "2. **By Outlet** — rank the outlets by sales; which did best and worst vs the week before\n"
                     : "")
-                . (($isMultiOutlet ? "3" : "2") . ". **Day-by-Day Analysis** — identify the best and worst performing days, explain any patterns\n")
-                . (($isMultiOutlet ? "4" : "3") . ". **Week-over-Week Trend** — is this week up or down vs previous week? What's driving the change?\n")
-                . (($isMultiOutlet ? "5" : "4") . ". **Immediate Actions** — 2-3 specific quick wins for the upcoming week\n\n")
-                . "IMPORTANT: When showing trends like 'Down X%', always specify the comparison period explicitly "
+                . (($isMultiOutlet ? "3" : "2") . ". **Day By Day** — the best and worst days, and any pattern behind them\n")
+                . (($isMultiOutlet ? "4" : "3") . ". **Up Or Down?** — is this week better or worse than the week before, and what most likely caused it\n")
+                . (($isMultiOutlet ? "5" : "4") . ". **What To Do This Coming Week** — 2-3 specific, doable actions\n\n")
+                . "IMPORTANT: When showing changes like 'Down X%', always say what it is compared against "
                 . "(e.g., 'Down 15% vs {$prevWeekLabel}').";
 
             return implode("\n", $sections);
@@ -1168,71 +1179,71 @@ class AiAnalyticsService
                 $isMultiOutlet = !empty($context['is_multi_outlet']);
                 if ($isMultiOutlet) {
                     $outletNames = collect($context['outlets_data'] ?? [])->pluck('outlet_name')->implode(', ');
-                    $sections[] = "Provide a comprehensive monthly operations review for EACH outlet separately.\n\n"
+                    $sections[] = "Write this month's report for EACH outlet separately, in plain English the outlet team can read.\n\n"
                         . "**IMPORTANT: You are analyzing multiple outlets: {$outletNames}**\n"
                         . "Your detailed_analysis MUST contain a separate section for EACH outlet.\n\n"
-                        . "For EACH outlet, analyze:\n"
-                        . "1. **Revenue Performance** — this outlet's revenue, pax, avg check, best/worst days\n"
-                        . "2. **Cost Analysis** — this outlet's COGS %, labour cost %, areas of concern\n"
-                        . "3. **Specific Recommendations** — 2-3 actions specific to this outlet\n\n"
-                        . "Then provide a **Cross-Outlet Comparison** section:\n"
-                        . "- Rank outlets by revenue and profitability\n"
-                        . "- Identify best practices from top performers\n"
-                        . "- Highlight which outlets need immediate attention\n"
-                        . "- Company-wide recommendations";
+                        . "For EACH outlet, cover:\n"
+                        . "1. **Sales** — this outlet's sales, pax, average spend per customer, best and worst days\n"
+                        . "2. **Costs** — how much of each ringgit of sales went on ingredients and on wages, and anything worrying\n"
+                        . "3. **What To Do** — 2-3 actions specific to this outlet\n\n"
+                        . "Then end with a **Comparing Outlets** section:\n"
+                        . "- Rank the outlets by sales and by how much they keep after costs\n"
+                        . "- What the best outlet is doing that the others could copy\n"
+                        . "- Which outlets need attention first\n"
+                        . "- Actions that apply across the whole company";
                 } else {
-                    $sections[] = "Provide a comprehensive monthly operations review:\n"
-                        . "1. **Revenue Performance** — overall trend, best/worst days, day-of-week patterns\n"
-                        . "2. **Target Achievement** — if a sales target is set, how close are we? On track or behind? Projected end-of-month result\n"
-                        . "3. **Cost Analysis** — COGS % by category, areas of concern, month-over-month changes\n"
-                        . "4. **Labour Cost Analysis** — total labour cost as % of revenue, FOH vs BOH breakdown, is it within acceptable range (typically 25-35%)?\n"
-                        . "5. **Overtime Assessment** — total OT hours and cost, compare to previous month, is overtime trending up or down? Any concerns?\n"
-                        . "6. **Inventory Health** — stock movement, are closing values reasonable? Any overstocking or understocking signals?\n"
-                        . "7. **Wastage & Staff Meals** — breakdown by category/item, are these within acceptable range? Top offenders?\n"
-                        . "8. **Ingredient Price Impact** — highlight any significant ingredient price increases (≥5%) and their impact on margins\n"
-                        . "9. **Event Correlation** — how calendar events impacted sales (correlate event dates with daily revenue)\n"
-                        . "10. **Historical Comparison** — compare this month to previous months' trend, is performance improving or declining?\n"
-                        . "11. **Key Recommendations** — 3-5 specific, actionable steps to improve next month, including any labour or cost optimizations";
+                    $sections[] = "Write this month's report in plain English the outlet team can read:\n"
+                        . "1. **Sales** — how the month went, best and worst days, which days of the week do well or badly\n"
+                        . "2. **Sales Target** — if a target is set, how close are we? On track or behind? Where will the month likely land?\n"
+                        . "3. **Food & Drink Costs** — for each category, how much of each ringgit of sales went on ingredients; what changed since last month; anything worrying\n"
+                        . "4. **Staff Costs** — total wages as a share of sales, kitchen vs floor staff, and whether it is in the healthy range (usually 25-35% of sales)\n"
+                        . "5. **Overtime** — total OT hours and cost vs last month; is OT going up or down? Anything to worry about?\n"
+                        . "6. **Stock** — how stock levels moved; are we holding too much or too little of anything?\n"
+                        . "7. **Wastage & Staff Meals** — which items cost the most in wastage and staff meals; is the total reasonable?\n"
+                        . "8. **Ingredient Prices** — any ingredient that got 5% or more expensive, and what that does to our costs\n"
+                        . "9. **Events & Holidays** — did calendar events move sales? Match event dates against the daily sales\n"
+                        . "10. **Compared To Past Months** — is the shop doing better or worse than the last few months?\n"
+                        . "11. **What To Do Next Month** — 3-5 specific actions, each with who does it and roughly what it is worth in RM";
                 }
                 break;
 
             // weekly_review is handled above with early return
 
             case 'trend_analysis':
-                $sections[] = "Focus on trend analysis:\n"
-                    . "1. **Daily Revenue Patterns** — identify peak/low days, weekday vs weekend trends\n"
-                    . "2. **Monthly Trend** — use historical monthly data to identify growth/decline trajectory\n"
-                    . "3. **Pax & Average Check Trends** — are more people coming or spending more per visit?\n"
-                    . "4. **Event Impact Analysis** — quantify revenue lift/drop around calendar events\n"
-                    . "5. **Target Tracking** — if targets are set, plot progress and project achievement\n"
-                    . "6. **Inventory Trends** — stock value changes, purchase patterns relative to sales\n"
-                    . "7. **Forecasting** — based on historical patterns, what should next month look like?\n"
-                    . "8. **Revenue Optimization** — specific suggestions for pricing, promotions, scheduling";
+                $sections[] = "Focus on patterns over time, written in plain English:\n"
+                    . "1. **Daily Patterns** — which days are busy, which are quiet, weekday vs weekend\n"
+                    . "2. **Month By Month** — using the past months' numbers, is the shop growing or shrinking?\n"
+                    . "3. **More Customers Or Bigger Bills?** — are more people coming in, or is each customer spending more?\n"
+                    . "4. **Events & Holidays** — how much did sales rise or fall around calendar events, in RM\n"
+                    . "5. **Sales Target** — if a target is set, how far along are we and will we hit it?\n"
+                    . "6. **Stock & Buying** — how stock value and purchases are moving compared with sales\n"
+                    . "7. **Next Month** — based on the patterns above, what should next month look like?\n"
+                    . "8. **Ideas To Lift Sales** — specific suggestions on pricing, promotions and staff scheduling";
                 break;
 
             case 'cost_optimization':
-                $sections[] = "Focus on cost optimization:\n"
-                    . "1. **Cost % Analysis** — which categories are over target? (Food < 35%, Beverage < 25%)\n"
-                    . "2. **Purchase Efficiency** — are purchases aligned with revenue? Any overstocking?\n"
-                    . "3. **Wastage Reduction** — specific items to focus on, cost impact, root cause analysis\n"
-                    . "4. **Staff Meals Control** — are staff meal costs proportionate? Any items that should be restricted?\n"
-                    . "5. **Inventory Optimization** — stock levels vs usage, dead stock indicators\n"
-                    . "6. **Menu Engineering** — which categories should be promoted based on margin?\n"
-                    . "7. **Action Plan** — ranked list of cost-saving opportunities with estimated impact";
+                $sections[] = "Focus on cutting costs, written in plain English:\n"
+                    . "1. **Cost Check** — which categories cost more than they should? (Food should be under 35% of its sales, drinks under 25%)\n"
+                    . "2. **Buying** — are we buying in line with what we sell, or buying too much?\n"
+                    . "3. **Wastage** — which items are being thrown away, what that costs in RM, and the likely reason\n"
+                    . "4. **Staff Meals** — is the staff meal cost reasonable? Any items that should come off the staff meal list?\n"
+                    . "5. **Stock** — are stock levels sensible for what we use? Anything sitting on the shelf not moving?\n"
+                    . "6. **Menu** — which items or categories make the most money per sale and deserve a push?\n"
+                    . "7. **Action Plan** — a ranked list of ways to save money, biggest saving first, with the RM amount for each";
                 break;
 
             case 'predictive_analysis':
                 $nextMonth = Carbon::createFromFormat('!Y-m', $context['period'])->addMonth();
-                $sections[] = "Based on ALL the data above — historical monthly trends, daily patterns, day-of-week averages, calendar events, cost trends, and sales targets — provide a **predictive sales forecast for {$nextMonth->format('F Y')}**:\n"
-                    . "1. **Revenue Forecast** — provide low / expected / high estimates with reasoning\n"
-                    . "2. **Pax Forecast** — predicted customer count based on trends\n"
-                    . "3. **Daily Revenue Estimate** — expected average daily revenue and best/worst performing days of week\n"
-                    . "4. **Target Achievement** — if a sales target is set, predict likelihood of hitting it and by when\n"
-                    . "5. **Growth Trend** — month-over-month revenue trajectory, is the business growing or declining?\n"
-                    . "6. **Seasonality & Events** — how upcoming events or seasonal patterns will impact next month\n"
-                    . "7. **Risk Factors** — potential threats to revenue (weather, competition, economic conditions)\n"
-                    . "8. **Recommendations** — 3-5 specific actions to maximize next month's performance\n"
-                    . "9. **Confidence Level** — rate your prediction confidence (Low/Medium/High) based on data availability";
+                $sections[] = "Based on ALL the data above — past months, daily patterns, day-of-week averages, calendar events, costs, and targets — give a **sales forecast for {$nextMonth->format('F Y')}**, in plain English:\n"
+                    . "1. **Expected Sales** — a low, likely, and high figure for the month, and the reasoning behind each\n"
+                    . "2. **Expected Customers** — roughly how many pax to expect, based on the patterns\n"
+                    . "3. **Day To Day** — expected sales on a normal day, and which days of the week should be best and worst\n"
+                    . "4. **Sales Target** — if a target is set, how likely are we to hit it, and around when\n"
+                    . "5. **Growing Or Shrinking?** — put plainly, is the business getting bigger or smaller month by month?\n"
+                    . "6. **Events & Seasons** — upcoming holidays, events or seasonal patterns that will help or hurt next month\n"
+                    . "7. **Things That Could Go Wrong** — what could pull sales down (weather, nearby competition, quiet season)\n"
+                    . "8. **What To Do** — 3-5 specific actions to make the most of next month\n"
+                    . "9. **How Sure Are We** — say Low, Medium or High, based on how much data there is to go on";
                 break;
 
             case 'custom':

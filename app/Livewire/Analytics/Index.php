@@ -237,7 +237,7 @@ class Index extends Component
 
         // Key Metrics
         if (!empty($insights['key_metrics'])) {
-            $html .= "<h3>Key Metrics</h3>";
+            $html .= "<h3>Key Numbers</h3>";
             $html .= "<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 15px;\">";
             $html .= "<tr style=\"background: #f5f5f5;\">";
             foreach ($insights['key_metrics'] as $metric) {
@@ -276,7 +276,7 @@ class Index extends Component
 
         // Highlights
         if (!empty($insights['highlights'])) {
-            $html .= "<h3 style=\"color: #16a34a;\">✓ Highlights</h3><ul>";
+            $html .= "<h3 style=\"color: #16a34a;\">✓ What Went Well</h3><ul>";
             foreach ($insights['highlights'] as $highlight) {
                 $html .= "<li>{$highlight}</li>";
             }
@@ -285,7 +285,7 @@ class Index extends Component
 
         // Concerns
         if (!empty($insights['concerns'])) {
-            $html .= "<h3 style=\"color: #dc2626;\">⚠ Areas of Attention</h3><ul>";
+            $html .= "<h3 style=\"color: #dc2626;\">⚠ What Needs Attention</h3><ul>";
             foreach ($insights['concerns'] as $concern) {
                 $html .= "<li>{$concern}</li>";
             }
@@ -294,7 +294,7 @@ class Index extends Component
 
         // Recommendations
         if (!empty($insights['recommendations'])) {
-            $html .= "<h3 style=\"color: #4f46e5;\">💡 Recommendations</h3>";
+            $html .= "<h3 style=\"color: #4f46e5;\">💡 What To Do Next</h3>";
             foreach ($insights['recommendations'] as $rec) {
                 $isArray = is_array($rec);
                 $title = $isArray ? ($rec['title'] ?? '') : $rec;
@@ -315,7 +315,7 @@ class Index extends Component
         // Detailed Analysis
         if (!empty($insights['detailed_analysis'])) {
             $html .= "<hr style=\"border: none; border-top: 1px solid #ddd; margin: 20px 0;\">";
-            $html .= "<h3>Detailed Analysis</h3>";
+            $html .= "<h3>Full Report</h3>";
             $html .= Str::markdown($insights['detailed_analysis']);
         }
 

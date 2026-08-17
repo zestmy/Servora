@@ -47,7 +47,7 @@
     @endif
     @if(!empty($insights['highlights']))
         <div style="margin-bottom: 12px;">
-            <strong style="color: #047857; font-size: 12px;">HIGHLIGHTS</strong>
+            <strong style="color: #047857; font-size: 12px;">WHAT WENT WELL</strong>
             <ul class="insights-list">
                 @foreach($insights['highlights'] as $highlight)
                     <li>{{ $highlight }}</li>
@@ -57,7 +57,7 @@
     @endif
     @if(!empty($insights['concerns']))
         <div style="margin-bottom: 12px;">
-            <strong style="color: #dc2626; font-size: 12px;">AREAS OF ATTENTION</strong>
+            <strong style="color: #dc2626; font-size: 12px;">WHAT NEEDS ATTENTION</strong>
             <ul class="insights-list">
                 @foreach($insights['concerns'] as $concern)
                     <li>{{ $concern }}</li>
@@ -67,7 +67,7 @@
     @endif
     @if(!empty($insights['recommendations']))
         <div>
-            <strong style="color: #1d4ed8; font-size: 12px;">RECOMMENDATIONS</strong>
+            <strong style="color: #1d4ed8; font-size: 12px;">WHAT TO DO NEXT</strong>
             <ul class="insights-list">
                 @foreach($insights['recommendations'] as $rec)
                     <li>{{ $rec }}</li>
