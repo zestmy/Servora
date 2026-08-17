@@ -169,7 +169,20 @@
                 Not you?
             </button>
 
-            <p class="text-center text-lg font-semibold text-gray-900">{{ $selected->name }}</p>
+            {{-- The face above the name: tapping "AISYAH" and seeing Aisyah is
+                 what stops a PIN being typed against the wrong row on a shared
+                 tablet. The LOGIN photo route, not clock.staff.photo — nobody
+                 has a session yet, so the session-gated route would 403 and
+                 the avatar would silently sit on initials forever. See
+                 LoginPhotoController for the fence. --}}
+            <div class="flex justify-center">
+                <x-staff-avatar :name="$selected->name" :employee="$selected->id"
+                                :photo="$selected->photo_path"
+                                photoRoute="clock.staff.login.photo"
+                                size="h-16 w-16 text-lg" />
+            </div>
+
+            <p class="mt-2 text-center text-lg font-semibold text-gray-900">{{ $selected->name }}</p>
             <p class="mt-0.5 text-center text-sm text-gray-600">Enter your PIN</p>
 
             {{-- Dots rather than digits: a doorway is overlooked. --}}

@@ -54,6 +54,18 @@ $group->group(function () {
     Route::get('/login', ClockLogin::class)->name('clock.staff.login');
 
     /*
+     * The chosen person's face, for the sign-in confirmation step — OUTSIDE
+     * the PIN gate, necessarily: nobody has a session yet on the sign-in
+     * screen. See LoginPhotoController for what this opens and how the fence
+     * is drawn to exactly the people the screen already names. One route for
+     * both staff apps: the login screen is shared and the subdomain is the
+     * same, so the labels app resolves this name too.
+     */
+    Route::get('/login/photo/{employee}', [\App\Http\Controllers\Staff\LoginPhotoController::class, 'show'])
+        ->whereNumber('employee')
+        ->name('clock.staff.login.photo');
+
+    /*
      * Joining a live session — OUTSIDE the PIN gate, deliberately.
      *
      * Most of the value of a live round is running one at a shift briefing
