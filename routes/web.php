@@ -291,6 +291,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/sales', SalesIndex::class)->name('sales.index')->middleware('can:sales.view');
     Route::get('/sales/create', SalesForm::class)->name('sales.create')->middleware('can:sales.record');
     Route::get('/sales/import', SalesImport::class)->name('sales.import')->middleware('can:sales.import');
+    Route::get('/sales/pos-sync', \App\Livewire\Sales\PosSync::class)->name('sales.pos-sync')->middleware('can:sales.import');
     Route::get('/sales/{id}/edit', SalesForm::class)->name('sales.edit')->middleware('can:sales.record');
     Route::get('/inventory', InventoryIndex::class)->name('inventory.index')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/create', StockTakeForm::class)->name('inventory.stock-takes.create')->middleware('can:inventory.stock_takes.record');

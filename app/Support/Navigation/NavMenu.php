@@ -204,6 +204,7 @@ final class NavMenu
                 'icon'  => 'chart',
                 'items' => [
                     ['route' => 'sales.index',               'label' => 'Sales Records',    'permission' => 'sales.view'],
+                    ['route' => 'sales.pos-sync',            'label' => 'POS Sync',         'permission' => 'sales.import'],
                     ['route' => 'settings.sales-categories', 'label' => 'Sales Categories', 'permission' => 'sales.record'],
                     ['route' => 'settings.sales-targets',    'label' => 'Sales Targets',    'permission' => 'sales.record'],
                 ],

@@ -91,11 +91,6 @@ class PosSalesBatch extends Model
         return $query->whereIn('status', self::ATTENTION_STATUSES);
     }
 
-    public function needsAttention(): bool
-    {
-        return in_array($this->status, self::ATTENTION_STATUSES, true);
-    }
-
     public function isTerminalSuccess(): bool
     {
         return $this->status === self::STATUS_APPLIED
