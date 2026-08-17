@@ -35,6 +35,12 @@ func (SumatraExecutor) Print(pdfPath, printerName, paper string) error {
 	settings := "noscale"
 	if paper != "" {
 		settings += ",paper=" + paper
+		// Make the form REAL before Sumatra inherits the defaults: some
+		// label drivers normalise a landscape form to portrait and swap
+		// the axes (see devmode_windows.go). Best-effort — on failure the
+		// inherit-the-defaults path still prints, correct on well-behaved
+		// drivers, and `probe` exists to diagnose the rest.
+		_, _ = applyPaperDevMode(printerName, paper)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), printTimeout)

@@ -57,6 +57,22 @@ rotated or shrunk, the paper form is the first thing to check — see
 SmartScreen note: the exe is unsigned in v1. Windows will show
 "Windows protected your PC" — click **More info → Run anyway**.
 
+## Updating an existing install
+
+Pairing survives updates — only the exe changes. In an Administrator
+terminal:
+
+```
+net stop ServoraPrintAgent
+```
+
+replace `servora-print-agent.exe` (and `SumatraPDF.exe` if the zip ships a
+newer one), then:
+
+```
+net start ServoraPrintAgent
+```
+
 ## Commands
 
 | Command | Does |
@@ -65,6 +81,7 @@ SmartScreen note: the exe is unsigned in v1. Windows will show
 | `install` / `uninstall` | Add/remove the Windows service (run as Administrator) |
 | `run` | Foreground run (what the service executes; handy for debugging) |
 | `version` | Print the agent version |
+| `probe "<printer>" "<paper>"` | Show how this PC's driver treats a paper form — which orientation actually yields the form's own size. Changes nothing; the tool for "it prints sideways" |
 
 Logs: `%ProgramData%\Servora\PrintAgent\agent.log` (rotated once at 5 MB).
 Per-job errors also land on the job row in Servora, so support can read them

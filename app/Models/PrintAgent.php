@@ -53,7 +53,7 @@ class PrintAgent extends Model
      * only update mechanism v1 has: the Agents screen nags any agent
      * reporting something older.
      */
-    public const CURRENT_VERSION = '1.0.0';
+    public const CURRENT_VERSION = '1.0.1';
 
     protected $fillable = [
         'company_id', 'outlet_id', 'name', 'token_hash',

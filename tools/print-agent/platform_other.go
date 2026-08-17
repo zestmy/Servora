@@ -64,3 +64,10 @@ func (LPExecutor) Print(pdfPath, printerName, paper string) error {
 
 func newEnumerator() Enumerator { return CupsEnumerator{} }
 func newExecutor() Executor     { return LPExecutor{} }
+
+// probeCommand diagnoses Windows driver paper/orientation behaviour; on
+// CUPS the media option already carries dimensions, so there is nothing to
+// probe.
+func probeCommand(printerName, paperName string) error {
+	return fmt.Errorf("probe is a Windows diagnostic; this build prints via CUPS")
+}

@@ -15,7 +15,7 @@ import (
 
 // Version is reported at pair and poll so the Agents screen can nag about
 // stale installs — the only update mechanism v1 has.
-const Version = "1.0.0"
+const Version = "1.0.1"
 
 const usage = `Servora Print Agent v` + Version + `
 
@@ -28,6 +28,10 @@ Usage:
   servora-print-agent install     install and start the Windows service
   servora-print-agent uninstall   stop and remove the Windows service
   servora-print-agent version     print the version
+
+  servora-print-agent probe "<printer>" "<paper>"
+      diagnose how this PC's driver treats a paper form (prints what each
+      orientation measures; changes nothing)
 `
 
 func main() {
@@ -45,6 +49,15 @@ func main() {
 	case "run", "install", "uninstall", "start", "stop":
 		if err := runService(cmd); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "probe":
+		if len(os.Args) < 4 {
+			fmt.Fprintln(os.Stderr, `usage: servora-print-agent probe "<printer>" "<paper>"`)
+			os.Exit(2)
+		}
+		if err := probeCommand(os.Args[2], os.Args[3]); err != nil {
+			fmt.Fprintln(os.Stderr, "probe:", err)
 			os.Exit(1)
 		}
 	case "version", "--version", "-v":
