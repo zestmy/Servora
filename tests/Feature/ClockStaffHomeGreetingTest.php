@@ -12,10 +12,15 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * The Clock app home screen opens with a greeting — face and first name,
+ * The Clock app home screen opens with a greeting — face and FULL name,
  * before anything transactional. The avatar is the shared staff-avatar:
  * photo over initials from the PIN-session photo route, degrading to the
  * coloured disc when there is no photo on file.
+ *
+ * The full name is load-bearing, not a style choice: this shipped cutting
+ * at the first space and greeted MOHD AFFANDY BIN ZULKARNAIN as "MOHD" —
+ * names here are not reliably given-name-first, so picking the "first
+ * name" out of one is guessing.
  */
 class ClockStaffHomeGreetingTest extends TestCase
 {
@@ -41,7 +46,9 @@ class ClockStaffHomeGreetingTest extends TestCase
         $this->employee = Employee::create([
             'company_id' => $company->id,
             'outlet_id'  => $outlet->id,
-            'name'       => 'Aisyah Rahman',
+            // A Malay-pattern name, because the bug this pins was cutting
+            // "MOHD AFFANDY BIN ZULKARNAIN" down to "MOHD".
+            'name'       => 'Mohd Affandy Bin Zulkarnain',
             'email'      => 'aisyah' . uniqid() . '@example.test',
             'is_active'  => true,
         ]);
@@ -51,15 +58,14 @@ class ClockStaffHomeGreetingTest extends TestCase
         app(\App\Services\Staff\StaffSession::class)->signIn($this->employee, 'email');
     }
 
-    public function test_the_greeting_carries_the_photo_and_the_first_name(): void
+    public function test_the_greeting_carries_the_photo_and_the_full_name(): void
     {
-        $this->employee->update(['photo_path' => 'hr/photos/aisyah.jpg']);
+        $this->employee->update(['photo_path' => 'hr/photos/affandy.jpg']);
 
         $html = Livewire::test(Home::class)
-            // First name only — a greeting that reads like a payroll record
-            // isn't one.
-            ->assertSee('Aisyah')
-            ->assertSeeInOrder(['Good', 'Aisyah'])
+            // The WHOLE name — "Mohd" alone is the bug, not a greeting.
+            ->assertSee('Mohd Affandy Bin Zulkarnain')
+            ->assertSeeInOrder(['Good', 'Mohd Affandy Bin Zulkarnain'])
             ->html();
 
         $this->assertStringContainsString(route('clock.staff.photo', $this->employee->id), $html);
@@ -68,7 +74,7 @@ class ClockStaffHomeGreetingTest extends TestCase
     public function test_no_photo_on_file_still_means_the_initials_disc(): void
     {
         $html = Livewire::test(Home::class)
-            ->assertSee('Aisyah')
+            ->assertSee('Mohd Affandy Bin Zulkarnain')
             ->html();
 
         $this->assertStringNotContainsString(
@@ -76,6 +82,6 @@ class ClockStaffHomeGreetingTest extends TestCase
             $html,
             'No photo on file must mean no img at all — the disc is the avatar.'
         );
-        $this->assertStringContainsString('AR', $html, 'The coloured disc carries the initials.');
+        $this->assertStringContainsString('MA', $html, 'The coloured disc carries the initials.');
     }
 }

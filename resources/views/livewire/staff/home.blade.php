@@ -9,11 +9,16 @@
 <div class="space-y-3">
 
     {{-- ── Greeting ──
-         Face and first name, before anything transactional. The same shared
+         Face and FULL name, before anything transactional. The same shared
          avatar as the account screen and the boards: photo over initials, so
-         no photo on file or a 404 degrades to the coloured disc. First name
-         only — the full name is on the account screen and stamped on every
-         label; a greeting that reads like a payroll record isn't one. --}}
+         no photo on file or a 404 degrades to the coloured disc.
+
+         The full name, not the first word. This shipped cutting at the first
+         space and greeted MOHD AFFANDY BIN ZULKARNAIN as "MOHD" — the exact
+         mistake the employee-avatar's initials note warns about: names here
+         are not reliably given-name-first, and picking the "first name" out
+         of one is guessing. The truncate handles long names; guessing does
+         not. --}}
     @php
         $hour     = now()->hour;
         $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
@@ -24,7 +29,7 @@
         <div class="min-w-0">
             <p class="text-xs text-gray-600">{{ $greeting }}</p>
             <p class="truncate text-lg font-semibold leading-tight text-gray-900">
-                {{ Str::before(trim($employee->name), ' ') }}
+                {{ $employee->name }}
             </p>
         </div>
     </div>
