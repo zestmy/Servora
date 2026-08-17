@@ -31,6 +31,7 @@ class MarketingPagesTest extends TestCase
             'for suppliers' => ['/for-suppliers'],
             'free tools'    => ['/tools'],
             'ea form'       => ['/tools/ea-form-generator'],
+            'downloads'     => ['/download'],
         ];
     }
 
@@ -53,7 +54,7 @@ class MarketingPagesTest extends TestCase
     {
         $response = $this->get('/');
 
-        foreach (['features', 'pricing', 'marketplace', 'for-suppliers', 'referral.program'] as $name) {
+        foreach (['features', 'pricing', 'marketplace', 'for-suppliers', 'referral.program', 'marketing.downloads'] as $name) {
             $response->assertSee(route($name), escape: false);
         }
     }

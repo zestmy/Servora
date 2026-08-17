@@ -111,6 +111,12 @@ Route::get('/marketplace', \App\Livewire\Marketing\Marketplace::class)->name('ma
 Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
+// Companion app installers. Public on purpose: the person at the outlet PC
+// extracting a zip rarely has a login, and nothing works until a manager
+// pairs it from inside Servora. Singular /download because the PLURAL path
+// is the physical public/downloads/ directory the zips are served from —
+// a route there loses to the filesystem on every web server we run.
+Route::get('/download', \App\Livewire\Marketing\Downloads::class)->name('marketing.downloads');
 
 // Free tools. Public on purpose: useful before anything is asked for.
 Route::get('/tools', App\Livewire\Marketing\ToolsIndex::class)->name('tools.index');
@@ -339,6 +345,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // keeps its own middleware. Gating the whole page instead hid a module's
     // settings from the person who administers that module.
     Route::get('/settings', SettingsIndex::class)->name('settings.index');
+    // Ungated like the index: the downloads are public assets, and the person
+    // fetching a zip onto an outlet PC often administers nothing.
+    Route::get('/settings/downloads', \App\Livewire\Settings\Downloads::class)->name('settings.downloads');
     Route::get('/settings/suppliers', SettingsSuppliers::class)->name('settings.suppliers')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/categories', SettingsCategories::class)->name('settings.categories')->middleware('can:ingredients.manage');
     Route::get('/settings/recipe-categories', SettingsRecipeCategories::class)->name('settings.recipe-categories')->middleware('can:recipes.manage');

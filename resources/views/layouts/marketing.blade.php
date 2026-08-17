@@ -166,10 +166,11 @@
                    trying to DO puts four or five in each. */
                 $footerColumns = [
                     'Product' => [
-                        ['route' => 'features',      'label' => 'Features'],
-                        ['route' => 'pricing',       'label' => 'Pricing'],
-                        ['route' => 'marketplace',   'label' => 'Marketplace'],
-                        ['route' => 'for-suppliers', 'label' => 'For Suppliers'],
+                        ['route' => 'features',            'label' => 'Features'],
+                        ['route' => 'pricing',             'label' => 'Pricing'],
+                        ['route' => 'marketplace',         'label' => 'Marketplace'],
+                        ['route' => 'for-suppliers',       'label' => 'For Suppliers'],
+                        ['route' => 'marketing.downloads', 'label' => 'Downloads'],
                     ],
                     'Free tools' => [
                         ['route' => 'tools.recipe-cost', 'label' => 'Recipe Cost Calculator'],
