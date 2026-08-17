@@ -853,7 +853,10 @@ class Employees extends Component
                 ->with(['outlet:id,name', 'section:id,name'])
                 ->inListOrder()
                 ->limit(self::FOOD_HANDLER_NAME_LIMIT)
-                ->get(['id', 'name', 'staff_id', 'outlet_id', 'section_id'])
+                // photo_path included or the chip's avatar can never show a
+                // face — the component quietly falls back to initials when
+                // the attribute simply wasn't selected.
+                ->get(['id', 'name', 'staff_id', 'outlet_id', 'section_id', 'photo_path'])
             : collect();
 
         return view('livewire.hr.employees', compact(
