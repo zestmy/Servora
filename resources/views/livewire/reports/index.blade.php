@@ -417,7 +417,11 @@
                         </div>
                     @endif
 
-                    <p class="mt-4 text-xs text-gray-600">MTD = Month-to-Date. Comparing day 1–{{ $cur['mtd_day'] }} across periods. Stock values excluded in MTD view.</p>
+                    @if ($mode === 'weekly')
+                        <p class="mt-4 text-xs text-gray-600">Comparing full weeks (Mon–Sun) across periods. Stock values excluded in week view.</p>
+                    @else
+                        <p class="mt-4 text-xs text-gray-600">MTD = Month-to-Date. Comparing day 1–{{ $cur['mtd_day'] }} across periods. Stock values excluded in MTD view.</p>
+                    @endif
                 </div>
             @endif
         @endif
