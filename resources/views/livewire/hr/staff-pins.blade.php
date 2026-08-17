@@ -78,7 +78,17 @@
                 <tbody>
                     @forelse ($employees as $employee)
                         <tr class="hover:bg-gray-50" wire:key="emp-{{ $employee->id }}">
-                            <td class="px-4 py-3 font-medium text-gray-700">{{ $employee->name }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    {{-- id/name rather than the model: the component
+                                         reads the model's photo_path as a fallback, and
+                                         a viewer with staff.pins but not hr.view cannot
+                                         fetch the photo route — see canViewPhotos. --}}
+                                    <x-employee-avatar :id="$employee->id" :name="$employee->name"
+                                                       :photo="$canViewPhotos ? $employee->photo_path : null" />
+                                    <span class="font-medium text-gray-700">{{ $employee->name }}</span>
+                                </div>
+                            </td>
                             <td class="px-4 py-3 text-gray-600">{{ $employee->outlet?->name ?? '—' }}</td>
                             <td class="px-4 py-3">
                                 @if (isset($justIssued[$employee->id]))

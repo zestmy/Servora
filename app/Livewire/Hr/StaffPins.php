@@ -118,6 +118,15 @@ class StaffPins extends Component
 
         return view('livewire.hr.staff-pins', [
             'employees' => $employees,
+            /*
+             * This screen is gated on staff.pins; the photo route is gated on
+             * hr.view, and the two do not have to travel together. Passing a
+             * photo the viewer cannot fetch fills the list with 403s wearing
+             * broken-image icons — so the face only renders when the viewer
+             * could open it, and everyone else sees the initials they always
+             * did.
+             */
+            'canViewPhotos' => (bool) Auth::user()->canDo('hr.view'),
             // The filter cannot offer a branch whose staff the list will not
             // show, or it reads as an empty branch rather than one that is
             // none of your business.
