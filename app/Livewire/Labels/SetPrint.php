@@ -149,9 +149,11 @@ class SetPrint extends Component
             // on every outlet's list at once; the employee form has required
             // an outlet throughout, so that arm only caught records created
             // some other way.
+            // photo_path selected or the picker's avatar silently falls back
+            // to initials — the food-handler chips shipped exactly that bug.
             'employees' => Employee::where('is_active', true)
                 ->where('outlet_id', $this->set->outlet_id)
-                ->orderBy('name')->get(['id', 'name']),
+                ->orderBy('name')->get(['id', 'name', 'photo_path']),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $this->set->name]);
     }
 }

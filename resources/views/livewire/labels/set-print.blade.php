@@ -33,13 +33,24 @@
                 <label class="block text-xs font-medium text-gray-500 mb-1">
                     Prepared by <span class="text-danger-500">*</span>
                 </label>
-                <select wire:model.live="employeeId"
-                        class="w-full rounded-lg text-sm {{ $employeeId ? 'border-gray-300' : 'border-warning-300 bg-warning-50' }}">
-                    <option value="">— Select staff —</option>
-                    @foreach ($employees as $employee)
-                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                    @endforeach
-                </select>
+                {{-- Face beside the select, same as the main print screen:
+                     labels.preparer.photo, not the hr route — see there. --}}
+                @php $preparer = $employeeId ? $employees->firstWhere('id', (int) $employeeId) : null; @endphp
+                <div class="flex items-center gap-2">
+                    @if ($preparer)
+                        <x-staff-avatar :name="$preparer->name" :employee="$preparer->id"
+                                        :photo="$preparer->photo_path"
+                                        photoRoute="labels.preparer.photo"
+                                        size="h-9 w-9 text-[11px]" class="shrink-0" />
+                    @endif
+                    <select wire:model.live="employeeId"
+                            class="w-full flex-1 rounded-lg text-sm {{ $employeeId ? 'border-gray-300' : 'border-warning-300 bg-warning-50' }}">
+                        <option value="">— Select staff —</option>
+                        @foreach ($employees as $employee)
+                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 @unless ($employeeId)
                     <p class="mt-1 text-xs text-warning-600">Required — every label records who prepped it.</p>
                 @endunless

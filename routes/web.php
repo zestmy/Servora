@@ -383,6 +383,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/labels', \App\Livewire\Labels\PrintScreen::class)->name('labels.print')->middleware('can:labels.print');
     Route::get('/labels/sets', \App\Livewire\Labels\Sets::class)->name('labels.sets')->middleware('can:labels.print');
     Route::get('/labels/sets/{set}/print', \App\Livewire\Labels\SetPrint::class)->name('labels.sets.print')->middleware('can:labels.print');
+    // A preparer's face for the "Prepared by" picker — its own route because
+    // the print screens are behind labels.print, not hr.view. See the controller.
+    Route::get('/labels/preparer/{employee}/photo', [\App\Http\Controllers\Labels\PreparerPhotoController::class, 'show'])->name('labels.preparer.photo')->middleware('can:labels.print');
     // Printable cut-out QR cards. Its own path rather than /labels/sets/qr
     // so it can never be mistaken for a set id by the route above.
     Route::get('/labels/set-qr-sheet', \App\Http\Controllers\Labels\SetQrSheetController::class)->name('labels.sets.qr-sheet')->middleware('can:labels.manage');

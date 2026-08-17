@@ -47,13 +47,28 @@
             </div>
             <div>
                 <label class="label label-req mb-1 block" for="prepared-by">Prepared by</label>
-                <select id="prepared-by" wire:model.live="employeeId"
-                        class="input {{ $employeeId ? '' : 'border-warning-400 bg-warning-50 focus:border-warning-500 focus:ring-warning-500/25' }}">
-                    <option value="">— Select staff —</option>
-                    @foreach ($employees as $employee)
-                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                    @endforeach
-                </select>
+                {{-- The chosen preparer's face beside the select: this name is
+                     stamped on every label, and a face confirms the right row
+                     was picked faster than re-reading the dropdown. A native
+                     select cannot carry images, so the face sits beside it.
+                     labels.preparer.photo, NOT the hr route — this screen's
+                     users hold labels.print, not necessarily hr.view. --}}
+                @php $preparer = $employeeId ? $employees->firstWhere('id', (int) $employeeId) : null; @endphp
+                <div class="flex items-center gap-2">
+                    @if ($preparer)
+                        <x-staff-avatar :name="$preparer->name" :employee="$preparer->id"
+                                        :photo="$preparer->photo_path"
+                                        photoRoute="labels.preparer.photo"
+                                        size="h-10 w-10 text-xs" class="shrink-0" />
+                    @endif
+                    <select id="prepared-by" wire:model.live="employeeId"
+                            class="input flex-1 {{ $employeeId ? '' : 'border-warning-400 bg-warning-50 focus:border-warning-500 focus:ring-warning-500/25' }}">
+                        <option value="">— Select staff —</option>
+                        @foreach ($employees as $employee)
+                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 @unless ($employeeId)
                     <p class="mt-1 text-xs font-medium text-warning-800">Required — every label records who prepped it.</p>
                 @endunless

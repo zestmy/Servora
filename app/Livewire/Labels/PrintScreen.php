@@ -256,13 +256,15 @@ class PrintScreen extends Component
         $allowed = $this->availableOutletIds() ?: [0];
 
         if (! $printer?->outlet_id || ! in_array((int) $printer->outlet_id, $allowed, true)) {
-            return Employee::whereRaw('1 = 0')->get(['id', 'name']);
+            return Employee::whereRaw('1 = 0')->get(['id', 'name', 'photo_path']);
         }
 
+        // photo_path selected or the picker's avatar silently falls back to
+        // initials — the food-handler chips shipped exactly that bug.
         return Employee::where('is_active', true)
             ->where('outlet_id', $printer->outlet_id)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'photo_path']);
     }
 
     /**
