@@ -40,7 +40,7 @@ class PosAgent extends Model
      * source, because the version nag on the POS Sync screen is the only
      * update mechanism v1 has.
      */
-    public const CURRENT_VERSION = '0.1.0';
+    public const CURRENT_VERSION = '1.0.0';
 
     /** Default minutes between sync passes, overridable per agent via config. */
     public const DEFAULT_SYNC_INTERVAL_MINUTES = 60;

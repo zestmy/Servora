@@ -47,23 +47,24 @@ class DownloadCatalog
                 'key'         => 'pos-agent',
                 'name'        => 'POS Sync Agent',
                 'tagline'     => 'Sales data from your POS terminals, synced automatically.',
-                'description' => 'Runs on the POS terminal and sends the day\'s Zeoniq sales report to '
-                    . 'Servora on its own — no more exporting the Excel file and uploading it by hand. '
-                    . 'The current build is the discovery step: run it once per terminal and send back '
-                    . 'the report it writes, so the sync can be set up for how your POS stores its data.',
+                'description' => 'Runs as a Windows service on the POS terminal, watches the folder your '
+                    . 'POS exports its sales reports into, and uploads anything new to Servora — no more '
+                    . 'exporting the Excel file and uploading it by hand. Unsure where your POS keeps its '
+                    . 'data? The bundled "discover" command inventories the machine first.',
                 'version'     => PosAgent::CURRENT_VERSION,
                 'stage'       => version_compare(PosAgent::CURRENT_VERSION, '1.0.0', '<') ? 'Discovery preview' : 'Stable',
                 'icon'        => 'display',
                 'requirements' => [
                     'Windows 10 or newer on the POS terminal',
-                    'No installation and no administrator rights needed for discovery',
+                    'A pairing code from Sales › POS Sync, issued by a manager',
+                    'The folder the POS exports its reports into (run "discover" if unsure)',
                     'Pick 64-bit first; if Windows refuses to run it, use the 32-bit build',
                 ],
                 'steps' => [
-                    'Copy the zip onto the POS terminal and extract it',
-                    'Open Command Prompt in that folder and run: servora-pos-agent.exe discover',
-                    'Wait a minute or two — it writes pos-agent-discovery-<computer name>.zip beside the exe',
-                    'Send that file back to whoever manages your Servora setup',
+                    'Extract the zip on the POS terminal',
+                    'Double-click SETUP.cmd and enter the server address, pairing code and export folder',
+                    'The service starts automatically — check the agent shows Online under Sales › POS Sync',
+                    'Export a report from the POS; it appears under Sales › POS Sync within the hour',
                 ],
                 'filenames' => [
                     '64-bit' => 'servora-pos-agent-' . PosAgent::CURRENT_VERSION . '-windows-amd64.zip',

@@ -1,42 +1,52 @@
 # Servora POS Agent
 
 Syncs sales data from a POS terminal to Servora automatically, replacing the
-manual "export the Zeoniq report, log in, upload it" routine.
+manual "export the Zeoniq report, log in, upload it" routine. Runs as a
+Windows service; pairs once with a code a manager issues under
+**Sales › POS Sync**.
 
-**This build is the discovery step only.** Before the sync agent can be
-finished we need to know where the POS software on your terminals keeps its
-data, and machines differ — so v0.1 ships one command that inventories a
-terminal and writes a report.
+v1 watches a folder the POS exports report files into (Zeoniq's own
+scheduled export, or a "save it here" habit), uploads anything new, and the
+server parses and applies it — unmapped departments or conflicts park for
+review in Servora instead of importing wrongly. Reports are spooled locally
+first, so an offline weekend uploads itself when the network returns, and
+re-sends are free (the server dedupes by content).
 
-## Running discovery on a POS terminal
+## Setting up a terminal
 
-1. Copy `servora-pos-agent.exe` onto the terminal (USB stick is fine —
-   if you're unsure whether the machine is 32- or 64-bit, take both zips
-   and try the amd64 one first; a 32-bit machine will refuse to run it).
-2. Open Command Prompt in that folder and run:
+1. Extract the zip on the POS terminal (64-bit build first; if Windows
+   refuses to run it, use the 386 build).
+2. In Servora, a manager adds the terminal under **Sales › POS Sync** —
+   this shows the server address and a pairing code (valid 10 minutes).
+3. Double-click `SETUP.cmd`. It asks for the address, the code, and the
+   folder the POS exports reports into, then installs the service.
+4. Export a report from the POS and run `servora-pos-agent.exe sync` —
+   the upload appears under Sales › POS Sync within moments.
 
-   ```
-   servora-pos-agent.exe discover
-   ```
+Not sure where the POS keeps or exports its data? Run
 
-3. It scans for a minute or two and writes
-   `pos-agent-discovery-<computer name>.zip` beside the exe.
-4. Send that zip back to whoever manages your Servora setup.
+```
+servora-pos-agent.exe discover
+```
 
-The report contains: Windows version and architecture, installed software
-that looks POS-related, candidate database files, ODBC data sources,
-non-Microsoft scheduled tasks, POS-related services/processes, and recent
-Excel/CSV report files. It does **not** contain sales figures, passwords, or
-file contents (only the first row of CSV files, to identify report layouts).
+first — it inventories the machine (installed POS software, database
+files, ODBC sources, scheduled exports, recent report files) into a zip to
+send back, and needs no admin rights.
 
-Running it needs no administrator rights and changes nothing on the machine.
+## Commands
 
-## What comes next
+```
+servora-pos-agent discover    inventory this machine's POS data sources
+servora-pos-agent pair        interactive pairing (server URL + code)
+servora-pos-agent sync        one manual sync pass, then exit
+servora-pos-agent run         run in the foreground (what the service runs)
+servora-pos-agent install     install + start the Windows service (admin)
+servora-pos-agent uninstall   stop + remove the service (admin)
+servora-pos-agent version     print the version
+```
 
-The discovery reports decide how the sync agent reads sales data (watching a
-report-export folder, querying the POS database directly, or a vendor API).
-The full agent — pairing with Servora, background service, automatic upload —
-ships as v1.0 in this same folder, mirroring `tools/print-agent`.
+Config lives at `%ProgramData%\Servora\PosAgent\config.json` (the token is
+the one secret in it); the local log and the offline spool sit beside it.
 
 ## Building
 
@@ -47,3 +57,12 @@ Needs Go 1.24+ and `zip`:
 ```
 
 Writes `dist/servora-pos-agent-<version>-windows-amd64.zip` and `-386.zip`.
+Bump `const Version` in main.go and `PosAgent::CURRENT_VERSION` on the
+server together — `PosAgentTest` fails on drift — and host the new zips in
+`public/downloads/` so the downloads pages pick them up.
+
+Builds and runs on Linux/macOS too for development:
+
+```
+go test ./...
+```
