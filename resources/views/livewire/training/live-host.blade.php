@@ -106,6 +106,10 @@
             </div>
 
             @if ($question)
+                @if ($question->image_path)
+                    <img src="{{ Storage::disk('public')->url($question->image_path) }}"
+                         class="mb-4 mx-auto max-h-72 w-auto rounded-surface" alt="">
+                @endif
                 <p class="display-3 text-gray-900">{{ $question->prompt }}</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">

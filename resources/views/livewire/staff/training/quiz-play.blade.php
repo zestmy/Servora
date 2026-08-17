@@ -125,6 +125,11 @@
         {{-- $prompt, not $question->prompt: the same question in whichever
              language this run is being read in. The answer key is shared, so
              the options below are index-for-index with the original. --}}
+        @if ($question->image_path)
+            {{-- Language-independent on purpose: the photo is the question. --}}
+            <img src="{{ Storage::disk('public')->url($question->image_path) }}"
+                 class="mb-3 mx-auto max-h-56 w-auto rounded-surface" alt="">
+        @endif
         <p class="text-lg font-semibold leading-snug text-gray-900">{{ $prompt }}</p>
         @if ($question->isMultiSelect())
             <p class="help mt-2">Choose all that apply, then press Answer.</p>

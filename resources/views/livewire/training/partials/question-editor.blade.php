@@ -86,6 +86,46 @@
             @error('qPrompt') <p class="error-text">{{ $message }}</p> @enderror
         </div>
 
+        {{-- ── The picture ──
+             Hidden while a translation is being edited: the image belongs to
+             the question, not to any one language, and offering it here
+             would imply otherwise. --}}
+        @if (! $editingLanguage)
+            <div>
+                <p class="label">Photo <span class="font-normal text-gray-500">(optional)</span></p>
+
+                @php
+                    /* The extension check keeps temporaryUrl() from throwing on
+                       a not-yet-converted HEIC — a throw here is a dead editor,
+                       not a missing thumbnail. */
+                    $qImagePreviewable = $qImage && is_object($qImage) && in_array(
+                        strtolower($qImage->getClientOriginalExtension()),
+                        ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                        true,
+                    );
+                @endphp
+
+                @if ($qImagePreviewable || $qImagePath)
+                    <div class="mb-2 rounded-surface border border-gray-200 bg-gray-50 p-3">
+                        <img class="max-h-40 rounded-surface"
+                             src="{{ $qImagePreviewable ? $qImage->temporaryUrl() : Storage::disk('public')->url($qImagePath) }}"
+                             alt="Question photo">
+                        <button type="button" wire:click="removeQuestionImage"
+                                class="mt-2 text-xs text-gray-600 hover:text-danger-600">Remove</button>
+                    </div>
+                @endif
+
+                <label class="sr-only" for="q-image">Upload a photo</label>
+                <input id="q-image" type="file" wire:model="qImage" accept="image/*" class="input">
+                <p class="help mt-1" wire:loading wire:target="qImage">Uploading…</p>
+                <p class="help">
+                    Shown above the question on the trainee's phone — a chopping board, a label,
+                    a fridge shelf. Up to 4&nbsp;MB.
+                </p>
+                @error('qImage') <p class="error-text">{{ $message }}</p> @enderror
+            </div>
+        @endif
+
         <div>
             <p class="label">
                 @if ($editingLanguage)

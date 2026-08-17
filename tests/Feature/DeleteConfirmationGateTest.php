@@ -80,6 +80,7 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/training/partials/question-editor.blade.php::removeOption'     => 'unsaved option on the question being edited',
         'livewire/training/course-form.blade.php::removeCover'                   => 'clears the field; the stored image survives until Save',
         'livewire/training/quiz-builder.blade.php::removeMusicFile'              => 'clears the field; the stored track survives until Save',
+        'livewire/training/partials/question-editor.blade.php::removeQuestionImage' => 'clears the field; the stored photo survives until Save',
 
         // ── Not a delete at all. Matched on the word rather than the act:
         //    "clearSelection" closes the report-card panel and puts nothing

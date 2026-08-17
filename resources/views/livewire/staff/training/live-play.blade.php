@@ -121,6 +121,10 @@
                 </p>
                 <span class="badge-brand tabular-nums">{{ $remaining }}s</span>
             </div>
+            @if ($question->image_path)
+                <img src="{{ Storage::disk('public')->url($question->image_path) }}"
+                     class="mb-3 mx-auto max-h-56 w-auto rounded-surface" alt="">
+            @endif
             <p class="text-lg font-semibold leading-snug text-gray-900">{{ $question->prompt }}</p>
             @if ($question->isMultiSelect() && ! $alreadyAnswered)
                 <p class="help mt-2">Choose all that apply, then press Send.</p>

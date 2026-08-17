@@ -8,6 +8,7 @@ use App\Services\Training\QuizGeneratorService;
 use App\Traits\RequiresActiveCompany;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use App\Traits\RejectsUnpreviewableUploads;
 use Livewire\WithFileUploads;
 
 /**
@@ -22,6 +23,7 @@ use Livewire\WithFileUploads;
 class QuizBuilder extends Component
 {
     use RequiresActiveCompany;
+    use RejectsUnpreviewableUploads;
     use WithFileUploads;
 
     public int $quizId;
@@ -90,6 +92,14 @@ class QuizBuilder extends Component
     public string $qTopic = '';
     public ?int $qPoints = null;
     public ?int $qSeconds = null;
+
+    /**
+     * The question's picture — "which of these boards is safe for chicken"
+     * is a photograph, not a sentence. One image per question, shared by
+     * every translation: the plate looks the same in Malay.
+     */
+    public $qImage;                    // a fresh upload, not yet saved
+    public ?string $qImagePath = null; // what is stored on the question row
 
     // Regenerate panel
     public bool $showGenerate = false;
@@ -300,6 +310,38 @@ class QuizBuilder extends Component
         $this->editingId = 0; // 0 = a new one is open
     }
 
+    /**
+     * Same HEIC trap as the employee photo, same cure: the preview calls
+     * temporaryUrl(), which throws for an unconvertible iPhone original and
+     * poisons the whole component. See EmployeeForm::updatedPhoto.
+     */
+    public function updatedQImage(): void
+    {
+        if (! is_object($this->qImage)) {
+            return;
+        }
+
+        try {
+            $this->qImage = $this->keepPreviewableUpload($this->qImage, 'qImage');
+        } catch (\Throwable $e) {
+            report($e);
+
+            $this->qImage = null;
+            $this->addError('qImage', 'That image could not be read. iPhone tip: Settings → Camera → Formats → Most Compatible, or share it as JPEG.');
+        }
+    }
+
+    /**
+     * Take the picture off. Cleared on screen only — the stored file
+     * survives until Save, like the course cover and the music track, so a
+     * question edited and abandoned comes back with its image.
+     */
+    public function removeQuestionImage(): void
+    {
+        $this->qImage     = null;
+        $this->qImagePath = null;
+    }
+
     public function editQuestion(int $id): void
     {
         $this->editingLanguage = '';
@@ -324,6 +366,8 @@ class QuizBuilder extends Component
         $this->qTopic      = (string) $question->topic;
         $this->qPoints     = $question->points;
         $this->qSeconds    = $question->seconds;
+        $this->qImage      = null;
+        $this->qImagePath  = $question->image_path;
 
         $translation = $this->editingLanguage
             ? $question->translations()->where('language', $this->editingLanguage)->first()
@@ -412,6 +456,7 @@ class QuizBuilder extends Component
             'qTopic'      => ['nullable', 'string', 'max:120'],
             'qPoints'     => ['nullable', 'integer', 'min:100', 'max:5000'],
             'qSeconds'    => ['nullable', 'integer', 'min:5', 'max:300'],
+            'qImage'      => ['nullable', 'image', 'max:4096'],
         ]);
 
         if (count($options) < 2) {
@@ -473,8 +518,28 @@ class QuizBuilder extends Component
             return;
         }
 
+        /*
+         * The image is resolved before the payload: a fresh upload wins, an
+         * untouched edit keeps what was there, and a removal (qImagePath
+         * cleared) writes null. The OLD file is deleted only now, at Save —
+         * the same update-leak rule as the company logo, deferred the same
+         * way the music track defers it.
+         */
+        $imagePath = $this->qImage
+            ? $this->qImage->store('training/questions', 'public')
+            : $this->qImagePath;
+
+        $previousImage = $this->editingId
+            ? $this->question($this->editingId)->image_path
+            : null;
+
+        if (filled($previousImage) && $previousImage !== $imagePath) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($previousImage);
+        }
+
         $payload = [
             'type'        => count($correct) > 1 ? 'multi' : $this->qType,
+            'image_path'  => $imagePath,
             'prompt'      => trim($this->qPrompt),
             'options'     => $options,
             'correct'     => $correct,
@@ -502,7 +567,15 @@ class QuizBuilder extends Component
     {
         $this->authorize('training.manage');
 
-        $this->question($id)->delete();
+        $question = $this->question($id);
+
+        // The picture goes with its question, or it leaks on the public disk
+        // forever — the same update-leak family as the company logo.
+        if ($question->image_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($question->image_path);
+        }
+
+        $question->delete();
 
         if ($this->editingId === $id) {
             $this->resetQuestionForm();
@@ -641,6 +714,8 @@ class QuizBuilder extends Component
         $this->qTopic       = '';
         $this->qPoints      = null;
         $this->qSeconds     = null;
+        $this->qImage       = null;
+        $this->qImagePath   = null;
         $this->resetErrorBag();
     }
 

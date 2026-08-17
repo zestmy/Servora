@@ -1339,6 +1339,77 @@ class TrainingScreensRenderTest extends TestCase
         $this->assertSame('ZEST Hospitality Academy', $this->company->cert_signatory_company);
     }
 
+    // ── Question photos ───────────────────────────────────────────────────
+
+    /**
+     * A question can carry a photo: saved onto the row, replaced without
+     * leaking the old file, and shown on the trainee's screen. The photo is
+     * the question ("which of these boards is safe for chicken"), so it is
+     * language-independent and lives on the original row only.
+     */
+    public function test_a_question_can_carry_a_photo_from_editor_to_player(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $question = $this->quiz->questions()->orderBy('sort_order')->first();
+
+        // Upload through the editor and save.
+        $builder = Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->call('editQuestion', $question->id)
+            ->set('qImage', \Illuminate\Http\UploadedFile::fake()->image('board.jpg', 32, 24))
+            ->call('saveQuestion')
+            ->assertHasNoErrors();
+
+        $question->refresh();
+        $this->assertNotNull($question->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($question->image_path);
+
+        // Replacing deletes the old file — the update leak, closed.
+        $first = $question->image_path;
+        $builder->call('editQuestion', $question->id)
+            ->set('qImage', \Illuminate\Http\UploadedFile::fake()->image('board2.jpg', 32, 24))
+            ->call('saveQuestion')
+            ->assertHasNoErrors();
+
+        $question->refresh();
+        $this->assertNotSame($first, $question->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($first);
+
+        // The trainee sees it above the prompt.
+        $this->asStaff();
+        Livewire::test(\App\Livewire\Staff\Training\QuizPlay::class, ['id' => $this->quiz->id])
+            ->call('begin')
+            ->assertSee($question->image_path, escape: false);
+
+        // Removing it in the editor clears the row and the disk on Save.
+        $current = $question->image_path;
+        $builder->call('editQuestion', $question->id)
+            ->call('removeQuestionImage')
+            ->call('saveQuestion')
+            ->assertHasNoErrors();
+
+        $this->assertNull($question->fresh()->image_path);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($current);
+    }
+
+    /** An unreadable HEIC is refused politely; the editor stays alive. */
+    public function test_a_bad_question_photo_cannot_kill_the_editor(): void
+    {
+        $question = $this->quiz->questions()->orderBy('sort_order')->first();
+
+        $builder = Livewire::actingAs($this->manager)
+            ->test(\App\Livewire\Training\QuizBuilder::class, ['id' => $this->quiz->id])
+            ->call('editQuestion', $question->id)
+            ->set('qImage', \Illuminate\Http\UploadedFile::fake()->create('photo.heic', 500, 'image/heic'))
+            ->assertOk();
+
+        $this->assertTrue($builder->errors()->has('qImage'));
+
+        // Still alive: the next interaction works.
+        $builder->set('qPrompt', 'Still editable?')->assertOk();
+    }
+
     // ── Auto-next ─────────────────────────────────────────────────────────
 
     /**
