@@ -13,10 +13,18 @@ class SalesRecord extends Model
 {
     use HasFactory, SoftDeletes;
 
+    // Where a record came from. The sync agent may only replace SOURCE_POS_AGENT
+    // rows; everything else had a person behind it.
+    public const SOURCE_MANUAL       = 'manual';
+    public const SOURCE_EXCEL_IMPORT = 'excel_import';
+    public const SOURCE_ZREPORT      = 'zreport';
+    public const SOURCE_POS_AGENT    = 'pos_agent';
+
     protected $fillable = [
         'company_id', 'outlet_id', 'reference_number', 'sale_date',
         'total_revenue', 'total_cost', 'notes', 'pax', 'transactions', 'meal_period', 'created_by',
         'gross_revenue', 'discount_amount', 'tax_amount', 'service_charges', 'rounding_amount',
+        'source',
     ];
 
     protected $casts = [

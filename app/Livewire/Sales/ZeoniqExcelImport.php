@@ -614,133 +614,21 @@ class ZeoniqExcelImport extends Component
         string $mealPeriod,
         array $data
     ): mixed {
-        // Check for duplicates
-        $existingPeriods = SalesRecord::where('outlet_id', $outletId)
-            ->whereDate('sale_date', $date)
-            ->pluck('meal_period');
-
-        $didReplace = false;
-
-        if ($existingPeriods->isNotEmpty()) {
-            // A conflict exists if: an all_day record already covers the date,
-            // we're importing all_day over existing records, or the same meal
-            // period is already present.
-            $conflicts = $existingPeriods->contains('all_day')
-                || $mealPeriod === 'all_day'
-                || $existingPeriods->contains($mealPeriod);
-
-            if ($conflicts) {
-                if (!$this->replaceExisting) {
-                    return 'duplicate';
-                }
-
-                // Replace mode: remove the conflicting record(s) so the
-                // corrected data takes their place. force-delete cascades the
-                // department lines (sales_record_lines has cascadeOnDelete and
-                // no soft-delete, so a soft delete would orphan the old lines).
-                // Scope deletion to the meal period being written (plus any
-                // stale all_day record) so per-session writes in the same run
-                // don't wipe each other.
-                $periodsToReplace = $mealPeriod === 'all_day'
-                    ? $existingPeriods->all()
-                    : array_values(array_unique(['all_day', $mealPeriod]));
-
-                SalesRecord::where('outlet_id', $outletId)
-                    ->whereDate('sale_date', $date)
-                    ->whereIn('meal_period', $periodsToReplace)
-                    ->get()
-                    ->each
-                    ->forceDelete();
-
-                $didReplace = true;
-            }
-        }
-
-        // Determine revenue values
-        // For session_sales: total_sales is the inclusive amount
-        // For daily_summary: total_sales is the final amount
-        $totalSales     = (float) ($data['total_sales']     ?? 0);
-        $netSales       = (float) ($data['net_sales']       ?? $totalSales);
-        $grossRevenue   = (float) ($data['gross_revenue']   ?? $totalSales);
-        $discountAmount = (float) ($data['discount_amount'] ?? 0);
-        $taxAmount      = (float) ($data['tax_amount']      ?? 0);
-        $serviceCharges = (float) ($data['service_charges'] ?? 0);
-        $roundingAmount = (float) ($data['rounding_amount'] ?? 0);
-        $transactions   = (int)   ($data['transactions']    ?? 1);
-        $pax            = (int)   ($data['pax']             ?? $transactions);
-
-        // Use net_sales as total_revenue (consistent with existing pattern)
-        $totalRevenue = $netSales > 0 ? $netSales : $totalSales;
-
-        $record = SalesRecord::create([
-            'company_id'       => $companyId,
-            'outlet_id'        => $outletId,
-            'sale_date'        => $date,
-            'meal_period'      => $mealPeriod,
-            'pax'              => max(1, $pax),
-            'transactions'     => $transactions > 0 ? $transactions : null,
-            'total_revenue'    => round($totalRevenue, 4),
-            'gross_revenue'    => $grossRevenue > 0 ? round($grossRevenue, 4) : null,
-            'discount_amount'  => $discountAmount > 0 ? round($discountAmount, 4) : null,
-            'tax_amount'       => $taxAmount > 0 ? round($taxAmount, 4) : null,
-            'service_charges'  => $serviceCharges > 0 ? round($serviceCharges, 4) : null,
-            'rounding_amount'  => $roundingAmount != 0 ? round($roundingAmount, 4) : null,
-            'total_cost'       => 0,
-            'created_by'       => $userId,
-        ]);
-
-        // Create lines for departments if available
-        $departments = $data['departments'] ?? [];
-
-        if (!empty($departments)) {
-            // Load Sales Category names for mapping
-            $categoryNames = SalesCategory::whereIn('id', array_filter(array_values($this->departmentMapping)))
-                ->pluck('name', 'id')
-                ->toArray();
-
-            // Merge departments that map to the same Sales Category
-            $mergedByCategory = [];
-            foreach ($departments as $deptName => $deptRevenue) {
-                $categoryId = $this->departmentMapping[$deptName] ?? null;
-
-                if ($categoryId && $deptRevenue > 0) {
-                    if (!isset($mergedByCategory[$categoryId])) {
-                        $mergedByCategory[$categoryId] = 0;
-                    }
-                    $mergedByCategory[$categoryId] += $deptRevenue;
-                }
-            }
-
-            // Create one line per Sales Category with merged revenue
-            foreach ($mergedByCategory as $categoryId => $totalRevenue) {
-                $categoryName = $categoryNames[$categoryId] ?? 'Unknown';
-
-                $record->lines()->create([
-                    'sales_category_id'      => $categoryId,
-                    'ingredient_category_id' => null,
-                    'item_name'              => $categoryName,
-                    'quantity'               => 1,
-                    'unit_price'             => round($totalRevenue, 4),
-                    'unit_cost'              => 0,
-                    'total_revenue'          => round($totalRevenue, 4),
-                    'total_cost'             => 0,
-                ]);
-            }
-        } else {
-            // Fallback: Create single line (existing behavior)
-            $record->lines()->create([
-                'sales_category_id'      => null,
-                'ingredient_category_id' => null,
-                'item_name'              => ucfirst(str_replace('_', ' ', $mealPeriod)) . ' Sales',
-                'quantity'               => 1,
-                'unit_price'             => round($totalRevenue, 4),
-                'unit_cost'              => 0,
-                'total_revenue'          => round($totalRevenue, 4),
-                'total_cost'             => 0,
-            ]);
-        }
-
-        return $didReplace ? 'replaced' : true;
+        // The write path lives in ZeoniqSalesWriter, shared with the POS sync
+        // agent's queued ingest. replaceOnlySources stays null here: a person
+        // ticking "Replace existing" after the review step may replace
+        // anything, which is this screen's historical behavior.
+        return app(\App\Services\Sales\ZeoniqSalesWriter::class)->write(
+            companyId: $companyId,
+            outletId: $outletId,
+            userId: $userId,
+            date: $date,
+            mealPeriod: $mealPeriod,
+            record: $data,
+            departmentMapping: $this->departmentMapping,
+            replaceExisting: $this->replaceExisting,
+            source: SalesRecord::SOURCE_EXCEL_IMPORT,
+        );
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
