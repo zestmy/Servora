@@ -33,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'staff.landing'       => \App\Http\Middleware\LandOnStaffHome::class,
             'clock.kiosk'         => \App\Http\Middleware\KioskAuthenticate::class,
             'print.agent'         => \App\Http\Middleware\PrintAgentAuthenticate::class,
+            'pos.agent'           => \App\Http\Middleware\PosAgentAuthenticate::class,
         ]);
 
         /*
@@ -73,6 +74,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'agent-api/pair',
             'agent-api/jobs/*/status',
             'agent-api/printers',
+            // The POS sync agent's POSTs — the print agent's justification,
+            // verbatim: native binary, no cookies, header token / single-use
+            // pairing code. Both environment mounts listed, as above.
+            'pos-agent/pair',
+            'pos-agent/batches',
+            'pos-agent-api/pair',
+            'pos-agent-api/batches',
         ]);
 
         // Force all non-LMS traffic to the main domain (must run early)

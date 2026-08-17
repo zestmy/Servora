@@ -129,9 +129,10 @@ class ZeoniqSalesWriter
             'tax_amount'      => $taxAmount > 0 ? round($taxAmount, 4) : null,
             'service_charges' => $serviceCharges > 0 ? round($serviceCharges, 4) : null,
             'rounding_amount' => $roundingAmount != 0 ? round($roundingAmount, 4) : null,
-            'total_cost'      => 0,
-            'source'          => $source,
-            'created_by'      => $userId,
+            'total_cost'          => 0,
+            'source'              => $source,
+            'pos_sales_batch_id'  => $batchId,
+            'created_by'          => $userId,
         ]);
 
         $departments = $record['departments'] ?? [];

@@ -36,6 +36,10 @@ Schedule::command('labels:reconcile-jobs')->everyTenMinutes()->withoutOverlappin
 // this is skeleton cleanup, hourly like the SOP pruner.
 Schedule::command('labels:prune-print-jobs')->hourly()->withoutOverlapping();
 
+// Drop stored POS report uploads past their 30-day window and unapplied
+// batch rows past 90. Applied rows stay — sales_records point at them.
+Schedule::command('pos-agent:prune-batches')->dailyAt('03:30')->withoutOverlapping();
+
 // Clear out rendered SOP export PDFs (~12 MB each) past their retention
 // window, and fail off any run whose worker died without reporting. Hourly
 // rather than daily because the second half of that is what unsticks the

@@ -24,7 +24,7 @@ class SalesRecord extends Model
         'company_id', 'outlet_id', 'reference_number', 'sale_date',
         'total_revenue', 'total_cost', 'notes', 'pax', 'transactions', 'meal_period', 'created_by',
         'gross_revenue', 'discount_amount', 'tax_amount', 'service_charges', 'rounding_amount',
-        'source',
+        'source', 'pos_sales_batch_id',
     ];
 
     protected $casts = [

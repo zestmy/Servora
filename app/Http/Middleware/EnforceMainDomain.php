@@ -73,6 +73,9 @@ class EnforceMainDomain
             // caller is a native binary that treats a redirect as a broken
             // pairing, not a login page to render.
             || str_starts_with($path, '/agent/')
+            // The POS sync agent's wire surface (routes/pos-agent.php) —
+            // same caller shape, same reasoning.
+            || str_starts_with($path, '/pos-agent/')
             || str_starts_with($path, '/v/')
             || str_starts_with($path, '/livewire/')
         ) {

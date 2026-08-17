@@ -12,6 +12,7 @@
 require __DIR__ . '/labels-staff.php';
 require __DIR__ . '/clock-staff.php';
 require __DIR__ . '/print-agent.php';
+require __DIR__ . '/pos-agent.php';
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
