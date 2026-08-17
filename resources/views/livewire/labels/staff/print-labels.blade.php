@@ -1,4 +1,24 @@
 <div>
+    {{-- ── Greeting ──
+         Face and FULL name, same as the Clock app's home screen — and full
+         for the same hard-learned reason: names here are not reliably
+         given-name-first, so cutting at the first space greeted MOHD AFFANDY
+         BIN ZULKARNAIN as "MOHD". It matters more on this screen than most:
+         whoever is greeted here is stamped as "Prepared by" on every label
+         printed, so the greeting doubles as "you are printing as". --}}
+    @php
+        $greetHour = now()->hour;
+        $greeting  = $greetHour < 12 ? 'Good morning' : ($greetHour < 18 ? 'Good afternoon' : 'Good evening');
+    @endphp
+    <div class="mb-3 flex items-center gap-3 px-1">
+        <x-staff-avatar :name="$this->staff()->name" :employee="$this->staff()->id"
+                        :photo="$this->staff()->photo_path" size="h-10 w-10 text-xs" />
+        <div class="min-w-0">
+            <p class="text-xs text-gray-600">{{ $greeting }}</p>
+            <p class="truncate text-base font-semibold leading-tight text-gray-900">{{ $this->staff()->name }}</p>
+        </div>
+    </div>
+
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="alert-success mb-3">
