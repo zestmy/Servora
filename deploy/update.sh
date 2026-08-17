@@ -55,8 +55,11 @@ trap cleanup EXIT
 info "Stopping queue worker for the deploy..."
 systemctl stop servora-queue 2>/dev/null || true
 
+# --render snapshots the maintenance page BEFORE the deploy touches any files,
+# so it keeps serving even while composer/npm have the codebase half-replaced.
+# The view is fully inline (no @vite) for the same reason.
 info "Enabling maintenance mode..."
-php artisan down --refresh=15
+php artisan down --refresh=15 --render="errors::503"
 
 info "Fetching latest code..."
 git fetch origin main
