@@ -186,7 +186,10 @@ class LabelPrintService
 
         $computed = $manualEnd
             ? ['end_at' => $manualEnd, 'shelf_life' => null, 'manual' => true]
-            : $this->shelfLife->computeUseBy($item, $storageState, $printedAt, $batch->company_id);
+            : $this->shelfLife->computeUseBy(
+                $item, $storageState, $printedAt, $batch->company_id,
+                $this->lineShelfLife($line)
+            );
 
         // A linked item is already uppercased by its own model; a freeform
         // name has to be normalised here so that whichever screen it came
@@ -240,6 +243,24 @@ class LabelPrintService
                 'values'   => $values,
                 'copies'   => $copies,
             ],
+        ];
+    }
+
+    /**
+     * A shelf life carried on the line itself (a print set line's own
+     * setting), shaped for computeUseBy. Null when the line follows rules.
+     */
+    private function lineShelfLife(array $line): ?array
+    {
+        if (empty($line['shelf_life_value']) || empty($line['shelf_life_unit'])
+            || (float) $line['shelf_life_value'] <= 0) {
+            return null;
+        }
+
+        return [
+            'value'  => (float) $line['shelf_life_value'],
+            'unit'   => (string) $line['shelf_life_unit'],
+            'source' => 'set_line',
         ];
     }
 
@@ -334,7 +355,8 @@ class LabelPrintService
         ?Model $item,
         string $storageState,
         ?CarbonInterface $at = null,
-        ?int $companyId = null
+        ?int $companyId = null,
+        ?array $override = null
     ): array {
         // Falls back to the logged-in user, but PIN staff have none, so the
         // caller passes the company explicitly there.
@@ -344,7 +366,8 @@ class LabelPrintService
             $item,
             $storageState,
             $at ?? Carbon::now(),
-            $companyId
+            $companyId,
+            $override
         );
 
         return [

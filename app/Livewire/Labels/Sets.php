@@ -466,7 +466,9 @@ class Sets extends Component
 
     public function updateLine(int $lineId, string $field, $value): void
     {
-        if (! in_array($field, ['label_type', 'storage_state', 'copies', 'custom_name'], true)) {
+        $fields = ['label_type', 'storage_state', 'copies', 'custom_name', 'shelf_life_value', 'shelf_life_unit'];
+
+        if (! in_array($field, $fields, true)) {
             return;
         }
 
@@ -474,6 +476,31 @@ class Sets extends Component
 
         if ($field === 'copies') {
             $value = max(1, (int) $value);
+        }
+
+        // A line-level shelf life makes the use-by print automatically —
+        // most useful on freeform items, which no rule can ever cover.
+        // Clearing the value clears the unit too, so "follow the rules
+        // again" is one action rather than a value-less unit left behind.
+        if ($field === 'shelf_life_value') {
+            $value = (float) $value > 0 ? (float) $value : null;
+
+            $line->update([
+                'shelf_life_value' => $value,
+                'shelf_life_unit'  => $value === null ? null : ($line->shelf_life_unit ?: 'days'),
+            ]);
+
+            return;
+        }
+
+        if ($field === 'shelf_life_unit') {
+            if (! array_key_exists($value, Recipe::SHELF_LIFE_UNITS)) {
+                return;
+            }
+
+            $line->update(['shelf_life_unit' => $value]);
+
+            return;
         }
 
         // Only a freeform line has a name of its own to fix. A linked line
@@ -526,6 +553,7 @@ class Sets extends Component
                 ? LabelSet::forOutlet((int) $this->importOutletId)->ordered()->withCount('lines')->get()
                 : collect(),
             'states'     => ShelfLifeRule::STORAGE_STATES,
+            'shelfLifeUnits' => Recipe::SHELF_LIFE_UNITS,
             // This company's ranges, so the picker shows what will actually
             // print rather than the built-in defaults.
             'temperatures' => \App\Models\LabelSetting::temperaturesFor(Auth::user()->company_id),

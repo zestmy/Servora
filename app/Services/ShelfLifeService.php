@@ -108,6 +108,12 @@ class ShelfLifeService
     /**
      * Resolve and compute in one step — what the print screen actually calls.
      *
+     * $override is a life the caller already holds (a print set line's own
+     * shelf life). It outranks the rules chain because it is more specific
+     * than anything the chain could find, and it works for freeform items
+     * the chain cannot see at all.
+     *
+     * @param  array{value: float, unit: string, source: string}|null  $override
      * @return array{end_at: CarbonInterface|null, shelf_life: array|null, manual: bool}
      *         manual = true means nothing resolved and staff must type the
      *         date. That flag is also a report of which categories still
@@ -117,9 +123,10 @@ class ShelfLifeService
         ?Model $item,
         string $storageState,
         CarbonInterface $start,
-        ?int $companyId = null
+        ?int $companyId = null,
+        ?array $override = null
     ): array {
-        $shelfLife = $this->resolve($item, $storageState);
+        $shelfLife = $override ?: $this->resolve($item, $storageState);
 
         if (! $shelfLife) {
             return ['end_at' => null, 'shelf_life' => null, 'manual' => true];

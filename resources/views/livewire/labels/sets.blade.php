@@ -191,6 +191,29 @@
                                                    wire:change="updateLine({{ $line->id }}, 'copies', $event.target.value)"
                                                    class="rounded border-gray-200 text-xs py-1">
                                         </div>
+
+                                        {{-- Line-level shelf life. Empty = "Auto": the use-by
+                                             follows the shelf life rules (or asks for a date when
+                                             none resolves — a freeform item always asks). Set a
+                                             value and every print from this set computes the
+                                             expiry itself, no date-picking at the printer. --}}
+                                        <div class="mt-2 flex items-center gap-2">
+                                            <span class="text-[10px] uppercase text-gray-600 whitespace-nowrap">Shelf life</span>
+                                            <input type="number" min="0" step="0.25" placeholder="Auto"
+                                                   value="{{ $line->shelf_life_value ? rtrim(rtrim(number_format((float) $line->shelf_life_value, 2, '.', ''), '0'), '.') : '' }}"
+                                                   wire:change="updateLine({{ $line->id }}, 'shelf_life_value', $event.target.value)"
+                                                   class="w-20 rounded border-gray-200 text-xs py-1">
+                                            @if ($line->shelf_life_value)
+                                                <select wire:change="updateLine({{ $line->id }}, 'shelf_life_unit', $event.target.value)"
+                                                        class="rounded border-gray-200 text-xs py-1">
+                                                    @foreach ($shelfLifeUnits as $unit => $unitLabel)
+                                                        <option value="{{ $unit }}" @selected($line->shelf_life_unit === $unit)>{{ $unitLabel }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @else
+                                                <span class="text-[10px] text-gray-500">Auto — follows shelf life rules</span>
+                                            @endif
+                                        </div>
                                     </div>
 
                                     <button wire:click="removeLine({{ $line->id }})"

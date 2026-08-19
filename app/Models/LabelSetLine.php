@@ -21,15 +21,17 @@ class LabelSetLine extends Model
 {
     protected $fillable = [
         'label_set_id', 'sort_order', 'labelable_type', 'labelable_id',
-        'custom_name', 'label_type', 'storage_state', 'copies',
+        'custom_name', 'label_type', 'storage_state',
+        'shelf_life_value', 'shelf_life_unit', 'copies',
         'quantity', 'uom_id', 'template_id', 'is_active',
     ];
 
     protected $casts = [
-        'sort_order' => 'integer',
-        'copies'     => 'integer',
-        'quantity'   => 'decimal:4',
-        'is_active'  => 'boolean',
+        'sort_order'       => 'integer',
+        'copies'           => 'integer',
+        'quantity'         => 'decimal:4',
+        'shelf_life_value' => 'decimal:2',
+        'is_active'        => 'boolean',
     ];
 
     /**
@@ -72,5 +74,23 @@ class LabelSetLine extends Model
     public function displayName(): string
     {
         return $this->labelable?->name ?? (string) $this->custom_name;
+    }
+
+    /**
+     * The line's own shelf life, shaped as a resolved rule, or null when the
+     * line follows the rules chain. When set it is the most specific answer
+     * there is — this set, this line — so it beats every rule at print time.
+     */
+    public function shelfLifeOverride(): ?array
+    {
+        if (! ((float) $this->shelf_life_value > 0) || empty($this->shelf_life_unit)) {
+            return null;
+        }
+
+        return [
+            'value'  => (float) $this->shelf_life_value,
+            'unit'   => $this->shelf_life_unit,
+            'source' => 'set_line',
+        ];
     }
 }

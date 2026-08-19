@@ -89,16 +89,18 @@ class SetPrint extends Component
             }
 
             $lines[] = [
-                'labelable_type' => $line->labelable_type,
-                'labelable_id'   => $line->labelable_id,
-                'custom_name'    => $line->custom_name,
-                'label_type'     => $line->label_type,
-                'storage_state'  => $line->storage_state,
-                'copies'         => max(1, (int) ($this->copies[$line->id] ?? $line->copies)),
-                'quantity'       => $line->quantity,
-                'uom_label'      => $line->uom?->code ?? $line->uom?->name,
-                'template_id'    => $line->template_id,
-                'end_at'         => $this->endAt[$line->id] ?? null,
+                'labelable_type'   => $line->labelable_type,
+                'labelable_id'     => $line->labelable_id,
+                'custom_name'      => $line->custom_name,
+                'label_type'       => $line->label_type,
+                'storage_state'    => $line->storage_state,
+                'shelf_life_value' => $line->shelf_life_value,
+                'shelf_life_unit'  => $line->shelf_life_unit,
+                'copies'           => max(1, (int) ($this->copies[$line->id] ?? $line->copies)),
+                'quantity'         => $line->quantity,
+                'uom_label'        => $line->uom?->code ?? $line->uom?->name,
+                'template_id'      => $line->template_id,
+                'end_at'           => $this->endAt[$line->id] ?? null,
             ];
         }
 
@@ -137,7 +139,13 @@ class SetPrint extends Component
         $previews = [];
 
         foreach ($lines as $line) {
-            $previews[$line->id] = $service->previewUseBy($line->labelable, $line->storage_state);
+            $previews[$line->id] = $service->previewUseBy(
+                $line->labelable,
+                $line->storage_state,
+                null,
+                null,
+                $line->shelfLifeOverride(),
+            );
         }
 
         return view('livewire.labels.set-print', [

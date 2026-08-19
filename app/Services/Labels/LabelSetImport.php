@@ -93,17 +93,21 @@ class LabelSetImport
             }
 
             LabelSetLine::create([
-                'label_set_id'   => $target->id,
-                'sort_order'     => $next++,
-                'labelable_type' => $line->labelable_type,
-                'labelable_id'   => $line->labelable_id,
-                'custom_name'    => $line->custom_name,
-                'label_type'     => $line->label_type,
-                'storage_state'  => $line->storage_state,
-                'copies'         => $line->copies,
-                'quantity'       => $line->quantity,
-                'uom_id'         => $line->uom_id,
-                'template_id'    => $line->template_id,
+                'label_set_id'     => $target->id,
+                'sort_order'       => $next++,
+                'labelable_type'   => $line->labelable_type,
+                'labelable_id'     => $line->labelable_id,
+                'custom_name'      => $line->custom_name,
+                'label_type'       => $line->label_type,
+                'storage_state'    => $line->storage_state,
+                // The line's own shelf life carries: it is part of what the
+                // line MEANS, and freeform items have nowhere else to keep it.
+                'shelf_life_value' => $line->shelf_life_value,
+                'shelf_life_unit'  => $line->shelf_life_unit,
+                'copies'           => $line->copies,
+                'quantity'         => $line->quantity,
+                'uom_id'           => $line->uom_id,
+                'template_id'      => $line->template_id,
             ]);
 
             if ($key !== null) {
