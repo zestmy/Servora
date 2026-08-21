@@ -300,3 +300,11 @@ decision §3 already reached by a different road. And if the actual problem is t
 face identification struggles in a specific room, say so out loud first: a better
 camera position, or better lighting over the kiosk, is a morning's work against a
 fortnight's.
+
+> **Next step, and one correction.** Both surviving paths — (C) the agent and (D)
+> the terminal — are costed against each other in
+> [fingerprint-punch-plan.md](fingerprint-punch-plan.md). That plan corrects one
+> claim above: a live agent punch does fit `punch()` unchanged, but an agent that
+> spools while offline (as `pos-agent` already does, and as any clock at an outlet
+> should) delivers past timestamps too. So the historical-timestamp writer of §4 is
+> shared work, not a cost of the terminal option.
