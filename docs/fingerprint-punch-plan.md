@@ -266,9 +266,22 @@ outlets costs us.
 **Before either: do the cheap diagnosis.** If the reason fingerprint came up is
 that face identification struggles somewhere specific, find out where and why
 first. Repositioning a kiosk or adding light over it is a morning's work against a
-fortnight's, and `FaceIdentifier` already records `ambiguous` and `unknown`
-outcomes — the data to answer it is in production now. **Run that query before
-spending anything.**
+fortnight's. Queries are written and ready to run:
+[face-identification-diagnostic.sql](face-identification-diagnostic.sql). **Run
+them before spending anything.**
+
+**Correcting what this doc first claimed**, because it changes what those queries
+can tell you: `FaceIdentifier` does *not* record `unknown` outcomes.
+`KioskController::identify()` is deliberately read-only — "this endpoint records
+nothing" — so `UNKNOWN`, `NO_FACES` and `BAD_INPUT` go to the screen and are never
+persisted. Only `AMBIGUOUS` survives, and only when the person went on to punch.
+
+The usable proxy is the `pin_fallback` flag: the camera failed to name somebody
+and they keyed a PIN instead. **Every rate those queries produce is therefore a
+floor.** Someone who tried three times and walked away leaves no trace at all. A
+bad result is trustworthy; a clean one is weaker evidence than it looks, and the
+fix for that — persisting the identify outcome — is one small table and far
+cheaper than any hardware here.
 
 ---
 
@@ -276,7 +289,7 @@ spending anything.**
 
 | # | Question | Who answers |
 |---|---|---|
-| 1 | Why did fingerprint come up — is face identification failing, and where? | Us, from production data |
+| 1 | Why did fingerprint come up — is face identification failing, and where? ([queries ready](face-identification-diagnostic.sql); read their caveat — the rates are a floor, not a measure) | Us, from production data |
 | 2 | Does the candidate terminal push to a public **HTTPS** endpoint? (§3.2 — flips the recommendation) | Distributor, in writing |
 | 3 | Is ADMS included or a paid add-on on that SKU? | Distributor |
 | 4 | Unit price per outlet, warranty, local support turnaround | Distributor quote |
