@@ -69,10 +69,18 @@ differs. **This is the single most delicate piece of work in either option** —
 it touches the number that comes off somebody's service charge — and it wants
 tests before it wants a caller.
 
+**And the clock that stamps it is not ours.** A terminal timestamps its own
+punches, so its drift becomes our lateness error — quietly, against somebody's
+pay. `SET OPTIONS ServerLocalTime` corrects it (see the protocol notes §4.2), but
+it has to be sent on a schedule and drift past a threshold has to be surfaced
+rather than silently fixed.
+
 ### 2.2 Identity: `staff_id` ↔ device user ID
 
 `employees.staff_id` is the natural key and is already indexed
-`(company_id, staff_id)`. A punch for an unmapped ID must be **held for a manager,
+`(company_id, staff_id)`. On option A this gets easier than first written: the
+`DATA USER` command pushes employee records **to** the terminal, so Servora owns
+the mapping and nobody keys a staff number at a device (protocol notes §4.2). A punch for an unmapped ID must be **held for a manager,
 never dropped and never guessed** — an unattributed punch that silently vanishes is
 worse than one sitting in a queue, because nobody finds out until payroll.
 
@@ -103,6 +111,9 @@ cannot still be in it next Tuesday. Reuse the concept.
 **Budget for this honestly.** It is the line item most likely to be underestimated
 and the one staff will actually notice.
 
+Option A shrinks it but does not remove it: `DATA USER` pushes the *record*, never
+the fingerprint. The finger is still enrolled in person, at each device.
+
 ### 2.6 Devices screen
 
 Terminals and agents both appear beside kiosks with a heartbeat and a revoke
@@ -115,6 +126,11 @@ correctly skipped, and revocation works on day one. **No schema change beyond a
 ---
 
 ## 3. Option A — ADMS receiver
+
+> **Protocol detail now lives in [adms-protocol-notes.md](adms-protocol-notes.md)**,
+> written after reading three working implementations. It confirms §3.2's security
+> concern in stronger terms than were available here, and it moves two costs the
+> other way — see its §6 for what it changes.
 
 ### 3.1 What gets built
 
