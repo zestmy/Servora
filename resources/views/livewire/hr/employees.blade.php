@@ -82,6 +82,52 @@
         </div>
     </div>
 
+    {{-- Filter Bar --}}
+    <div class="card p-4 mb-4">
+        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+            <div class="flex-1 min-w-[180px]">
+                <input type="text" wire:model.live.debounce.300ms="search"
+                       placeholder="Search name, staff ID, email, designation…"
+                       class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+            </div>
+            <select wire:model.live="outletFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                @if ($canViewAll)
+                    <option value="">All Outlets</option>
+                @endif
+                @foreach ($outlets as $o)
+                    <option value="{{ $o->id }}">{{ $o->name }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="sectionFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Sections</option>
+                @foreach ($sections as $s)
+                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Employment</option>
+                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                @endforeach
+                <option value="none">No Status</option>
+            </select>
+            <select wire:model.live="statusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="">All</option>
+                {{-- Where a deleted member of staff is found again. The flash
+                     message on delete names this option, so the two have to
+                     keep saying the same word. --}}
+                <option value="deleted">Deleted</option>
+            </select>
+            <a href="{{ route('settings.sections') }}"
+               class="text-xs text-brand-600 hover:text-brand-800 underline self-center">
+                Manage Sections
+            </a>
+        </div>
+    </div>
+
     {{-- Food Handler: a held/not-held count, which the expiry card below
          deliberately does not answer since the certificate is one-off. --}}
     @php
@@ -280,52 +326,6 @@
                 </div>
             @endif
         @endif
-    </div>
-
-    {{-- Filter Bar --}}
-    <div class="card p-4 mb-4">
-        <div class="flex flex-col sm:flex-row flex-wrap gap-3">
-            <div class="flex-1 min-w-[180px]">
-                <input type="text" wire:model.live.debounce.300ms="search"
-                       placeholder="Search name, staff ID, email, designation…"
-                       class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500" />
-            </div>
-            <select wire:model.live="outletFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                @if ($canViewAll)
-                    <option value="">All Outlets</option>
-                @endif
-                @foreach ($outlets as $o)
-                    <option value="{{ $o->id }}">{{ $o->name }}</option>
-                @endforeach
-            </select>
-            <select wire:model.live="sectionFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="">All Sections</option>
-                @foreach ($sections as $s)
-                    <option value="{{ $s->id }}">{{ $s->name }}</option>
-                @endforeach
-            </select>
-            <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="">All Employment</option>
-                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
-                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
-                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
-                @endforeach
-                <option value="none">No Status</option>
-            </select>
-            <select wire:model.live="statusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="">All</option>
-                {{-- Where a deleted member of staff is found again. The flash
-                     message on delete names this option, so the two have to
-                     keep saying the same word. --}}
-                <option value="deleted">Deleted</option>
-            </select>
-            <a href="{{ route('settings.sections') }}"
-               class="text-xs text-brand-600 hover:text-brand-800 underline self-center">
-                Manage Sections
-            </a>
-        </div>
     </div>
 
     {{-- List --}}
