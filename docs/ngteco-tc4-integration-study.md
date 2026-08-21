@@ -190,3 +190,113 @@ and it is the reason (a) is the recommendation.
 - [NGTeco is a ZKTeco brand — NZTeco](https://www.nzteco.co.nz/product-category/ngteco/)
 - [pyzk issue #240 — NGTeco device on the ZK protocol](https://github.com/fananimi/pyzk/issues/240)
 - [ZKTeco ADMS / Push protocol overview](https://www.linkedin.com/pulse/zkteco-adms-protocol-link-your-zk-device-server-herbin-tsobeng-qg0ze), [zkteco-adms (Go)](https://github.com/s0x90/zkteco-adms), [ADMS server reference implementation](https://github.com/mmd-rehan/ADMS-server-ZKTeco)
+
+---
+
+## 6. Follow-up: fingerprint scanning in the PWA on a Windows PC
+
+Asked 2026-08-21, immediately after the above: *can the staff PWA read a USB
+fingerprint scanner on a Windows machine?*
+
+**A web page cannot read a fingerprint scanner.** This is not a gap in our code or
+a browser we have not tried — no browser exposes fingerprint data to a page, on any
+OS, deliberately. There are three routes that look like they get round that, and
+only the third one works.
+
+### (A) WebAuthn / Windows Hello — real, and wrong for attendance
+
+This is the one that genuinely runs in a PWA. Windows Hello is a platform
+authenticator, Chrome and Edge expose it through WebAuthn, and a fingerprint on a
+Hello-compatible reader will satisfy it. It fails here for three reasons, and the
+second is fatal:
+
+1. **It binds to the Windows account, not to your staff list.** Hello enrolments
+   live against the PC's Windows user, capped around ten per device. A kitchen with
+   turnover blows through that, and every enrolment is a Windows admin task at the
+   machine rather than something a manager does from Servora.
+
+2. **The PIN fallback cannot be switched off.** `userVerification` is one bit in
+   the authenticator data — verified or not — and it does not distinguish a
+   fingerprint from a passcode. The extension that would report the method (`uvm`)
+   has never shipped in any browser. So Windows Hello is free to satisfy
+   `userVerification: "required"` with the machine's Hello PIN, and we cannot tell
+   afterwards that it did. **Anyone who knows the kiosk PC's Windows PIN can punch
+   as any colleague whose credential is on that box, and the punch arrives looking
+   perfectly verified.** For a system whose whole job is knowing who was at work,
+   that is the end of the discussion.
+
+3. **It authenticates, it does not identify.** The person picks their name, then
+   proves it. That is our existing PIN flow with a Windows dependency bolted on —
+   and strictly worse than `FaceIdentifier`, which answers *who is this* against
+   everybody posted to the outlet, with a threshold and a runner-up margin, and
+   asks for a PIN rather than resolving a coin toss.
+
+### (B) WebUSB / WebHID straight to the scanner — does not work
+
+Two independent blockers, either one sufficient:
+
+- **Windows will not let go of the device.** Fingerprint readers bind to the
+  Windows Biometric Framework (WBDI). Chrome can only open a device bound to
+  `WinUSB.sys`, so making this work means running Zadig on every outlet PC to swap
+  the driver — which disables Windows Hello on that machine and is not something
+  anyone can ship to an outlet as an instruction.
+- **A raw image is not an identity.** Minutiae extraction and 1:N matching are the
+  vendor's proprietary SDK. Reimplementing that in JavaScript is a research
+  project, not a sprint.
+
+Chrome and Edge only, besides — no Safari, no Firefox, so any iPad kiosk is out.
+
+### (C) A local agent — the answer, and we have built it twice
+
+`tools/print-agent` and `tools/pos-agent` are both already this: a small Go binary
+on the outlet PC that pairs once with a code, runs as a Windows service, keeps its
+token in `%ProgramData%`, and talks outbound HTTPS only — no inbound ports, works
+behind NAT. A fingerprint agent is that skeleton with a vendor SDK (DigitalPersona
+/ HID U.are.U, SecuGen, Futronic, ZKFinger) where SumatraPDF sits in the print one.
+It captures, extracts the template, matches 1:N locally, and posts the identified
+`staff_id`.
+
+Two shapes:
+
+- **(C1) The agent is the punch client.** It posts straight to a device-token
+  endpoint, exactly as `pos-agent` posts batches. No PWA involvement at all. This
+  is the simple one and probably the right one.
+- **(C2) The agent is a sidecar the kiosk PWA calls** on `http://127.0.0.1:<port>`,
+  so the PWA stays the UI and gains fingerprint as a third identify method beside
+  face and PIN. Loopback is exempt from mixed-content blocking, so an HTTPS page
+  may call it — but **Chrome 142 gates loopback requests from public origins behind
+  a Local Network Access permission prompt**, so this needs a one-time grant per
+  kiosk. Workable, one more thing to go wrong at 6am.
+
+**A live agent punch fits `ClockInService::punch()` unchanged, and that is the
+whole difference from §4.** It happens *now*, so the deliberate `$at = now()` is
+correct rather than destructive — none of the sibling-writer work an imported batch
+needs. Better still, a paired agent **is** a registered device at an outlet, so it
+can hold a `ClockDevice` row and punch as `source = kiosk` with `clock_device_id`
+set: `kioskLocation()` applies, the geofence is correctly skipped, the devices
+screen shows its heartbeat, and revocation already works. **No schema change at
+all.** The only real work beyond the agent is flags — a fingerprint punch carries
+no selfie, so `no_face` would fire on every one and bury the review queue inside a
+day. The fingerprint match *is* the evidence; it needs recording as such rather
+than as an absence.
+
+### (D) Don't build any of it — buy the terminal
+
+A standalone ADMS-capable ZKTeco fingerprint terminal, per option (c) in §3, does
+capture, 1:N matching and enrolment in a box that is already certified, already
+survives a kitchen, and pushes punches to us over HTTP. No PC, no driver, no agent
+to maintain across Windows updates. **If the reason for wanting a fingerprint at
+all is "the camera struggles in the prep area", this is cheaper and faster than
+(C) and should be priced first.**
+
+### Recommendation
+
+**Do not attempt (A) or (B).** (A) looks closest to a PWA answer and is the one
+worth explicitly refusing, because the PIN-fallback hole is invisible: it produces
+punches that pass every check we have while proving nothing about who made them.
+
+If fingerprint is genuinely needed, price **(D)** before **(C)** — the same
+decision §3 already reached by a different road. And if the actual problem is that
+face identification struggles in a specific room, say so out loud first: a better
+camera position, or better lighting over the kiosk, is a morning's work against a
+fortnight's.
