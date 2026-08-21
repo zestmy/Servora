@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -162,6 +163,29 @@ class EmployeeForm extends Component
      * for everyone in BOTH outlets.
      */
     public ?int $f_service_charge_outlet_id = null;
+
+    /**
+     * The service charge outlet this employee was loaded with.
+     *
+     * Same rule as the bank picker and the particulars: a value the current
+     * user cannot reach — an outlet outside their access, or one since closed
+     * and removed — stays selectable rather than failing the rule below.
+     *
+     * Without this the form is a dead end. The picker only lists outlets the
+     * user can see, so an unreachable value renders as "Their own outlet"
+     * while the property still holds it, and every save fails on a field that
+     * looks correct — or, without hr.compensation, on a field that is not on
+     * screen at all. That is what a Central Kitchen user hit: kitchen staff
+     * are attached to the kitchen's base outlet only, so anybody carrying a
+     * redirect to a shop outlet could not be edited again.
+     *
+     * #[Locked] because it widens an ACCESS rule rather than a list of names:
+     * a payload free to set this could name any outlet in the company and
+     * redirect somebody's service charge into a branch the sender cannot see,
+     * which is the exact thing the rule exists to stop.
+     */
+    #[Locked]
+    public ?int $originalServiceChargeOutletId = null;
 
     /** Default settlement for this person's approved overtime. */
     public bool $f_overtime_as_time_off = false;
@@ -334,6 +358,7 @@ class EmployeeForm extends Component
         $this->f_allow_byod = $emp->allow_byod === null ? '' : ($emp->allow_byod ? 'yes' : 'no');
         $this->f_allow_anywhere = (bool) $emp->allow_anywhere;
         $this->f_service_charge_outlet_id = $emp->service_charge_outlet_id;
+        $this->originalServiceChargeOutletId = $emp->service_charge_outlet_id;
         $this->f_overtime_as_time_off = (bool) $emp->overtime_as_time_off;
         $this->f_certifications = $emp->certifications()
             ->orderBy('certification_type_id')
@@ -398,6 +423,50 @@ class EmployeeForm extends Component
     protected function accessibleOutletIds(): array
     {
         return Auth::user()->accessibleOutletIds();
+    }
+
+    /**
+     * Outlet IDs the service charge picker may be set to: the ones this user
+     * can see, plus whatever the record already held.
+     *
+     * @see $originalServiceChargeOutletId for why the stale one stays.
+     *
+     * @return array<int, int>
+     */
+    protected function serviceChargeOutletIds(): array
+    {
+        $ids = $this->accessibleOutletIds();
+
+        if ($this->originalServiceChargeOutletId
+            && ! in_array((int) $this->originalServiceChargeOutletId, $ids, true)) {
+            $ids[] = (int) $this->originalServiceChargeOutletId;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * The outlets the service charge picker offers: the accessible, still-open
+     * ones, plus the outlet already recorded — even if it has been closed and
+     * removed, which is the only way somebody can see what is set and change
+     * it. A removed outlet is labelled as such rather than listed as a live
+     * choice.
+     *
+     * @return \Illuminate\Support\Collection<int, Outlet>
+     */
+    protected function serviceChargeOutletOptions(\Illuminate\Support\Collection $outlets): \Illuminate\Support\Collection
+    {
+        $original = (int) $this->originalServiceChargeOutletId;
+
+        if (! $original || $outlets->contains('id', $original)) {
+            return $outlets;
+        }
+
+        $stale = Outlet::withTrashed()->find($original);
+
+        return $stale
+            ? $outlets->concat([$stale])
+            : $outlets;
     }
 
     /**
@@ -536,10 +605,12 @@ class EmployeeForm extends Component
             'f_overtime_as_time_off' => 'boolean',
             // Must be an outlet this user can actually see, so the picker
             // cannot be used to move money into a branch they have no access
-            // to. Nullable: blank is the normal state.
+            // to — plus whatever the record already held, so an existing
+            // redirect they cannot reach does not make the form unsaveable.
+            // Nullable: blank is the normal state.
             'f_service_charge_outlet_id' => [
                 'nullable', 'integer',
-                Rule::in($this->accessibleOutletIds()),
+                Rule::in($this->serviceChargeOutletIds()),
             ],
             // Picked from the company's bank list, plus whatever this record
             // already held — see $originalBankName.
@@ -580,6 +651,10 @@ class EmployeeForm extends Component
     {
         return [
             'f_outlet_id.in' => 'You do not have access to the selected outlet.',
+            // The default reads "The selected f service charge outlet id is
+            // invalid", which names a property rather than a field and sends
+            // nobody anywhere useful.
+            'f_service_charge_outlet_id.in' => 'You do not have access to the outlet selected under "Service charge paid from".',
             'f_typhoid_expired_on.after' => 'The Expired On date must be after the Valid From date.',
             'f_employment_status_date.required' => 'Please set the date for this employment status.',
             'f_outsourcing_company.required'    => 'Please enter the outsourcing company name.',
@@ -833,16 +908,6 @@ class EmployeeForm extends Component
         $data = [
             'company_id'    => $user->company_id,
             'outlet_id'     => $this->f_outlet_id,
-            /*
-             * Stored as NULL when it matches the posting, never as a copy of
-             * outlet_id. A copy would silently stop following a transfer —
-             * move somebody to another branch and they would keep drawing from
-             * the outlet they left, with nothing on screen to say why.
-             */
-            'service_charge_outlet_id' => ($this->f_service_charge_outlet_id
-                && (int) $this->f_service_charge_outlet_id !== (int) $this->f_outlet_id)
-                    ? (int) $this->f_service_charge_outlet_id
-                    : null,
             'section_id' => $this->f_section_id ?: null,
             // Never themselves: a self-reference is a loop, and always a slip.
             'reports_to_id' => ($this->f_reports_to_id && $this->f_reports_to_id !== $this->employeeId)
@@ -944,6 +1009,22 @@ class EmployeeForm extends Component
         // an ordinary HR user editing an employee leaves salary and service
         // points untouched rather than blanking values they can't even see.
         if ($this->canViewPay()) {
+            /*
+             * Behind the pay wall with the rest of the compensation tab, and
+             * written only by someone who can see it — an ordinary HR user
+             * fixing a phone number must not move somebody between service
+             * charge pools, least of all by writing back a value the picker
+             * never showed them.
+             *
+             * Stored as NULL when it matches the posting, never as a copy of
+             * outlet_id. A copy would silently stop following a transfer —
+             * move somebody to another branch and they would keep drawing from
+             * the outlet they left, with nothing on screen to say why.
+             */
+            $data['service_charge_outlet_id'] = ($this->f_service_charge_outlet_id
+                && (int) $this->f_service_charge_outlet_id !== (int) $this->f_outlet_id)
+                    ? (int) $this->f_service_charge_outlet_id
+                    : null;
             $data['service_points_entitlement'] = $this->f_service_points !== ''
                 ? round((float) $this->f_service_points, 2)
                 : null;
@@ -1146,6 +1227,11 @@ class EmployeeForm extends Component
             ->orderBy('name')
             ->get();
 
+        // The service charge picker gets its own list: the same outlets, plus
+        // the one already recorded when that is out of reach. See
+        // serviceChargeOutletOptions().
+        $serviceChargeOutlets = $this->serviceChargeOutletOptions($outlets);
+
         $sections   = Section::active()->ordered()->get();
         $canViewPay = $this->canViewPay();
         $canEditEmployment = $this->canEditEmployment();
@@ -1177,7 +1263,7 @@ class EmployeeForm extends Component
         $availableCertifications = $this->availableCertificationTypes();
 
         return view('livewire.hr.employee-form', compact(
-            'outlets', 'sections', 'canViewPay', 'canEditEmployment', 'banks', 'particulars', 'documents',
+            'outlets', 'serviceChargeOutlets', 'sections', 'canViewPay', 'canEditEmployment', 'banks', 'particulars', 'documents',
             'certificationTypes', 'availableCertifications', 'complianceSettings', 'superiors'
         ))
             ->layout('layouts.app', ['title' => $this->employeeId ? 'Edit Employee' : 'Add Employee']);
