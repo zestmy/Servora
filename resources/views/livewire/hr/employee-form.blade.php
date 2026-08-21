@@ -784,11 +784,21 @@
 
                 <div class="sm:w-1/2 sm:pr-1.5">
                     <label class="text-xs font-semibold text-gray-600">Service charge paid from</label>
+                    {{-- $serviceChargeOutlets, not $outlets: it carries whatever
+                         this record already points at, even an outlet since closed
+                         or one outside this user's access. Listing only reachable
+                         outlets rendered an unreachable value as "Their own outlet"
+                         and then refused every save. --}}
                     <select wire:model="f_service_charge_outlet_id"
                             class="mt-1 w-full text-sm rounded-lg border-gray-300">
                         <option value="">Their own outlet</option>
-                        @foreach ($outlets as $o)
-                            <option value="{{ $o->id }}">{{ $o->name }}</option>
+                        @foreach ($serviceChargeOutlets as $o)
+                            {{-- The label is built here rather than with an @if
+                                 inside the option: Livewire wraps every
+                                 conditional in HTML comment markers, and inside
+                                 an <option> those land in the middle of the
+                                 text the user reads. --}}
+                            <option value="{{ $o->id }}">{{ $o->trashed() ? $o->name . ' (removed)' : $o->name }}</option>
                         @endforeach
                     </select>
                     <x-input-error :messages="$errors->get('f_service_charge_outlet_id')" class="mt-1" />
