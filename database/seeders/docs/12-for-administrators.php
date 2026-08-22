@@ -208,5 +208,83 @@ HTML,
 <p>Running the docs seeder again adds articles that are missing and <em>leaves existing ones alone</em> — your edits are never overwritten. To restore a shipped article to its original text, delete it and reseed.</p>
 HTML,
         ],
+        [
+            'slug'     => 'api-keys',
+            'title'    => 'API keys and third-party services',
+            'excerpt'  => 'The two outbound credentials the platform runs on: the AI provider and the email provider. What breaks when each is missing.',
+            'keywords' => 'API key, OpenRouter, EngineMailer, AI not working, email not sending, integration, credentials, model',
+            'body' => <<<'HTML'
+<p><strong>Admin → API Keys</strong> holds the credentials Servora uses to call <em>out</em> to two third-party services. One set for the whole platform, editable by a System Admin, stored in settings rather than in a deploy file so a rotated key does not need a release.</p>
+
+<blockquote><p><strong>This screen is not about giving anyone an API key for Servora.</strong> Servora has no public REST API today — there is nothing for a customer to authenticate against. If somebody asks for "our API key", they almost certainly want the print agent or POS sync agent, which pair with a one-time code instead. See <a href="/help/labels/printers-and-print-agents">Printers and print agents</a>.</p></blockquote>
+
+<h2>OpenRouter — the AI provider</h2>
+
+<p>One key, and optionally a model name. This is what powers every AI feature in the product:</p>
+
+<table>
+  <thead><tr><th>Feature</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td>Reading a supplier invoice from a photo or PDF</td><td>Purchasing → Invoices → Receive</td></tr>
+    <tr><td>Importing a price list or scanned document</td><td>Inventory → Review Documents</td></tr>
+    <tr><td>Smart recipe import</td><td>Recipes → Import</td></tr>
+    <tr><td>AI Analysis</td><td>Business Intelligence → AI Analysis</td></tr>
+  </tbody>
+</table>
+
+<p>With no key set, all four stop. They fail with a message rather than silently returning nothing — but the message is the first thing to check when somebody reports that "the AI has stopped working".</p>
+
+<h3>The model field</h3>
+
+<p>Leave it blank and Servora uses a sensible fast default. Set it and that model is used for document extraction and recipe import.</p>
+
+<p><strong>AI Analysis deliberately ignores this field</strong> and always uses the fast default. That is not an oversight: Analysis sends a large multi-table prompt, and a reasoning model's long thinking phase reliably times the request out. If you set a slow model and notice extraction got slower while Analysis did not change, this is why.</p>
+
+<h3>Choosing a model</h3>
+
+<p>Document extraction is a vision task — the model has to read a photograph of a delivery note taken on a phone in a stockroom. A model without vision support will fail on every scan regardless of how good it is at text. If you change this field, put one real invoice through <strong>Review Documents</strong> before you walk away.</p>
+
+<h2>EngineMailer — the email provider</h2>
+
+<p>An API key and a sender email address. Every message Servora sends leaves through here:</p>
+
+<ul>
+  <li>Purchase orders emailed to suppliers.</li>
+  <li>Scheduled reports.</li>
+  <li>Published duty rosters.</li>
+  <li>Payslips.</li>
+  <li>Account email — verification, password resets, invitations.</li>
+</ul>
+
+<p>With no key, none of them send. Password resets failing is usually the first symptom anyone notices, because it is the one a locked-out user reports.</p>
+
+<h3>The sender address</h3>
+
+<p>It must be an address EngineMailer has verified for your account. An unverified sender is accepted by the form and rejected by the provider, which produces mail that silently never arrives — the worst failure mode of the two.</p>
+
+<p>Purchase order emails fall back to the company's own address if this is blank, and then to a default Servora address. Set it explicitly; suppliers reply to whatever they received it from.</p>
+
+<h3>Test connection</h3>
+
+<p>The <strong>Test connection</strong> button sends a real email to the sender address itself and reports what the provider said. Use it after every change — it is the difference between finding out now and finding out when a supplier says they never got the order.</p>
+
+<p>Save the key and the sender address first: the test reads what is stored, not what is typed on screen.</p>
+
+<h2>Rotating a key</h2>
+
+<ol>
+  <li>Create the new key at the provider.</li>
+  <li>Paste it here and save.</li>
+  <li>Test — the button for EngineMailer, a real document scan for OpenRouter.</li>
+  <li>Only then revoke the old key at the provider.</li>
+</ol>
+
+<p>Revoking first gives you an outage of unknown length while somebody finds this screen.</p>
+
+<h2>Who can see this</h2>
+
+<p>System Admins only. These are live credentials that spend money and send mail as your business, and they are shared by every company on the platform — one bad key is an outage for every tenant, not just one.</p>
+HTML,
+        ],
     ],
 ];
