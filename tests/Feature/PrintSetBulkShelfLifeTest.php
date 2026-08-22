@@ -213,6 +213,21 @@ class PrintSetBulkShelfLifeTest extends TestCase
         $this->assertNull($theirLine->fresh()->shelf_life_value, 'A line outside the open set was edited.');
     }
 
+    /**
+     * The bar is conditional markup — it only exists once something is ticked
+     * — so a passing behaviour test proves nothing about whether anybody can
+     * reach it.
+     */
+    public function test_the_bulk_bar_appears_only_once_something_is_ticked(): void
+    {
+        $this->screen()
+            ->assertDontSee('applyBulkShelfLife')
+            ->set('selectedLines', $this->ids(0))
+            ->assertSee('applyBulkShelfLife', escape: false)
+            ->assertSee('1 selected')
+            ->assertSee('Apply to 1');
+    }
+
     /** A tick list carried across sets would edit lines nobody can see. */
     public function test_switching_sets_clears_the_selection(): void
     {
