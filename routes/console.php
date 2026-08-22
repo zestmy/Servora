@@ -11,6 +11,13 @@ Artisan::command('inspire', function () {
 // Process recurring billing daily at 6 AM MYT
 Schedule::command('billing:process-recurring')->dailyAt('06:00');
 
+// Ask CHIP-IN what happened to payments whose webhook never arrived. A lost
+// callback leaves the customer paid and Servora showing a pending payment, no
+// invoice and a subscription still on trial — and nothing used to close that
+// loop, which is how one purchase sat pending from March to August. Hourly,
+// because a customer who has paid should not wait a day to be activated.
+Schedule::command('chipin:reconcile')->hourly()->withoutOverlapping();
+
 // Snapshot usage daily at midnight
 Schedule::command('usage:snapshot')->dailyAt('00:00');
 

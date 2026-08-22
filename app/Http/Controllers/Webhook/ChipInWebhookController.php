@@ -8,74 +8,196 @@ use App\Services\ChipInService;
 use App\Services\InvoiceService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * The CHIP-IN payment callback.
+ *
+ * This endpoint is public, unauthenticated and grants paid subscriptions, so
+ * the signature check is the only thing standing between it and anybody who
+ * can guess a purchase id. Two things were wrong with how it did that:
+ *
+ *   1. It verified with hash_hmac(), and CHIP signs with RSA. A real callback
+ *      could never verify — with a secret configured (which production had)
+ *      every genuine payment was answered 403, which is why one purchase sat
+ *      pending from March to August and the invoices table was empty.
+ *
+ *   2. It FAILED OPEN. `if ($secret && ! verify())` means an installation with
+ *      no secret configured skipped verification altogether and would activate
+ *      a subscription for an unsigned POST.
+ *
+ * Both are fixed: verification is RSA against the merchant portal's public key
+ * (ChipInService::verifyWebhook), and a callback that cannot be verified —
+ * including because no key is configured — is refused.
+ */
 class ChipInWebhookController extends Controller
 {
-    public function handle(Request $request): \Illuminate\Http\JsonResponse
+    public function handle(Request $request, ChipInService $chipIn): \Illuminate\Http\JsonResponse
     {
-        Log::info('CHIP-IN webhook received', ['payload' => $request->all()]);
+        // Headers and ids only. The body carries the payer's name and email,
+        // and this used to log the whole thing at info level on every call.
+        Log::info('CHIP-IN webhook received', [
+            'event'       => $request->header('X-Event-Type'),
+            'purchase_id' => $request->input('id'),
+            'status'      => $request->input('status'),
+        ]);
 
-        $chipInService = app(ChipInService::class);
+        if (! $chipIn->canVerifyWebhooks()) {
+            Log::error('CHIP-IN webhook refused: no webhook public key configured. '
+                . 'Set it in Admin > Billing Settings — payments cannot complete until it is.');
 
-        // Verify signature if configured
-        $signature = $request->header('X-Signature', '');
-        if (config('chipin.webhook_secret') && !$chipInService->verifyWebhook($request->getContent(), $signature)) {
-            Log::warning('CHIP-IN webhook signature verification failed');
+            return response()->json(['error' => 'Webhook verification is not configured'], 503);
+        }
+
+        if (! $chipIn->verifyWebhook($request->getContent(), (string) $request->header('X-Signature', ''))) {
+            Log::warning('CHIP-IN webhook signature verification failed', [
+                'purchase_id' => $request->input('id'),
+            ]);
+
             return response()->json(['error' => 'Invalid signature'], 403);
         }
 
-        $data = $request->all();
+        $data       = $request->all();
         $purchaseId = $data['id'] ?? null;
-        $status = $data['status'] ?? null;
 
-        if (!$purchaseId) {
+        if (! $purchaseId) {
             return response()->json(['error' => 'Missing purchase ID'], 400);
         }
 
-        $payment = Payment::where('chip_purchase_id', $purchaseId)->first();
+        // The event name is the reliable signal; `status` is the purchase
+        // object's own field and older payloads only carried that.
+        $event  = (string) $request->header('X-Event-Type', '');
+        $status = $data['status'] ?? null;
 
-        if (!$payment) {
-            Log::warning('CHIP-IN webhook: payment not found', ['purchase_id' => $purchaseId]);
-            return response()->json(['error' => 'Payment not found'], 404);
-        }
+        $paid = $event === 'purchase.paid'
+            || in_array($status, ['paid', 'success'], true);
 
-        // Already processed
-        if ($payment->isCompleted()) {
-            return response()->json(['status' => 'already_processed']);
-        }
+        $failed = in_array($event, ['purchase.cancelled', 'purchase.expired'], true)
+            || in_array($status, ['failed', 'expired', 'cancelled'], true);
 
-        if ($status === 'paid' || $status === 'success') {
-            // Mark payment as completed
-            $payment->update([
-                'status'          => Payment::STATUS_COMPLETED,
-                'chip_payment_id' => $data['payment']['id'] ?? null,
-                'payment_method'  => $data['payment']['method'] ?? null,
-                'paid_at'         => now(),
-                'metadata'        => $data,
-            ]);
+        return DB::transaction(function () use ($purchaseId, $data, $paid, $failed, $status) {
+            // lockForUpdate: CHIP retries, and two deliveries arriving together
+            // both passed the isCompleted() check before either had written —
+            // which renewed the subscription twice and moved the period end out
+            // by two months for one payment.
+            $payment = Payment::where('chip_purchase_id', $purchaseId)
+                ->lockForUpdate()
+                ->first();
 
-            // Activate or renew subscription
-            $subscription = $payment->subscription;
-            if ($subscription->isTrial() || $subscription->isPastDue()) {
-                app(SubscriptionService::class)->activate($subscription);
-            } else {
-                app(SubscriptionService::class)->renew($subscription);
+            if (! $payment) {
+                Log::warning('CHIP-IN webhook: payment not found', ['purchase_id' => $purchaseId]);
+
+                return response()->json(['error' => 'Payment not found'], 404);
             }
 
-            // Generate invoice
-            app(InvoiceService::class)->createFromPayment($payment);
+            if ($payment->isCompleted()) {
+                return response()->json(['status' => 'already_processed']);
+            }
 
-            Log::info('CHIP-IN payment completed', ['payment_id' => $payment->id, 'company' => $payment->company->name]);
-        } elseif ($status === 'failed' || $status === 'expired') {
-            $payment->update([
-                'status'   => Payment::STATUS_FAILED,
-                'metadata' => $data,
-            ]);
+            if ($paid) {
+                if (! $this->amountMatches($payment, $data)) {
+                    // Do NOT complete. Underpayment must not buy a full period,
+                    // and a mismatch is more likely a bug or an attack than a
+                    // customer who paid the wrong amount by accident.
+                    Log::error('CHIP-IN webhook: paid amount does not match the payment record', [
+                        'payment_id' => $payment->id,
+                        'expected'   => (float) $payment->amount,
+                        'received'   => $this->callbackAmount($data),
+                        'currency'   => $data['currency'] ?? null,
+                    ]);
 
-            Log::info('CHIP-IN payment failed', ['payment_id' => $payment->id]);
+                    return response()->json(['error' => 'Amount mismatch'], 422);
+                }
+
+                $this->complete($payment, $data);
+
+                return response()->json(['status' => 'ok']);
+            }
+
+            if ($failed) {
+                $payment->update([
+                    'status'   => Payment::STATUS_FAILED,
+                    'metadata' => $data,
+                ]);
+
+                Log::info('CHIP-IN payment failed', ['payment_id' => $payment->id, 'status' => $status]);
+            }
+
+            return response()->json(['status' => 'ok']);
+        });
+    }
+
+    /**
+     * Settle the payment, move the subscription on, and raise the invoice.
+     */
+    private function complete(Payment $payment, array $data): void
+    {
+        $payment->update([
+            'status'          => Payment::STATUS_COMPLETED,
+            'chip_payment_id' => $data['payment']['id'] ?? null,
+            'payment_method'  => $data['payment']['payment_type'] ?? ($data['payment']['method'] ?? null),
+            'paid_at'         => now(),
+            'metadata'        => $data,
+        ]);
+
+        // Null-safe: subscription_id is nullable now that an invoice can be
+        // settled by hand without one. A gateway payment always has one, but
+        // this must not 500 if a row is ever stitched up differently.
+        $subscription = $payment->subscription;
+
+        if ($subscription) {
+            $service = app(SubscriptionService::class);
+
+            $subscription->isTrial() || $subscription->isPastDue()
+                ? $service->activate($subscription)
+                : $service->renew($subscription);
         }
 
-        return response()->json(['status' => 'ok']);
+        // Idempotent — returns the existing invoice on a retry.
+        app(InvoiceService::class)->createFromPayment($payment);
+
+        Log::info('CHIP-IN payment completed', [
+            'payment_id' => $payment->id,
+            'company_id' => $payment->company_id,
+        ]);
+    }
+
+    /**
+     * Does the amount CHIP says was paid match what we asked for?
+     *
+     * CHIP reports money in minor units (cents), so the comparison is done in
+     * cents to keep floating point out of it. A callback that does not carry
+     * an amount at all is accepted rather than rejected — some payload shapes
+     * omit it, and refusing on a missing field would break the happy path to
+     * defend against something that has not happened.
+     */
+    private function amountMatches(Payment $payment, array $data): bool
+    {
+        $received = $this->callbackAmount($data);
+
+        if ($received === null) {
+            return true;
+        }
+
+        $currency = $data['currency'] ?? null;
+
+        if ($currency && strtoupper((string) $currency) !== strtoupper((string) $payment->currency)) {
+            return false;
+        }
+
+        return $received === (int) round(((float) $payment->amount) * 100);
+    }
+
+    /** The paid amount in cents, or null when the payload does not say. */
+    private function callbackAmount(array $data): ?int
+    {
+        foreach ([$data['payment']['amount'] ?? null, $data['purchase']['total'] ?? null, $data['total'] ?? null] as $value) {
+            if (is_numeric($value)) {
+                return (int) $value;
+            }
+        }
+
+        return null;
     }
 }
