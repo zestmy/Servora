@@ -45,6 +45,15 @@
                                     {{ $category->articles_count }} {{ Str::plural('article', $category->articles_count) }}
                                     · /help/{{ $category->slug }}
                                 </span>
+                                @unless ($category->isPublic())
+                                    {{-- Only shown when it is NOT public: a badge on
+                                         every row would be noise, and public is the
+                                         case that needs no explaining. --}}
+                                    <span class="mt-1 inline-flex items-center gap-1 rounded-full bg-warning-50 px-1.5 py-0.5 text-[10px] font-medium text-warning-800">
+                                        <x-icon name="shield" size="h-2.5 w-2.5" />
+                                        {{ $category->visibilityLabel() }}
+                                    </span>
+                                @endunless
                             </span>
                         </button>
 
@@ -206,6 +215,21 @@
                             @endforeach
                         </div>
                         <x-input-error :messages="$errors->get('cat_icon')" class="mt-1" />
+                    </div>
+
+                    <div>
+                        <x-input-label for="cat_visibility" value="Who can read this section" />
+                        <select id="cat_visibility" wire:model="cat_visibility" class="input mt-1">
+                            @foreach ($visibilities as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <p class="help mt-1">
+                            Separate from Published. Published asks whether the section is finished;
+                            this asks who it is for. A section somebody may not read is a 404 for
+                            them — it never appears in the tiles, in search, or at its own URL.
+                        </p>
+                        <x-input-error :messages="$errors->get('cat_visibility')" class="mt-1" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 items-end">

@@ -293,6 +293,126 @@ class HelpCentreTest extends TestCase
         $this->assertDatabaseMissing('doc_articles', ['id' => $this->article->id]);
     }
 
+    // ── Who may read a section ─────────────────────────────────────────────
+
+    /**
+     * A restricted section has to disappear from ALL THREE surfaces. Hiding the
+     * tile while leaving the URL open, or the URL while leaving it in search
+     * results, is theatre — and the search index is the one people forget.
+     */
+    public function test_a_system_only_section_is_invisible_to_a_guest_everywhere(): void
+    {
+        $this->category->update(['visibility' => DocCategory::VISIBILITY_SYSTEM]);
+
+        // 1. Not in the tiles.
+        $this->get('/help')->assertOk()->assertDontSee('Orders and deliveries.');
+
+        // 2. Not at its own URL, and 404 rather than 403 — a refusal would
+        //    confirm the section exists and what it is called.
+        $this->get('/help/purchasing')->assertNotFound();
+        $this->get('/help/purchasing/receive-goods')->assertNotFound();
+
+        // 3. Not in search.
+        Livewire::test(\App\Livewire\Help\Index::class)
+            ->set('q', 'GRN')
+            ->assertDontSee('Receive a delivery');
+    }
+
+    public function test_a_system_only_section_is_invisible_to_an_ordinary_tenant_user(): void
+    {
+        $this->category->update(['visibility' => DocCategory::VISIBILITY_SYSTEM]);
+
+        $this->actingAs($this->tenantUser)->get('/help')->assertOk()->assertDontSee('Orders and deliveries.');
+        $this->actingAs($this->tenantUser)->get('/help/purchasing')->assertNotFound();
+        $this->actingAs($this->tenantUser)->get('/help/purchasing/receive-goods')->assertNotFound();
+    }
+
+    public function test_a_system_admin_reads_a_system_only_section_normally(): void
+    {
+        $this->category->update(['visibility' => DocCategory::VISIBILITY_SYSTEM]);
+
+        $this->actingAs($this->admin)->get('/help')->assertOk()->assertSee('Purchasing');
+        $this->actingAs($this->admin)->get('/help/purchasing')->assertOk();
+        $this->actingAs($this->admin)
+            ->get('/help/purchasing/receive-goods')
+            ->assertOk()
+            ->assertSee('what really happened', false);
+    }
+
+    public function test_an_authenticated_only_section_is_closed_to_guests_and_open_to_any_tenant(): void
+    {
+        $this->category->update(['visibility' => DocCategory::VISIBILITY_AUTHENTICATED]);
+
+        $this->get('/help/purchasing')->assertNotFound();
+        $this->actingAs($this->tenantUser)->get('/help/purchasing')->assertOk();
+        $this->actingAs($this->admin)->get('/help/purchasing')->assertOk();
+    }
+
+    /**
+     * Article slugs are unique across the whole manual, so an article in a
+     * restricted section can be addressed through a PUBLIC section's URL. The
+     * article's own section has to decide, not the one in the address bar.
+     */
+    public function test_a_restricted_article_cannot_be_reached_through_a_public_sections_url(): void
+    {
+        $public = DocCategory::create([
+            'slug' => 'inventory', 'title' => 'Inventory', 'sort_order' => 20,
+            'is_published' => true, 'visibility' => DocCategory::VISIBILITY_PUBLIC,
+        ]);
+
+        $this->category->update(['visibility' => DocCategory::VISIBILITY_SYSTEM]);
+
+        // Without the article-level check this redirects to the canonical URL,
+        // which is a 404 — but the redirect itself would confirm the article.
+        $this->get('/help/inventory/receive-goods')->assertNotFound();
+    }
+
+    public function test_sections_are_public_unless_they_say_otherwise(): void
+    {
+        $fresh = DocCategory::create([
+            'slug' => 'sales', 'title' => 'Sales', 'sort_order' => 30, 'is_published' => true,
+        ]);
+
+        $this->assertSame(DocCategory::VISIBILITY_PUBLIC, $fresh->fresh()->visibility);
+        $this->assertTrue($fresh->isVisibleTo(null));
+    }
+
+    /** Visibility and publication are different questions and must stay so. */
+    public function test_visibility_does_not_substitute_for_publication(): void
+    {
+        $this->category->update([
+            'visibility'   => DocCategory::VISIBILITY_PUBLIC,
+            'is_published' => false,
+        ]);
+
+        // Public but unfinished is still hidden, from everybody.
+        $this->get('/help/purchasing')->assertNotFound();
+        $this->actingAs($this->admin)->get('/help/purchasing')->assertNotFound();
+    }
+
+    public function test_an_admin_can_change_a_sections_audience(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test(DocsIndex::class)
+            ->call('editCategory', $this->category->id)
+            ->assertSet('cat_visibility', DocCategory::VISIBILITY_PUBLIC)
+            ->set('cat_visibility', DocCategory::VISIBILITY_SYSTEM)
+            ->call('saveCategory')
+            ->assertHasNoErrors();
+
+        $this->assertSame(DocCategory::VISIBILITY_SYSTEM, $this->category->fresh()->visibility);
+    }
+
+    public function test_an_unknown_audience_is_refused(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test(DocsIndex::class)
+            ->call('editCategory', $this->category->id)
+            ->set('cat_visibility', 'everyone-i-like')
+            ->call('saveCategory')
+            ->assertHasErrors('cat_visibility');
+    }
+
     // ── Where it is linked from ────────────────────────────────────────────
 
     public function test_the_manual_is_offered_in_both_the_app_and_the_marketing_site(): void

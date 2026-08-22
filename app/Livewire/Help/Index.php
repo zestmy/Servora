@@ -4,6 +4,8 @@ namespace App\Livewire\Help;
 
 use App\Models\DocArticle;
 use App\Models\DocCategory;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -29,6 +31,11 @@ class Index extends Component
 
     public function render()
     {
+        // Resolved once and threaded through every query below. A restricted
+        // section must be invisible in the tiles, in the search results AND at
+        // its own URL — missing any one of those makes the other two theatre.
+        $viewer = Auth::user();
+
         $term    = trim($this->q);
         $results = null;
 
@@ -37,7 +44,7 @@ class Index extends Component
 
             $results = DocArticle::published()
                 ->with('category')
-                ->whereHas('category', fn ($c) => $c->published())
+                ->whereHas('category', fn ($c) => $c->published()->visibleTo($viewer))
                 ->where(fn ($q) => $q->where('title', 'like', $like)
                     ->orWhere('excerpt', 'like', $like)
                     ->orWhere('keywords', 'like', $like)
@@ -50,11 +57,11 @@ class Index extends Component
         }
 
         return view('livewire.help.index', [
-            'categories' => DocCategory::published()->ordered()
+            'categories' => DocCategory::published()->visibleTo($viewer)->ordered()
                 ->withCount(['articles as published_articles_count' => fn ($q) => $q->where('is_published', true)])
                 ->get(),
             'results'    => $results,
-            'popular'    => $term === '' ? $this->popular() : collect(),
+            'popular'    => $term === '' ? $this->popular($viewer) : collect(),
         ])->layout('layouts.marketing', [
             'title'       => 'Help Centre',
             'description' => 'How to use Servora — guides for purchasing, recipe costing, inventory, labels, HR, training and reporting.',
@@ -66,10 +73,11 @@ class Index extends Component
      * zeroes, and a "Popular" strip that renders an arbitrary six of them is
      * worse than one that falls back to the opening articles of each section.
      */
-    private function popular()
+    private function popular(?User $viewer)
     {
         $popular = DocArticle::published()
             ->with('category')
+            ->whereHas('category', fn ($c) => $c->published()->visibleTo($viewer))
             ->where('view_count', '>', 0)
             ->orderByDesc('view_count')
             ->limit(6)
@@ -81,6 +89,7 @@ class Index extends Component
 
         return DocArticle::published()
             ->with('category')
+            ->whereHas('category', fn ($c) => $c->published()->visibleTo($viewer))
             ->orderBy('doc_category_id')
             ->orderBy('sort_order')
             ->limit(6)

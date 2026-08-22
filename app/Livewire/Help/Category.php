@@ -3,6 +3,7 @@
 namespace App\Livewire\Help;
 
 use App\Models\DocCategory;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class Category extends Component
@@ -18,7 +19,11 @@ class Category extends Component
      */
     public function mount(string $categorySlug): void
     {
+        // 404, not 403. A refusal confirms the section exists and what it is
+        // called, and a section restricted to system roles is exactly the
+        // content not worth naming to someone who may not read it.
         $this->category = DocCategory::published()
+            ->visibleTo(Auth::user())
             ->where('slug', $categorySlug)
             ->firstOrFail();
     }
@@ -27,7 +32,7 @@ class Category extends Component
     {
         return view('livewire.help.category', [
             'articles'   => $this->category->publishedArticles()->get(),
-            'categories' => DocCategory::published()->ordered()->get(),
+            'categories' => DocCategory::published()->visibleTo(Auth::user())->ordered()->get(),
         ])->layout('layouts.marketing', [
             'title'       => $this->category->title . ' — Help Centre',
             'description' => $this->category->summary

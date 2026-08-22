@@ -6,6 +6,10 @@ return [
     'summary' => 'Platform administration: companies, subscriptions, raising invoices, and editing this manual.',
     'icon'    => 'shield',
     'sort'    => 120,
+    // Not for customers. This describes the platform's own screens —
+    // subscription states, the invoice ledger, that impersonation exists — and
+    // the audience is the same one that can open them.
+    'visibility' => \App\Models\DocCategory::VISIBILITY_SYSTEM,
     'articles' => [
 
         [

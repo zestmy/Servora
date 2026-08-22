@@ -4,6 +4,7 @@ namespace App\Livewire\Help;
 
 use App\Models\DocArticle;
 use App\Models\DocCategory;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class Article extends Component
@@ -19,11 +20,20 @@ class Article extends Component
      */
     public function mount(string $categorySlug, string $articleSlug): void
     {
-        $this->category = DocCategory::published()->where('slug', $categorySlug)->firstOrFail();
+        $viewer = Auth::user();
+
+        $this->category = DocCategory::published()->visibleTo($viewer)
+            ->where('slug', $categorySlug)
+            ->firstOrFail();
 
         $found = DocArticle::published()
             ->where('slug', $articleSlug)
             ->firstOrFail();
+
+        // The slug is unique across the whole manual, so an article in a
+        // restricted section is reachable by name from ANY section's URL. The
+        // article's own section decides, not the one in the address bar.
+        abort_unless($found->category?->isVisibleTo($viewer) ?? false, 404);
 
         // Assigned before the redirect below, not after: the property is
         // typed and non-nullable, and Livewire still calls render() on a
@@ -53,7 +63,7 @@ class Article extends Component
             'siblings'   => $siblings,
             'previous'   => $position > 0 ? $siblings[$position - 1] : null,
             'next'       => $position !== false && $position < $siblings->count() - 1 ? $siblings[$position + 1] : null,
-            'categories' => DocCategory::published()->ordered()->get(),
+            'categories' => DocCategory::published()->visibleTo(Auth::user())->ordered()->get(),
         ])->layout('layouts.marketing', [
             'title'       => $this->article->title . ' — Servora Help',
             'description' => $this->article->teaser(155),

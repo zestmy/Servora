@@ -30,6 +30,7 @@ class Index extends Component
     public string  $cat_icon = '';
     public string  $cat_sort_order = '0';
     public bool    $cat_is_published = true;
+    public string  $cat_visibility = DocCategory::VISIBILITY_PUBLIC;
 
     /** The <x-icon> names offered for a category tile. */
     public const ICON_CHOICES = [
@@ -68,6 +69,7 @@ class Index extends Component
         $this->cat_icon         = $category->icon ?? '';
         $this->cat_sort_order   = (string) $category->sort_order;
         $this->cat_is_published = $category->is_published;
+        $this->cat_visibility   = $category->visibility ?? DocCategory::VISIBILITY_PUBLIC;
         $this->showCategory     = true;
     }
 
@@ -87,6 +89,7 @@ class Index extends Component
             'cat_summary'    => ['nullable', 'string', 'max:500'],
             'cat_icon'       => ['nullable', 'string', 'max:60'],
             'cat_sort_order' => ['required', 'integer', 'min:0'],
+            'cat_visibility' => ['required', 'in:' . implode(',', array_keys(DocCategory::VISIBILITIES))],
         ]);
 
         $data = [
@@ -96,6 +99,7 @@ class Index extends Component
             'icon'         => $this->cat_icon ?: null,
             'sort_order'   => (int) $this->cat_sort_order,
             'is_published' => $this->cat_is_published,
+            'visibility'   => $this->cat_visibility,
         ];
 
         if ($this->categoryId) {
@@ -149,6 +153,7 @@ class Index extends Component
         $this->cat_icon         = 'book-open';
         $this->cat_sort_order   = '0';
         $this->cat_is_published = true;
+        $this->cat_visibility   = DocCategory::VISIBILITY_PUBLIC;
     }
 
     // ── Articles ───────────────────────────────────────────────────────────
@@ -219,6 +224,7 @@ class Index extends Component
             'categories'  => $categories,
             'articles'    => $articles,
             'iconChoices' => self::ICON_CHOICES,
+            'visibilities' => DocCategory::VISIBILITIES,
         ])->layout('layouts.app', ['title' => 'Documentation']);
     }
 }

@@ -40,6 +40,10 @@ class DocsSeeder extends Seeder
                     'icon'         => $section['icon'] ?? 'book-open',
                     'sort_order'   => $section['sort'] ?? 0,
                     'is_published' => true,
+                    // Sections default to public. A section file says otherwise
+                    // when its content is not for customers — see
+                    // 12-for-administrators.php.
+                    'visibility'   => $section['visibility'] ?? \App\Models\DocCategory::VISIBILITY_PUBLIC,
                 ]
             );
 
