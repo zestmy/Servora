@@ -312,4 +312,69 @@ class NavigationPanelTest extends TestCase
 
         return (max($la, $lb) + 0.05) / (min($la, $lb) + 0.05);
     }
+
+    /**
+     * Section captions must be CONTIGUOUS, in every group of every workspace.
+     *
+     * app-nav emits the caption whenever the section CHANGES between items, so
+     * a group ordered People / Pay / People prints "People" twice and reads as
+     * two different sections that happen to share a name. The rule is written
+     * down in NavMenu's docblock and repeated in the HR, Learning and Admin
+     * comments, and until now nothing checked it — it fails silently, in a
+     * menu, which is where nobody looks.
+     */
+    public function test_section_captions_never_repeat_within_a_group(): void
+    {
+        $workspaces = [
+            'outlet'  => NavMenu::outlet(),
+            'kitchen' => NavMenu::kitchen(),
+            'admin'   => NavMenu::admin(),
+        ];
+
+        foreach ($workspaces as $workspace => $groups) {
+            foreach ($groups as $group) {
+                $runs = [];
+
+                foreach ($group['items'] as $item) {
+                    $section = $item['section'] ?? null;
+
+                    if ($runs === [] || end($runs) !== $section) {
+                        $runs[] = $section;
+                    }
+                }
+
+                $named = array_filter($runs, fn ($s) => $s !== null);
+
+                $this->assertSame(
+                    count($named),
+                    count(array_unique($named)),
+                    sprintf(
+                        'In the %s workspace, group "%s" has a section that is not contiguous (%s). '
+                        . 'Its caption would render twice.',
+                        $workspace,
+                        $group['label'] ?? '(unnamed)',
+                        implode(' → ', array_map(fn ($s) => $s ?? '(none)', $runs))
+                    )
+                );
+            }
+        }
+    }
+
+    /**
+     * The admin group is sixteen items and is the one most likely to be added
+     * to without thought — it grew by three in a single day. Sectioning is what
+     * keeps it readable, so losing it should fail rather than just look worse.
+     */
+    public function test_every_admin_item_belongs_to_a_section(): void
+    {
+        $admin = NavMenu::admin()[0];
+
+        foreach ($admin['items'] as $item) {
+            $this->assertNotEmpty(
+                $item['section'] ?? null,
+                "Admin item \"{$item['label']}\" has no section — it would render above the first caption, "
+                . 'detached from everything.'
+            );
+        }
+    }
 }

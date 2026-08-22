@@ -339,23 +339,50 @@ final class NavMenu
             [
                 'label' => 'Admin',
                 'icon'  => 'shield',
+                /*
+                 * Sectioned for the reason HR and Learning are: sixteen items
+                 * in one list is a wall, not a menu. It reached sixteen when
+                 * Invoices, Billing Settings and Documentation were added, and
+                 * at that length nobody scans it — they hunt.
+                 *
+                 * Sections rather than four separate GROUPS on purpose. A group
+                 * needs its own icon or its collapsed-rail button is a blank
+                 * 44px square, and four shield-adjacent glyphs would say less
+                 * than one. Admin is also appended below a rule, subordinate to
+                 * the business nav, and four collapsible headers there would
+                 * outweigh the product itself.
+                 *
+                 * Order within each section follows the work, not the alphabet:
+                 * Companies before Users because a support question arrives as
+                 * "this company", and Plans → Subscriptions → Invoices because
+                 * that is the order the money moves in.
+                 *
+                 * Sections must stay CONTIGUOUS — the caption is emitted when
+                 * the section changes, so splitting one in two prints its
+                 * heading twice.
+                 */
                 'items' => [
-                    ['route' => 'admin.users',               'label' => 'Users'],
-                    ['route' => 'admin.companies',           'label' => 'Companies'],
-                    ['route' => 'company.create',            'label' => 'New Company'],
-                    ['route' => 'admin.role-templates',      'label' => 'Role Templates'],
-                    ['route' => 'admin.plans.index',         'label' => 'Plans'],
-                    ['route' => 'admin.subscriptions.index', 'label' => 'Subscriptions'],
-                    ['route' => 'admin.invoices.index',      'label' => 'Invoices'],
-                    ['route' => 'admin.billing-settings',    'label' => 'Billing Settings'],
-                    ['route' => 'admin.coupons',             'label' => 'Coupons'],
-                    ['route' => 'admin.trials.index',        'label' => 'Trials'],
-                    ['route' => 'admin.referrals.index',     'label' => 'Referrals'],
-                    ['route' => 'admin.company-health',      'label' => 'Health'],
-                    ['route' => 'admin.announcements',       'label' => 'Announcements'],
-                    ['route' => 'admin.pages',               'label' => 'Pages'],
-                    ['route' => 'admin.docs.index',          'label' => 'Documentation'],
-                    ['route' => 'settings.api-keys',         'label' => 'API Keys'],
+                    ['route' => 'admin.companies',           'label' => 'Companies',       'section' => 'Customers'],
+                    ['route' => 'company.create',            'label' => 'New Company',     'section' => 'Customers'],
+                    ['route' => 'admin.users',               'label' => 'Users',           'section' => 'Customers'],
+                    ['route' => 'admin.company-health',      'label' => 'Health',          'section' => 'Customers'],
+
+                    ['route' => 'admin.plans.index',         'label' => 'Plans',           'section' => 'Billing'],
+                    ['route' => 'admin.subscriptions.index', 'label' => 'Subscriptions',   'section' => 'Billing'],
+                    ['route' => 'admin.invoices.index',      'label' => 'Invoices',        'section' => 'Billing'],
+                    ['route' => 'admin.trials.index',        'label' => 'Trials',          'section' => 'Billing'],
+                    ['route' => 'admin.coupons',             'label' => 'Coupons',         'section' => 'Billing'],
+                    ['route' => 'admin.referrals.index',     'label' => 'Referrals',       'section' => 'Billing'],
+
+                    ['route' => 'admin.announcements',       'label' => 'Announcements',   'section' => 'Content'],
+                    ['route' => 'admin.pages',               'label' => 'Pages',           'section' => 'Content'],
+                    ['route' => 'admin.docs.index',          'label' => 'Documentation',   'section' => 'Content'],
+
+                    // Last, like HR's and Learning's own Configure sections:
+                    // things you set once and then stop thinking about.
+                    ['route' => 'admin.role-templates',      'label' => 'Role Templates',  'section' => 'Configure'],
+                    ['route' => 'admin.billing-settings',    'label' => 'Billing Settings','section' => 'Configure'],
+                    ['route' => 'settings.api-keys',         'label' => 'API Keys',        'section' => 'Configure'],
                 ],
             ],
         ];
