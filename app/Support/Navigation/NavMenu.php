@@ -314,6 +314,10 @@ final class NavMenu
                     ['route' => 'settings.index',     'label' => 'All Settings'],
                     ['route' => 'billing.index',      'label' => 'Billing',      'capability' => 'users.manage'],
                     ['route' => 'referral.dashboard', 'label' => 'Refer & Earn'],
+                    // No permission and no feature gate: the manual is public,
+                    // and the person most likely to need it is the one with
+                    // the fewest permissions.
+                    ['route' => 'help.index',         'label' => 'Help & Guides'],
                 ],
             ],
         ];
@@ -342,12 +346,15 @@ final class NavMenu
                     ['route' => 'admin.role-templates',      'label' => 'Role Templates'],
                     ['route' => 'admin.plans.index',         'label' => 'Plans'],
                     ['route' => 'admin.subscriptions.index', 'label' => 'Subscriptions'],
+                    ['route' => 'admin.invoices.index',      'label' => 'Invoices'],
+                    ['route' => 'admin.billing-settings',    'label' => 'Billing Settings'],
                     ['route' => 'admin.coupons',             'label' => 'Coupons'],
                     ['route' => 'admin.trials.index',        'label' => 'Trials'],
                     ['route' => 'admin.referrals.index',     'label' => 'Referrals'],
                     ['route' => 'admin.company-health',      'label' => 'Health'],
                     ['route' => 'admin.announcements',       'label' => 'Announcements'],
                     ['route' => 'admin.pages',               'label' => 'Pages'],
+                    ['route' => 'admin.docs.index',          'label' => 'Documentation'],
                     ['route' => 'settings.api-keys',         'label' => 'API Keys'],
                 ],
             ],

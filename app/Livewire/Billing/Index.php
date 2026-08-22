@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Billing;
 
+use App\Models\Invoice;
 use App\Models\Plan;
 use App\Services\CouponService;
 use App\Services\SubscriptionService;
@@ -65,7 +66,22 @@ class Index extends Component
 
         $isGrandfathered = $company?->isGrandfathered() ?? false;
 
-        return view('livewire.billing.index', compact('subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered'))
-            ->layout('layouts.app', ['title' => 'Billing & Plan']);
+        // visibleToCustomer: a draft is the platform's working copy — its
+        // numbers can still change and it has not been sent, so it must never
+        // appear here. See Invoice::scopeVisibleToCustomer().
+        $invoices = $company
+            ? Invoice::where('company_id', $company->id)
+                ->visibleToCustomer()
+                ->orderByDesc('issued_at')
+                ->orderByDesc('id')
+                ->limit(24)
+                ->get()
+            : collect();
+
+        $amountDue = $invoices->filter->isOutstanding()->sum('total');
+
+        return view('livewire.billing.index', compact(
+            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue'
+        ))->layout('layouts.app', ['title' => 'Billing & Plan']);
     }
 }

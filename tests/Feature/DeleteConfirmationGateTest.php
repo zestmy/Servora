@@ -59,6 +59,10 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/purchasing/purchase-request-form.blade.php::removeLine'        => 'unsaved line',
         'livewire/purchasing/receive-form.blade.php::removeLine'                 => 'unsaved line',
         'livewire/purchasing/stock-transfer-form.blade.php::removeLine'          => 'unsaved line',
+        // A line on a DRAFT subscription invoice being composed. The row is
+        // written on Save, and an issued invoice cannot reach this form at
+        // all — InvoiceService::updateDraft() refuses anything past draft.
+        'livewire/admin/invoices/form.blade.php::removeLine'                     => 'unsaved line',
         'livewire/recipes/form.blade.php::removeLine'                            => 'unsaved recipe line',
         'livewire/recipes/form.blade.php::removePackagingLine'                   => 'unsaved packaging line',
         'livewire/recipes/form.blade.php::removeExtraCostRow'                    => 'unsaved cost row',
@@ -96,6 +100,7 @@ class DeleteConfirmationGateTest extends TestCase
 
         // ── Clearing a field or a selection, not a record.
         'livewire/hr/documents.blade.php::clearSearch'                           => 'resets the search box',
+        'livewire/admin/invoices/index.blade.php::clearFilters'                  => 'resets the filter strip',
         'livewire/inventory/prep-item-form.blade.php::clearOutletSelection'      => 'unticks outlets on a form',
         'livewire/recipes/form.blade.php::clearOutletSelection'                  => 'unticks outlets on a form',
         'livewire/inventory/prep-item-form.blade.php::clearStepNewImage'         => 'drops a pending upload',

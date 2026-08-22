@@ -53,6 +53,10 @@
             // right until something looks free.
             ['route' => 'tools.index',      'label' => 'Free Tools'],
             ['route' => 'for-suppliers',    'label' => 'For Suppliers'],
+            // The manual. Public, and linked from the marketing nav for the
+            // same reason it is public: most of what it answers is asked
+            // before anyone has an account.
+            ['route' => 'help.index',       'label' => 'Help'],
             ['route' => 'referral.program', 'label' => 'Refer & Earn'],
         ];
     @endphp
@@ -171,6 +175,7 @@
                         ['route' => 'marketplace',         'label' => 'Marketplace'],
                         ['route' => 'for-suppliers',       'label' => 'For Suppliers'],
                         ['route' => 'marketing.downloads', 'label' => 'Downloads'],
+                        ['route' => 'help.index',          'label' => 'Help Centre'],
                     ],
                     'Free tools' => [
                         ['route' => 'tools.recipe-cost', 'label' => 'Recipe Cost Calculator'],

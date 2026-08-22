@@ -131,6 +131,14 @@ Route::get('/tools/salary-calculator', App\Livewire\Marketing\SalaryCalculator::
 Route::get('/tools/ea-form-generator', App\Livewire\Marketing\EaFormGenerator::class)
     ->name('tools.ea-form');
 
+// Help Centre — the product manual. Public on purpose: most of what it
+// answers is asked before anyone has an account, and a manual behind a login
+// cannot answer it. Content is managed at /admin/docs; nothing here is
+// tenant data.
+Route::get('/help', \App\Livewire\Help\Index::class)->name('help.index');
+Route::get('/help/{categorySlug}', \App\Livewire\Help\Category::class)->name('help.category');
+Route::get('/help/{categorySlug}/{articleSlug}', \App\Livewire\Help\Article::class)->name('help.article');
+
 // Public certificate verification (loginless, QR from the printed certificate)
 Route::get('/verify/certificate/{serial}', [\App\Http\Controllers\Training\CertificateVerifyController::class, 'show'])
     ->name('certificate.verify');
@@ -539,6 +547,13 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/billing', BillingIndex::class)->name('billing.index');
     Route::get('/billing/checkout/{planSlug}', BillingCheckout::class)->name('billing.checkout');
 
+    // One PDF route for both audiences. The controller decides what each may
+    // pull — a system admin any invoice, a customer only their own company's
+    // and only once it has left draft — because that rule differs per user,
+    // which is not something route middleware can express.
+    Route::get('/invoices/{id}/pdf', \App\Http\Controllers\SubscriptionInvoicePdfController::class)
+        ->name('invoices.pdf');
+
     // Refer & Earn (all users)
     Route::get('/refer', ReferralDashboard::class)->name('referral.dashboard');
 
@@ -558,6 +573,20 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
         Route::get('/announcements', AdminAnnouncements::class)->name('admin.announcements');
         Route::get('/pages', AdminPages::class)->name('admin.pages');
         Route::get('/coupons', \App\Livewire\Admin\Coupons::class)->name('admin.coupons');
+
+        // Platform billing. `admin.invoices.*` is the SUBSCRIPTION ledger —
+        // Servora billing its tenants. `purchasing.invoices.*` is a tenant
+        // recording what its supplier billed it. Different money, different
+        // direction, deliberately separate namespaces.
+        Route::get('/invoices', \App\Livewire\Admin\Invoices\Index::class)->name('admin.invoices.index');
+        Route::get('/invoices/create', \App\Livewire\Admin\Invoices\Form::class)->name('admin.invoices.create');
+        Route::get('/invoices/{id}/edit', \App\Livewire\Admin\Invoices\Form::class)->name('admin.invoices.edit');
+        Route::get('/billing-settings', \App\Livewire\Admin\BillingSettings::class)->name('admin.billing-settings');
+
+        // Help centre authoring.
+        Route::get('/docs', \App\Livewire\Admin\Docs\Index::class)->name('admin.docs.index');
+        Route::get('/docs/articles/create', \App\Livewire\Admin\Docs\ArticleForm::class)->name('admin.docs.create');
+        Route::get('/docs/articles/{id}/edit', \App\Livewire\Admin\Docs\ArticleForm::class)->name('admin.docs.edit');
     });
 });
 

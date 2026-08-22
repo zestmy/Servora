@@ -166,4 +166,78 @@
         </div>
     </div>
 
+    {{-- Invoice history. Drafts are excluded upstream — see Billing\Index::render(). --}}
+    <div class="mt-8">
+        <div class="flex items-end justify-between gap-3 mb-3">
+            <div>
+                <h2 class="text-sm font-semibold text-gray-800">Invoices</h2>
+                <p class="text-xs text-gray-600 mt-0.5">Your billing history. Each one downloads as a PDF.</p>
+            </div>
+            @if ($amountDue > 0)
+                <span class="badge-warning">
+                    {{ $invoices->first()?->currency ?? 'MYR' }} {{ number_format($amountDue, 2) }} due
+                </span>
+            @endif
+        </div>
+
+        <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="table-surface min-w-full">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left">Invoice</th>
+                            <th class="px-4 py-3 text-left">Issued</th>
+                            <th class="px-4 py-3 text-left">Period</th>
+                            <th class="px-4 py-3 text-right">Total</th>
+                            <th class="px-4 py-3 text-center">Status</th>
+                            <th class="px-4 py-3 text-right">PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($invoices as $invoice)
+                            <tr wire:key="cust-inv-{{ $invoice->id }}" class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 font-medium text-gray-900">{{ $invoice->invoice_number }}</td>
+                                <td class="px-4 py-3 text-gray-600">{{ $invoice->issued_at?->format('d M Y') ?? '—' }}</td>
+                                <td class="px-4 py-3 text-gray-600">
+                                    @if ($invoice->period_start && $invoice->period_end)
+                                        {{ $invoice->period_start->format('d M Y') }} – {{ $invoice->period_end->format('d M Y') }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-900">
+                                    {{ $invoice->currency }} {{ number_format((float) $invoice->total, 2) }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="badge-{{ $invoice->statusColor() === 'gray' ? 'neutral' : $invoice->statusColor() }}">
+                                        {{ $invoice->statusLabel() }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <a href="{{ route('invoices.pdf', $invoice->id) }}" class="icon-btn ml-auto"
+                                       title="Download {{ $invoice->invoice_number }}"
+                                       aria-label="Download {{ $invoice->invoice_number }}">
+                                        <x-icon name="download" size="h-4 w-4" />
+                                    </a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-4 py-10">
+                                    <div class="empty-state">
+                                        <x-icon name="receipt" size="h-8 w-8" class="text-gray-400" />
+                                        <p class="font-medium text-gray-700">No invoices yet</p>
+                                        <p class="text-xs text-gray-600">
+                                            An invoice appears here as soon as your first payment is taken.
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>

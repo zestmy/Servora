@@ -138,6 +138,11 @@ reason `labels-staff.php` is, and mounted at `{slug}.<domain>/clock` (or `/clock
 
 ### Billing
 - `/billing`, `/billing/checkout/{planSlug}`
+- `/invoices/{id}/pdf` → [SubscriptionInvoicePdfController](../app/Http/Controllers/SubscriptionInvoicePdfController.php).
+  ONE route for two audiences, because the rule differs per user rather than per
+  route: a system role may pull any invoice in any state, a customer only their
+  own company's and only once it has left draft. That is not something route
+  middleware can express, so the controller decides.
 - `/refer` — referral dashboard (all users)
 
 ### Settings
@@ -147,7 +152,21 @@ Each settings page is a single Livewire component — see [03-modules.md](03-mod
 - `/workspace/{mode}` — closure that validates `mode ∈ {outlet, kitchen}`, sets `workspace_mode` in session, and redirects to the appropriate dashboard.
 
 ### Admin (`role:System Admin`)
-Under `/admin/*`: plans, subscriptions, referrals, trials, company-health, announcements, pages, coupons.
+Under `/admin/*`: plans, subscriptions, **invoices**, **billing-settings**, referrals, trials,
+company-health, announcements, pages, **docs**, coupons.
+
+`admin.invoices.*` is the SUBSCRIPTION ledger — Servora billing its tenants.
+`purchasing.invoices.*` is a tenant recording what its supplier billed it.
+Different money, opposite direction, deliberately separate namespaces and
+separate services (`InvoiceService` vs `ProcurementInvoiceService`).
+
+### Help centre (public, no auth)
+- `/help` → [Help/Index](../app/Livewire/Help/Index.php)
+- `/help/{categorySlug}` → [Help/Category](../app/Livewire/Help/Category.php)
+- `/help/{categorySlug}/{articleSlug}` → [Help/Article](../app/Livewire/Help/Article.php)
+
+The `…Slug` parameter names are load-bearing — see
+[03-modules.md](03-modules.md#help-centre-help-public).
 
 ---
 

@@ -203,6 +203,23 @@
     .empty-title  { @apply text-sm font-semibold text-gray-900; }
     .empty-body   { @apply text-sm text-gray-600 max-w-prose; }
 
+    /* ── Help-centre prose ────────────────────────────────────────────────
+       The one thing `prose` does not solve for admin-authored HTML: a table
+       with more columns than a phone has room for pushes the whole PAGE
+       sideways, and the person who wrote the article was on a laptop and
+       never saw it. Making the table its own scroll container keeps the
+       overflow inside the figure where it belongs.
+
+       display:block turns the <table> into the scroll box; the rows keep
+       their table layout through anonymous table boxes, and width:max-content
+       stops a narrow viewport crushing the columns instead of scrolling. */
+    .doc-prose table {
+        display: block;
+        width: max-content;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
     .alert         { @apply flex gap-3 rounded-surface border p-4 text-sm; }
     .alert-danger  { @apply alert border-danger-200  bg-danger-50  text-danger-800; }
     .alert-warning { @apply alert border-warning-200 bg-warning-50 text-warning-800; }

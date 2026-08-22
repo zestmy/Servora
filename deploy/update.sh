@@ -86,6 +86,15 @@ npm run build
 info "Running migrations..."
 php artisan migrate --force
 
+# ── Help centre content ─────────────────────────────────────────────────────
+# Run on EVERY deploy, deliberately. DocsSeeder upserts by slug: it adds
+# articles that are missing and leaves every existing row untouched, so an
+# editor's corrections at /admin/docs survive, and a new shipped article lands
+# without anybody remembering to run a seeder by hand. Cheap — it is a
+# handful of selects when there is nothing to add.
+info "Syncing help centre content..."
+php artisan db:seed --class=DocsSeeder --force
+
 info "Clearing caches..."
 php artisan config:cache
 php artisan route:cache
