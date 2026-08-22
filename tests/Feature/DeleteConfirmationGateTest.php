@@ -101,6 +101,7 @@ class DeleteConfirmationGateTest extends TestCase
         // ── Clearing a field or a selection, not a record.
         'livewire/hr/documents.blade.php::clearSearch'                           => 'resets the search box',
         'livewire/admin/invoices/index.blade.php::clearFilters'                  => 'resets the filter strip',
+        'livewire/labels/sets.blade.php::clearLineSelection'                     => 'unticks the bulk-edit selection; no line is touched',
         'livewire/inventory/prep-item-form.blade.php::clearOutletSelection'      => 'unticks outlets on a form',
         'livewire/recipes/form.blade.php::clearOutletSelection'                  => 'unticks outlets on a form',
         'livewire/inventory/prep-item-form.blade.php::clearStepNewImage'         => 'drops a pending upload',
