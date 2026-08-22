@@ -169,12 +169,13 @@ class ChipInService
      * digest and sends it base64-encoded in X-Signature. Verification is a
      * public-key check — there is no shared secret in the scheme at all.
      *
-     * THIS USED TO BE hash_hmac('sha256', $payload, $secret). That can never
-     * equal an RSA signature, so with CHIPIN_WEBHOOK_SECRET set every genuine
-     * callback was answered 403 and no payment ever completed; with it unset
-     * the caller skipped the check entirely and the endpoint would activate a
-     * subscription for anyone who could guess a purchase id. Both halves of
-     * that are fixed here and in the controller.
+     * THIS USED TO BE hash_hmac('sha256', $payload, $secret), which can never
+     * equal an RSA signature. Production had CHIPIN_WEBHOOK_SECRET EMPTY, and
+     * the caller only ran the check when a secret was present — so the real
+     * behaviour was no verification at all, on an endpoint that hands out
+     * subscriptions. Filling that variable in would not have helped either: it
+     * would have refused every genuine callback instead. Both halves are fixed
+     * here and in the controller.
      */
     public function verifyWebhook(string $payload, string $signature): bool
     {

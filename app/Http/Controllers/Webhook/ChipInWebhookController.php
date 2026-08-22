@@ -16,16 +16,19 @@ use Illuminate\Support\Facades\Log;
  *
  * This endpoint is public, unauthenticated and grants paid subscriptions, so
  * the signature check is the only thing standing between it and anybody who
- * can guess a purchase id. Two things were wrong with how it did that:
+ * can guess a purchase id. It was not doing that job at all.
  *
- *   1. It verified with hash_hmac(), and CHIP signs with RSA. A real callback
- *      could never verify — with a secret configured (which production had)
- *      every genuine payment was answered 403, which is why one purchase sat
- *      pending from March to August and the invoices table was empty.
+ *   1. It FAILED OPEN, and that is how production actually ran.
+ *      `if ($secret && ! verify())` skips verification entirely when no secret
+ *      is configured — and CHIPIN_WEBHOOK_SECRET was empty on production. Any
+ *      unsigned POST carrying a known purchase id would have completed the
+ *      payment, activated the subscription and raised an invoice.
  *
- *   2. It FAILED OPEN. `if ($secret && ! verify())` means an installation with
- *      no secret configured skipped verification altogether and would activate
- *      a subscription for an unsigned POST.
+ *   2. Even configured, it could never have worked. It verified with
+ *      hash_hmac() while CHIP signs with RSA, so setting the secret would have
+ *      turned the hole into a wall: every genuine callback refused instead.
+ *      Broken open and broken closed at the same time, depending on one env
+ *      var nobody had reason to look at.
  *
  * Both are fixed: verification is RSA against the merchant portal's public key
  * (ChipInService::verifyWebhook), and a callback that cannot be verified —

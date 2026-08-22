@@ -17,14 +17,15 @@ use Tests\TestCase;
  * The CHIP-IN payment callback.
  *
  * This endpoint is public, unauthenticated, and hands out paid subscriptions.
- * It had two defects that cancelled each other out into "nothing works":
+ * It was not authenticating anything:
  *
- *   - It verified signatures with hash_hmac() while CHIP signs with RSA, so a
- *     genuine callback could never verify. Production had the secret set, so
- *     every real payment was answered 403 — one purchase sat pending from
- *     March to August and no invoice was ever raised.
- *   - With no secret configured it skipped verification entirely, so an
- *     unsigned POST could activate a subscription.
+ *   - Verification only ran when a shared secret was configured, and
+ *     CHIPIN_WEBHOOK_SECRET was EMPTY on production. An unsigned POST carrying
+ *     a known purchase id would have completed the payment, activated the
+ *     subscription and raised an invoice.
+ *   - The check itself used hash_hmac() while CHIP signs with RSA, so filling
+ *     that variable in would not have fixed it — it would have refused every
+ *     genuine callback instead.
  *
  * These tests sign with a real RSA key, so they exercise the actual crypto
  * rather than a stub.
