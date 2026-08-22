@@ -37,6 +37,53 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticated();
     }
 
+    /**
+     * Signing in always lands on the dashboard, even when something else was
+     * being reached first.
+     *
+     * Breeze ships redirectIntended(), which returns you to the URL that
+     * bounced you to login. Sessions here expire mid-task, so that meant
+     * signing back in and arriving on a half-filled GRN with no sight of what
+     * happened while you were away. The dashboard carries the alerts and the
+     * pending approvals, and it is the screen the product is entered through.
+     */
+    public function test_login_always_lands_on_the_dashboard_ignoring_an_intended_url(): void
+    {
+        $user = User::factory()->create();
+
+        // Exactly what the auth middleware stores when it turns a signed-out
+        // user away from a deep screen.
+        session(['url.intended' => url('/hr/payroll')]);
+
+        Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'password')
+            ->call('login')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertAuthenticated();
+    }
+
+    /**
+     * And the stale intended URL is cleared rather than left behind, or the
+     * next redirectIntended() anywhere in the app would consume a destination
+     * from a login that happened hours ago.
+     */
+    public function test_login_clears_the_intended_url_it_declined_to_use(): void
+    {
+        $user = User::factory()->create();
+
+        session(['url.intended' => url('/hr/payroll')]);
+
+        Volt::test('pages.auth.login')
+            ->set('form.email', $user->email)
+            ->set('form.password', 'password')
+            ->call('login');
+
+        $this->assertNull(session('url.intended'));
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

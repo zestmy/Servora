@@ -20,7 +20,25 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false));
+        /*
+         * Always the dashboard — never redirectIntended().
+         *
+         * The Breeze default returns you to whatever URL bounced you to login,
+         * which sounds helpful and is not. Sessions here expire while people
+         * are mid-task, so the common case was signing in and landing on a
+         * deep screen — a payroll run, a half-filled GRN — with no context
+         * about what happened while you were away. The dashboard is where the
+         * alerts, the pending approvals and the day's numbers are, and it is
+         * the screen this product is designed to be entered through.
+         *
+         * The intended URL is FORGOTTEN rather than merely ignored: Laravel
+         * leaves it in the session otherwise, and the next redirectIntended()
+         * anywhere in the app would consume a URL from a login that happened
+         * hours ago.
+         */
+        Session::forget('url.intended');
+
+        $this->redirect(route('dashboard', absolute: false), navigate: true);
     }
 }; ?>
 
