@@ -141,7 +141,11 @@ class ReportGeneratorService
                 companyId: $subscription->company_id,
                 outletId: $subscription->outlet_id,
                 date: $reportDate,
-                includeAiInsights: $subscription->include_ai_insights
+                includeAiInsights: $subscription->include_ai_insights,
+                // Empty for "all outlets"; a subset when the subscriber picked
+                // specific branches. outlet_id is only set when there is
+                // exactly one, so the two never contradict each other.
+                outletIds: $subscription->outletIds(),
             );
 
             // Update log with report data
@@ -199,12 +203,19 @@ class ReportGeneratorService
     /**
      * Generate a report with data, insights, and charts.
      */
+    /**
+     * @param  array<int, int>  $outletIds  Restrict a company-wide report to
+     *         these outlets. Empty means every active outlet — the historical
+     *         meaning of a null $outletId, and still what an "All Outlets"
+     *         subscription stores.
+     */
     public function generate(
         string $reportType,
         int $companyId,
         ?int $outletId,
         Carbon $date,
-        bool $includeAiInsights = true
+        bool $includeAiInsights = true,
+        array $outletIds = []
     ): array {
         $periodLabel = '';
         $isMultiOutlet = false;
@@ -220,8 +231,24 @@ class ReportGeneratorService
                 ->where('company_id', $companyId)
                 ->where('is_active', true)
                 ->excludingCentralKitchens()
+                // A subscription may name a subset. Still scoped to the
+                // company and to active outlets, so a stale id in the pivot
+                // cannot pull in an outlet the subscriber should not see.
+                ->when($outletIds !== [], fn ($q) => $q->whereIn('id', $outletIds))
                 ->orderBy('name')
                 ->get();
+
+            // One outlet left after filtering is a single-outlet report, not a
+            // multi-outlet one with a single section — otherwise a two-outlet
+            // subscription that loses an outlet silently changes shape.
+            if ($outlets->count() === 1) {
+                $single = $this->generateForOutlet($reportType, $companyId, $outlets->first()->id, $date, $includeAiInsights);
+
+                return array_merge($single, [
+                    'period_label'    => $this->getPeriodLabel($reportType, $date),
+                    'is_multi_outlet' => false,
+                ]);
+            }
 
             if ($outlets->count() > 1) {
                 $isMultiOutlet = true;

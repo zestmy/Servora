@@ -69,7 +69,14 @@
                             <td class="px-4 py-3">
                                 <span class="font-medium text-gray-700">{{ $subscription->getReportTypeLabel() }}</span>
                             </td>
-                            <td class="px-4 py-3 text-gray-600">{{ $subscription->outlet?->name ?? 'All Outlets' }}</td>
+                            <td class="px-4 py-3 text-gray-600">
+                                {{-- outletLabel(), not outlet?->name: outlet_id is null for
+                                     "all outlets" AND for a chosen subset, so reading it
+                                     alone would label a three-outlet report "All Outlets". --}}
+                                <span @if ($subscription->outlets->count() > 2) title="{{ $subscription->outlets->pluck('name')->implode(', ') }}" @endif>
+                                    {{ $subscription->outletLabel() }}
+                                </span>
+                            </td>
                             <td class="px-4 py-3 text-gray-600">
                                 {{ $subscription->getFrequencyLabel() }}
                                 @if($subscription->delivery_day)
@@ -270,16 +277,48 @@
                             </p>
                         </div>
 
-                        {{-- Outlet --}}
+                        {{-- Outlets. A checkbox list rather than a <select multiple>:
+                             multi-select is close to unusable on a phone and needs
+                             ctrl-click on a desktop, and this is a list of five or
+                             six things people tick. --}}
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Outlet</label>
-                            <select wire:model="outlet_id"
-                                    class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                                <option value="">All Outlets (Combined)</option>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-medium text-gray-600">Outlets</label>
+                                @if (count($outlet_ids) > 0)
+                                    <button type="button" wire:click="selectAllOutlets"
+                                            class="text-[11px] font-medium text-brand-700 hover:text-brand-800">
+                                        Reset to all outlets
+                                    </button>
+                                @endif
+                            </div>
+
+                            <div class="rounded-lg border border-gray-300 divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                                <label class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" wire:click="selectAllOutlets" @checked(count($outlet_ids) === 0)
+                                           class="border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                    <span class="text-sm font-medium text-gray-800">All outlets</span>
+                                </label>
+
                                 @foreach ($outlets as $outlet)
-                                    <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                                    <label class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                                        <input type="checkbox" wire:model.live="outlet_ids" value="{{ $outlet->id }}"
+                                               class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
+                                        <span class="text-sm text-gray-700">{{ $outlet->name }}</span>
+                                    </label>
                                 @endforeach
-                            </select>
+                            </div>
+
+                            <p class="text-[11px] text-gray-600 mt-1">
+                                @if (count($outlet_ids) === 0)
+                                    Every outlet, including any opened later — one section each, in one email.
+                                @elseif (count($outlet_ids) === 1)
+                                    One outlet, reported on its own.
+                                @else
+                                    {{ count($outlet_ids) }} outlets, one section each in a single email.
+                                @endif
+                            </p>
+                            <x-input-error :messages="$errors->get('outlet_ids')" class="mt-1" />
+                            <x-input-error :messages="$errors->get('outlet_ids.*')" class="mt-1" />
                         </div>
 
                         {{-- Frequency --}}

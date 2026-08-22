@@ -20,7 +20,14 @@ class ReportSubscriptions extends Component
 
     public string $report_type = 'daily_sales';
     public string $frequency = 'daily';
-    public ?int $outlet_id = null;
+    /**
+     * The outlets this subscription covers. EMPTY MEANS ALL — including
+     * outlets opened after it was set up, which is why "all" is an empty set
+     * rather than every id ticked.
+     *
+     * @var array<int, int|string>
+     */
+    public array $outlet_ids = [];
     public string $delivery_channel = 'email';
     public string $delivery_time = '06:00';
     public ?int $delivery_day = null;
@@ -42,7 +49,8 @@ class ReportSubscriptions extends Component
         return [
             'report_type' => 'required|in:daily_sales,weekly_performance,monthly_summary,hr_document_expiry',
             'frequency' => 'required|in:daily,weekly,monthly',
-            'outlet_id' => 'nullable|exists:outlets,id',
+            'outlet_ids'   => 'array',
+            'outlet_ids.*' => 'integer|exists:outlets,id',
             'delivery_channel' => 'required|in:email',
             'delivery_time' => 'required|date_format:H:i',
             'delivery_day' => 'nullable|integer|min:1|max:31',
@@ -98,7 +106,7 @@ class ReportSubscriptions extends Component
         $this->editingId = $subscription->id;
         $this->report_type = $subscription->report_type;
         $this->frequency = $subscription->frequency;
-        $this->outlet_id = $subscription->outlet_id;
+        $this->outlet_ids = $subscription->outletIds();
         $this->delivery_channel = $subscription->delivery_channel;
         $this->delivery_time = $subscription->delivery_time?->format('H:i') ?? '06:00';
         $this->delivery_day = $subscription->delivery_day;
@@ -124,7 +132,6 @@ class ReportSubscriptions extends Component
         $data = [
             'report_type' => $this->report_type,
             'frequency' => $this->frequency,
-            'outlet_id' => $this->outlet_id ?: null,
             'delivery_channel' => $this->delivery_channel,
             'delivery_time' => $this->delivery_time,
             'delivery_day' => $this->frequency !== 'daily' ? $this->delivery_day : null,
@@ -133,13 +140,21 @@ class ReportSubscriptions extends Component
             'recipient_emails' => !empty($recipientEmails) ? $recipientEmails : null,
         ];
 
+        // Outlets go through setOutlets() rather than into $data: it writes the
+        // pivot AND keeps the derived outlet_id column in step, and the two
+        // must never be set independently.
+        $chosen = $this->outletsWithinCompany();
+
         if ($this->editingId) {
-            ReportSubscription::findOrFail($this->editingId)->update($data);
+            $subscription = ReportSubscription::findOrFail($this->editingId);
+            $subscription->update($data);
+            $subscription->setOutlets($chosen);
             session()->flash('success', 'Report subscription updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
             $data['user_id'] = Auth::id();
-            ReportSubscription::create($data);
+            $subscription = ReportSubscription::create($data);
+            $subscription->setOutlets($chosen);
             session()->flash('success', 'Report subscription created.');
         }
 
@@ -274,7 +289,7 @@ class ReportSubscriptions extends Component
 
     public function render()
     {
-        $subscriptions = ReportSubscription::with(['outlet', 'user'])
+        $subscriptions = ReportSubscription::with(['outlet', 'outlets', 'user'])
             ->orderByDesc('created_at')
             ->paginate(15);
 
@@ -292,12 +307,37 @@ class ReportSubscriptions extends Component
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Report Subscriptions']);
     }
 
+    /**
+     * Only outlets in the signed-in user's company, whatever the form posted.
+     * A Livewire property is client-supplied, and an id from another tenant
+     * would otherwise be synced straight into the pivot.
+     *
+     * @return array<int, int>
+     */
+    private function outletsWithinCompany(): array
+    {
+        if ($this->outlet_ids === []) {
+            return [];
+        }
+
+        return Outlet::where('company_id', Auth::user()->company_id)
+            ->whereIn('id', array_map('intval', $this->outlet_ids))
+            ->pluck('id')
+            ->all();
+    }
+
+    /** Tick every outlet, or clear the lot — "all" is stored as none selected. */
+    public function selectAllOutlets(): void
+    {
+        $this->outlet_ids = [];
+    }
+
     private function resetForm(): void
     {
         $this->editingId = null;
         $this->report_type = 'daily_sales';
         $this->frequency = 'daily';
-        $this->outlet_id = null;
+        $this->outlet_ids = [];
         $this->delivery_channel = 'email';
         $this->delivery_time = '06:00';
         $this->delivery_day = null;

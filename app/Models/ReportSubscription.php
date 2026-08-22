@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReportSubscription extends Model
@@ -57,9 +58,82 @@ class ReportSubscription extends Model
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * The single outlet, when there is exactly one.
+     *
+     * Kept as a derived column rather than removed: ReportLog rows, the
+     * data-completeness check and a handful of existing queries all read it,
+     * and it is null for both "all outlets" and "several outlets" — which is
+     * the same thing those callers already handled.
+     */
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    /**
+     * The outlets this subscription covers. NO ROWS MEANS ALL OUTLETS —
+     * including ones opened after the subscription was set up, which is why
+     * "all" is stored as an empty set rather than as every current outlet.
+     */
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class, 'report_subscription_outlet');
+    }
+
+    /**
+     * The outlet ids to report on, or an empty array for "every outlet".
+     *
+     * @return array<int, int>
+     */
+    public function outletIds(): array
+    {
+        return $this->outlets->pluck('id')->all();
+    }
+
+    public function coversAllOutlets(): bool
+    {
+        return $this->outletIds() === [];
+    }
+
+    /** What the list screen shows in the Outlet column. */
+    public function outletLabel(): string
+    {
+        $outlets = $this->outlets;
+
+        if ($outlets->isEmpty()) {
+            return 'All Outlets';
+        }
+
+        if ($outlets->count() === 1) {
+            return (string) $outlets->first()->name;
+        }
+
+        // Two names read better than "3 outlets"; beyond that the names stop
+        // fitting the column and the count is the useful summary.
+        if ($outlets->count() === 2) {
+            return $outlets->pluck('name')->implode(', ');
+        }
+
+        return $outlets->count() . ' outlets';
+    }
+
+    /**
+     * Point the pivot at a set of outlets and keep `outlet_id` consistent.
+     *
+     * One method so the two can never disagree — a row whose pivot says three
+     * outlets and whose outlet_id names one of them would report on one outlet
+     * and log it as if it covered all three.
+     *
+     * @param  array<int, int|string>  $outletIds
+     */
+    public function setOutlets(array $outletIds): void
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $outletIds))));
+
+        $this->outlets()->sync($ids);
+        $this->forceFill(['outlet_id' => count($ids) === 1 ? $ids[0] : null])->save();
+        $this->load('outlets');
     }
 
     public function user(): BelongsTo
