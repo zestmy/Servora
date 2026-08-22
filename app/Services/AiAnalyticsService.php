@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Support\ExecutionTime;
 
 class AiAnalyticsService
 {
@@ -152,8 +153,7 @@ class AiAnalyticsService
         // Use fewer tokens for simpler analysis types
         $maxTokens = in_array($analysisType, ['weekly_review', 'custom']) ? 2048 : 4096;
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(180);
+        $previousTimeout = ExecutionTime::raise(180);
 
         $response = Http::connectTimeout(15)
             ->timeout(150)
@@ -182,7 +182,7 @@ class AiAnalyticsService
         $data = $response->json();
         $actualModel = $data['model'] ?? $model;
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         return [
             'response' => $data['choices'][0]['message']['content'] ?? '',

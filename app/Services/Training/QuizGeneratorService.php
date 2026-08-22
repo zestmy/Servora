@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Support\ExecutionTime;
 
 /**
  * Write a quiz from a course's material.
@@ -228,8 +229,7 @@ class QuizGeneratorService
             'explanation' => $q->explanation,
         ])->values()->all();
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(180);
+        $previousTimeout = ExecutionTime::raise(180);
 
         $response = Http::connectTimeout(15)
             ->timeout(150)
@@ -255,7 +255,7 @@ class QuizGeneratorService
                 ],
             ]);
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         if ($response->failed()) {
             Log::error('[training] OpenRouter translation error', [
@@ -315,8 +315,7 @@ class QuizGeneratorService
 
         $material = $this->extractor->tidy($material);
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(180);
+        $previousTimeout = ExecutionTime::raise(180);
 
         $response = Http::connectTimeout(15)
             ->timeout(150)
@@ -351,7 +350,7 @@ class QuizGeneratorService
                 ],
             ]);
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         if ($response->failed()) {
             Log::error('[training] OpenRouter error', [

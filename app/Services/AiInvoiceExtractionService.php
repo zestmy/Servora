@@ -6,6 +6,7 @@ use App\Models\AppSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Support\ExecutionTime;
 
 class AiInvoiceExtractionService
 {
@@ -36,8 +37,7 @@ class AiInvoiceExtractionService
         // For PDFs, use application/pdf mime; many vision models support it directly
         $dataUri = "data:{$mimeType};base64,{$base64}";
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $previousTimeout = ExecutionTime::raise(120);
 
         $response = Http::timeout(90)
             ->withHeaders([
@@ -59,7 +59,7 @@ class AiInvoiceExtractionService
                 'response_format' => ['type' => 'json_object'],
             ]);
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         if ($response->failed()) {
             Log::error('AI Invoice Extraction failed', ['status' => $response->status(), 'body' => $response->body()]);

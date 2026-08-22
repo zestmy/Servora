@@ -6,6 +6,7 @@ use App\Models\AppSetting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Support\ExecutionTime;
 
 /**
  * Generates official public holidays for a given location and year using the
@@ -42,8 +43,7 @@ class PublicHolidayService
             . 'Return JSON in exactly this shape and nothing else: '
             . '{"holidays":[{"date":"YYYY-MM-DD","name":"Holiday name","impact":"positive|negative|neutral"}]}';
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $previousTimeout = ExecutionTime::raise(120);
 
         try {
             $response = Http::connectTimeout(15)
@@ -65,7 +65,7 @@ class PublicHolidayService
                     ],
                 ]);
         } finally {
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
         }
 
         if ($response->failed()) {

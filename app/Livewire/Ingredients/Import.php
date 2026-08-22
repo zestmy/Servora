@@ -18,6 +18,7 @@ use Livewire\WithFileUploads;
 use OpenSpout\Reader\CSV\Options as CsvOptions;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
+use App\Support\ExecutionTime;
 
 class Import extends Component
 {
@@ -232,8 +233,7 @@ CANNED items:
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanation, no commentary — just the JSON object.
 PROMPT;
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $previousTimeout = ExecutionTime::raise(120);
 
         try {
             $response = Http::timeout(90)
@@ -255,7 +255,7 @@ PROMPT;
                     'response_format' => ['type' => 'json_object'],
                 ]);
 
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
 
             if (! $response->successful()) {
                 $body = $response->json();
@@ -336,7 +336,7 @@ PROMPT;
             $this->step     = 'mapping';
 
         } catch (\Throwable $e) {
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
             Log::error('PDF ingredient extraction failed: ' . $e->getMessage());
             $this->addError('file', 'Failed to extract data from PDF: ' . $e->getMessage());
         }

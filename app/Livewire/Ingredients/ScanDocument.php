@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use App\Support\ExecutionTime;
 
 /**
  * Step 1 of Price Watcher — upload a supplier document (invoice / quotation /
@@ -128,8 +129,7 @@ Return a JSON object:
 IMPORTANT: Return ONLY valid JSON. No markdown, no commentary.
 PROMPT;
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $previousTimeout = ExecutionTime::raise(120);
 
         try {
             $response = Http::timeout(90)
@@ -151,7 +151,7 @@ PROMPT;
                     'response_format' => ['type' => 'json_object'],
                 ]);
 
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
 
             if (! $response->successful()) {
                 $body = $response->json();
@@ -202,7 +202,7 @@ PROMPT;
             }
 
         } catch (\Throwable $e) {
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
             Log::error('Price Watcher scan extraction failed: ' . $e->getMessage());
             $doc->update([
                 'status'        => 'failed',

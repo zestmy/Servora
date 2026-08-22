@@ -21,6 +21,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
+use App\Support\ExecutionTime;
 
 class SmartImport extends Component
 {
@@ -151,9 +152,8 @@ class SmartImport extends Component
         $pagesPerChunk = 6;
         $pageTexts = $this->extractPdfPageTexts($path);
 
-        $previousTimeout = ini_get('max_execution_time');
         $chunkCount = max(1, (int) ceil(count($pageTexts) / $pagesPerChunk));
-        set_time_limit(max(300, $chunkCount * 120));
+        $previousTimeout = ExecutionTime::raise(max(300, $chunkCount * 120));
 
         try {
             $recipeItems = [];
@@ -178,7 +178,7 @@ class SmartImport extends Component
                 }
             }
 
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
 
             if (empty($recipeItems)) {
                 throw new \RuntimeException('AI could not extract any recipes from this PDF.');
@@ -230,7 +230,7 @@ class SmartImport extends Component
             $this->step     = 'mapping';
 
         } catch (\Throwable $e) {
-            set_time_limit((int) $previousTimeout ?: 60);
+            ExecutionTime::restore($previousTimeout);
             Log::error('PDF recipe extraction failed: ' . $e->getMessage());
             $this->addError('file', 'Failed to extract recipes from PDF: ' . $e->getMessage());
         }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AppSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Support\ExecutionTime;
 
 class VisionService
 {
@@ -291,8 +292,7 @@ PROMPT;
         // (e.g. deepseek-r1) whose long "thinking" phase times the request out.
         $model = $this->model;
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(180);
+        $previousTimeout = ExecutionTime::raise(180);
 
         $response = Http::connectTimeout(15)->timeout(120)
             ->withHeaders([
@@ -308,7 +308,7 @@ PROMPT;
                 'response_format' => ['type' => 'json_object'],
             ]);
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         if ($response->failed()) {
             Log::error('OpenRouter chat request failed', ['status' => $response->status(), 'body' => $response->body()]);
@@ -378,8 +378,7 @@ PROMPT;
         $base64 = base64_encode(file_get_contents($imagePath));
         $dataUri = "data:{$mimeType};base64,{$base64}";
 
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $previousTimeout = ExecutionTime::raise(120);
 
         $response = Http::timeout(90)
             ->withHeaders([
@@ -401,7 +400,7 @@ PROMPT;
                 'response_format' => ['type' => 'json_object'],
             ]);
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         if ($response->failed()) {
             Log::error('OpenRouter Z-Report extraction failed', ['status' => $response->status(), 'body' => $response->body()]);

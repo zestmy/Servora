@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use App\Support\ExecutionTime;
 
 /**
  * Detects likely-duplicate products on the Market List.
@@ -469,8 +470,7 @@ class DuplicateProductService
      */
     private function callAi(string $apiKey, array $payload): array
     {
-        $previousTimeout = ini_get('max_execution_time');
-        set_time_limit(120);
+        $previousTimeout = ExecutionTime::raise(120);
 
         $response = Http::timeout(90)
             ->withHeaders([
@@ -489,7 +489,7 @@ class DuplicateProductService
                 'response_format' => ['type' => 'json_object'],
             ]);
 
-        set_time_limit((int) $previousTimeout ?: 60);
+        ExecutionTime::restore($previousTimeout);
 
         if ($response->failed()) {
             $body = $response->json();
