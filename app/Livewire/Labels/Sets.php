@@ -85,6 +85,20 @@ class Sets extends Component
     /** 'new' or 'current' — only offered when a set is open. */
     public string $importSetTarget = 'new';
 
+    /**
+     * Line ids ticked for a bulk edit.
+     *
+     * Client-supplied, so every action that reads it re-scopes to the set
+     * being edited — see selectedLinesInSet().
+     *
+     * @var array<int, int|string>
+     */
+    public array $selectedLines = [];
+
+    /** Bulk shelf-life form. Empty value + Apply means "follow the rules". */
+    public string $bulkShelfLifeValue = '';
+    public string $bulkShelfLifeUnit  = 'days';
+
     public bool $showStorage = true;
 
     /** Empty means "work it out from the items in the set". */
@@ -378,8 +392,104 @@ class Sets extends Component
         session()->flash('success', 'Set deleted.');
     }
 
+    /**
+     * Only the ticked lines that actually belong to the set on screen.
+     *
+     * $selectedLines is a Livewire property and therefore whatever the browser
+     * posted. Without this, a line id from another outlet's set could be
+     * shelf-life edited from here — and a wrong shelf life is a wrong use-by
+     * date on a food-safety label.
+     *
+     * @return \Illuminate\Support\Collection<int, LabelSetLine>
+     */
+    private function selectedLinesInSet()
+    {
+        $set = $this->editingSet();
+
+        if (! $set || $this->selectedLines === []) {
+            return collect();
+        }
+
+        return LabelSetLine::where('label_set_id', $set->id)
+            ->whereIn('id', array_map('intval', $this->selectedLines))
+            ->get();
+    }
+
+    /** Tick everything in the set, or clear the lot if it is already all ticked. */
+    public function toggleAllLines(): void
+    {
+        $set = $this->editingSet();
+
+        if (! $set) {
+            return;
+        }
+
+        $ids = LabelSetLine::where('label_set_id', $set->id)->orderBy('sort_order')->pluck('id')->all();
+
+        $this->selectedLines = count($this->selectedLines) === count($ids) ? [] : $ids;
+    }
+
+    public function clearLineSelection(): void
+    {
+        $this->selectedLines = [];
+    }
+
+    /**
+     * Set one shelf life across every ticked line, or clear them all back to
+     * following the rules.
+     *
+     * The whole point of the screen: a chiller set is a dozen items that were
+     * all made this morning and all last three days, and setting that twelve
+     * times through twelve inputs is how it gets left on "Auto" instead.
+     */
+    public function applyBulkShelfLife(): void
+    {
+        $lines = $this->selectedLinesInSet();
+
+        if ($lines->isEmpty()) {
+            session()->flash('error', 'Tick the items you want to change first.');
+
+            return;
+        }
+
+        $value = trim($this->bulkShelfLifeValue) === '' ? null : (float) $this->bulkShelfLifeValue;
+
+        if ($value !== null && $value <= 0) {
+            session()->flash('error', 'A shelf life has to be more than zero. Leave it empty to go back to the rules.');
+
+            return;
+        }
+
+        if ($value !== null && ! array_key_exists($this->bulkShelfLifeUnit, Recipe::SHELF_LIFE_UNITS)) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            // Same shape as updateLine(): clearing the value clears the unit
+            // too, so a line never carries a unit with nothing to measure.
+            $line->update([
+                'shelf_life_value' => $value,
+                'shelf_life_unit'  => $value === null ? null : $this->bulkShelfLifeUnit,
+            ]);
+        }
+
+        $count = $lines->count();
+        $noun  = $count === 1 ? 'item' : 'items';
+
+        session()->flash('success', $value === null
+            ? "{$count} {$noun} back to following the shelf life rules."
+            : "{$count} {$noun} set to {$this->bulkShelfLifeValue} " . Recipe::SHELF_LIFE_UNITS[$this->bulkShelfLifeUnit] . '.');
+
+        $this->selectedLines = [];
+        $this->bulkShelfLifeValue = '';
+    }
+
     public function editLines(int $id): void
     {
+        // A tick list carried across from another set would apply the next
+        // bulk edit to lines nobody can see.
+        $this->selectedLines = [];
+
         $this->editingSetId = $id;
         $this->search = '';
     }

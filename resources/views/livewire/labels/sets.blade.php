@@ -145,15 +145,68 @@
 
                 <div class="card overflow-hidden flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3 flex-shrink-0">
-                        <p class="text-xs text-gray-500">
+                        <label class="flex items-center gap-2 cursor-pointer flex-shrink-0"
+                               title="Select every item in this set">
+                            <input type="checkbox" wire:click="toggleAllLines"
+                                   @checked($lines->count() > 0 && count($selectedLines) === $lines->count())
+                                   class="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
+                            <span class="text-xs text-gray-600">All</span>
+                        </label>
+                        <p class="text-xs text-gray-500 flex-1 min-w-0">
                             Order matters — labels come off the roll in this order, so match how you walk the shelf.
                         </p>
                         <span class="text-xs text-gray-600 whitespace-nowrap">{{ $lines->count() }} item{{ $lines->count() === 1 ? '' : 's' }}</span>
                     </div>
+
+                    {{-- Bulk shelf life. Appears only with something ticked, so the
+                         panel stays quiet for the ordinary one-item edit. A chiller
+                         set is a dozen things made this morning that all last three
+                         days; setting that twelve times is how it gets left on Auto. --}}
+                    @if (count($selectedLines) > 0)
+                        <div class="px-4 py-3 bg-brand-50 border-b border-brand-100 flex flex-wrap items-end gap-3 flex-shrink-0">
+                            <div class="flex-shrink-0">
+                                <p class="text-xs font-semibold text-brand-900">
+                                    {{ count($selectedLines) }} selected
+                                </p>
+                                <button wire:click="clearLineSelection"
+                                        class="text-[11px] text-brand-700 hover:text-brand-800">Clear</button>
+                            </div>
+
+                            <div class="flex items-end gap-2">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Shelf life</label>
+                                    <input type="number" step="0.5" min="0" wire:model="bulkShelfLifeValue"
+                                           placeholder="Auto"
+                                           class="w-20 rounded-lg border-gray-300 text-sm py-1" />
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Unit</label>
+                                    <select wire:model="bulkShelfLifeUnit"
+                                            class="rounded-lg border-gray-300 text-sm py-1">
+                                        @foreach ($shelfLifeUnits as $unit => $unitLabel)
+                                            <option value="{{ $unit }}">{{ $unitLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <button wire:click="applyBulkShelfLife" class="btn-primary py-1.5 px-3 text-xs">
+                                    Apply to {{ count($selectedLines) }}
+                                </button>
+                            </div>
+
+                            <p class="text-[11px] text-brand-800 w-full">
+                                Leave the number empty and Apply to put these items back on
+                                <strong>Auto</strong> — following the shelf life rules.
+                            </p>
+                        </div>
+                    @endif
                     <div class="divide-y divide-gray-50 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
                         @forelse ($lines as $i => $line)
                             <div class="px-4 py-3" wire:key="setline-{{ $line->id }}">
                                 <div class="flex items-start gap-3">
+                                    <input type="checkbox" wire:model.live="selectedLines" value="{{ $line->id }}"
+                                           aria-label="Select {{ $line->displayName() }}"
+                                           class="mt-1.5 flex-shrink-0 rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500" />
+
                                     <div class="flex flex-col gap-0.5 pt-1">
                                         <button wire:click="moveLine({{ $line->id }}, -1)" @disabled($i === 0)
                                                 class="text-gray-500 hover:text-gray-600 disabled:opacity-30 text-xs leading-none">▲</button>
