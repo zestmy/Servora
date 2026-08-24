@@ -32,10 +32,12 @@ class LabelTemplate extends Model
     /** Label types and the caption printed on them. */
     public const LABEL_TYPES = [
         'prep'      => 'USE BY',
-        'oof'       => 'DEFROSTED',
+        'oof'       => 'DEFROSTING',
         'received'  => 'RECEIVED',
         'opened'    => 'OPENED',
         'dry_store' => 'DRY STORE',
+        'hot_hold'  => 'HOT HOLDING',
+        'cold_hold' => 'COLD HOLDING',
         'custom'    => '',
     ];
 
@@ -49,6 +51,13 @@ class LabelTemplate extends Model
         'oof'       => 'thawed',
         'opened'    => 'opened',
         'dry_store' => 'ambient',
+        // The holding labels record when something went into service, so they
+        // borrow the state the food is already in rather than introducing one:
+        // hot holding is cooked food kept hot, cold holding is chilled food on
+        // display. Both count their holding time off the existing rule for that
+        // state, so neither needs a rule of its own.
+        'hot_hold'  => 'cooked',
+        'cold_hold' => 'chill',
     ];
 
     /**

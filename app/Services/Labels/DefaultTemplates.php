@@ -41,6 +41,8 @@ class DefaultTemplates
             'received'  => 'Standard received',
             'opened'    => 'Standard opened',
             'dry_store' => 'Standard dry store',
+            'hot_hold'  => 'Standard hot holding',
+            'cold_hold' => 'Standard cold holding',
             'custom'    => 'Standard custom',
             default     => 'Standard ' . str_replace('_', ' ', $type),
         };

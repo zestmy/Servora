@@ -41,7 +41,7 @@ class LabelGuide
                 'caption' => LabelTemplate::LABEL_TYPES['oof'],
                 'title'   => 'Out of the freezer',
                 'when'    => 'Put on the moment something leaves the freezer to thaw, not when it finishes thawing.',
-                'date'    => 'Counts the THAWED shelf life, which is usually far shorter than the frozen one.',
+                'date'    => 'Counts the THAWING shelf life, which is usually far shorter than the frozen one.',
                 'watch'   => 'Thawing is one-way. A defrosted item never goes back to its frozen date and must '
                     . 'not be refrozen.',
             ],
@@ -73,10 +73,32 @@ class LabelGuide
                     . 'and who filled it.',
             ],
             [
+                'key'     => 'hot_hold',
+                'caption' => LabelTemplate::LABEL_TYPES['hot_hold'],
+                'title'   => 'Held hot for service',
+                'when'    => 'The moment cooked food goes into a bain-marie, hot cabinet, carvery or pass — '
+                    . 'not when it came out of the oven.',
+                'date'    => 'Counts the cooked shelf life forward from the print, so the label says how long '
+                    . 'it may stay on service.',
+                'watch'   => 'Hot holding is a countdown, not storage. Food that drops below its hold '
+                    . 'temperature is on borrowed time whatever the label says, and reheating does not '
+                    . 'restart the clock.',
+            ],
+            [
+                'key'     => 'cold_hold',
+                'caption' => LabelTemplate::LABEL_TYPES['cold_hold'],
+                'title'   => 'Held cold for service',
+                'when'    => 'Chilled food put out on display or service — salad bars, deli counters, '
+                    . 'buffet lines, a topping rail.',
+                'date'    => 'Counts the chilled shelf life forward from the print.',
+                'watch'   => 'Going out on display does not extend the item\'s original use-by. If the tub it '
+                    . 'came from is due tomorrow, so is what you put on the rail.',
+            ],
+            [
                 'key'     => 'custom',
                 'caption' => 'No caption',
                 'title'   => 'Custom',
-                'when'    => 'Anything the five above do not describe.',
+                'when'    => 'Anything the seven above do not describe.',
                 'date'    => 'Nothing is calculated — you type the date, and the log marks it as entered by hand.',
                 'watch'   => 'Reach for this last. A typed date is not backed by a rule, so it is the one an '
                     . 'auditor will ask about.',

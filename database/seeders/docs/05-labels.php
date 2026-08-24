@@ -59,7 +59,7 @@ HTML,
 <ol>
   <li>Open <strong>Labels → Print Labels</strong>.</li>
   <li>Find the item. Recipes, prep items and ingredients are all printable.</li>
-  <li>Confirm the <strong>storage state</strong> — chilled, frozen, ambient, thawed. This changes the shelf life, so it is asked rather than assumed.</li>
+  <li>Confirm the <strong>storage state</strong> — chilled, frozen, ambient, thawing. This changes the shelf life, so it is asked rather than assumed.</li>
   <li>Set the quantity of labels.</li>
   <li>Check <strong>Prepared by</strong>. It is mandatory: a food-safety label with nobody's name on it does not do the job it exists for.</li>
   <li><strong>Print.</strong></li>
@@ -125,7 +125,7 @@ HTML,
 
 <h2>Storage state is part of the rule</h2>
 
-<p>The same item lasts different lengths of time depending on how it is kept, so a rule is always for a state — chilled, frozen, ambient or thawed. A three-day chilled life says nothing about frozen, and Servora will not guess: if you have not set a frozen rule, it asks rather than inventing one.</p>
+<p>The same item lasts different lengths of time depending on how it is kept, so a rule is always for a state — chilled, frozen, ambient or thawing. A three-day chilled life says nothing about frozen, and Servora will not guess: if you have not set a frozen rule, it asks rather than inventing one.</p>
 
 <h2>Setting them at the right level</h2>
 

@@ -26,7 +26,7 @@ class ShelfLifeRule extends Model
         'ambient' => 'Ambient',
         'chill'   => 'Chilled',
         'frozen'  => 'Frozen',
-        'thawed'  => 'Thawed',
+        'thawed'  => 'Thawing',
         'opened'  => 'Opened',
         'cooked'  => 'Cooked',
     ];
