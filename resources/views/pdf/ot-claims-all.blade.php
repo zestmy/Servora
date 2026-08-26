@@ -16,6 +16,13 @@
             'claims'      => $group['claims'],
             'totalHours'  => $group['totalHours'],
             'hoursByType' => $group['hoursByType'],
+            {{-- Passed EXPLICITLY. The single-employee view got this by
+                 inheriting its parent's variables, which is why the split
+                 rendered there and silently vanished here: each page's figure
+                 lives inside its own $group and nothing handed it over, so the
+                 partial fell back to an empty collection and printed time-off
+                 hours as though they were payable. --}}
+            'hoursBySettlement' => $group['hoursBySettlement'] ?? collect(),
             'submitters'  => $group['submitters'],
             'approvers'   => $group['approvers'],
             'calendarEvents' => $calendarEvents,
