@@ -35,12 +35,26 @@ class OtClaimSummaryPdfController extends Controller
             'public_holiday' => 'Public Holiday',
         ];
 
-        // Fetch all approved claims for the period - filter by EMPLOYEE's outlet, not claim's outlet
-        // This ensures claims appear in the correct outlet's report even if claim.outlet_id was set incorrectly
+        /*
+         * Approved, PAYABLE claims for the period — filtered on the EMPLOYEE's
+         * outlet rather than the claim's, so a claim raised with the wrong
+         * outlet_id still reports under the branch the person works at.
+         *
+         * Time off is excluded to match the approved OT form. The two prints
+         * answer the same question at different resolutions — one person's
+         * page, or everyone's totals — and a summary that counts hours the
+         * form beside it leaves out is a reconciliation somebody loses an
+         * afternoon to.
+         *
+         * Excluding time off rather than selecting payroll, because
+         * `settlement` is NOT NULL defaulting to 'payroll': claims written
+         * before the column existed keep counting without a back-fill.
+         */
         $claims = OvertimeClaim::with('employee')
             ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
             ->whereIn('employees.outlet_id', $availableOutletIds)
             ->where('overtime_claims.status', 'approved')
+            ->where('overtime_claims.settlement', '!=', OvertimeClaim::SETTLE_TIME_OFF)
             ->whereBetween('overtime_claims.claim_date', [$from, $to])
             ->select('overtime_claims.*')
             ->get();
@@ -81,6 +95,17 @@ class OtClaimSummaryPdfController extends Controller
             ->whereBetween('overtime_claims.claim_date', [$from, $to])
             ->sum('overtime_claims.total_ot_hours');
 
+        // Approved hours taken as time off in this period/scope — excluded
+        // above, stated in the footer beside the pending and rejected hours,
+        // so the grand total is never short without saying why.
+        $timeOffHours = (float) OvertimeClaim::query()
+            ->join('employees', 'overtime_claims.employee_id', '=', 'employees.id')
+            ->whereIn('employees.outlet_id', $availableOutletIds)
+            ->where('overtime_claims.status', 'approved')
+            ->where('overtime_claims.settlement', OvertimeClaim::SETTLE_TIME_OFF)
+            ->whereBetween('overtime_claims.claim_date', [$from, $to])
+            ->sum('overtime_claims.total_ot_hours');
+
         // Rejected claims in this period/scope — listed below the report with
         // the rejector and their reason for the record.
         $rejectedClaims = OvertimeClaim::with(['employee', 'approver'])
@@ -104,7 +129,7 @@ class OtClaimSummaryPdfController extends Controller
 
         $pdf = Pdf::loadView('pdf.ot-claims-summary', compact(
             'company', 'rows', 'otTypeLabels', 'typeTotals',
-            'grandTotalHours', 'periodLabel', 'from', 'to', 'exportedBy', 'pendingHours', 'rejectedClaims'
+            'grandTotalHours', 'periodLabel', 'from', 'to', 'exportedBy', 'pendingHours', 'rejectedClaims', 'timeOffHours'
         ))->setPaper('a4', 'portrait');
 
         return $pdf->download("ot-claims-summary-{$from}-to-{$to}.pdf");

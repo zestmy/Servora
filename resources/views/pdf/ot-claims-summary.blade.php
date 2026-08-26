@@ -166,15 +166,21 @@
     </table>
 @endif
 
-{{-- Excluded from this approved-only report: pending + rejected claims. --}}
+{{-- Excluded from this report: pending + rejected + time-off claims. --}}
 @php
     $rejectedClaims = $rejectedClaims ?? collect();
+    $timeOffHours   = $timeOffHours ?? 0;
 @endphp
-@if (($pendingHours ?? 0) > 0 || $rejectedClaims->isNotEmpty())
+@if (($pendingHours ?? 0) > 0 || $timeOffHours > 0 || $rejectedClaims->isNotEmpty())
     <div style="margin-top: 14px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 4px; padding: 9px 11px;">
         <div style="font-size: 9pt; font-weight: bold; color: #92400e; margin-bottom: 5px;">
-            Not included above (approved claims only)
+            Not included above (approved, payable claims only)
         </div>
+        @if ($timeOffHours > 0)
+            <div style="font-size: 8.5pt; color: #b45309; margin-bottom: {{ (($pendingHours ?? 0) > 0 || $rejectedClaims->isNotEmpty()) ? '7px' : '0' }};">
+                {{ number_format($timeOffHours, 2) }} hrs approved as Time Off this period — taken back as leave, not paid through payroll.
+            </div>
+        @endif
         @if (($pendingHours ?? 0) > 0)
             <div style="font-size: 8.5pt; color: #b45309; margin-bottom: {{ $rejectedClaims->isNotEmpty() ? '7px' : '0' }};">
                 {{ number_format($pendingHours, 2) }} hrs pending approval for this period.
