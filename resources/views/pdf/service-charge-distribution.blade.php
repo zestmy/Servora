@@ -159,26 +159,6 @@
         </div>
     @endif
 
-    <div class="legend">
-        <div class="legend-title">Legend</div>
-        <table class="legend-table">
-            @foreach ($legendCodes->chunk(4) as $chunk)
-                <tr>
-                    @foreach ($chunk as $code)
-                        @php $meta = $code->colorMeta(); @endphp
-                        <td>
-                            <span class="swatch" style="background: {{ $meta['bg'] }}; color: {{ $meta['text'] }};">{{ $code->code }}</span>
-                            {{ $code->label }}
-                        </td>
-                    @endforeach
-                    @for ($i = $chunk->count(); $i < 4; $i++)
-                        <td></td>
-                    @endfor
-                </tr>
-            @endforeach
-        </table>
-    </div>
-
     @if (empty($serviceCharge) || ! $serviceCharge['row'])
         <div style="text-align: center; padding: 30px 0; color: #999; font-size: 9px;">
             No service charge pool has been saved for this period and outlet.

@@ -184,6 +184,29 @@
         </table>
     @endif
 
+    {{-- The legend explains the codes in the grid above it, so it lives with
+         the grid. It sat between the two halves while they were one document
+         and followed the wrong half out when they were split. --}}
+    <div class="legend">
+        <div class="legend-title">Legend</div>
+        <table class="legend-table">
+            @foreach ($legendCodes->chunk(4) as $chunk)
+                <tr>
+                    @foreach ($chunk as $code)
+                        @php $meta = $code->colorMeta(); @endphp
+                        <td>
+                            <span class="swatch" style="background: {{ $meta['bg'] }}; color: {{ $meta['text'] }};">{{ $code->code }}</span>
+                            {{ $code->label }}
+                        </td>
+                    @endforeach
+                    @for ($i = $chunk->count(); $i < 4; $i++)
+                        <td></td>
+                    @endfor
+                </tr>
+            @endforeach
+        </table>
+    </div>
+
     @include('pdf.partials.attendance-signatures')
 
 </body>

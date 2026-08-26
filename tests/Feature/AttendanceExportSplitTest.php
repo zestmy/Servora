@@ -217,6 +217,41 @@ class AttendanceExportSplitTest extends TestCase
         }
     }
 
+    /**
+     * The rendered markup of a document, not just the data behind it.
+     *
+     * Which half a block ended up on is a question about the TEMPLATE, and the
+     * view data cannot answer it — the legend moved to the wrong document
+     * while every data-level assertion here stayed green.
+     */
+    private function markupOf(string $view, string $routeName): string
+    {
+        return view($view, $this->dataFor($view, $routeName))->render();
+    }
+
+    public function test_the_legend_belongs_to_the_attendance_record(): void
+    {
+        // It explains the codes in the grid. It sat between the two halves
+        // while they were one document and followed the wrong half out when
+        // they were split.
+        $this->pool();
+
+        $this->assertStringContainsString(
+            'Legend',
+            $this->markupOf('pdf.attendance', 'hr.attendance.export-pdf')
+        );
+    }
+
+    public function test_the_distribution_carries_no_legend(): void
+    {
+        $this->pool();
+
+        $this->assertStringNotContainsString(
+            'Legend',
+            $this->markupOf('pdf.service-charge-distribution', 'hr.attendance.distribution-pdf')
+        );
+    }
+
     public function test_each_document_names_itself(): void
     {
         $this->pool();
