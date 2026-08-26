@@ -11,6 +11,7 @@
     @include('pdf.partials.ot-claim-page', compact(
         'company', 'employee', 'claims', 'totalHours', 'hoursByType',
         'hoursBySettlement',
-        'submitters', 'approvers', 'calendarEvents', 'from', 'to'
+        'submitters', 'approvers', 'calendarEvents', 'from', 'to',
+        'pendingHours', 'rejectedClaims', 'timeOffHours'
     ))
 @endsection

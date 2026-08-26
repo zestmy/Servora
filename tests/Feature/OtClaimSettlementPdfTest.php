@@ -16,19 +16,22 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
- * Approved OT settled as time off must SAY so on the printed form.
+ * The approved OT form is what payroll pays against, so it carries payable
+ * hours only.
  *
- * Both halves are approved overtime and both belong on the record — the person
- * worked those hours either way — but only the payroll half will ever reach a
- * payslip, and this is the document somebody checks their pay against. A total
- * that silently mixes them is the one number that gets disputed.
+ * Overtime settled as time off is taken back as leave and never reaches a
+ * payslip, so it is left out of the document entirely — and somebody whose
+ * approved OT is ALL time off gets no page at all.
  *
- * The all-employees print did exactly that: the controller computed the split
- * per employee, the view never handed it to the partial, and the partial's
- * fallback quietly printed time-off hours as though they were payable. The
- * single-employee print escaped only because @include inherits its parent's
- * variables and that view happened to have one to inherit. Both pass it by
- * name now, and this pins both.
+ * What it must not do is go quietly short. The excluded hours are stated in
+ * the same footer that already accounts for pending and rejected claims,
+ * because a total that is short without saying why is the one somebody
+ * queries against their payslip.
+ *
+ * The settlement plumbing is still pinned here even though this document now
+ * excludes time off: the partial is shared, and $hoursBySettlement reaching it
+ * by scope inheritance rather than by name is what let the all-employees page
+ * print time-off hours as payable in the first place.
  */
 class OtClaimSettlementPdfTest extends TestCase
 {
@@ -96,21 +99,19 @@ class OtClaimSettlementPdfTest extends TestCase
     }
 
     /**
-     * The settlement split as the printed page actually received it.
+     * The data the printed page actually received.
      *
-     * Read off the partial's own data: dompdf compresses its streams, so the
-     * rendered bytes cannot be searched for the words on the page.
+     * Read off the partial rather than the file: dompdf compresses its
+     * streams, so the rendered bytes cannot be searched for a number.
      *
-     * @return array<string, float>
+     * @return array<string, mixed>
      */
-    private function splitOnPage(string $employeeParam): array
+    private function pageData(string $employeeParam): array
     {
-        $split = null;
+        $data = null;
 
-        Event::listen('composing: pdf.partials.ot-claim-page', function ($view) use (&$split) {
-            $split = collect($view->getData()['hoursBySettlement'] ?? [])
-                ->map(fn ($v) => (float) $v)
-                ->all();
+        Event::listen('composing: pdf.partials.ot-claim-page', function ($view) use (&$data) {
+            $data = $view->getData();
         });
 
         $this->actingAs($this->manager)
@@ -119,54 +120,112 @@ class OtClaimSettlementPdfTest extends TestCase
             ]))
             ->assertOk();
 
-        $this->assertNotNull($split, 'The claim page was never rendered.');
+        $this->assertNotNull($data, 'The claim page was never rendered.');
 
-        return $split;
+        return $data;
     }
 
-    public function test_the_all_employees_print_carries_the_settlement_split(): void
+    public function test_time_off_hours_are_left_off_the_all_employees_form(): void
     {
         $this->approvedClaim('2026-08-10', OvertimeClaim::SETTLE_PAYROLL, 2);
         $this->approvedClaim('2026-08-11', OvertimeClaim::SETTLE_TIME_OFF, 3);
 
-        $split = $this->splitOnPage('all');
+        $page = $this->pageData('all');
 
-        // Without this the page prints 5.00 hrs undifferentiated, and 3 of them
-        // are never going to appear on a payslip.
-        $this->assertSame(2.0, $split['payroll'] ?? null);
-        $this->assertSame(3.0, $split['time_off'] ?? null);
+        $this->assertSame([2.0], $this->hoursOn($page));
+        $this->assertSame(2.0, (float) $page['totalHours']);
     }
 
-    public function test_the_single_employee_print_carries_the_settlement_split(): void
+    public function test_time_off_hours_are_left_off_the_single_employee_form(): void
     {
         $this->approvedClaim('2026-08-10', OvertimeClaim::SETTLE_PAYROLL, 2);
         $this->approvedClaim('2026-08-11', OvertimeClaim::SETTLE_TIME_OFF, 3);
 
-        $split = $this->splitOnPage((string) $this->employee->id);
+        $page = $this->pageData((string) $this->employee->id);
 
-        $this->assertSame(2.0, $split['payroll'] ?? null);
-        $this->assertSame(3.0, $split['time_off'] ?? null);
+        $this->assertSame([2.0], $this->hoursOn($page));
+        $this->assertSame(2.0, (float) $page['totalHours']);
     }
 
-    public function test_an_all_time_off_employee_is_not_reported_as_payable(): void
+    public function test_the_excluded_hours_are_stated_rather_than_silently_dropped(): void
+    {
+        $this->approvedClaim('2026-08-10', OvertimeClaim::SETTLE_PAYROLL, 2);
+        $this->approvedClaim('2026-08-11', OvertimeClaim::SETTLE_TIME_OFF, 3);
+
+        // A total that is short without saying why is the one somebody queries
+        // against their payslip.
+        $this->assertSame(3.0, (float) $this->pageData('all')['timeOffHours']);
+    }
+
+    public function test_an_employee_whose_ot_is_all_time_off_gets_no_page(): void
     {
         $this->approvedClaim('2026-08-10', OvertimeClaim::SETTLE_TIME_OFF, 4);
 
-        $split = $this->splitOnPage('all');
+        $rendered = false;
+        Event::listen('composing: pdf.partials.ot-claim-page', function () use (&$rendered) {
+            $rendered = true;
+        });
 
-        $this->assertSame(4.0, $split['time_off'] ?? null);
-        $this->assertArrayNotHasKey('payroll', $split);
+        $this->actingAs($this->manager)
+            ->get(route('hr.ot-claims.pdf', [
+                'employee' => 'all', 'from' => '2026-08-01', 'to' => '2026-08-31',
+            ]))
+            ->assertOk();
+
+        $this->assertFalse($rendered, 'Nothing payable means no page at all.');
     }
 
-    public function test_an_all_payroll_page_stays_as_it_was(): void
+    public function test_an_ordinary_payroll_form_is_unchanged(): void
     {
-        // The split box only renders when there IS a split, so an ordinary
-        // claim sheet must not sprout a "Settled As" column.
+        $this->approvedClaim('2026-08-10', OvertimeClaim::SETTLE_PAYROLL, 2);
+        $this->approvedClaim('2026-08-11', OvertimeClaim::SETTLE_PAYROLL, 3);
+
+        $page = $this->pageData('all');
+
+        $this->assertSame([2.0, 3.0], $this->hoursOn($page));
+        $this->assertSame(0.0, (float) $page['timeOffHours']);
+    }
+
+    public function test_a_claim_that_never_named_a_settlement_still_prints(): void
+    {
+        /*
+         * `settlement` is NOT NULL defaulting to 'payroll', which is what
+         * every claim written before the column existed became. Excluding
+         * time off rather than selecting payroll means those historical rows
+         * keep printing without anything being back-filled — a form already
+         * signed and filed must not shrink when it is reprinted.
+         */
+        $claim = OvertimeClaim::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'employee_id' => $this->employee->id, 'submitted_by' => $this->manager->id,
+            'claim_date' => '2026-08-10',
+            'ot_time_start' => '18:00', 'ot_time_end' => '20:00', 'total_ot_hours' => 2,
+            'ot_type' => 'normal_day', 'reason' => 'Stocktake', 'status' => 'approved',
+            // settlement deliberately absent
+        ]);
+
+        $this->assertSame(OvertimeClaim::SETTLE_PAYROLL, $claim->fresh()->settlement);
+        $this->assertSame([2.0], $this->hoursOn($this->pageData('all')));
+    }
+
+    public function test_the_partial_is_handed_its_settlement_data_by_name(): void
+    {
+        // The bug this file was opened for: $hoursBySettlement reached the
+        // single-employee partial through the parent view's scope and never
+        // reached the all-employees one at all.
         $this->approvedClaim('2026-08-10', OvertimeClaim::SETTLE_PAYROLL, 2);
 
-        $split = $this->splitOnPage('all');
+        foreach (['all', (string) $this->employee->id] as $target) {
+            $this->assertArrayHasKey('hoursBySettlement', $this->pageData($target));
+        }
+    }
 
-        $this->assertSame(0.0, $split['time_off'] ?? 0.0);
-        $this->assertSame(2.0, $split['payroll'] ?? null);
+    /**
+     * @param  array<string, mixed>  $page
+     * @return array<int, float>
+     */
+    private function hoursOn(array $page): array
+    {
+        return collect($page['claims'])->map(fn ($c) => (float) $c->total_ot_hours)->values()->all();
     }
 }

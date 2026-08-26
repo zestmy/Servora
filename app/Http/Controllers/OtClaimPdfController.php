@@ -64,11 +64,23 @@ class OtClaimPdfController extends Controller
                     ->where('employee_id', $emp->id)
                     ->where('status', 'approved');
 
+                self::excludeTimeOff($query);
+
                 if ($from) $query->where('claim_date', '>=', $from);
                 if ($to)   $query->where('claim_date', '<=', $to);
 
                 $claims = $query->orderBy('claim_date')->get();
+
+                // Somebody whose approved OT is ALL time off has nothing
+                // payable in this period, so they get no page at all — which
+                // is the point of leaving time off out of this document.
                 if ($claims->isEmpty()) continue;
+
+                // Time-off hours dropped from this page. Reported in the
+                // footer for the same reason the pending and rejected hours
+                // are: a total that is quietly short is the one somebody
+                // queries against their payslip.
+                $timeOffHours = self::timeOffHours($emp->id, $from, $to);
 
                 $submitters = $claims->pluck('submitter')->filter()->unique('id');
 
@@ -103,6 +115,7 @@ class OtClaimPdfController extends Controller
                     'approvers'   => $claims->pluck('approver')->filter()->unique('id'),
                     'pendingHours' => $pendingHours,
                     'rejectedClaims' => $rejectedClaims,
+                    'timeOffHours' => $timeOffHours,
                 ];
             }
 
@@ -143,10 +156,14 @@ class OtClaimPdfController extends Controller
             ->where('employee_id', $employee->id)
             ->where('status', 'approved');
 
+        self::excludeTimeOff($query);
+
         if ($from) $query->where('claim_date', '>=', $from);
         if ($to)   $query->where('claim_date', '<=', $to);
 
         $claims = $query->orderBy('claim_date')->get();
+
+        $timeOffHours = self::timeOffHours($employee->id, $from, $to);
 
         $totalHours  = $claims->sum('total_ot_hours');
         $hoursByType = $claims->groupBy('ot_type')->map(fn ($g) => $g->sum('total_ot_hours'));
@@ -193,12 +210,44 @@ class OtClaimPdfController extends Controller
         );
 
         $pdf = Pdf::loadView('pdf.ot-claims', compact(
-            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'hoursBySettlement', 'submitters', 'approvers', 'calendarEvents', 'from', 'to', 'pendingHours', 'rejectedClaims'
+            'company', 'employee', 'claims', 'totalHours', 'hoursByType', 'hoursBySettlement', 'submitters', 'approvers', 'calendarEvents', 'from', 'to', 'pendingHours', 'rejectedClaims', 'timeOffHours'
         ))->setPaper('a4', 'portrait');
 
         $name = str_replace([' ', '/', '\\'], '-', strtolower($employee->name));
 
         return $pdf->download("ot-claims-{$name}.pdf");
+    }
+
+    /**
+     * Leave time-off overtime out of this document.
+     *
+     * The form is what payroll pays against, and hours settled as time off
+     * never reach a payslip — they are taken back as leave instead. Printing
+     * them beside payable hours put a number on a signed page that nothing
+     * downstream would honour.
+     *
+     * Excluding time off rather than selecting payroll, so the column's own
+     * default does the right thing: `settlement` is NOT NULL defaulting to
+     * 'payroll', which is what every claim written before the column existed
+     * became. Nothing has to be back-filled for a historical form to keep
+     * printing exactly what it printed before.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<OvertimeClaim>  $query
+     */
+    private static function excludeTimeOff($query): void
+    {
+        $query->where('settlement', '!=', OvertimeClaim::SETTLE_TIME_OFF);
+    }
+
+    /** Approved hours taken as time off in the range — excluded, but stated. */
+    private static function timeOffHours(int $employeeId, ?string $from, ?string $to): float
+    {
+        return (float) OvertimeClaim::where('employee_id', $employeeId)
+            ->where('status', 'approved')
+            ->where('settlement', OvertimeClaim::SETTLE_TIME_OFF)
+            ->when($from, fn ($q) => $q->where('claim_date', '>=', $from))
+            ->when($to, fn ($q) => $q->where('claim_date', '<=', $to))
+            ->sum('total_ot_hours');
     }
 
     /**

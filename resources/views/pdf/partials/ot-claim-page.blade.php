@@ -6,10 +6,13 @@
        $pendingHours   — OT hours awaiting approval, excluded from this
        approved-only document; shown as a footer note when > 0.
        $rejectedClaims — Rejected claims in range, excluded; listed in a
-       footer block with rejector + reason when non-empty. --}}
+       footer block with rejector + reason when non-empty.
+       $timeOffHours   — Approved OT settled as time off, excluded from this
+       form because it never reaches a payslip; stated in the same footer. --}}
 @php
     $pendingHours   = $pendingHours ?? 0;
     $rejectedClaims = $rejectedClaims ?? collect();
+    $timeOffHours   = $timeOffHours ?? 0;
     // Keyed 'payroll' / 'time_off'. Defaulted so an older caller that does not
     // pass it renders exactly as before rather than fataling.
     $hoursBySettlement = $hoursBySettlement ?? collect();
@@ -195,12 +198,19 @@
     </tfoot>
 </table>
 
-{{-- Excluded from this approved form: pending + rejected claims, for the record. --}}
-@if ($pendingHours > 0 || $rejectedClaims->isNotEmpty())
+{{-- Excluded from this approved form: pending + rejected + time-off claims,
+     for the record. Naming what was left out is the difference between a
+     short total and an unexplained one. --}}
+@if ($pendingHours > 0 || $timeOffHours > 0 || $rejectedClaims->isNotEmpty())
     <div style="margin-top: 12px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 4px; padding: 8px 10px;">
         <div style="font-size: 8.5pt; font-weight: bold; color: #92400e; margin-bottom: 4px;">
-            Not included above (approved claims only)
+            Not included above (approved, payable claims only)
         </div>
+        @if ($timeOffHours > 0)
+            <div style="font-size: 8pt; color: #b45309; margin-bottom: {{ ($pendingHours > 0 || $rejectedClaims->isNotEmpty()) ? '6px' : '0' }};">
+                {{ number_format($timeOffHours, 2) }} hrs approved as Time Off — taken back as leave, not paid through payroll.
+            </div>
+        @endif
         @if ($pendingHours > 0)
             <div style="font-size: 8pt; color: #b45309; margin-bottom: {{ $rejectedClaims->isNotEmpty() ? '6px' : '0' }};">
                 {{ number_format($pendingHours, 2) }} hrs pending approval.
