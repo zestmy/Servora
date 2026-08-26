@@ -7,8 +7,7 @@ use App\Models\AttendanceCode;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Outlet;
-use App\Models\ServiceChargePeriod;
-use App\Services\Hr\LatePenalties;
+use App\Services\Hr\ServiceChargeDistribution;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -215,38 +214,43 @@ class AttendanceExportController extends Controller
         $canViewPay = Employee::canViewPay($user);
         $canManageServiceCharge = (bool) $user->can('hr.attendance.service_charge');
 
+        /*
+         * THE SERVICE CHARGE SECTION IS NOT A VIEW OF THE GRID ABOVE IT.
+         *
+         * REPORTED AS: three people paid from KLCC's pool were missing from
+         * the KLCC payout list. They were correct everywhere else — set up
+         * right, in the frozen calculation at RM1,033.50 each, present on the
+         * payout report — and absent only here.
+         *
+         * Because this block used $employees, and $employees is the GRID's
+         * list: filtered to the selected outlet by home outlet_id, and
+         * narrowed further by the section, employment and search boxes. Staff
+         * posted to HQ and the Central Kitchen but paid from KLCC's pool are
+         * not in it, so a frozen distribution mapped over that list simply had
+         * no row for them.
+         *
+         * The Livewire grid had this exact bug and was fixed by giving the
+         * panel its own pool-scoped query; the export was never given the same
+         * fix. So rather than a third hand-rolled copy of "who does this pool
+         * pay", it now calls the service the payout report calls. The two
+         * cannot disagree about what a period paid, which is the whole reason
+         * that service exists.
+         *
+         * It also fixes the divisor, which had the same fault in a quieter
+         * form: the old query ANDed on the exporter's accessible outlets, so a
+         * KLCC-only manager dropped redirected staff out of the RM/point base
+         * while a manager who could see HQ kept them — the same pool printing
+         * two different rates depending on who pressed the button. Frozen
+         * periods were spared it; unfrozen ones were not.
+         */
         $serviceCharge = null;
         if ($canManageServiceCharge && ($forceServiceCharge || $request->boolean('service_charge'))) {
             $scOutletId = ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true))
                 ? (int) $outletFilter : null;
-            $scRow = ServiceChargePeriod::where('outlet_id', $scOutletId)
-                ->whereDate('period_from', $from)
-                ->whereDate('period_to', $to)
-                ->first();
-            if ($scRow) {
-                // RM/point base: everyone employed during the period in the
-                // outlet scope — section/employment/search only narrow the
-                // displayed rows. employedDuring, NOT is_active, so it matches
-                // the rows above: a leaver whose points are being paid but who
-                // is missing from this base would inflate RM/point and
-                // allocate more than the pool holds.
-                // Scoped by who this pool PAYS — see
-                // Employee::scopeForServiceChargeOutlet(). Staff redirected to
-                // another outlet's pool take no share here, so their points
-                // must leave the divisor as well as the rows.
-                $totalPoints = (float) $scRow->excludeFrom(
-                    Employee::whereIn('outlet_id', $accessible ?: [0])
-                        ->employedDuring($from->toDateString(), $to->toDateString())
-                        ->forServiceChargeOutlet($scOutletId)
-                )->sum('service_points_entitlement');
-                // Per employee, not per outlet: a redirected person's punches
-                // live at the outlet they work in, so an outlet lookup finds
-                // none and drops their lateness charge.
-                $latePenalties = LatePenalties::forEmployees(
-                    $user->company_id, $employees->pluck('id')->all(), $from, $to
-                );
-                $serviceCharge = ServiceChargePeriod::distribute($scRow, $scOutletId, $employees, $codes, $cellMap, 5.0, 10.0, $totalPoints, $latePenalties);
-            }
+
+            $serviceCharge = app(ServiceChargeDistribution::class)->forPeriod(
+                $user->company_id, $accessible, $from, $to, $scOutletId
+            );
         }
 
         return compact(
