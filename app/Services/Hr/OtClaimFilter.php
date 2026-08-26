@@ -215,16 +215,28 @@ final class OtClaimFilter
             default                  => 'All dates',
         };
 
-        if ($this->employmentStatus !== null) {
-            $parts[] = 'Employment: ' . match ($this->employmentStatus) {
-                'none' => 'No status recorded',
-                'exclude_outsourcing' => 'Own staff only (excluding outsourced)',
-                default => \App\Models\Employee::EMPLOYMENT_STATUSES[$this->employmentStatus]
-                    ?? ucfirst($this->employmentStatus),
-            };
+        if (($employment = $this->employmentLabel()) !== null) {
+            $parts[] = 'Employment: ' . $employment;
         }
 
         return $parts;
+    }
+
+    /**
+     * The employment narrowing in words, or null when it was not narrowed.
+     *
+     * Separate from describe() because the print documents carry only this one
+     * line, and a second copy of the wording is a second thing to keep true.
+     */
+    public function employmentLabel(): ?string
+    {
+        return match (true) {
+            $this->employmentStatus === null => null,
+            $this->employmentStatus === 'none' => 'No status recorded',
+            $this->employmentStatus === 'exclude_outsourcing' => 'Own staff only (excluding outsourced)',
+            default => \App\Models\Employee::EMPLOYMENT_STATUSES[$this->employmentStatus]
+                ?? ucfirst($this->employmentStatus),
+        };
     }
 
     private function fmt(string $date): string

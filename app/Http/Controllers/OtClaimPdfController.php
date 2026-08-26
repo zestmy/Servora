@@ -6,6 +6,8 @@ use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\OvertimeClaim;
+use App\Models\Section;
+use App\Services\Hr\OtClaimFilter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -16,24 +18,42 @@ class OtClaimPdfController extends Controller
         $user    = $request->user();
         $company = Company::find($user->company_id);
 
-        // Use same outlet scope as the Livewire component — cross-outlet roles
-        // see all company outlets; everyone else sees only assigned outlets.
-        $availableOutletIds = $user->accessibleOutletIds();
-
-        // If outlet filter is specified, narrow down to that outlet only
-        $outletFilter = $request->input('outlet');
-        if ($outletFilter && in_array((int) $outletFilter, $availableOutletIds)) {
-            $availableOutletIds = [(int) $outletFilter];
-        }
-
         $from = $request->input('from');
         $to   = $request->input('to');
 
+        /*
+         * Outlet, section and employment come off the print modal, which seeds
+         * them from the list's own filters. Built through OtClaimFilter so the
+         * synthetic employment options ("exclude outsourcing", "no status")
+         * mean here exactly what they mean on the screen — this document is a
+         * signable record, and a second implementation of those two is a
+         * second set of answers to "who was left out".
+         *
+         * Status and employee are not filter fields here: the document is
+         * approved-only by definition, and the employee is the route segment.
+         */
+        $filter = OtClaimFilter::fromScreen(
+            status: '',
+            from: (string) $from,
+            to: (string) $to,
+            employeeId: '',
+            sectionId: (string) $request->input('section', ''),
+            employmentStatus: (string) $request->input('employment', ''),
+            outletId: (string) $request->input('outlet', ''),
+        );
+
+        // Same outlet scope as the Livewire component — cross-outlet roles see
+        // all company outlets, everyone else only their assigned ones, and an
+        // outlet arriving in the URL is not permission to read that branch.
+        $availableOutletIds = $filter->outletScope($user->accessibleOutletIds());
+
         if ($employee === 'all') {
-            // Get all active employees from outlets the user can access
+            // Every active employee the filter still leaves standing.
             $employees = Employee::with(['section', 'outlet'])
                 ->whereIn('outlet_id', $availableOutletIds)
                 ->where('is_active', true)
+                ->when($filter->sectionId, fn ($q, $id) => $q->where('section_id', $id))
+                ->tap(fn ($q) => $filter->applyEmploymentStatus($q))
                 ->orderBy('name')
                 ->get();
 
@@ -94,14 +114,26 @@ class OtClaimPdfController extends Controller
                 $to   ?: $allClaims->max('claim_date')?->toDateString(),
             );
 
-            $pdf = Pdf::loadView('pdf.ot-claims-all', compact(
-                'company', 'grouped', 'calendarEvents', 'from', 'to'
-            ))->setPaper('a4', 'portrait');
+            $pdf = Pdf::loadView('pdf.ot-claims-all', [
+                'company'        => $company,
+                'grouped'        => $grouped,
+                'calendarEvents' => $calendarEvents,
+                'from'           => $from,
+                'to'             => $to,
+                // Only reaches the page when nothing matched: "no claims found"
+                // reads as "nobody worked OT" unless it says what was excluded.
+                'narrowedBy'     => $this->describeNarrowing($filter),
+            ])->setPaper('a4', 'portrait');
 
             return $pdf->download('ot-claims-all.pdf');
         }
 
-        // Single employee - verify they belong to an accessible outlet
+        /*
+         * Single employee. Section and employment are not re-applied here —
+         * they narrow WHICH employees get a page, and naming one is a narrower
+         * answer to the same question. The modal keeps the picker in step with
+         * them, so a contradictory pair cannot be built from the UI anyway.
+         */
         $employee = Employee::with(['section', 'outlet'])
             ->whereIn('outlet_id', $availableOutletIds)
             ->findOrFail((int) $employee);
@@ -167,5 +199,25 @@ class OtClaimPdfController extends Controller
         $name = str_replace([' ', '/', '\\'], '-', strtolower($employee->name));
 
         return $pdf->download("ot-claims-{$name}.pdf");
+    }
+
+    /**
+     * The section/employment narrowing in words, for the empty state.
+     *
+     * @return array<int, string>
+     */
+    private function describeNarrowing(OtClaimFilter $filter): array
+    {
+        $parts = [];
+
+        if ($filter->sectionId !== null) {
+            $parts[] = 'Section: ' . (Section::find($filter->sectionId)?->name ?? 'Unknown');
+        }
+
+        if (($employment = $filter->employmentLabel()) !== null) {
+            $parts[] = 'Employment: ' . $employment;
+        }
+
+        return $parts;
     }
 }

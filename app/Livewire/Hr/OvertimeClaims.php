@@ -62,6 +62,8 @@ class OvertimeClaims extends Component
     public string $pdfFrom       = '';
     public string $pdfTo         = '';
     public string $pdfEmployeeId = '';
+    public string $pdfSectionId  = '';
+    public string $pdfEmploymentStatus = ''; // same synthetic options as the list filter
 
     // Summary PDF modal — any date range, not just a whole month.
     public bool   $showSummaryModal = false;
@@ -716,6 +718,13 @@ class OvertimeClaims extends Component
         $this->pdfFrom       = $this->dateFrom ?: now()->startOfMonth()->toDateString();
         $this->pdfTo         = $this->dateTo ?: now()->endOfMonth()->toDateString();
         $this->pdfEmployeeId = '';
+
+        // Seeded from the list's own narrowing: someone who filtered to a
+        // section and then hit Print meant that section, and having to pick it
+        // twice is how the two quietly end up disagreeing.
+        $this->pdfSectionId         = $this->sectionFilter;
+        $this->pdfEmploymentStatus  = $this->employmentStatusFilter;
+
         $this->showPdfModal  = true;
     }
 
@@ -770,7 +779,14 @@ class OvertimeClaims extends Component
 
     public function getPdfUrl(): string
     {
-        $params = ['from' => $this->pdfFrom, 'to' => $this->pdfTo];
+        $params = array_filter([
+            'from'       => $this->pdfFrom,
+            'to'         => $this->pdfTo,
+            'outlet'     => $this->outletFilter,
+            'section'    => $this->pdfSectionId,
+            'employment' => $this->pdfEmploymentStatus,
+        ], fn ($v) => $v !== '' && $v !== null);
+
         $employeeId = $this->pdfEmployeeId ?: 'all';
 
         return route('hr.ot-claims.pdf', ['employee' => $employeeId] + $params);

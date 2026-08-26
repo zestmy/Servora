@@ -823,21 +823,88 @@
     @if ($showPdfModal)
         @teleport('body')
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" wire:click.self="$set('showPdfModal', false)"
-             x-data="{ empId: '{{ $pdfEmployeeId }}', fromDate: '{{ $pdfFrom }}', toDate: '{{ $pdfTo }}', outletId: '{{ $outletFilter }}' }">
+             x-data="{
+                empId: '{{ $pdfEmployeeId }}',
+                fromDate: '{{ $pdfFrom }}',
+                toDate: '{{ $pdfTo }}',
+                outletId: '{{ $outletFilter }}',
+                sectionId: '{{ $pdfSectionId }}',
+                employment: '{{ $pdfEmploymentStatus }}',
+                employees: @js($allEmployees->where('is_active', true)->map(fn ($e) => [
+                    'id'         => (string) $e->id,
+                    'name'       => $e->name,
+                    'section'    => (string) $e->section_id,
+                    'employment' => $e->employment_status,
+                ])->values()),
+                /* Section and employment narrow WHO gets printed, so the
+                   employee picker has to follow them — otherwise you can ask
+                   for one person and one section that person is not in, and
+                   the PDF has to silently pick a winner. */
+                get pickable() {
+                    return this.employees.filter(e =>
+                        (! this.sectionId || e.section === this.sectionId) && this.matchesEmployment(e)
+                    );
+                },
+                matchesEmployment(e) {
+                    if (! this.employment) return true;
+                    if (this.employment === 'none') return ! e.employment;
+                    if (this.employment === 'exclude_outsourcing') return e.employment !== 'outsourcing';
+                    return e.employment === this.employment;
+                },
+                /* Drop a now-hidden selection back to All rather than leaving it
+                   selected-but-invisible. */
+                syncEmployee() {
+                    if (this.empId && ! this.pickable.some(e => e.id === this.empId)) this.empId = '';
+                },
+                get query() {
+                    const p = new URLSearchParams({ from: this.fromDate, to: this.toDate });
+                    if (this.outletId)   p.set('outlet', this.outletId);
+                    if (this.sectionId)  p.set('section', this.sectionId);
+                    if (this.employment) p.set('employment', this.employment);
+                    return p.toString();
+                },
+             }">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                 <h3 class="text-base font-semibold text-gray-800 mb-4">Print Approved OT Claims</h3>
 
                 <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <x-input-label for="pdf_section" value="Section" />
+                            <select id="pdf_section" x-model="sectionId" x-on:change="syncEmployee()"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
+                                <option value="">All Sections</option>
+                                @foreach ($sections as $s)
+                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <x-input-label for="pdf_employment" value="Employment" />
+                            <select id="pdf_employment" x-model="employment" x-on:change="syncEmployee()"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
+                                <option value="">All Employment</option>
+                                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                                @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                                    <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                                @endforeach
+                                <option value="none">No Status</option>
+                            </select>
+                        </div>
+                    </div>
                     <div>
                         <x-input-label for="pdf_employee" value="Employee" />
                         <select id="pdf_employee" x-model="empId"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">All Employees</option>
-                            @foreach ($allEmployees->where('is_active', true) as $emp)
-                                <option value="{{ $emp->id }}">{{ $emp->name }}</option>
-                            @endforeach
+                            <template x-for="emp in pickable" :key="emp.id">
+                                <option :value="emp.id" x-text="emp.name"></option>
+                            </template>
                         </select>
-                        <p class="text-[10px] text-gray-600 mt-0.5">Leave blank to print all employees (one page each)</p>
+                        <p class="text-[10px] text-gray-600 mt-0.5"
+                           x-text="empId
+                                ? 'One page for this employee.'
+                                : 'Leave blank to print all ' + pickable.length + ' matching employees (one page each)'"></p>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -858,7 +925,7 @@
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
                         Cancel
                     </button>
-                    <a x-bind:href="'{{ url('/hr/overtime-claims/pdf') }}/' + (empId || 'all') + '?from=' + fromDate + '&to=' + toDate + (outletId ? '&outlet=' + outletId : '')"
+                    <a x-bind:href="'{{ url('/hr/overtime-claims/pdf') }}/' + (empId || 'all') + '?' + query"
                        target="_blank"
                        class="btn-primary">
                         Download PDF

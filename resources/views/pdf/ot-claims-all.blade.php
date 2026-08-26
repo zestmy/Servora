@@ -27,6 +27,11 @@
     @empty
         <div style="text-align: center; padding: 40px 0; color: #999; font-size: 12px;">
             No approved overtime claims found for the selected period.
+            @if (!empty($narrowedBy))
+                <div style="margin-top: 6px; font-size: 10px;">
+                    Narrowed by — {{ implode(' · ', $narrowedBy) }}
+                </div>
+            @endif
         </div>
     @endforelse
 @endsection
