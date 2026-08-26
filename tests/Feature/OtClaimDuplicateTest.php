@@ -22,9 +22,19 @@ use Tests\TestCase;
  * are two lots of hours, and once both are approved they are two lots of pay —
  * nothing downstream reconciles that, the payslip simply adds them up.
  *
- * A rejection is the deliberate exception. It means "fix this and send it
- * again", so a rejected claim must not stand in the way of the corrected one,
- * or the gate leaves somebody unpaid for hours they actually worked.
+ * There are two deliberate exceptions.
+ *
+ * A REJECTION means "fix this and send it again", so a rejected claim must not
+ * stand in the way of the corrected one, or the gate leaves somebody unpaid
+ * for hours they actually worked.
+ *
+ * A SPLIT SHIFT is the other. A cook who works OT over lunch and again at
+ * dinner has two separate blocks on one date, which is the same shape as the
+ * mistake and only the person entering it can tell them apart. So the refusal
+ * names the claim in the way and offers the override there, rather than being
+ * a standing tick-box people learn to tick — and the acknowledgement is
+ * recorded with who made it, because a bypass on a gate that guards pay is
+ * worth nothing if nobody can find out afterwards who used it.
  */
 class OtClaimDuplicateTest extends TestCase
 {
@@ -311,6 +321,173 @@ class OtClaimDuplicateTest extends TestCase
             OvertimeClaim::duplicateFor($this->employee->id, '2026-08-10 00:00:00'),
             'A full datetime must resolve to the same date as the stored claim.'
         );
+    }
+
+    // ── The split-shift override ──
+
+    public function test_the_refusal_offers_the_override_and_names_the_clash(): void
+    {
+        // Somebody has to be shown WHICH claim is in the way before they can
+        // honestly say the new one is separate.
+        $this->claim($this->employee, '2026-08-10');
+
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->save('submit');
+
+        $this->assertNotNull($component->clashingClaim);
+        $this->assertSame('10 Aug 2026', $component->clashingClaim['date']);
+        $this->assertSame('AISYAH', $component->clashingClaim['employee']);
+        $this->assertSame('submitted', $component->clashingClaim['status']);
+        $this->assertSame('18:00', $component->clashingClaim['start']);
+    }
+
+    public function test_confirming_a_split_shift_lets_the_second_claim_through(): void
+    {
+        $this->claim($this->employee, '2026-08-10');
+
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->is_split_shift = true;
+        $component->save('submit');
+
+        $this->assertFalse($component->getErrorBag()->has('claim_date'));
+        $this->assertSame(2, OvertimeClaim::where('employee_id', $this->employee->id)->count());
+    }
+
+    public function test_the_override_records_who_used_it(): void
+    {
+        // A bypass on a gate that guards pay is worth nothing if nobody can
+        // find out afterwards who used it.
+        $this->claim($this->employee, '2026-08-10');
+
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->is_split_shift = true;
+        $component->save('submit');
+
+        $second = OvertimeClaim::where('employee_id', $this->employee->id)->latest('id')->first();
+
+        $this->assertTrue($second->is_split_shift);
+        $this->assertSame($this->manager->id, $second->split_shift_ack_by);
+        $this->assertNotNull($second->split_shift_ack_at);
+    }
+
+    public function test_an_acknowledged_split_shift_stops_being_reported_as_a_duplicate(): void
+    {
+        // A notice that keeps reporting a decision somebody already made is a
+        // notice people learn to scroll past — which costs exactly the double
+        // payment it exists to catch.
+        $this->claim($this->employee, '2026-08-10');
+
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->is_split_shift = true;
+        $component->save('submit');
+
+        $this->assertCount(0, OvertimeClaim::duplicateGroups(OvertimeClaim::query()));
+    }
+
+    public function test_a_third_unconfirmed_claim_on_that_date_is_still_refused(): void
+    {
+        // Acknowledging one split shift does not open the date.
+        $this->claim($this->employee, '2026-08-10');
+
+        $second = $this->fillClaim($this->employee, '2026-08-10');
+        $second->is_split_shift = true;
+        $second->save('submit');
+
+        $third = $this->fillClaim($this->employee, '2026-08-10');
+        $third->save('submit');
+
+        $this->assertTrue($third->getErrorBag()->has('claim_date'));
+        $this->assertSame(2, OvertimeClaim::where('employee_id', $this->employee->id)->count());
+    }
+
+    public function test_a_third_claim_can_itself_be_confirmed_as_another_split(): void
+    {
+        // A cook working breakfast, lunch and dinner is on their third block.
+        $this->claim($this->employee, '2026-08-10');
+
+        foreach ([2, 3] as $ignored) {
+            $component = $this->fillClaim($this->employee, '2026-08-10');
+            $component->is_split_shift = true;
+            $component->save('submit');
+        }
+
+        $this->assertSame(3, OvertimeClaim::where('employee_id', $this->employee->id)->count());
+        $this->assertCount(0, OvertimeClaim::duplicateGroups(OvertimeClaim::query()));
+    }
+
+    public function test_the_tick_does_nothing_on_a_date_with_nothing_in_the_way(): void
+    {
+        /*
+         * Otherwise an acknowledgement lands on an ordinary claim and quietly
+         * exempts the NEXT one from the gate — the override would spread by
+         * itself.
+         */
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->is_split_shift = true;
+        $component->save('submit');
+
+        $claim = OvertimeClaim::where('employee_id', $this->employee->id)->first();
+
+        $this->assertFalse($claim->is_split_shift);
+        $this->assertNull($claim->split_shift_ack_by);
+
+        // And so the date is still guarded.
+        $next = $this->fillClaim($this->employee, '2026-08-10');
+        $next->save('submit');
+        $this->assertTrue($next->getErrorBag()->has('claim_date'));
+    }
+
+    public function test_changing_the_date_clears_a_confirmation_nobody_has_been_shown(): void
+    {
+        $this->claim($this->employee, '2026-08-10');
+
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->save('submit');
+        $this->assertNotNull($component->clashingClaim);
+
+        // Moving to a different date answers a collision that no longer exists.
+        $component->claim_date = '2026-08-12';
+        $component->updatedClaimDate();
+
+        $this->assertFalse($component->is_split_shift);
+        $this->assertNull($component->clashingClaim);
+    }
+
+    public function test_changing_the_employee_clears_it_too(): void
+    {
+        $this->claim($this->employee, '2026-08-10');
+
+        $component = $this->fillClaim($this->employee, '2026-08-10');
+        $component->save('submit');
+
+        $component->is_split_shift = true;
+        $component->employee_id    = $this->colleague->id;
+        $component->updatedEmployeeId();
+
+        $this->assertFalse($component->is_split_shift);
+        $this->assertNull($component->clashingClaim);
+    }
+
+    public function test_taking_the_confirmation_back_clears_the_audit_columns(): void
+    {
+        $this->claim($this->employee, '2026-08-10');
+
+        $create = $this->fillClaim($this->employee, '2026-08-10');
+        $create->is_split_shift = true;
+        $create->save();
+
+        $second = OvertimeClaim::where('employee_id', $this->employee->id)->latest('id')->first();
+        $this->assertNotNull($second->split_shift_ack_by);
+
+        // Edited onto a date of its own — it is no longer a split of anything.
+        $edit = $this->fillClaim($this->employee, '2026-08-12', $second->id);
+        $edit->is_split_shift = false;
+        $edit->save();
+
+        $second->refresh();
+        $this->assertFalse($second->is_split_shift);
+        $this->assertNull($second->split_shift_ack_by);
+        $this->assertNull($second->split_shift_ack_at);
     }
 
     private function callProtected(object $object, string $method): mixed

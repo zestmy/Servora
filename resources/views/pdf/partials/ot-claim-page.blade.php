@@ -161,7 +161,15 @@
         @foreach ($claims as $i => $claim)
             <tr>
                 <td>{{ $i + 1 }}</td>
-                <td style="font-weight: 500;">{{ $claim->claim_date->format('d M Y') }} <span style="color: #888; font-weight: 400;">({{ $claim->claim_date->format('D') }})</span></td>
+                <td style="font-weight: 500;">
+                    {{ $claim->claim_date->format('d M Y') }}
+                    <span style="color: #888; font-weight: 400;">({{ $claim->claim_date->format('D') }})</span>
+                    {{-- Two rows sharing a date read as an error on a form
+                         somebody is about to sign. This says it was checked. --}}
+                    @if ($claim->is_split_shift)
+                        <span style="display: block; color: #b45309; font-weight: 400; font-size: 7.5pt;">separate shift</span>
+                    @endif
+                </td>
                 <td style="font-size: 8pt;">
                     @forelse (\App\Models\CalendarEvent::onDate($calendarEvents, $claim->claim_date, $employee->outlet_id) as $ev)
                         <span style="color: {{ $ev->category === 'holiday' ? '#b91c1c' : '#104d4f' }};">{{ $ev->title }}</span>@if (! $loop->last)<br>@endif

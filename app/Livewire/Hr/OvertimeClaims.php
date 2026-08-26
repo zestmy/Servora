@@ -38,6 +38,15 @@ class OvertimeClaims extends Component
     public string $ot_type           = 'normal_day';
     public string $reason            = '';
 
+    /*
+     * The split-shift override. `clashingClaim` is what the gate found, held
+     * so the modal can show WHICH claim is in the way rather than asking
+     * somebody to confirm a collision they cannot see; `is_split_shift` is
+     * their answer.
+     */
+    public bool   $is_split_shift    = false;
+    public ?array $clashingClaim     = null;
+
     // Reject modal
     public bool   $showRejectModal   = false;
     public ?int   $rejectingId       = null;
@@ -110,6 +119,20 @@ class OvertimeClaims extends Component
         if (count($availableOutletIds) > 1 && empty($this->outletFilter)) {
             $this->outletFilter = (string) $availableOutletIds[0];
         }
+    }
+
+    /*
+     * Change the person or the date and the clash the override was answering
+     * is gone. Leaving the tick in place would carry an acknowledgement of one
+     * collision onto a different one nobody has been shown.
+     */
+    public function updatedEmployeeId(): void { $this->clearSplitShiftPrompt(); }
+    public function updatedClaimDate(): void  { $this->clearSplitShiftPrompt(); }
+
+    private function clearSplitShiftPrompt(): void
+    {
+        $this->is_split_shift = false;
+        $this->clashingClaim  = null;
     }
 
     public function updatedOtTimeStart(): void { $this->calcHours(); }
@@ -270,6 +293,8 @@ class OvertimeClaims extends Component
         $this->total_ot_hours = (string) floatval($claim->total_ot_hours);
         $this->ot_type        = $claim->ot_type;
         $this->reason         = $claim->reason;
+        $this->is_split_shift = (bool) $claim->is_split_shift;
+        $this->clashingClaim  = null;
         $this->showModal      = true;
     }
 
@@ -301,18 +326,46 @@ class OvertimeClaims extends Component
          * A REJECTED claim does not block, because a rejection means "fix this
          * and send it again"; see OvertimeClaim::BLOCKING_STATUSES.
          */
-        if ($clash = OvertimeClaim::duplicateFor((int) $this->employee_id, $this->claim_date, $this->editingId)) {
+        $clash = OvertimeClaim::duplicateFor((int) $this->employee_id, $this->claim_date, $this->editingId);
+
+        if ($clash && ! $this->is_split_shift) {
+            /*
+             * Refused, but not a dead end. The same shape — two claims, one
+             * employee, one date — means either a shift claimed twice or a
+             * cook who worked lunch AND dinner, and only the person entering
+             * it knows which. So the modal is handed the offending claim and
+             * offers the override rather than sending somebody away to hunt
+             * for a record they were never shown.
+             */
+            $this->clashingClaim = [
+                'employee' => $employee?->name ?? 'This employee',
+                'status'   => $clash->status,
+                'date'     => $clash->claim_date->format('d M Y'),
+                'start'    => substr($clash->ot_time_start, 0, 5),
+                'end'      => substr($clash->ot_time_end, 0, 5),
+                'hours'    => number_format((float) $clash->total_ot_hours, 1),
+            ];
+
             $this->addError('claim_date', sprintf(
-                '%s already has a %s OT claim on %s (%s–%s, %sh). Edit that claim instead of raising a second one.',
-                $employee?->name ?? 'This employee',
-                $clash->status,
-                $clash->claim_date->format('d M Y'),
-                substr($clash->ot_time_start, 0, 5),
-                substr($clash->ot_time_end, 0, 5),
-                number_format((float) $clash->total_ot_hours, 1),
+                '%s already has a %s OT claim on %s (%s–%s, %sh). Edit that claim instead of raising a second one — or confirm below that this is a separate shift.',
+                $this->clashingClaim['employee'],
+                $this->clashingClaim['status'],
+                $this->clashingClaim['date'],
+                $this->clashingClaim['start'],
+                $this->clashingClaim['end'],
+                $this->clashingClaim['hours'],
             ));
+
             return;
         }
+
+        /*
+         * The override is only meaningful against a claim it actually
+         * overrode. Ticking the box on a date with nothing in the way would
+         * otherwise stamp an acknowledgement on an ordinary claim and quietly
+         * exempt the NEXT one from the gate.
+         */
+        $isSplitShift = $this->is_split_shift && $clash !== null;
 
         $data = [
             'company_id'    => $user->company_id,
@@ -326,6 +379,12 @@ class OvertimeClaims extends Component
             'ot_type'       => $this->ot_type,
             'reason'        => $this->reason,
             'status'        => $action === 'submit' ? 'submitted' : 'draft',
+            // Who used the override and when. A bypass on a gate that guards
+            // pay is worth nothing if nobody can find out afterwards who used
+            // it; the columns clear again if the override is taken back.
+            'is_split_shift'     => $isSplitShift,
+            'split_shift_ack_by' => $isSplitShift ? $user->id : null,
+            'split_shift_ack_at' => $isSplitShift ? now() : null,
         ];
 
         if ($this->editingId) {
@@ -571,7 +630,7 @@ class OvertimeClaims extends Component
          * which on older records is not reliably where the person works. That
          * rule now lives in the filter object with the rest of them.
          */
-        $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet']);
+        $query = OvertimeClaim::with(['employee.section', 'submitter', 'approver', 'outlet', 'splitShiftAcknowledger']);
 
         $this->currentFilter()->apply($query, $availableOutletIds);
 
@@ -982,5 +1041,7 @@ class OvertimeClaims extends Component
         $this->total_ot_hours = '';
         $this->ot_type        = 'normal_day';
         $this->reason         = '';
+        $this->is_split_shift = false;
+        $this->clashingClaim  = null;
     }
 }

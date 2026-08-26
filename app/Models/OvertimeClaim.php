@@ -15,6 +15,7 @@ class OvertimeClaim extends Model
         'company_id', 'outlet_id', 'submitted_by', 'employee_id',
         'claim_date', 'ot_time_start', 'ot_time_end', 'total_ot_hours',
         'ot_type', 'reason', 'status', 'settlement',
+        'is_split_shift', 'split_shift_ack_by', 'split_shift_ack_at',
         'approved_by', 'approved_at', 'rejected_reason',
         'source', 'roster_entry_id',
         'paid_at', 'paid_in_run_id', 'marked_paid_by', 'hours_taken_off',
@@ -26,6 +27,8 @@ class OvertimeClaim extends Model
         'approved_at'    => 'datetime',
         'paid_at'        => 'datetime',
         'hours_taken_off' => 'decimal:2',
+        'is_split_shift'  => 'boolean',
+        'split_shift_ack_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -110,6 +113,12 @@ class OvertimeClaim extends Model
         return $this->belongsTo(RosterEntry::class, 'roster_entry_id');
     }
 
+    /** Who said this second claim on the date is a genuinely separate shift. */
+    public function splitShiftAcknowledger(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'split_shift_ack_by');
+    }
+
     public function isFromRoster(): bool
     {
         return $this->source === 'roster';
@@ -163,10 +172,15 @@ class OvertimeClaim extends Model
      * One method rather than an exists() check because every caller wants to
      * SAY which claim it collided with — "already has a claim on that date" is
      * an error somebody has to go hunting to act on.
+     *
+     * Claims already acknowledged as a split shift do not stand in the way.
+     * Somebody has said those hours are separate, and a cook working lunch and
+     * dinner can be on their third block of the day.
      */
     public static function duplicateFor(int $employeeId, string $claimDate, ?int $exceptId = null): ?self
     {
         return static::onSameDayAs($employeeId, $claimDate, $exceptId)
+            ->where('is_split_shift', false)
             ->orderBy('id')
             ->first();
     }
@@ -179,6 +193,11 @@ class OvertimeClaim extends Model
      * COLUMN, not a formatted date — a raw DATE_FORMAT here would make the
      * screen untestable on anything but MySQL.
      *
+     * Acknowledged split shifts are not counted. They are the deliberate
+     * exception, and a notice that keeps reporting them forever is a notice
+     * people learn to scroll past — which costs exactly the double payment it
+     * exists to catch.
+     *
      * @param  \Illuminate\Database\Eloquent\Builder<self>  $scope
      * @return \Illuminate\Support\Collection<int, object>
      */
@@ -187,6 +206,7 @@ class OvertimeClaim extends Model
         return $scope
             ->clone()
             ->whereIn('status', self::BLOCKING_STATUSES)
+            ->where('is_split_shift', false)
             ->reorder()
             ->groupBy('employee_id', 'claim_date')
             ->havingRaw('COUNT(*) > 1')

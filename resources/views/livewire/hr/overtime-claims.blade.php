@@ -527,7 +527,14 @@
                                 {{-- Marked on the row as well as in the bar: once the
                                      list is long enough to scroll, a count at the top
                                      tells you a problem exists and not where. --}}
-                                @if ($dupCount > 1)
+                                @if ($claim->is_split_shift)
+                                    {{-- Says why a second claim on this date is
+                                         allowed to be here, and who said so. --}}
+                                    <span class="block mt-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-warning-50 text-warning-700"
+                                          title="Confirmed as a separate shift by {{ $claim->splitShiftAcknowledger?->name ?? 'unknown' }}{{ $claim->split_shift_ack_at ? ' on ' . $claim->split_shift_ack_at->format('d M Y, g:ia') : '' }}">
+                                        Split shift
+                                    </span>
+                                @elseif ($dupCount > 1)
                                     <span class="block mt-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-danger-50 text-danger-700"
                                           title="{{ $claim->employee?->name }} has {{ $dupCount }} live claims on this date">
                                         {{ $dupCount }} claims this date
@@ -725,6 +732,47 @@
                             <x-input-error :messages="$errors->get('ot_type')" class="mt-1" />
                         </div>
                     </div>
+
+                    {{-- Split-shift override.
+
+                         Shown only once the gate has actually refused
+                         something, and it names the claim in the way. A
+                         standing "this is a split shift" tick would be a
+                         checkbox people learn to tick, which is the same as
+                         not having a gate; offered as an answer to a specific
+                         collision, it is a decision.
+
+                         The acknowledgement is recorded against the claim with
+                         who made it, so a second lot of hours on one date can
+                         always be traced back to somebody who said they were
+                         genuinely separate. --}}
+                    @if ($clashingClaim)
+                        <div class="px-4 py-3 bg-warning-50 border border-warning-200 rounded-lg">
+                            <div class="flex items-start gap-2">
+                                <x-icon name="warning" class="w-4 h-4 mt-0.5 flex-shrink-0 text-warning-700" />
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-warning-800">Already claimed on this date</p>
+                                    <p class="text-xs text-warning-800 mt-0.5">
+                                        {{ $clashingClaim['employee'] }} has a {{ $clashingClaim['status'] }} claim for
+                                        {{ $clashingClaim['date'] }} — {{ $clashingClaim['start'] }}–{{ $clashingClaim['end'] }},
+                                        {{ $clashingClaim['hours'] }}h.
+                                    </p>
+                                    <label class="flex items-start gap-2 mt-2 cursor-pointer">
+                                        <input type="checkbox" wire:model="is_split_shift"
+                                               class="mt-0.5 rounded border-warning-300 text-brand-600 focus:ring-brand-500" />
+                                        <span class="text-xs text-warning-800">
+                                            <strong>This is a split shift.</strong> The employee worked a separate block of
+                                            overtime on this date — these hours are not the ones already claimed above.
+                                        </span>
+                                    </label>
+                                    <p class="text-[10px] text-warning-700 mt-1.5">
+                                        Recorded against the claim with your name. If these ARE the same hours, close this
+                                        and edit the existing claim instead.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     {{-- Reason --}}
                     <div>
