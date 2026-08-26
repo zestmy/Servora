@@ -149,11 +149,6 @@ class ServiceChargeDistribution
      */
     public function forRun(int $companyId, array $accessibleOutletIds, Carbon $from, Carbon $to, ?int $outletId): ?array
     {
-        // A run for one outlet is the question forPeriod already answers.
-        if ($outletId !== null) {
-            return $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, $outletId);
-        }
-
         $pools = ServiceChargePeriod::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->whereDate('period_from', $from)
@@ -174,10 +169,48 @@ class ServiceChargeDistribution
             return $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, null);
         }
 
+        $poolOutletIds = $pools->pluck('outlet_id')->unique();
+
+        if ($outletId !== null) {
+            /*
+             * A RUN FOR ONE OUTLET IS NOT THE SAME QUESTION AS ONE OUTLET'S
+             * POOL.
+             *
+             * This used to return forPeriod() for the run's own outlet, which
+             * dropped somebody's service charge between two runs. A person
+             * posted to HQ and paid from KLCC's pool is on the HQ RUN — runs
+             * are scoped by home outlet_id, and rightly so, because that is
+             * where their salary is administered. But their share lives in
+             * KLCC's distribution. The KLCC run held the row and correctly
+             * dropped it (they are not on that run); the HQ run held the
+             * person and asked HQ's pool, which by definition does not pay
+             * them. Neither run paid it, and this is money on a payslip
+             * rather than a page nobody printed.
+             *
+             * So: every pool that pays somebody POSTED here. Pools that pay
+             * nobody on this run are left out, which is what keeps a
+             * single-pool run reporting a single RM/point.
+             *
+             * Paying twice is prevented downstream rather than here, and
+             * deliberately: the rows have to stay whole because RM/point is
+             * the pool over EVERYBODY's points, so narrowing the distribution
+             * would misprice the rate itself. PayrollRunBuilder drops the rows
+             * for people who are not on the run, after the rate is fixed.
+             */
+            $paysThisOutlet = Employee::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('outlet_id', $outletId)
+                ->get(['outlet_id', 'service_charge_outlet_id'])
+                ->map(fn ($e) => $e->serviceChargeOutletId())
+                ->unique();
+
+            $poolOutletIds = $poolOutletIds->intersect($paysThisOutlet);
+        }
+
         $merged  = [];
         $perPool = [];
 
-        foreach ($pools->pluck('outlet_id')->unique() as $poolOutletId) {
+        foreach ($poolOutletIds as $poolOutletId) {
             $result = $this->forPeriod($companyId, $accessibleOutletIds, $from, $to, (int) $poolOutletId);
 
             if (! $result) {
