@@ -22,6 +22,14 @@ use Illuminate\Support\Facades\Storage;
  */
 class AttendanceExportController extends Controller
 {
+    /**
+     * The attendance grid. Just the grid.
+     *
+     * The service charge distribution used to be appended to it, which put a
+     * day-by-day matrix for forty people and a payout table on the same sheet
+     * and left both cramped. They answer different questions and get signed by
+     * different people, so distribution() is its own document now.
+     */
     public function pdf(Request $request)
     {
         $data = $this->gather($request);
@@ -29,6 +37,26 @@ class AttendanceExportController extends Controller
         $pdf = Pdf::loadView('pdf.attendance', $data)->setPaper('a4', 'landscape');
 
         return $pdf->stream('Attendance-' . $data['from']->format('Y-m-d') . '-to-' . $data['to']->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * The service charge distribution, on its own sheet.
+     *
+     * Landscape like the grid it came out of: the table's column weights were
+     * tuned for that width, and re-flowing them into portrait would re-cramp
+     * the thing this split exists to uncramp.
+     */
+    public function distribution(Request $request)
+    {
+        $data = $this->gather($request, forceServiceCharge: true);
+
+        abort_unless($data['canManageServiceCharge'], 403);
+        abort_if($data['serviceCharge'] === null, 404,
+            'No service charge has been saved for this period and outlet.');
+
+        $pdf = Pdf::loadView('pdf.service-charge-distribution', $data)->setPaper('a4', 'landscape');
+
+        return $pdf->stream('Service-Charge-Distribution-' . $data['from']->format('Y-m-d') . '-to-' . $data['to']->format('Y-m-d') . '.pdf');
     }
 
     /**
@@ -73,8 +101,9 @@ class AttendanceExportController extends Controller
      * Everything both exports need: the scoped employee list, the attendance
      * grid behind it, and the service charge distribution.
      *
-     * @param  bool  $forceServiceCharge  the payout slips are ABOUT the pool,
-     *         so they do not depend on the grid's service_charge=1 toggle.
+     * @param  bool  $forceServiceCharge  the payout slips and the distribution
+     *         sheet are ABOUT the pool, so they ask for it; the grid never
+     *         does, since it no longer carries the section.
      */
     private function gather(Request $request, bool $forceServiceCharge = false): array
     {
@@ -205,9 +234,9 @@ class AttendanceExportController extends Controller
 
         $outletName = $outletFilter !== '' ? Outlet::find((int) $outletFilter)?->name : null;
 
-        // Optional Service Charge section: included when the grid's panel is
-        // open (service_charge=1) AND a pool has been saved for this exact
-        // period + outlet selection (same key as the Livewire panel).
+        // The distribution, for the callers that are ABOUT it. A pool is
+        // keyed on the exact period + outlet selection (same key as the
+        // Livewire panel), so this is null when none has been saved.
         // The distribution rides on its own ability rather than on salary
         // visibility, matching the Livewire grid — see the note on
         // hr.attendance.service_charge in config/permissions.php.
@@ -244,7 +273,7 @@ class AttendanceExportController extends Controller
          * periods were spared it; unfrozen ones were not.
          */
         $serviceCharge = null;
-        if ($canManageServiceCharge && ($forceServiceCharge || $request->boolean('service_charge'))) {
+        if ($canManageServiceCharge && $forceServiceCharge) {
             $scOutletId = ($outletFilter !== '' && in_array((int) $outletFilter, $accessible, true))
                 ? (int) $outletFilter : null;
 
