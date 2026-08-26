@@ -124,4 +124,72 @@ class OvertimeClaim extends Model
             default          => ucfirst($this->ot_type),
         };
     }
+
+    // ── Duplicate claims ──
+
+    /**
+     * Statuses that occupy an employee's date.
+     *
+     * Rejected is absent on purpose: a rejection is an instruction to fix the
+     * claim and send it again, so treating it as a duplicate would make the
+     * resubmission impossible and leave the person unpaid for hours they
+     * actually worked. Soft-deleted rows are excluded by the model's own
+     * scope, for the same reason — a deleted claim is not a claim.
+     */
+    public const BLOCKING_STATUSES = ['draft', 'submitted', 'approved'];
+
+    /**
+     * Claims already standing against this employee on this date.
+     *
+     * $exceptId is the claim being edited — a record is not its own duplicate.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<self>
+     */
+    public static function onSameDayAs(int $employeeId, string $claimDate, ?int $exceptId = null)
+    {
+        return static::query()
+            ->where('employee_id', $employeeId)
+            // Normalised, because callers hand this in as a form string, a
+            // cast Carbon, or a full datetime, and whereDate() compares to
+            // whatever it is given.
+            ->whereDate('claim_date', \Carbon\Carbon::parse($claimDate)->toDateString())
+            ->whereIn('status', self::BLOCKING_STATUSES)
+            ->when($exceptId, fn ($q, $id) => $q->whereKeyNot($id));
+    }
+
+    /**
+     * The claim that stands in the way, or null when the date is free.
+     *
+     * One method rather than an exists() check because every caller wants to
+     * SAY which claim it collided with — "already has a claim on that date" is
+     * an error somebody has to go hunting to act on.
+     */
+    public static function duplicateFor(int $employeeId, string $claimDate, ?int $exceptId = null): ?self
+    {
+        return static::onSameDayAs($employeeId, $claimDate, $exceptId)
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Employee/date pairs carrying more than one live claim, within a scope.
+     *
+     * For records that predate the gate: they were legal when they were
+     * entered, so they are reported rather than repaired. Grouped on the date
+     * COLUMN, not a formatted date — a raw DATE_FORMAT here would make the
+     * screen untestable on anything but MySQL.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<self>  $scope
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    public static function duplicateGroups($scope): \Illuminate\Support\Collection
+    {
+        return $scope
+            ->clone()
+            ->whereIn('status', self::BLOCKING_STATUSES)
+            ->reorder()
+            ->groupBy('employee_id', 'claim_date')
+            ->havingRaw('COUNT(*) > 1')
+            ->get(['employee_id', 'claim_date', \Illuminate\Support\Facades\DB::raw('COUNT(*) as claim_count')]);
+    }
 }

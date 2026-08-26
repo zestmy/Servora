@@ -57,6 +57,9 @@ class OvertimeClaims extends Component
     // Bulk selection
     public array  $selected = [];
 
+    /** Narrow the list to the employee/date pairs flagged by the duplicate bar. */
+    public bool   $showDuplicatesOnly = false;
+
     // PDF print modal
     public bool   $showPdfModal  = false;
     public string $pdfFrom       = '';
@@ -208,6 +211,34 @@ class OvertimeClaims extends Component
         );
     }
 
+    /**
+     * The same narrowing as the list, MINUS the status filter.
+     *
+     * Duplication is a property of the records, not of the status you happen
+     * to be looking at: a draft and an approved claim for one shift are the
+     * dangerous pair, and a screen filtered to "Approved" would report the
+     * view as clean. The stats cards exclude status for the same reason.
+     */
+    protected function duplicateFilter(): \App\Services\Hr\OtClaimFilter
+    {
+        return \App\Services\Hr\OtClaimFilter::fromScreen(
+            '',
+            $this->dateFrom,
+            $this->dateTo,
+            $this->employeeFilter,
+            $this->sectionFilter,
+            $this->employmentStatusFilter,
+            $this->outletFilter,
+        );
+    }
+
+    public function toggleDuplicatesOnly(): void
+    {
+        $this->showDuplicatesOnly = ! $this->showDuplicatesOnly;
+        $this->resetPage();
+        $this->selected = [];
+    }
+
     public function sortBy(string $field): void
     {
         if ($this->sortField === $field) {
@@ -256,6 +287,30 @@ class OvertimeClaims extends Component
         $employedUntil = $employee?->employedUntil();
         if ($employedUntil && \Carbon\Carbon::parse($this->claim_date)->gt($employedUntil)) {
             $this->addError('claim_date', $employee->name . ' resigned on ' . $employedUntil->format('d M Y') . '. An OT claim cannot be dated after that.');
+            return;
+        }
+
+        /*
+         * One live claim per employee per date.
+         *
+         * The cost of the mistake is the reason for the gate: two claims for
+         * the same shift are two lots of hours, and once both are approved
+         * they are two lots of pay. Nothing downstream reconciles that — the
+         * payslip adds them up.
+         *
+         * A REJECTED claim does not block, because a rejection means "fix this
+         * and send it again"; see OvertimeClaim::BLOCKING_STATUSES.
+         */
+        if ($clash = OvertimeClaim::duplicateFor((int) $this->employee_id, $this->claim_date, $this->editingId)) {
+            $this->addError('claim_date', sprintf(
+                '%s already has a %s OT claim on %s (%s–%s, %sh). Edit that claim instead of raising a second one.',
+                $employee?->name ?? 'This employee',
+                $clash->status,
+                $clash->claim_date->format('d M Y'),
+                substr($clash->ot_time_start, 0, 5),
+                substr($clash->ot_time_end, 0, 5),
+                number_format((float) $clash->total_ot_hours, 1),
+            ));
             return;
         }
 
@@ -520,6 +575,35 @@ class OvertimeClaims extends Component
 
         $this->currentFilter()->apply($query, $availableOutletIds);
 
+        /*
+         * Duplicate detection.
+         *
+         * Claims entered before the gate existed were legal when they were
+         * made, so they are REPORTED rather than repaired — deciding which of
+         * two claims for one shift is the real one is a human judgement, and
+         * guessing it wrong loses somebody hours they worked.
+         */
+        $duplicateScope = OvertimeClaim::query();
+        $this->duplicateFilter()->apply($duplicateScope, $availableOutletIds);
+        $duplicateGroups = OvertimeClaim::duplicateGroups($duplicateScope);
+
+        // Keyed for O(1) lookup per row in the table.
+        $duplicateKeys = $duplicateGroups
+            ->mapWithKeys(fn ($g) => [$g->employee_id . '|' . \Carbon\Carbon::parse($g->claim_date)->toDateString() => (int) $g->claim_count])
+            ->all();
+
+        $duplicateClaimCount = array_sum($duplicateKeys);
+
+        if ($this->showDuplicatesOnly && $duplicateGroups->isNotEmpty()) {
+            $query->where(function ($q) use ($duplicateGroups) {
+                foreach ($duplicateGroups as $group) {
+                    $q->orWhere(fn ($w) => $w
+                        ->where('employee_id', $group->employee_id)
+                        ->whereDate('claim_date', \Carbon\Carbon::parse($group->claim_date)->toDateString()));
+                }
+            });
+        }
+
         // Sorting
         // Ordered through the same object as the filters, so the printed table
         // reads top-to-bottom exactly as this one does.
@@ -707,7 +791,8 @@ class OvertimeClaims extends Component
             'sectionStats', 'totalSubmittedHours', 'totalApprovedHours', 'totalPendingHours', 'totalRejectedHours',
             'statsDateFrom', 'statsDateTo',
             'trendChartData', 'thisWeekHours', 'lastWeekHours', 'wowChange',
-            'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topBySection'
+            'peakWeekHours', 'peakWeekLabel', 'avgWeekHours', 'topBySection',
+            'duplicateGroups', 'duplicateKeys', 'duplicateClaimCount'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Overtime Claims']);
     }
 

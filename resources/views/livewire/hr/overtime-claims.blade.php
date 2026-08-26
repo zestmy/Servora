@@ -12,6 +12,39 @@
         </div>
     @endif
 
+    {{-- Duplicate-submission notice.
+
+         Claims made before the one-per-employee-per-date gate existed are
+         reported here rather than repaired: choosing which of two claims for
+         one shift is the real one is a judgement somebody has to make, and
+         guessing wrong takes away hours that were actually worked.
+
+         Counted across ALL statuses regardless of the status filter — a draft
+         and an approved claim for the same shift are exactly the dangerous
+         pair, and they are invisible to each other from a filtered view. --}}
+    @if ($duplicateGroups->isNotEmpty())
+        <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-800 text-sm rounded-lg flex items-start gap-2">
+            <x-icon name="warning" class="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div class="min-w-0 flex-1">
+                <span>
+                    <strong>Duplicate OT submissions detected.</strong>
+                    {{ $duplicateGroups->count() }}
+                    {{ Str::plural('employee', $duplicateGroups->count()) }}/date
+                    {{ Str::plural('combination', $duplicateGroups->count()) }}
+                    in this view {{ $duplicateGroups->count() === 1 ? 'carries' : 'carry' }}
+                    more than one live claim ({{ $duplicateClaimCount }} claims in total).
+                    Two claims for one shift are approved as two lots of hours, so review these before approving.
+                </span>
+                <div class="mt-2">
+                    <button type="button" wire:click="toggleDuplicatesOnly"
+                            class="text-xs font-semibold underline underline-offset-2 hover:no-underline">
+                        {{ $showDuplicatesOnly ? 'Show all claims' : 'Show only the duplicates' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Pending-hours notice: PDF/print exports are approved-only, so any hours
          awaiting approval in the current view won't appear in a downloaded PDF. --}}
     @if ($totalPendingHours > 0)
@@ -484,9 +517,22 @@
                                     @endif
                                 </td>
                             @endif
+                            @php
+                                $dupKey   = $claim->employee_id . '|' . $claim->claim_date->toDateString();
+                                $dupCount = $duplicateKeys[$dupKey] ?? 0;
+                            @endphp
                             <td class="px-4 py-3 text-gray-700 font-medium whitespace-nowrap">
                                 {{ $claim->claim_date->format('d M Y') }}
                                 <span class="text-gray-600 font-normal">({{ $claim->claim_date->format('D') }})</span>
+                                {{-- Marked on the row as well as in the bar: once the
+                                     list is long enough to scroll, a count at the top
+                                     tells you a problem exists and not where. --}}
+                                @if ($dupCount > 1)
+                                    <span class="block mt-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded bg-danger-50 text-danger-700"
+                                          title="{{ $claim->employee?->name }} has {{ $dupCount }} live claims on this date">
+                                        {{ $dupCount }} claims this date
+                                    </span>
+                                @endif
                                 @foreach (\App\Models\CalendarEvent::onDate($calendarEvents, $claim->claim_date, $claim->employee?->outlet_id) as $ev)
                                     <span class="block mt-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded
                                         {{ $ev->category === 'holiday' ? 'bg-danger-50 text-danger-600' : 'bg-brand-50 text-brand-600' }}"

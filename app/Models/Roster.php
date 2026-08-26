@@ -154,6 +154,13 @@ class Roster extends Model
 
     /**
      * Create pending OT claims for all entries with planned OT.
+     *
+     * Skips any entry whose employee already has a live claim on that date,
+     * not merely one already raised from this roster entry. Matching on
+     * roster_entry_id alone only stops this roster duplicating ITSELF — it
+     * says nothing about the claim a supervisor typed in by hand for the same
+     * shift, and approving the roster afterwards would silently double the
+     * hours. Same rule as the one the claims screen enforces on entry.
      */
     public function createPendingOtClaims(): void
     {
@@ -161,6 +168,10 @@ class Roster extends Model
             // Check if an OT claim already exists for this entry
             $existingClaim = OvertimeClaim::where('roster_entry_id', $entry->id)->first();
             if ($existingClaim) {
+                continue;
+            }
+
+            if (OvertimeClaim::duplicateFor($entry->employee_id, (string) $entry->day_date, null)) {
                 continue;
             }
 
