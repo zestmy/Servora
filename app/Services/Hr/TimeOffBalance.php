@@ -14,9 +14,17 @@ use Illuminate\Support\Facades\DB;
  * How many overtime hours an employee may still take as time off, and the
  * allocation that spends them.
  *
- * THE RULE: an hour of overtime is either PAID or TAKEN OFF, never both.
- * Only APPROVED and UNPAID claims contribute — a pending claim is not yet
- * owed, and a paid one is already settled in cash.
+ * THE RULE: an hour of overtime is either PAID or TAKEN OFF, never both, and
+ * the claim's own `settlement` says which. Only claims APPROVED, UNPAID and
+ * SETTLED AS TIME OFF contribute — a pending claim is not yet owed, a paid one
+ * is already settled in cash, and a payroll-destined one is going to be.
+ *
+ * That last clause is a change from how this started. It counted every
+ * approved unpaid claim, on the reasoning that a payroll-destined one stayed
+ * available until a run stamped paid_at on it. The effect was to make the
+ * settlement flag advisory — overtime explicitly marked to be PAID could be
+ * taken as leave, so "what is this person owed" had two answers until payday
+ * picked one. The column exists to decide that, so the balance reads it.
  *
  * Allocation is OLDEST CLAIM FIRST. Overtime nearest to being paid is used
  * up first, so a request does not quietly reserve recent hours and leave old
@@ -58,12 +66,35 @@ class TimeOffBalance
             ->sum('hours'), 2);
     }
 
-    /** Approved overtime the company still owes, oldest first. */
+    /**
+     * Overtime approved AS TIME OFF that the company still owes, oldest first.
+     *
+     * Both halves of the settlement test earn their place:
+     *
+     * `status = approved` keeps out claims still waiting on an approver.
+     * Hours nobody has agreed to yet are not a balance, and offering them as
+     * one invites somebody to book leave against overtime that is then
+     * rejected.
+     *
+     * `settlement = time_off` is the newer half. This used to count every
+     * approved unpaid claim, payroll-destined ones included, on the reasoning
+     * that they stayed available until a payroll run stamped paid_at on them.
+     * That made the settlement flag advisory: a claim explicitly marked to be
+     * PAID could be taken as leave instead, and the two answers to "what is
+     * this person owed" disagreed until payday resolved it. The column exists
+     * to say which half is money and which is leave, so the leave balance
+     * reads it.
+     *
+     * Nothing else changes shape. release() works off the allocation rows
+     * rather than this query, so hours already taken against a payroll claim
+     * stay taken and come back correctly if the request is cancelled.
+     */
     public function unpaidClaims(Employee $employee)
     {
         return OvertimeClaim::withoutGlobalScope(CompanyScope::class)
             ->where('employee_id', $employee->id)
             ->where('status', 'approved')
+            ->where('settlement', OvertimeClaim::SETTLE_TIME_OFF)
             ->whereNull('paid_at')
             ->whereRaw('total_ot_hours > hours_taken_off')
             ->orderBy('claim_date')

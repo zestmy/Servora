@@ -28,6 +28,13 @@ use Illuminate\Support\Facades\Schema;
  * settleOvertime() stamps paid_at on it. A time-off claim is never settled and
  * never priced, so it stays available until it is actually taken.
  *
+ * SINCE CHANGED (2026-08-27), and the paragraph above is left as written
+ * because it is why the column was added. The time-off balance no longer
+ * counts payroll-destined claims at all: leaving them in made this flag
+ * advisory, since overtime explicitly marked to be PAID could be taken as
+ * leave instead. See TimeOffBalance::unpaidClaims() for the rule as it now
+ * stands.
+ *
  * The two places that must respect it are therefore CompensationSummary (do
  * not pay it) and PayrollRun::settleOvertime() (do not mark it paid). The
  * second is the dangerous one: without it, approving a payroll run would stamp
