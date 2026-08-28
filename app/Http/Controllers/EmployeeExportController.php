@@ -141,6 +141,7 @@ class EmployeeExportController extends Controller
 
         $headers = [
             'No.', 'Name', 'Staff ID', 'Designation', 'Section', 'Outlet', 'E-mail', 'Phone',
+            'Bank', 'Bank Account No.', 'Account Holder',
             'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training',
         ];
         if ($canViewPay) {
@@ -209,6 +210,12 @@ class EmployeeExportController extends Controller
                 $emp->outlet?->name,
                 $emp->email,
                 $emp->phone,
+                $emp->bank_name,
+                $emp->bank_account_no,
+                // Blank on the record means "the account is their own", so the
+                // holder is spelled out rather than left empty — this column is
+                // read by somebody keying in a transfer.
+                filled($emp->bank_account_no) ? $emp->payeeName() : null,
                 $emp->join_date?->format('Y-m-d'),
                 $employment,
                 $emp->food_handler_certified ? 'Certified' : 'No',
