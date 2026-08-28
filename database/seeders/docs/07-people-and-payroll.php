@@ -226,6 +226,8 @@ HTML,
 
 <p>Where a service charge is collected and distributed, it is calculated over its own period and by points rather than headcount — so days worked, and the attendance codes behind them, decide each share. Close the period before the payroll run reads it.</p>
 
+<p>A pool can also set a <strong>minimum number of working days</strong> to qualify. Points are an entitlement somebody holds whether or not they worked the period, so without a minimum a joiner who started on the 27th, or a leaver who went on the 3rd, takes a full share of a month they were barely in. Anyone below the minimum takes nothing, and their points leave the divisor with them, so the RM per point is what the qualifying staff actually share. Days marked <strong>UNR (Unrecorded)</strong> — the days before somebody joined or after they left — do not count as worked, and neither do days off or absences; leave does.</p>
+
 <h2>EA forms</h2>
 
 <p>At year end, <strong>HR → EA Forms</strong> generates each employee's annual statement from the locked runs. Nothing to re-enter, provided the runs were locked as they went.</p>
