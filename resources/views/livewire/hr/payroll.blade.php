@@ -167,16 +167,120 @@
                         </div>
                     </div>
 
-                    {{-- Said here rather than left to be discovered on a
-                         payslip: a pool is matched on its EXACT dates, so a
-                         run over a range no pool was saved for pays no service
-                         charge at all rather than a pro-rated share. --}}
-                    <p class="mt-2 text-xs text-warning-700">
-                        Service charge is matched to a pool saved for exactly these dates. If you
-                        distribute a pool for this period, set it to the same range or the run will
-                        carry no service charge.
-                    </p>
                 @endif
+            </div>
+
+            {{-- ── A period per input ──────────────────────────────────────
+                 A DIFFERENT QUESTION from the override above, which moves the
+                 whole run. These move ONE thing and leave the run where it is,
+                 because a company answers them on different calendars: a
+                 service charge pool is saved for the dates the attendance grid
+                 was showing, overtime is often approved a cycle behind, and a
+                 timesheet may close on a different day from the payroll.
+
+                 All three default to following the run, so the ordinary month
+                 is still one field and a button. --}}
+            <div class="mt-3 pt-3 border-t border-gray-100">
+                <p class="text-xs font-medium text-gray-700">What each input is counted over</p>
+                <p class="help mt-0.5">
+                    Leave these alone and everything is counted over the run's own dates, as it always has been.
+                </p>
+
+                <div class="mt-3 space-y-3">
+                    @foreach (\App\Services\Payroll\RunPeriods::COMPONENTS as $component)
+                        @php
+                            $mode  = $periodMode[$component] ?? \App\Livewire\Hr\Payroll::MODE_FOLLOWS;
+                            $range = $componentRanges[$component] ?? null;
+                            $isServiceCharge = $component === \App\Services\Payroll\RunPeriods::SERVICE_CHARGE;
+                        @endphp
+
+                        <div wire:key="period-{{ $component }}" class="rounded-lg border border-gray-200 p-3">
+                            <div class="flex flex-wrap items-end gap-3">
+                                <div class="min-w-[9rem]">
+                                    <label class="label">{{ \App\Services\Payroll\RunPeriods::LABELS[$component] }}</label>
+                                    <select wire:model.live="periodMode.{{ $component }}" class="input">
+                                        @foreach (\App\Livewire\Hr\Payroll::MODES as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                @if ($mode === \App\Livewire\Hr\Payroll::MODE_CUSTOM)
+                                    <div>
+                                        <label class="label">From</label>
+                                        <input type="date" wire:model.live="periodDates.{{ $component }}.from" class="input" />
+                                    </div>
+                                    <div>
+                                        <label class="label">To</label>
+                                        <input type="date" wire:model.live="periodDates.{{ $component }}.to" class="input" />
+                                    </div>
+                                @endif
+
+                                {{-- The dates that will actually be used, whichever
+                                     mode is chosen. A range you cannot see before
+                                     generating is one you find out about on a
+                                     payslip. --}}
+                                <p class="text-xs text-gray-600 py-2">
+                                    @if ($range)
+                                        {{ $range[0]->format('j M') }} – {{ $range[1]->format('j M Y') }}
+                                    @else
+                                        <span class="text-warning-700">dates needed</span>
+                                    @endif
+                                </p>
+                            </div>
+
+                            <p class="help mt-1">
+                                @if ($component === \App\Services\Payroll\RunPeriods::ATTENDANCE)
+                                    Prices hourly and daily staff off the attendance grid. A monthly salary is
+                                    never affected by this.
+                                @elseif ($component === \App\Services\Payroll\RunPeriods::OVERTIME)
+                                    Which approved claims this run pays. Hours an earlier run already paid are
+                                    never paid twice, whatever the dates.
+                                @else
+                                    Which saved pool this run is paid from. Matched on both exact dates.
+                                @endif
+                            </p>
+
+                            @error('periodDates.' . $component . '.from') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                            @error('periodDates.' . $component . '.to') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+
+                            {{-- THE POOL PICKER, and the reason it is a picker
+                                 rather than two date boxes: a pool is matched on
+                                 both its exact dates, so a range one day out finds
+                                 nothing and the run pays no service charge at all —
+                                 silently. Typing dates cannot fix that; seeing
+                                 whether they hit anything can. --}}
+                            @if ($isServiceCharge && $servicePools)
+                                @if ($servicePools['matched']->isNotEmpty())
+                                    <p class="mt-2 text-xs text-success-700">
+                                        Matches
+                                        @foreach ($servicePools['matched'] as $pool)
+                                            {{ $pool->outlet?->name ?? 'All outlets' }}
+                                            RM {{ number_format((float) $pool->amount, 2) }}@if (! $loop->last), @endif
+                                        @endforeach
+                                        — this run will carry the service charge.
+                                    </p>
+                                @elseif ($servicePools['pools']->isNotEmpty())
+                                    <div class="mt-2">
+                                        <p class="text-xs text-warning-700">
+                                            No pool is saved for these exact dates, so this run would carry no service
+                                            charge. Pick the pool you mean:
+                                        </p>
+                                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                            @foreach ($servicePools['pools']->take(8) as $pool)
+                                                <button type="button" wire:click="useServiceChargePool({{ $pool->id }})"
+                                                        class="px-2 py-1 text-[11px] rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                                                    {{ $pool->outlet?->name ?? 'All outlets' }}
+                                                    {{ $pool->period_from->format('j M') }} – {{ $pool->period_to->format('j M Y') }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
     @endif
