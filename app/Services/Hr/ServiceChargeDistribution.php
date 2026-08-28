@@ -105,6 +105,22 @@ class ServiceChargeDistribution
             ->get()
             ->mapWithKeys(fn ($r) => [$r->employee_id . ':' . $r->work_date->format('Y-m-d') => $r->attendance_code_id]);
 
+        /*
+         * Who is short of the pool's qualifying period, out of the same grid
+         * the split is calculated from.
+         *
+         * Worked out here rather than left to distribute(), because the
+         * DIVISOR is worked out here: somebody who takes no share must not
+         * leave their points in the base, or the pool allocates less than it
+         * holds and every remaining share is quietly short. Exactly the rule
+         * the exclusions on the line below follow, for the same reason.
+         */
+        $belowMin = ServiceChargePeriod::belowMinimumWorkingDays(
+            $employees,
+            ServiceChargePeriod::workingDayCounts($codes, $cellMap),
+            $row->minWorkingDays(),
+        );
+
         // The RM/point base is everyone who was employed during the period,
         // which is what $employees already is here — passed explicitly so the
         // intent is on the page rather than relying on the default.
@@ -114,7 +130,7 @@ class ServiceChargeDistribution
         // and the paid rows are the same set by construction — which is the
         // property that keeps RM/point honest.
         $totalPoints = (float) $employees
-            ->reject(fn ($e) => $row->excludes($e->id))
+            ->reject(fn ($e) => $row->excludes($e->id) || in_array((int) $e->id, $belowMin, true))
             ->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
 
         return ServiceChargePeriod::distribute(
@@ -256,6 +272,10 @@ class ServiceChargeDistribution
              * null so a caller that wants one figure has to notice.
              */
             'perPoint'  => count($perPool) === 1 ? $perPool[0]['perPoint'] : null,
+            // Same reasoning for the qualifying minimum: it is a term of ONE
+            // pool, and two pools may have been calculated under different
+            // ones. Each row already carries whether it met its own.
+            'minDays'   => count($perPool) === 1 ? $perPool[0]['minDays'] : null,
             'collected' => round(array_sum(array_map(fn ($p) => (float) $p['collected'], $perPool)), 2),
             'pools'     => $perPool,
         ];
