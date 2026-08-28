@@ -154,11 +154,19 @@ class PayrollRunExcelController extends Controller
         $sheet->getStyle('A1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFEEF2FF');
         $sheet->getRowDimension(1)->setRowHeight(24);
 
+        $runPeriods = $payrollRun->periods();
+
         $sheet->setCellValueExplicit('A2', implode(' · ', array_filter([
             $payrollRun->periodLabel(),
             // Spelled out only when the range is not the month it is named
             // after — with a 26th–25th cycle, "August" is not August.
             $payrollRun->hasCustomRange() ? $payrollRun->rangeLabel() : null,
+            // An input counted over its own dates, named only where it
+            // differs — the file has to explain a column a year later.
+            ...array_map(
+                fn ($c) => \App\Services\Payroll\RunPeriods::LABELS[$c] . ': ' . $runPeriods->label($c),
+                $runPeriods->customComponents(),
+            ),
             $payrollRun->scopeLabel(),
             $payrollRun->statusLabel(),
             $lines->count() . ' employee(s)',

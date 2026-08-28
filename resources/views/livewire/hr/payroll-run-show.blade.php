@@ -43,6 +43,24 @@
             <div>
                 <span class="text-xs text-gray-500 block">Period covered</span>
                 <span class="text-gray-800">{{ $run->rangeLabel() }}</span>
+                {{-- WHERE AN INPUT WAS COUNTED OVER DIFFERENT DATES.
+                     Only the ones that differ, because on an ordinary run all
+                     three are the line above and repeating it three times says
+                     nothing. On the runs that DO differ this is the whole
+                     explanation of a figure — a payslip paying July's overtime
+                     in an August run is a question somebody asks at the
+                     counter, and this is where it gets answered. --}}
+                @php $runPeriods = $run->periods(); @endphp
+                @if ($runPeriods->hasAny())
+                    <span class="block text-[11px] text-gray-600 mt-0.5">
+                        @foreach ($runPeriods->customComponents() as $component)
+                            <span class="block">
+                                {{ \App\Services\Payroll\RunPeriods::LABELS[$component] }}:
+                                {{ $runPeriods->label($component) }}
+                            </span>
+                        @endforeach
+                    </span>
+                @endif
             </div>
             <div>
                 <span class="text-xs text-gray-500 block">Scope</span>

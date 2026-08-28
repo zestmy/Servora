@@ -85,6 +85,20 @@
             (float) $line->skbbk          > 0 ? ['SKBBK (LINDUNG 24 Jam)', (float) $line->skbbk] : null,
         ]));
     @endphp
+    @php
+        /*
+         * The dates each input was counted over. Only named below where one
+         * DIFFERS from the run's own period: on an ordinary payslip all three
+         * are the range in the masthead, and repeating it against every line
+         * is noise. Where they differ it is the answer to the question the
+         * payslip otherwise provokes — "why is my August payslip paying July
+         * overtime" — asked at a counter, by somebody holding the document.
+         */
+        $slipPeriods = $run->periods();
+        $otPeriod    = $slipPeriods->label(\App\Services\Payroll\RunPeriods::OVERTIME);
+        $scPeriod    = $slipPeriods->label(\App\Services\Payroll\RunPeriods::SERVICE_CHARGE);
+        $attPeriod   = $slipPeriods->label(\App\Services\Payroll\RunPeriods::ATTENDANCE);
+    @endphp
     <div class="slip">
         <div class="head">
             <div class="doc">
@@ -162,6 +176,13 @@
                                     <span class="sub">
                                         {{ rtrim(rtrim(number_format((float) $line->paid_hours, 2, '.', ''), '0'), '.') }} hrs
                                         &times; RM {{ number_format((float) $line->pay_rate, 2) }}
+                                        {{-- Named only for the staff the attendance
+                                             window actually prices. A monthly salary
+                                             never reads the grid, so saying it there
+                                             would explain a figure it did not move. --}}
+                                        @if ($attPeriod)
+                                            &middot; {{ $attPeriod }}
+                                        @endif
                                     </span>
                                 @elseif ($line->isProrated())
                                     <span class="sub">
@@ -177,6 +198,9 @@
                                     <span class="sub">
                                         {{ (int) $line->paid_days }} {{ \Illuminate\Support\Str::plural('day', (int) $line->paid_days) }}
                                         &times; RM {{ number_format((float) $line->pay_rate, 2) }}
+                                        @if ($attPeriod)
+                                            &middot; {{ $attPeriod }}
+                                        @endif
                                     </span>
                                 @endif
                             </td>
@@ -200,7 +224,12 @@
                             <tr>
                                 <td>
                                     Overtime
-                                    <span class="sub">{{ number_format((float) $line->ot_hours, 2) }} hours</span>
+                                    <span class="sub">
+                                        {{ number_format((float) $line->ot_hours, 2) }} hours
+                                        @if ($otPeriod)
+                                            &middot; {{ $otPeriod }}
+                                        @endif
+                                    </span>
                                 </td>
                                 <td class="amt">{{ number_format((float) $line->ot_amount, 2) }}</td>
                             </tr>
@@ -229,6 +258,9 @@
                             <tr>
                                 <td>
                                     Service charge
+                                    @if ($scPeriod)
+                                        <span class="sub">pool for {{ $scPeriod }}</span>
+                                    @endif
                                     @if (($scd['points'] ?? 0) > 0)
                                         <span class="sub">
                                             {{ rtrim(rtrim(number_format((float) $scd['points'], 2, '.', ''), '0'), '.') }} point(s)
