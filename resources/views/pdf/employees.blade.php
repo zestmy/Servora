@@ -82,15 +82,16 @@
                 <th style="width: 16px;">#</th>
                 <th>Name</th>
                 <th style="width: 52px;">Staff ID</th>
-                <th style="width: 75px;">Designation</th>
+                <th style="width: 70px;">Designation</th>
                 <th style="width: 50px;">Section</th>
-                <th style="width: 95px;">E-mail</th>
-                <th style="width: 65px;">Phone</th>
-                <th style="width: 52px;">Join Date</th>
-                <th style="width: 82px;" class="c">Employment</th>
-                <th style="width: 72px;" class="c">Food Handler</th>
-                <th style="width: 72px;" class="c">Typhoid Card</th>
-                <th style="width: 62px;" class="c">Halal Training</th>
+                <th style="width: 88px;">E-mail</th>
+                <th style="width: 60px;">Phone</th>
+                <th style="width: 100px;">Bank Account</th>
+                <th style="width: 48px;">Join Date</th>
+                <th style="width: 76px;" class="c">Employment</th>
+                <th style="width: 66px;" class="c">Food Handler</th>
+                <th style="width: 66px;" class="c">Typhoid Card</th>
+                <th style="width: 58px;" class="c">Halal Training</th>
                 @if ($canViewPay)
                     <th style="width: 62px;" class="r">Salary</th>
                     <th style="width: 45px;" class="r">Service Pts</th>
@@ -118,7 +119,7 @@
             @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $outletName => $group)
                 <tr class="outlet-row">
-                    <td colspan="{{ $canViewPay ? 15 : 13 }}">{{ $outletName }} ({{ $group->count() }})</td>
+                    <td colspan="{{ $canViewPay ? 16 : 14 }}">{{ $outletName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -135,6 +136,27 @@
                         <td>{{ $emp->section?->name ?? '—' }}</td>
                         <td>{{ $emp->email ?? '—' }}</td>
                         <td>{{ $emp->phone ?? '—' }}</td>
+                        <td>
+                            @if (filled($emp->bank_account_no))
+                                <span class="mono">{{ $emp->bank_account_no }}</span>
+                                @if ($emp->bank_name)
+                                    <div class="sub">{{ $emp->bank_name }}</div>
+                                @endif
+                                {{--
+                                    The holder only when it is somebody ELSE.
+                                    Their own name is already the second column
+                                    of the same row, and this sheet has ~100px
+                                    to spend — so printing it again would cost
+                                    the width that makes a third-party account
+                                    stand out, which is the thing worth seeing.
+                                --}}
+                                @if ($emp->bankAccountIsThirdParty())
+                                    <div class="sub">a/c: {{ $emp->bank_account_name }}</div>
+                                @endif
+                            @else
+                                —
+                            @endif
+                        </td>
                         <td>{{ $emp->join_date?->format('d M Y') ?? '—' }}</td>
                         <td class="c">
                             @if ($emp->employment_status)
@@ -175,7 +197,7 @@
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="{{ $canViewPay ? 15 : 13 }}" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="{{ $canViewPay ? 16 : 14 }}" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>
