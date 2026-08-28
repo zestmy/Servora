@@ -173,7 +173,7 @@
                 @endif
                 @if ($showDays)
                     Anyone with fewer than {{ $minDays }} working days in this period takes no share, and their points are out of the divisor with them.
-                    Days worked count any mark except Unrecorded (UNR), Day Off and Absent; leave days count.
+                    Days worked count any mark except Unrecorded (UNR), Day Off, Absent and Unpaid Leave; paid leave days count.
                 @endif
                 Employees without Service Points are excluded from the split.
             </div>

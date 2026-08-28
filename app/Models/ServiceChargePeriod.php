@@ -285,16 +285,26 @@ class ServiceChargePeriod extends Model
      *  - ABSENT. A day they did not turn up for is not a day worked. It also
      *    already carries its own per-day deduction, so it is never free.
      *
-     * LEAVE COUNTS — annual, sick, public holiday, replacement. The person
-     * was employed and entitled to be away; MC carries its own deduction and
-     * losing the entire share on top of it would be the same day charged
-     * twice. The minimum is a test of ENGAGEMENT over the period, not of
-     * attendance within it.
+     * PAID LEAVE COUNTS — annual, sick, public holiday, replacement. The
+     * person was employed and entitled to be away; MC carries its own
+     * deduction and losing the entire share on top of it would be the same
+     * day charged twice. The minimum is a test of ENGAGEMENT over the period,
+     * not of attendance within it.
      *
-     * Codes are per-company configurable, so UNR is matched the way MC is in
-     * distribute(): on the code itself, or on a label that says unrecorded.
-     * Day off and absent are matched on their system keys, which cannot be
-     * renamed out from under this.
+     * UNPAID LEAVE DOES NOT. It is the one kind of leave the company is not
+     * paying for, which is the whole distinction the rule turns on — a month
+     * spent on unpaid leave is not a month worked, and counting it let
+     * somebody clear a minimum out of days nobody paid them for. It was
+     * counted when this shipped because the rule read "any mark except UNR,
+     * day off and absent", and UPL is a mark.
+     *
+     * Codes are per-company configurable, so UNR and UPL are matched the way
+     * MC is in distribute(): on the code itself, or on a label that says
+     * unrecorded or unpaid. Day off and absent are matched on their system
+     * keys, which cannot be renamed out from under this. A company that names
+     * its unpaid leave something else again — no UPL, nothing saying
+     * "unpaid" — is not caught, and the honest fix for that is a flag on the
+     * code rather than a longer list of guesses here.
      *
      * @param  \Illuminate\Support\Collection  $codes    every AttendanceCode
      * @param  iterable  $cellMap  "empId:Y-m-d" => attendance_code_id
@@ -303,8 +313,9 @@ class ServiceChargePeriod extends Model
     public static function workingDayCounts($codes, $cellMap): array
     {
         $notWorkedIds = $codes
-            ->filter(fn ($c) => strtoupper(trim($c->code)) === 'UNR'
+            ->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['UNR', 'UPL'], true)
                 || stripos($c->label, 'unrecorded') !== false
+                || stripos($c->label, 'unpaid') !== false
                 || in_array($c->system_key, ['off', 'absent'], true))
             ->pluck('id')
             ->all();

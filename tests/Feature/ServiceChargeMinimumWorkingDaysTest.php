@@ -227,13 +227,47 @@ class ServiceChargeMinimumWorkingDaysTest extends TestCase
         $this->assertFalse($this->rowFor($result, 'Worked')['belowMinDays']);
     }
 
+    /**
+     * The line between the two kinds of leave, which is the whole distinction
+     * the rule turns on: the company was paying for one and not the other.
+     *
+     * Counted when this shipped, because the rule read "any mark except UNR,
+     * day off and absent" — and UPL is a mark. A month spent on unpaid leave
+     * is not a month worked, and letting it clear the minimum paid a full
+     * share out of days nobody was paid for.
+     */
+    public function test_unpaid_leave_is_not_a_working_day(): void
+    {
+        $unpaid = $this->staff('Unpaid Month');
+        $paid   = $this->staff('Paid Leave');
+
+        $this->mark($unpaid, '✓', 5);
+        $this->mark($unpaid, 'UPL', 15, startDay: 6);
+
+        $this->mark($paid, '✓', 5);
+        $this->mark($paid, 'AL', 15, startDay: 6);
+
+        $this->pool(1000, minWorkingDays: 10);
+
+        $result = $this->read();
+
+        $this->assertEquals(5, $this->rowFor($result, 'Unpaid Month')['workDays']);
+        $this->assertTrue($this->rowFor($result, 'Unpaid Month')['belowMinDays']);
+        $this->assertEquals(0.0, round($this->rowFor($result, 'Unpaid Month')['net'], 2));
+
+        $this->assertEquals(20, $this->rowFor($result, 'Paid Leave')['workDays'],
+            'Paid leave still counts — the rule tests engagement, not attendance.');
+        $this->assertFalse($this->rowFor($result, 'Paid Leave')['belowMinDays']);
+    }
+
     public function test_leave_days_count_as_worked(): void
     {
         $onLeave = $this->staff('On Leave');
 
-        // Ten present days and eight of leave: engaged for the period, which
-        // is what the minimum tests. MC already carries its own deduction, and
-        // losing the whole share on top of it would charge the same day twice.
+        // Ten present days and eight of PAID leave: engaged for the period,
+        // which is what the minimum tests. MC already carries its own
+        // deduction, and losing the whole share on top of it would charge the
+        // same day twice. Unpaid leave is the exception, above.
         $this->mark($onLeave, '✓', 10);
         $this->mark($onLeave, 'AL', 4, startDay: 11);
         $this->mark($onLeave, 'SL', 4, startDay: 15);

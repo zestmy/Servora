@@ -497,7 +497,7 @@
                     <label class="block text-xs text-gray-500 mb-1">Min working days <span class="text-gray-400">(0 = none)</span></label>
                     <input type="number" step="1" min="0" max="{{ \App\Livewire\Hr\AttendanceRecords::MAX_DAYS }}"
                            wire:model="scMinWorkingDays"
-                           title="Days someone must have worked in this period to share the pool. Unrecorded (UNR) days, days off and absences do not count — which is what keeps a joiner or a leaver from taking a full share of a month they were barely in."
+                           title="Days someone must have worked in this period to share the pool. Paid leave counts; unrecorded (UNR) days, days off, absences and unpaid leave do not — which is what keeps a joiner or a leaver from taking a full share of a month they were barely in."
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scMinWorkingDays') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
@@ -688,18 +688,27 @@
                                 <tr wire:key="sc-{{ $scRow['employee']->id }}" class="hover:bg-gray-50/70 {{ $scRow['points'] <= 0 ? 'opacity-50' : '' }}">
                                     <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">
                                         {{ $scRow['employee']->name }}
-                                        {{-- A leaver is on this pool because they worked part of
-                                             it, and by default they earned their points. The tick
-                                             is the override for when that is not the agreement;
-                                             .live so the RM/point above moves with it, since
-                                             removing someone changes what a point is worth for
-                                             everyone else. Offered for resigned staff only. --}}
                                         @if ($scRow['employee']->hasResigned())
                                             <span class="block text-[10px] text-gray-500">
                                                 Resigned{{ $scRow['employee']->employment_status_date
                                                     ? ' ' . $scRow['employee']->employment_status_date->format('d M Y') : '' }}
                                             </span>
-                                            <label class="mt-0.5 inline-flex items-center gap-1.5 cursor-pointer">
+                                        @endif
+                                        {{-- Somebody is on this pool because they worked part of
+                                             the period, and by default they earned their points.
+                                             The tick is the override for when that is not the
+                                             agreement; .live so the RM/point above moves with it,
+                                             since removing someone changes what a point is worth
+                                             for everyone else.
+
+                                             Offered for EVERYBODY the pool pays, not only leavers:
+                                             this is the instrument that takes points out of the
+                                             divisor, and there are ordinary reasons to want it for
+                                             staff still on the books. Not offered to somebody paid
+                                             from another outlet — they are already taking nothing
+                                             here, and their exclusion belongs to their own pool. --}}
+                                        @unless ($scRow['elsewhere'] ?? false)
+                                            <label class="mt-0.5 flex items-center gap-1.5 cursor-pointer">
                                                 <input type="checkbox"
                                                        wire:model.live="scExcluded.{{ $scRow['employee']->id }}"
                                                        class="rounded border-gray-300 text-danger-600 focus:ring-danger-500" />
@@ -707,12 +716,12 @@
                                                     No service point
                                                 </span>
                                             </label>
-                                        @endif
+                                        @endunless
                                     </td>
                                     <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
                                     @if ($showDays)
                                         <td class="px-2 py-1.5 text-center {{ ($scRow['belowMinDays'] ?? false) ? 'text-danger-600 font-semibold' : 'text-gray-600' }}"
-                                            title="Days worked in this period. Unrecorded (UNR) days, days off and absences do not count.">
+                                            title="Days worked in this period. Paid leave counts; unrecorded (UNR) days, days off, absences and unpaid leave do not.">
                                             {{ (int) ($scRow['workDays'] ?? 0) }}
                                         </td>
                                     @endif
@@ -826,7 +835,7 @@
                     @if ($showDays)
                         Anyone with fewer than {{ $scMinDays }} working days in this period takes no share, and their points come out of the
                         divisor with them, so the RM/point above is what the qualifying staff actually share.
-                        Days worked count cells with any mark except Unrecorded (UNR), Day Off and Absent — an unrecorded day is one
+                        Days worked count cells with any mark except Unrecorded (UNR), Day Off, Absent and Unpaid Leave — an unrecorded day is one
                         the person was not here for at all, before they joined or after they left. Leave days count.
                     @endif
                     Employees without Service Points are excluded from the split.

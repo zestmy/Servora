@@ -62,11 +62,14 @@ class AttendanceRecords extends Component
     /**
      * employee_id => true for staff taking NO share of this pool.
      *
-     * Offered for resigned staff only. They are on this period because they
-     * worked part of it and the default is that they earned their points; the
-     * tick is the override for when that is not the agreement. Anyone still
-     * employed is handled by the special deduction instead — that reduces one
-     * person's pay, where this changes what a point is worth for everybody.
+     * Offered for everybody the pool pays. They are on this period because
+     * they worked part of it and the default is that they earned their
+     * points; the tick is the override for when that is not the agreement.
+     *
+     * It is a different instrument from the special deduction beside it, and
+     * that is why both exist: a special deduction takes money off ONE
+     * person's share, while this takes their points out of the divisor and
+     * hands the pool back to everybody else.
      */
     public array $scExcluded = [];
     public string $scLoadedKey  = '';
@@ -484,12 +487,14 @@ class AttendanceRecords extends Component
      * change how much one point is worth.
      */
     /**
-     * The ticked exclusions, narrowed to staff who may actually be excluded.
+     * The ticked exclusions, narrowed to staff this user may actually exclude.
      *
-     * Re-checked here rather than trusted from the form, because the tick
-     * arrives from the browser and an exclusion applied to someone still
-     * employed would quietly change what a point is worth for the whole
-     * outlet.
+     * The narrowing is REACH, not employment status. It used to be
+     * resigned-only, so a tick on anybody still on the books was dropped
+     * silently — three quarters of the list had a checkbox that did nothing.
+     * What is re-checked, because the ids arrive from a browser, is that this
+     * pool actually pays the person: excluding somebody it does not would
+     * re-price a rate in an outlet the user may not even see.
      *
      * $savedIds are the exclusions already recorded against this pool, and
      * they survive the check: an exclusion is a decision about ONE closed
@@ -518,7 +523,7 @@ class AttendanceRecords extends Component
                 $q->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
                     ->when($outletId !== null, fn ($q) => $q->orWhere('service_charge_outlet_id', $outletId));
             })
-            ->where('employment_status', 'resigned')
+            ->forServiceChargeOutlet($outletId)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -664,7 +669,7 @@ class AttendanceRecords extends Component
 
         [$from, $to] = $this->period();
 
-        // Exclusions already on this pool survive the resigned-only check, so
+        // Exclusions already on this pool survive the reach check, so
         // re-saving a closed period cannot reverse a decision made about it.
         $existing = ServiceChargePeriod::where('outlet_id', $this->serviceChargeOutletId())
             ->whereDate('period_from', $from)
