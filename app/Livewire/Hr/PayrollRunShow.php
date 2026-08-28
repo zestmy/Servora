@@ -55,6 +55,26 @@ class PayrollRunShow extends Component
     public bool    $adj_affects_statutory = false;
     public string  $adj_notes         = '';
 
+    /*
+     * THE SAME CORRECTION ACROSS THE WHOLE RUN, priced per head.
+     *
+     * A company shutdown or a festive day is one decision and forty different
+     * amounts, because a day of somebody's salary is their salary. This takes
+     * the decision once and writes an ordinary adjustment per employee — see
+     * BulkDayAdjustment for why it does not invent a bulk record.
+     */
+    public bool   $showBulk                = false;
+    public string $bulk_direction          = \App\Models\PayrollRunAdjustment::DEDUCTION;
+    public string $bulk_days               = '1';
+    public string $bulk_basis              = \App\Services\Payroll\BulkDayAdjustment::BASIS_WORKING;
+    public bool   $bulk_include_allowances = false;
+    public string $bulk_label              = '';
+    public bool   $bulk_affects_statutory  = false;
+    public string $bulk_notes              = '';
+
+    /** @var array<int, int> Employee ids ticked in the list. */
+    public array  $bulk_selected           = [];
+
     public function mount(string $run): void
     {
         $this->runUuid = $run;
@@ -333,6 +353,155 @@ class PayrollRunShow extends Component
 
         $this->forgetRun();
         session()->flash('success', $message);
+    }
+
+    // ── The same adjustment across the whole run ──────────────────────────
+
+    public function openBulk(): void
+    {
+        $this->assertMayAdjust();
+        $this->resetBulkForm();
+        // Opened with everybody ticked, because "all of them" is the case this
+        // exists for; untick from there rather than build the list up.
+        $this->bulk_selected = $this->bulkCandidates()->pluck('employee_id')->all();
+        $this->showBulk = true;
+    }
+
+    /** @return \Illuminate\Support\Collection<int, \App\Models\PayrollRunLine> */
+    public function bulkCandidates(): \Illuminate\Support\Collection
+    {
+        return app(\App\Services\Payroll\BulkDayAdjustment::class)
+            ->candidates($this->run(), $this->bulk_direction);
+    }
+
+    /**
+     * Switching direction re-selects, because the list itself changes.
+     *
+     * Daily and hourly staff are offered for an addition and not for a
+     * deduction, so a selection made under one direction can contain people
+     * the other will not accept. Left alone, the count on the button would
+     * promise more than the apply could deliver.
+     */
+    public function updatedBulkDirection(string $value): void
+    {
+        $this->bulk_affects_statutory =
+            \App\Models\PayrollRunAdjustment::defaultAffectsStatutory($value);
+
+        $allowed = $this->bulkCandidates()->pluck('employee_id')->all();
+
+        $this->bulk_selected = array_values(array_intersect($this->bulk_selected, $allowed));
+    }
+
+    public function selectAllBulk(): void
+    {
+        $this->bulk_selected = $this->bulkCandidates()->pluck('employee_id')->all();
+    }
+
+    public function selectNoneBulk(): void
+    {
+        $this->bulk_selected = [];
+    }
+
+    /**
+     * What applying would do, without doing it.
+     *
+     * The confirmation is the whole safety of this feature: forty adjustments
+     * written from one button press is not something to find out about
+     * afterwards. It runs the same code path as the apply, so the figures
+     * shown cannot disagree with the figures written.
+     */
+    public function bulkPreview(): array
+    {
+        if (! $this->showBulk) {
+            return ['rows' => collect(), 'skipped' => collect(), 'total' => 0.0, 'divisorLabel' => ''];
+        }
+
+        return app(\App\Services\Payroll\BulkDayAdjustment::class)->preview(
+            $this->run(),
+            array_map('intval', $this->bulk_selected),
+            (float) ($this->bulk_days ?: 0),
+            $this->bulk_direction,
+            $this->bulk_basis,
+            $this->bulk_include_allowances,
+        );
+    }
+
+    public function saveBulkAdjustment(): void
+    {
+        $run = $this->assertMayAdjust();
+
+        $this->validate([
+            'bulk_label'     => 'required|string|max:120',
+            // Half days are real — a half-day shutdown is an ordinary case for
+            // this — but zero is not an adjustment, and a number larger than a
+            // month is a mistake with a decimal point in it.
+            'bulk_days'      => 'required|numeric|min:0.5|max:31',
+            'bulk_direction' => 'required|in:' . implode(',', array_keys(\App\Models\PayrollRunAdjustment::DIRECTIONS)),
+            'bulk_basis'     => 'required|in:' . implode(',', array_keys(\App\Services\Payroll\BulkDayAdjustment::BASES)),
+            'bulk_notes'     => 'nullable|string|max:180',
+        ], [], [
+            'bulk_label' => 'description',
+            'bulk_days'  => 'number of days',
+        ]);
+
+        if ($this->bulk_selected === []) {
+            $this->addError('bulk_selected', 'Select at least one employee.');
+            return;
+        }
+
+        $result = app(\App\Services\Payroll\BulkDayAdjustment::class)->apply(
+            $run,
+            array_map('intval', $this->bulk_selected),
+            (float) $this->bulk_days,
+            $this->bulk_direction,
+            $this->bulk_basis,
+            $this->bulk_include_allowances,
+            $this->bulk_label,
+            $this->bulk_affects_statutory,
+            Auth::id(),
+            $this->bulk_notes ?: null,
+        );
+
+        if ($result['rows']->isEmpty()) {
+            $this->addError('bulk_selected', 'Nothing could be applied: '
+                . $result['skipped']->pluck('reason')->unique()->implode(', ') . '.');
+            return;
+        }
+
+        $this->showBulk = false;
+        $this->resetBulkForm();
+
+        /*
+         * SAID IN FULL, including who was missed.
+         *
+         * A bulk action reporting "applied to 37 employees" when 40 were
+         * ticked, without naming the three, is how somebody goes un-deducted
+         * for a month. The skipped names are in the message, not their count.
+         */
+        $message = 'Applied to ' . $result['rows']->count() . ' employee(s) — RM'
+            . number_format($result['total'], 2) . ' in total. Payroll recalculated.';
+
+        if ($result['skipped']->isNotEmpty()) {
+            $message .= ' Skipped ' . $result['skipped']->count() . ': '
+                . $result['skipped']->map(fn ($x) => $x['name'] . ' (' . $x['reason'] . ')')->implode('; ') . '.';
+        }
+
+        $this->rebuildAfterAdjustment($message);
+    }
+
+    private function resetBulkForm(): void
+    {
+        $this->bulk_direction          = \App\Models\PayrollRunAdjustment::DEDUCTION;
+        $this->bulk_days               = '1';
+        $this->bulk_basis              = \App\Services\Payroll\BulkDayAdjustment::BASIS_WORKING;
+        $this->bulk_include_allowances = false;
+        $this->bulk_label              = '';
+        $this->bulk_affects_statutory  = \App\Models\PayrollRunAdjustment::defaultAffectsStatutory(
+            \App\Models\PayrollRunAdjustment::DEDUCTION
+        );
+        $this->bulk_notes              = '';
+        $this->bulk_selected           = [];
+        $this->resetValidation();
     }
 
     private function resetAdjustForm(): void
@@ -708,6 +877,13 @@ class PayrollRunShow extends Component
             // Only computed while the form is open — it is an extra query for
             // a picker nobody is looking at otherwise.
             'adjustCandidates' => $this->showAdjust ? $this->adjustmentCandidates() : collect(),
+            // Only while their panel is open — an extra query each otherwise.
+            'bulkCandidates' => $this->showBulk ? $this->bulkCandidates() : collect(),
+            'bulkPreview'    => $this->bulkPreview(),
+            'bulkBases'      => \App\Services\Payroll\BulkDayAdjustment::BASES,
+            'bulkDivisor'    => $this->showBulk
+                ? app(\App\Services\Payroll\BulkDayAdjustment::class)->divisor($run, $this->bulk_basis)
+                : [0, ''],
             'employmentSegments' => PayrollRun::employmentSegments(),
             'audience'   => $this->emailAudience(),
             'deliveries' => PayslipDelivery::where('payroll_run_id', $run->id)

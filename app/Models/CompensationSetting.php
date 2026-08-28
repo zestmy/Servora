@@ -113,6 +113,45 @@ class CompensationSetting extends Model
     }
 
     /**
+     * ONE DAY'S PAY for an employee, from their basic salary and pay type.
+     *
+     * The sibling of hourlyRate() and deliberately shaped like it, because
+     * they answer the same question at a different resolution and a second
+     * opinion about what a day is worth is the last thing payroll needs.
+     *
+     * MONTHLY divides by the working-days setting — 26 by default, which is
+     * the ordinary rate of pay the Employment Act uses for exactly this. A
+     * caller may pass its own divisor for the cases where the calendar length
+     * of the period is the right denominator instead; nothing else about the
+     * calculation changes with it.
+     *
+     * DAILY is already a day's pay, so the divisor never touches it. HOURLY is
+     * a day of contracted hours at the hourly rate.
+     *
+     * Null when there is no salary on file — a deduction invented from nothing
+     * is worse than no deduction.
+     */
+    public function dailyRate(?float $basicSalary, ?string $payType, ?int $monthlyDivisor = null): ?float
+    {
+        if ($basicSalary === null || $basicSalary <= 0) {
+            return null;
+        }
+
+        $hours   = (float) $this->daily_working_hours ?: 8.0;
+        $divisor = $monthlyDivisor ?: ((int) $this->monthly_working_days ?: 26);
+
+        if ($divisor < 1) {
+            return null;
+        }
+
+        return round(match ($payType) {
+            'hourly' => $basicSalary * $hours,
+            'daily'  => $basicSalary,
+            default  => $basicSalary / $divisor,   // monthly
+        }, 4);
+    }
+
+    /**
      * Hourly rate for an employee, from their basic salary and pay type.
      * Null when there is no salary on file — an OT figure invented from
      * nothing is worse than no figure.

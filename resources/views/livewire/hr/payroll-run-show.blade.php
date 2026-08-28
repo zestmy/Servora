@@ -119,7 +119,10 @@
                     </p>
                 </div>
                 @if ($canAdjust)
-                    <button wire:click="openAdjust" class="btn-secondary">Add adjustment</button>
+                    <div class="flex items-center gap-2">
+                        <button wire:click="openAdjust" class="btn-secondary">Add adjustment</button>
+                        <button wire:click="openBulk" class="btn-secondary">Add by days (all staff)</button>
+                    </div>
                 @endif
             </div>
 
@@ -173,6 +176,216 @@
             @elseif ($canAdjust)
                 <p class="mt-3 text-xs text-gray-500">None on this run.</p>
             @endif
+        </div>
+    @endif
+
+    {{-- The same correction across the whole run, priced per head.
+
+         Separate from the single-employee form above rather than a mode of
+         it: this one asks for DAYS and produces a different amount for every
+         person, and folding that into a form whose central field is an amount
+         in ringgit would make both harder to read. --}}
+    @if ($showBulk)
+        @php
+            $isDeduction = $bulk_direction === \App\Models\PayrollRunAdjustment::DEDUCTION;
+        @endphp
+        <div class="card p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700">Add or deduct days across this run</h3>
+            <p class="text-xs text-gray-600 mt-0.5 mb-3">
+                One decision, priced per person — a day of someone's salary is their own salary.
+                This writes an ordinary adjustment for each employee you tick, so any one of them
+                can be edited or removed afterwards.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                    <label class="label">Direction</label>
+                    <select wire:model.live="bulk_direction" class="input">
+                        @foreach (\App\Models\PayrollRunAdjustment::DIRECTIONS as $dv => $dl)
+                            <option value="{{ $dv }}">{{ $dl }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('bulk_direction')" class="mt-1" />
+                </div>
+
+                <div>
+                    <label class="label">Number of days</label>
+                    <input type="number" step="0.5" min="0.5" max="31" wire:model.live="bulk_days" class="input" />
+                    <p class="help">Half days allowed.</p>
+                    <x-input-error :messages="$errors->get('bulk_days')" class="mt-1" />
+                </div>
+
+                {{-- The divisor is a policy choice, not a constant: 26 is the
+                     ordinary rate of pay the Employment Act uses, while the
+                     calendar length of the period is what pro-rating a joiner
+                     divides by. They differ by about a fifth, so the one used
+                     is chosen here and recorded on every row it writes. --}}
+                <div>
+                    <label class="label">A day means</label>
+                    <select wire:model.live="bulk_basis" class="input">
+                        @foreach ($bulkBases as $bv => $bl)
+                            <option value="{{ $bv }}">{{ $bl }}</option>
+                        @endforeach
+                    </select>
+                    <p class="help">Monthly salary ÷ {{ $bulkDivisor[0] }} ({{ $bulkDivisor[1] }}).</p>
+                    <x-input-error :messages="$errors->get('bulk_basis')" class="mt-1" />
+                </div>
+
+                <div>
+                    <label class="label">Description</label>
+                    <input type="text" maxlength="120" wire:model="bulk_label" class="input"
+                           placeholder="e.g. Company shutdown 12–13 Aug" />
+                    <p class="help">Shown on every payslip it touches.</p>
+                    <x-input-error :messages="$errors->get('bulk_label')" class="mt-1" />
+                </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <label class="flex items-start gap-2">
+                        <input type="checkbox" wire:model.live="bulk_include_allowances"
+                               class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                        <span class="text-sm text-gray-800">Include fixed allowances</span>
+                    </label>
+                    <p class="mt-1 text-[11px] text-gray-600">
+                        @if ($bulk_include_allowances)
+                            A day is <strong>basic plus this run's allowances</strong>, both cut by the
+                            same divisor. The allowance figure comes off each line, so a part month that
+                            already reduced it stays reduced.
+                        @else
+                            A day is <strong>basic salary only</strong>. Allowances are untouched.
+                        @endif
+                    </p>
+                </div>
+
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <label class="flex items-start gap-2">
+                        <input type="checkbox" wire:model.live="bulk_affects_statutory"
+                               class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                        <span class="text-sm text-gray-800">Counts as wages this month</span>
+                    </label>
+                    <p class="mt-1 text-[11px] text-gray-600">
+                        @if ($bulk_affects_statutory)
+                            EPF, SOCSO, EIS and PCB are recomputed on the adjusted figure.
+                        @else
+                            Applied after the statutory deductions, so it changes take-home only.
+                        @endif
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="label">Internal note (optional)</label>
+                <input type="text" maxlength="180" wire:model="bulk_notes" class="input"
+                       placeholder="Not shown on the payslip" />
+                <p class="help">The working — days, rate and basis — is recorded on every row regardless.</p>
+                <x-input-error :messages="$errors->get('bulk_notes')" class="mt-1" />
+            </div>
+
+            {{-- Who it lands on. Everybody is ticked when the panel opens,
+                 because "all of them" is the case this exists for. --}}
+            <div class="mt-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div class="text-sm font-semibold text-gray-700">
+                        Employees
+                        <span class="ml-1 text-xs font-normal text-gray-600">
+                            {{ count($bulk_selected) }} of {{ $bulkCandidates->count() }} selected
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button wire:click="selectAllBulk" class="text-xs font-medium text-brand-600 hover:text-brand-800">Select all</button>
+                        <button wire:click="selectNoneBulk" class="text-xs font-medium text-gray-600 hover:text-gray-800">Clear</button>
+                    </div>
+                </div>
+
+                {{-- Daily and hourly staff are absent from a DEDUCTION on
+                     purpose, and it is said rather than left as a shorter
+                     list — a name missing without explanation reads as a bug
+                     in the run, not as a rule. --}}
+                @if ($isDeduction && $lines->count() > $bulkCandidates->count())
+                    <p class="mb-2 text-[11px] text-warning-700">
+                        {{ $lines->count() - $bulkCandidates->count() }} daily or hourly employee(s) are not
+                        listed: their pay already follows the days and hours on the grid, so deducting a day
+                        here would take the same absence off twice. They can still receive an addition.
+                    </p>
+                @endif
+
+                <x-input-error :messages="$errors->get('bulk_selected')" class="mb-2" />
+
+                @if ($bulkCandidates->isEmpty())
+                    <p class="text-xs text-gray-500">Nobody on this run can take this adjustment.</p>
+                @else
+                    @php $preview = $bulkPreview['rows']->keyBy('employee_id'); @endphp
+                    <div class="border border-gray-200 rounded-lg max-h-72 overflow-y-auto">
+                        <table class="table-surface w-full">
+                            <thead class="sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 w-8"></th>
+                                    <th class="px-3 py-2 text-left">Employee</th>
+                                    <th class="px-2 py-2 text-right">Per day</th>
+                                    <th class="px-2 py-2 text-right">{{ $bulk_days ?: 0 }} day(s)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($bulkCandidates as $l)
+                                    @php $row = $preview[$l->employee_id] ?? null; @endphp
+                                    <tr wire:key="bulk-{{ $l->employee_id }}">
+                                        <td class="px-3 py-1.5">
+                                            <input type="checkbox" value="{{ $l->employee_id }}"
+                                                   wire:model.live="bulk_selected"
+                                                   class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                                        </td>
+                                        <td class="px-3 py-1.5 text-sm text-gray-800">
+                                            {{ $l->employee_name }}
+                                            @if ($l->isHourly() || $l->isDaily())
+                                                <span class="ml-1 badge-warning">{{ $l->isHourly() ? 'hourly' : 'daily' }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-2 py-1.5 text-right text-xs tabular-nums text-gray-600">
+                                            @if ($row)
+                                                {{ number_format($row['day_rate'] + $row['allowance'], 2) }}
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                        <td class="px-2 py-1.5 text-right text-sm tabular-nums font-medium {{ $isDeduction ? 'text-danger-700' : 'text-success-700' }}">
+                                            @if ($row)
+                                                {{ $isDeduction ? '−' : '+' }}{{ number_format($row['amount'], 2) }}
+                                            @else
+                                                <span class="text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+
+            {{-- The confirmation. Forty adjustments from one button press is
+                 not something to discover afterwards, so the total and anyone
+                 who cannot be priced are stated before it is pressed. --}}
+            <div class="mt-3 p-3 rounded-lg border {{ $isDeduction ? 'bg-danger-50 border-danger-100' : 'bg-success-50 border-success-100' }}">
+                <p class="text-sm text-gray-800">
+                    <strong>{{ $bulkPreview['rows']->count() }}</strong> employee(s),
+                    <strong>{{ $isDeduction ? '−' : '+' }}RM{{ number_format($bulkPreview['total'], 2) }}</strong> in total.
+                </p>
+                @if ($bulkPreview['skipped']->isNotEmpty())
+                    <p class="mt-1 text-[11px] text-warning-800">
+                        Skipped {{ $bulkPreview['skipped']->count() }}:
+                        {{ $bulkPreview['skipped']->map(fn ($x) => $x['name'] . ' (' . $x['reason'] . ')')->implode('; ') }}.
+                    </p>
+                @endif
+            </div>
+
+            <div class="mt-3 flex items-center gap-2">
+                <button wire:click="saveBulkAdjustment" wire:loading.attr="disabled" class="btn-primary">
+                    <span wire:loading.remove wire:target="saveBulkAdjustment">Apply and recalculate</span>
+                    <span wire:loading wire:target="saveBulkAdjustment">Recalculating…</span>
+                </button>
+                <button wire:click="$set('showBulk', false)" class="btn-ghost">Cancel</button>
+            </div>
         </div>
     @endif
 
