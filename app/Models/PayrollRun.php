@@ -123,6 +123,11 @@ class PayrollRun extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'section_id', 'employment_status',
         'period_month', 'period_start', 'period_end', 'status', 'reference',
+        // Null on an ordinary run, which counts everything over period_start
+        // to period_end. See Services\Payroll\RunPeriods.
+        'attendance_from', 'attendance_to',
+        'overtime_from', 'overtime_to',
+        'service_charge_from', 'service_charge_to',
         'total_gross', 'total_service_charge', 'total_net', 'total_statutory_employee',
         'total_statutory_employer', 'total_employer_cost', 'employee_count',
         'generated_by', 'generated_at', 'approved_by', 'approved_at',
@@ -133,6 +138,12 @@ class PayrollRun extends Model
         'period_month'             => 'date',
         'period_start'             => 'date',
         'period_end'               => 'date',
+        'attendance_from'          => 'date',
+        'attendance_to'            => 'date',
+        'overtime_from'            => 'date',
+        'overtime_to'              => 'date',
+        'service_charge_from'      => 'date',
+        'service_charge_to'        => 'date',
         'generated_at'             => 'datetime',
         'approved_at'              => 'datetime',
         'paid_at'                  => 'datetime',
@@ -309,6 +320,45 @@ class PayrollRun extends Model
 
         return $from->format($from->year === $to->year ? 'j M' : 'j M Y')
             . ' – ' . $to->format('j M Y');
+    }
+
+    /**
+     * The dates this run counts each of its inputs over.
+     *
+     * An ordinary run counts everything over its own period and every one of
+     * these resolves to it; the object exists so the three that CAN differ —
+     * attendance, overtime, service charge — are asked for by name rather than
+     * by whichever date pair happened to be in scope.
+     *
+     * Not memoised: a run's periods are edited on the same instance during a
+     * rebuild, and a cached copy would answer with the range being replaced.
+     */
+    public function periods(): \App\Services\Payroll\RunPeriods
+    {
+        return \App\Services\Payroll\RunPeriods::fromRun($this);
+    }
+
+    /**
+     * The range one input was counted over.
+     *
+     * WHAT THIS IS NOT FOR: who is on the run, dated allowances, part-month
+     * proration and its s.60I divisor, the statutory as-of date, PCB
+     * year-to-date. Those stay on period_start/period_end because they decide
+     * what somebody is PAID rather than which days were counted — see the note
+     * on RunPeriods.
+     *
+     * @param  string  $component  a RunPeriods::COMPONENTS value
+     * @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}
+     */
+    public function periodFor(string $component): array
+    {
+        return $this->periods()->for($component);
+    }
+
+    /** Whether any input on this run departs from its own period. */
+    public function hasComponentPeriods(): bool
+    {
+        return $this->periods()->hasAny();
     }
 
     /** True when the range is not simply the calendar month it is labelled with. */
