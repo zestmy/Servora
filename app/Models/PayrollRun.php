@@ -250,7 +250,25 @@ class PayrollRun extends Model
              */
             ->where('settlement', \App\Models\OvertimeClaim::SETTLE_PAYROLL)
             ->whereNull('paid_at')
-            ->whereBetween('claim_date', [$this->period_start, $this->period_end])
+            /*
+             * THE OVERTIME PERIOD, not the run's own.
+             *
+             * This has to be the same window CompensationSummary paid from, or
+             * approval stamps a different set of claims than the run actually
+             * paid — and both halves of that are bad: hours paid but left
+             * unstamped can be paid again by the next run, and hours stamped
+             * but never paid are gone from the employee's balance with nothing
+             * having reached them.
+             *
+             * On an ordinary run this IS period_start–period_end.
+             *
+             * The same expression CompensationSummary pays from, down to the
+             * day boundaries RunPeriods puts on both ends. A window that ended
+             * at midnight while the paying one ended at 23:59 would leave a
+             * claim on the last day paid and never stamped — free for the next
+             * run to pay all over again.
+             */
+            ->whereBetween('claim_date', $this->periodFor(\App\Services\Payroll\RunPeriods::OVERTIME))
             ->update([
                 'paid_at'        => now(),
                 'paid_in_run_id' => $this->id,

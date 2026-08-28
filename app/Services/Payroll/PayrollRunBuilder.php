@@ -38,6 +38,16 @@ class PayrollRunBuilder
      * @param  ?Carbon  $overrideTo    for this run only. See below.
      * @param  ?int     $sectionId         Segment: one section only.
      * @param  ?string  $employmentStatus  Segment: see PayrollRun::scopeEmploymentStatus().
+     * @param  ?array<string, array{0: Carbon, 1: Carbon}|null>  $componentPeriods
+     *         A range for attendance, overtime or service charge that is not
+     *         the run's own, keyed by RunPeriods::COMPONENTS.
+     *
+     *         NULL means "the caller is not saying", and an existing draft's
+     *         stored ranges are kept — the same rule the master period follows
+     *         two paragraphs down, and for the same reason: regenerating after
+     *         approving three more claims must not silently move what the run
+     *         counted. An empty ARRAY is the caller saying "none", which
+     *         clears them.
      * @throws \RuntimeException when the run is already approved
      */
     public function generate(
@@ -50,6 +60,7 @@ class PayrollRunBuilder
         ?Carbon $overrideTo = null,
         ?int $sectionId = null,
         ?string $employmentStatus = null,
+        ?array $componentPeriods = null,
     ): PayrollRun {
         $month = $month->copy()->startOfMonth();
 
@@ -122,6 +133,26 @@ class PayrollRunBuilder
         }
 
         /*
+         * THE DATES EACH INPUT IS COUNTED OVER, resolved in the same three
+         * steps as the master period above and in the same order:
+         *
+         *   1. What the caller passed for THIS run.
+         *   2. What an existing draft was already built with, so a regenerate
+         *      cannot silently snap a run back to counting everything over its
+         *      own period.
+         *   3. Nothing, which is every ordinary run: all three inherit the
+         *      master and the arithmetic is exactly what it was before any of
+         *      this existed.
+         *
+         * Built against the resolved master rather than the arguments, so the
+         * object and the run can never disagree about what "this period" is —
+         * CompensationSummary refuses the pair if they do.
+         */
+        $periods = new RunPeriods($from, $to, $componentPeriods ?? (
+            $existing ? RunPeriods::fromRun($existing)->overrides() : []
+        ));
+
+        /*
          * ONE-OFF CORRECTIONS entered against this run, re-applied on every
          * rebuild.
          *
@@ -161,6 +192,7 @@ class PayrollRunBuilder
             $employees, $companyId, $month, $from, $to, $adjustments,
             forPayrollRun: true,
             settlingRunId: $existing?->id,
+            periods: $periods,
         );
 
         $statutory = StatutorySetting::forCompany($companyId);
@@ -171,8 +203,20 @@ class PayrollRunBuilder
         // implementation of the same rules — but a run is a snapshot, so it
         // can copy the answer. Null when no pool was saved for this exact
         // period, which is the normal case for companies that do not levy one.
+        /*
+         * THE SERVICE CHARGE PERIOD, which is the one most likely to differ.
+         *
+         * A pool is matched on BOTH its exact dates, so a company that
+         * distributes by calendar month while running payroll 26th–25th
+         * matched no pool at all and the run paid nothing — silently, because
+         * forRun() answers null rather than raising. That is the fault this
+         * period exists to make fixable: point the run at the dates the pool
+         * was actually saved for.
+         */
+        [$scFrom, $scTo] = $periods->serviceCharge();
+
         $serviceCharge = app(\App\Services\Hr\ServiceChargeDistribution::class)->forRun(
-            $companyId, $accessibleOutletIds, $from, $to, $outletId,
+            $companyId, $accessibleOutletIds, $scFrom, $scTo, $outletId,
         );
 
         /*
@@ -222,7 +266,7 @@ class PayrollRunBuilder
 
         return DB::transaction(function () use (
             $existing, $companyId, $outletId, $sectionId, $employmentStatus, $month, $from, $to, $data, $statutory,
-            $profiles, $identity, $userId, $scByEmployee, $scPerPoint
+            $profiles, $identity, $userId, $scByEmployee, $scPerPoint, $periods
         ) {
             $run = $existing ?: new PayrollRun([
                 'company_id'   => $companyId,
@@ -233,7 +277,7 @@ class PayrollRunBuilder
                 'period_start' => $from->toDateString(),
                 'period_end'   => $to->toDateString(),
                 'reference'    => PayrollRun::nextReference($companyId, $month),
-            ]);
+            ] + $periods->columns());
 
             $run->fill([
                 'company_id'               => $companyId,
@@ -248,6 +292,16 @@ class PayrollRunBuilder
                 // what it actually covered even after the cycle setting moves.
                 'period_start'             => $from->toDateString(),
                 'period_end'               => $to->toDateString(),
+                /*
+                 * Written on every rebuild, INCLUDING the nulls.
+                 *
+                 * Not merged with what is already on the row: clearing a
+                 * component period has to be able to clear it. The nulls are
+                 * what an ordinary run stores, and they are what says "this
+                 * run counted everything over its own period" rather than
+                 * leaving a stale pair behind to claim otherwise.
+                 */
+                ...$periods->columns(),
                 'status'                   => PayrollRun::DRAFT,
                 'total_gross'              => $data['totals']['gross'],
                 'total_service_charge'     => round($scByEmployee->sum(fn ($r) => (float) $r['net']), 2),

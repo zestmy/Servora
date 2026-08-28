@@ -196,6 +196,25 @@ final class RunPeriods
         return $this->overrides !== [];
     }
 
+    /**
+     * The overrides on their own, for rebuilding against a different master.
+     *
+     * A regenerate resolves the run's period afresh — the cycle setting may
+     * have moved, or the caller may have passed a new one — and the ranges the
+     * draft already carried have to survive that. They are carried as
+     * OVERRIDES rather than as a whole object, because an override is a
+     * decision somebody made and the master is not.
+     *
+     * @return array<string, array{0: Carbon, 1: Carbon}>
+     */
+    public function overrides(): array
+    {
+        return array_map(
+            fn ($range) => [$range[0]->copy(), $range[1]->copy()],
+            $this->overrides,
+        );
+    }
+
     /** @return array<int, string> the components with a range of their own */
     public function customComponents(): array
     {
