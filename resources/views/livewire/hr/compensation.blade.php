@@ -136,6 +136,14 @@
                         <th class="px-4 py-3 text-right">SOCSO</th>
                         <th class="px-4 py-3 text-right">EIS</th>
                         <th class="px-4 py-3 text-right">PCB</th>
+                        {{-- Only where the scheme is switched on, so the column
+                             is stable down the table rather than appearing for
+                             whichever employees happen to be charged. Without
+                             it Net sat under Gross minus four visible columns
+                             and did not equal them — see the note on the row. --}}
+                        @if ($summary['statutory']->skbbk_enabled)
+                            <th class="px-4 py-3 text-right">SKBBK</th>
+                        @endif
                         <th class="px-4 py-3 text-right">Net</th>
                     @endif
                     <th class="px-4 py-3 text-center w-24">Manage</th>
@@ -184,6 +192,12 @@
                             <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['socso_employee'], 2) }}</td>
                             <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['eis_employee'], 2) }}</td>
                             <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['pcb'], 2) }}</td>
+                            {{-- SKBBK is inside employee_total and therefore
+                                 inside Net. Omitted, it made the row fail to
+                                 add up by exactly the amount deducted. --}}
+                            @if ($summary['statutory']->skbbk_enabled)
+                                <td class="px-4 py-3 text-right tabular-nums text-gray-600">{{ number_format($st['skbbk'] ?? 0, 2) }}</td>
+                            @endif
                             <td class="px-4 py-3 text-right tabular-nums font-semibold text-gray-900">{{ number_format($row['net'], 2) }}</td>
                         @endif
                         <td class="px-4 py-3 text-center">
@@ -192,7 +206,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="{{ $summary['statutory']->anyEnabled() ? 14 : 9 }}" class="px-4 py-8 text-center text-gray-600">No employees in this view.</td></tr>
+                    <tr><td colspan="{{ ($summary['statutory']->anyEnabled() ? 14 : 9) + ($summary['statutory']->skbbk_enabled ? 1 : 0) }}" class="px-4 py-8 text-center text-gray-600">No employees in this view.</td></tr>
                 @endforelse
             </tbody>
             @if ($summary['rows']->isNotEmpty())
@@ -210,6 +224,9 @@
                             <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['socso_employee'], 2) }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['eis_employee'], 2) }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['pcb'], 2) }}</td>
+                            @if ($summary['statutory']->skbbk_enabled)
+                                <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['skbbk'], 2) }}</td>
+                            @endif
                             <td class="px-4 py-3 text-right tabular-nums">{{ number_format($summary['totals']['net'], 2) }}</td>
                         @endif
                         <td></td>

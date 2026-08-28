@@ -42,6 +42,17 @@ class AttendanceRecords extends Component
     public string $scMcPercent  = '5';
     public string $scAbsPercent = '10';
 
+    /**
+     * Working days somebody must have to share this pool ('0' = no minimum).
+     *
+     * The rule for the joiner who started on the 27th and the leaver who went
+     * on the 3rd: they hold a full service point entitlement and would take a
+     * full share of a month they were barely in. Their days read UNR either
+     * side of their employment, and an unrecorded day is not a worked one —
+     * see ServiceChargePeriod::workingDayCounts().
+     */
+    public string $scMinWorkingDays = '0';
+
     /** Named allocations that take points alongside staff: [['name','points']]. */
     public array $scFunds = [];
 
@@ -444,6 +455,7 @@ class AttendanceRecords extends Component
             $this->scMcPercent  = $row ? rtrim(rtrim(number_format((float) $row->mc_percent, 2, '.', ''), '0'), '.') : '5';
             $this->scAbsPercent = $row ? rtrim(rtrim(number_format((float) $row->abs_percent, 2, '.', ''), '0'), '.') : '10';
             $this->scRetention  = $row ? rtrim(rtrim(number_format((float) $row->retention_percent, 2, '.', ''), '0'), '.') : '0';
+            $this->scMinWorkingDays = (string) ($row ? $row->minWorkingDays() : 0);
 
             $this->scFunds = $row
                 ? array_map(fn ($f) => ['name' => $f['name'], 'points' => (string) $f['points']], $row->funds())
@@ -612,6 +624,9 @@ class AttendanceRecords extends Component
             'scRetention'     => 'required|numeric|min:0|max:100',
             'scMcPercent'     => 'required|numeric|min:0|max:100',
             'scAbsPercent'    => 'required|numeric|min:0|max:100',
+            // Capped at the longest period the grid will render, so a minimum
+            // nobody could ever meet cannot be typed in and empty a pool.
+            'scMinWorkingDays' => 'required|integer|min:0|max:' . self::MAX_DAYS,
             'scFunds'         => 'array|max:20',
             'scFunds.*.name'  => 'required|string|max:60',
             'scFunds.*.points' => 'required|numeric|min:0|max:9999',
@@ -627,6 +642,7 @@ class AttendanceRecords extends Component
             'scRetention'  => 'retention %',
             'scMcPercent'  => 'MC deduction %',
             'scAbsPercent' => 'absent deduction %',
+            'scMinWorkingDays' => 'minimum working days',
         ]);
 
         // Only rows with a real amount are stored, so clearing a field removes
@@ -667,6 +683,7 @@ class AttendanceRecords extends Component
                 'retention_percent'  => round((float) $this->scRetention, 2),
                 'mc_percent'         => round((float) $this->scMcPercent, 2),
                 'abs_percent'        => round((float) $this->scAbsPercent, 2),
+                'min_working_days'   => max(0, (int) $this->scMinWorkingDays),
                 'fund_allocations'   => $funds ?: null,
                 'special_deductions' => $special ?: null,
                 'excluded_employees' => $this->excludedServicePointIds(
@@ -1030,6 +1047,34 @@ class AttendanceRecords extends Component
             $scRow->excluded_employees = $scExcludedIds ?: null;
         }
 
+        /*
+         * Who falls short of the qualifying period, and therefore whose points
+         * have to come OUT OF THE DIVISOR as well as off their own row.
+         *
+         * serviceChargeTotalPoints() sums the base straight out of the
+         * database and knows nothing about the attendance grid, so it has to
+         * be told. Same hazard as the exclusions above it: points left in the
+         * base for a share that is never paid make RM/point too small and the
+         * pool under-allocates — quietly, and for everybody, not just the
+         * person who did not qualify.
+         *
+         * The minimum comes off the SAVED pool when there is one and from the
+         * input otherwise, matching how distribute() reads the percentages —
+         * so the divisor on this screen is always the one the rows below it
+         * were worked out with.
+         */
+        $scMinDays = $scRow
+            ? $scRow->minWorkingDays()
+            : max(0, (int) $this->scMinWorkingDays);
+
+        $scBelowMinIds = ServiceChargePeriod::belowMinimumWorkingDays(
+            $scEmployees,
+            ServiceChargePeriod::workingDayCounts($codes, $cellMap),
+            $scMinDays,
+        );
+
+        $scDivisorExcludedIds = array_values(array_unique(array_merge($scExcludedIds, $scBelowMinIds)));
+
         $serviceCharge = ($this->showServiceCharge && $canManageServiceCharge)
             ? ServiceChargePeriod::distribute(
                 // The pool is the one this SCREEN is showing, which is not the
@@ -1039,11 +1084,16 @@ class AttendanceRecords extends Component
                 $scRow, $this->serviceChargeOutletId(), $scEmployees, $codes, $cellMap,
                 is_numeric($this->scMcPercent) ? (float) $this->scMcPercent : 5.0,
                 is_numeric($this->scAbsPercent) ? (float) $this->scAbsPercent : 10.0,
-                $this->serviceChargeTotalPoints($scExcludedIds),
+                $this->serviceChargeTotalPoints($scDivisorExcludedIds),
                 // Same outlet scope as the pool itself, so the deduction and
                 // the pool it comes out of can never be drawn from different
                 // sets of outlets.
                 LatePenalties::forPeriod($companyId, $this->serviceChargeOutletId(), $from, $to),
+                false,
+                // Only reached while no pool has been saved yet, so the panel
+                // previews the minimum being typed instead of showing a table
+                // that ignores it until the first save.
+                $scMinDays,
             )
             : null;
 

@@ -123,7 +123,50 @@
                 <div class="p-4">
                     <p class="text-xs font-medium uppercase tracking-wider text-gray-500 mb-2">Earnings</p>
                     <dl class="space-y-1 text-sm">
-                        <div class="flex justify-between"><dt class="text-gray-600">Basic</dt><dd class="tabular-nums text-gray-800">{{ number_format($thisMonth['basic'], 2) }}</dd></div>
+                        @php
+                            /*
+                             * THE WORKING BEHIND BASIC, which this screen used
+                             * to leave off entirely.
+                             *
+                             * REPORTED AS: "basic is RM2,000, why does the
+                             * breakdown say 1,483.87?" — a part month, priced
+                             * 2,000 ÷ 31 × 23 exactly as the Employment Act
+                             * s.60I says, and the screen showed the answer
+                             * without any of the arithmetic. The payslip has
+                             * carried this line for a while; the estimate
+                             * anybody checks BEFORE the run had not.
+                             *
+                             * $period_days is set only where basic was
+                             * pro-rated, which is what separates a part month
+                             * from a daily employee's day count — both fill
+                             * $paid_days. See CompensationSummary::forMonth().
+                             */
+                            $partMonth = $thisMonth['period_days'] !== null && $thisMonth['paid_days'] !== null;
+
+                            $why = collect([
+                                $thisMonth['joined_on']   ? 'joined ' . \Carbon\Carbon::parse($thisMonth['joined_on'])->format('j M Y') : null,
+                                $thisMonth['resigned_on'] ? 'resigned ' . \Carbon\Carbon::parse($thisMonth['resigned_on'])->format('j M Y') : null,
+                            ])->filter()->join(', ');
+
+                            $basicNote = match (true) {
+                                $thisMonth['paid_hours'] !== null => rtrim(rtrim(number_format((float) $thisMonth['paid_hours'], 2, '.', ''), '0'), '.')
+                                    . ' hrs × RM ' . number_format((float) $thisMonth['pay_rate'], 2),
+                                $partMonth => $thisMonth['paid_days'] . ' of ' . $thisMonth['period_days'] . ' days employed'
+                                    . ($why ? ' — ' . $why : ''),
+                                $thisMonth['paid_days'] !== null => $thisMonth['paid_days'] . ' ' . \Illuminate\Support\Str::plural('day', (int) $thisMonth['paid_days'])
+                                    . ' × RM ' . number_format((float) $thisMonth['pay_rate'], 2),
+                                default => null,
+                            };
+                        @endphp
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">
+                                Basic
+                                @if ($basicNote)
+                                    <span class="block text-[11px] text-gray-500">{{ $basicNote }}</span>
+                                @endif
+                            </dt>
+                            <dd class="tabular-nums text-gray-800">{{ number_format($thisMonth['basic'], 2) }}</dd>
+                        </div>
                         @foreach ($thisMonth['components']->where('kind', 'allowance') as $c)
                             <div class="flex justify-between"><dt class="text-gray-600 pl-3">{{ $c['name'] }}</dt><dd class="tabular-nums text-gray-800">{{ number_format($c['amount'], 2) }}</dd></div>
                         @endforeach
@@ -145,6 +188,21 @@
                         <div class="flex justify-between"><dt class="text-gray-600">SOCSO</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['socso_employee'], 2) }}</dd></div>
                         <div class="flex justify-between"><dt class="text-gray-600">EIS</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['eis_employee'], 2) }}</dd></div>
                         <div class="flex justify-between"><dt class="text-gray-600">PCB</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['pcb'], 2) }}</dd></div>
+                        {{-- SKBBK IS DEDUCTED, SO IT IS LISTED.
+                             It goes into employee_total and therefore into the
+                             net below, and leaving it off this list left a net
+                             sitting under a gross with every visible line at
+                             0.00 — RM11.13 short, with nothing on the page
+                             accounting for it. Shown only when charged, the
+                             same rule the payslip uses: the scheme is off for
+                             most companies and opt-out for locals, and a
+                             permanent "SKBBK 0.00" is a question of its own. --}}
+                        @if (($st['skbbk'] ?? 0) > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-600">SKBBK <span class="text-gray-400">(LINDUNG 24 Jam)</span></dt>
+                                <dd class="tabular-nums text-gray-800">{{ number_format($st['skbbk'], 2) }}</dd>
+                            </div>
+                        @endif
                         <div class="flex justify-between pt-2 mt-2 border-t border-gray-100 font-semibold">
                             <dt class="text-gray-700">Net pay</dt><dd class="tabular-nums text-gray-900">{{ number_format($thisMonth['net'], 2) }}</dd>
                         </div>
@@ -155,6 +213,16 @@
                         <div class="flex justify-between"><dt class="text-gray-600">EPF</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['epf_employer'], 2) }}</dd></div>
                         <div class="flex justify-between"><dt class="text-gray-600">SOCSO</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['socso_employer'], 2) }}</dd></div>
                         <div class="flex justify-between"><dt class="text-gray-600">EIS</dt><dd class="tabular-nums text-gray-800">{{ number_format($st['eis_employer'], 2) }}</dd></div>
+                        {{-- The same omission on the employer side: the levy is
+                             inside employer_total and therefore inside the cost
+                             below, so leaving it off made the total exceed the
+                             lines above it by an unexplained amount. --}}
+                        @if (($st['hrdf_employer'] ?? 0) > 0)
+                            <div class="flex justify-between">
+                                <dt class="text-gray-600">HRD Corp levy</dt>
+                                <dd class="tabular-nums text-gray-800">{{ number_format($st['hrdf_employer'], 2) }}</dd>
+                            </div>
+                        @endif
                         <div class="flex justify-between pt-2 mt-2 border-t border-gray-100 font-semibold">
                             <dt class="text-gray-700">Total cost to company</dt><dd class="tabular-nums text-gray-900">{{ number_format($thisMonth['employer_cost'], 2) }}</dd>
                         </div>

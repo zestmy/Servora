@@ -490,6 +490,17 @@
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scAbsPercent') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
+                <div>
+                    {{-- The hint is in the label and the title, not on a line
+                         below: this row is items-end, so a helper under one
+                         field lifts that field's input out of alignment. --}}
+                    <label class="block text-xs text-gray-500 mb-1">Min working days <span class="text-gray-400">(0 = none)</span></label>
+                    <input type="number" step="1" min="0" max="{{ \App\Livewire\Hr\AttendanceRecords::MAX_DAYS }}"
+                           wire:model="scMinWorkingDays"
+                           title="Days someone must have worked in this period to share the pool. Unrecorded (UNR) days, days off and absences do not count — which is what keeps a joiner or a leaver from taking a full share of a month they were barely in."
+                           class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
+                    @error('scMinWorkingDays') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
+                </div>
                 <button wire:click="saveServiceCharge"
                         class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
                     Save &amp; Calculate
@@ -629,6 +640,14 @@
                     // disappears between periods reads as a bug, and the rate
                     // needs somewhere to live.
                     $showLate = $serviceCharge['hasLate'] || $lateRatePerMinute > 0;
+
+                    // The days column earns its width only where a minimum is
+                    // in force — and then it must be there, because it is the
+                    // figure the qualifying decision was made on and the one
+                    // anybody querying a zero row will ask to see.
+                    $scMinDays = (int) ($serviceCharge['minDays'] ?? 0);
+                    $showDays  = $scMinDays > 0;
+                    $scLeadSpan = 5 + ($showLate ? 1 : 0) + ($showDays ? 1 : 0);
                 @endphp
                 <div class="overflow-x-auto">
                     <table class="table-surface">
@@ -636,6 +655,12 @@
                             <tr>
                                 <th class="px-3 py-2 text-left">Name</th>
                                 <th class="px-2 py-2 text-right">Svc Pts</th>
+                                @if ($showDays)
+                                    <th class="px-2 py-2 text-center">
+                                        Days
+                                        <span class="block font-normal normal-case text-[10px] text-gray-500">min {{ $scMinDays }}</span>
+                                    </th>
+                                @endif
                                 <th class="px-2 py-2 text-center">MC Days</th>
                                 <th class="px-2 py-2 text-center">ABS Days</th>
                                 @if ($showLate)
@@ -685,6 +710,12 @@
                                         @endif
                                     </td>
                                     <td class="px-2 py-1.5 text-right text-gray-600">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
+                                    @if ($showDays)
+                                        <td class="px-2 py-1.5 text-center {{ ($scRow['belowMinDays'] ?? false) ? 'text-danger-600 font-semibold' : 'text-gray-600' }}"
+                                            title="Days worked in this period. Unrecorded (UNR) days, days off and absences do not count.">
+                                            {{ (int) ($scRow['workDays'] ?? 0) }}
+                                        </td>
+                                    @endif
                                     <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-warning-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['mcDays'] }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['absDays'] }}</td>
                                     @if ($showLate)
@@ -717,6 +748,14 @@
                                             <span class="text-[11px] text-brand-700">
                                                 paid from {{ $scRow['employee']->serviceChargeOutlet?->name ?? 'another outlet' }}
                                             </span>
+                                        @elseif ($scRow['belowMinDays'] ?? false)
+                                            {{-- A rule, not a decision about this person, so
+                                                 it says which rule and what they had. "Excluded"
+                                                 on its own would send somebody looking for a
+                                                 tick nobody ever put there. --}}
+                                            <span class="text-[11px] text-gray-500">
+                                                {{ (int) ($scRow['workDays'] ?? 0) }} of {{ $scMinDays }} working days
+                                            </span>
                                         @elseif ($scRow['excluded'])
                                             <span class="text-[11px] text-gray-500">excluded</span>
                                         @else
@@ -739,7 +778,7 @@
                         </tbody>
                         <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold">
                             <tr>
-                                <td class="px-3 py-2 text-gray-700" colspan="{{ $serviceCharge['hasLate'] ? 6 : 5 }}">Total</td>
+                                <td class="px-3 py-2 text-gray-700" colspan="{{ $scLeadSpan }}">Total</td>
                                 <td class="px-2 py-2 text-right text-gray-700 tabular-nums">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                                 <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
                                 @if ($showLate)
@@ -754,7 +793,7 @@
                                 {{-- Funds sit under the staff total because they are
                                      paid out of the same pool at the same rate. --}}
                                 <tr class="text-gray-700 font-normal">
-                                    <td class="px-3 py-1.5 italic" colspan="{{ $showLate ? 6 : 5 }}">{{ $fund['name'] }}</td>
+                                    <td class="px-3 py-1.5 italic" colspan="{{ $scLeadSpan }}">{{ $fund['name'] }}</td>
                                     <td class="px-2 py-1.5 text-right tabular-nums">{{ number_format($fund['amount'], 2) }}</td>
                                     <td colspan="{{ $showLate ? 3 : 2 }}"></td>
                                     <td class="px-2 py-1.5 text-right tabular-nums">{{ number_format($fund['amount'], 2) }}</td>
@@ -762,7 +801,7 @@
                             @endforeach
                             @if (! empty($serviceCharge['funds']))
                                 <tr class="border-t border-gray-200">
-                                    <td class="px-3 py-2 text-gray-700" colspan="{{ $showLate ? 10 : 8 }}">
+                                    <td class="px-3 py-2 text-gray-700" colspan="{{ 8 + ($showLate ? 2 : 0) + ($showDays ? 1 : 0) }}">
                                         Allocated of RM {{ number_format($serviceCharge['distributable'], 2) }} distributable
                                     </td>
                                     <td class="px-2 py-2 text-right text-teal-700 tabular-nums">{{ number_format($serviceCharge['allocated'], 2) }}</td>
@@ -784,6 +823,12 @@
                         Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift, taken after the percentage deduction and never below a net of zero.
                     @endif
                     Special deduction is agreed per person for this period and is taken last, never below a net of zero.
+                    @if ($showDays)
+                        Anyone with fewer than {{ $scMinDays }} working days in this period takes no share, and their points come out of the
+                        divisor with them, so the RM/point above is what the qualifying staff actually share.
+                        Days worked count cells with any mark except Unrecorded (UNR), Day Off and Absent — an unrecorded day is one
+                        the person was not here for at all, before they joined or after they left. Leave days count.
+                    @endif
                     Employees without Service Points are excluded from the split.
                     While this panel is open, the PDF export includes this table.
                 </p>

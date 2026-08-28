@@ -672,6 +672,13 @@
                         <th class="px-2 py-2 text-right">SOCSO</th>
                         <th class="px-2 py-2 text-right">EIS</th>
                         <th class="px-2 py-2 text-right">PCB</th>
+                        {{-- SKBBK is inside every line's net, so leaving it out
+                             printed a net the columns beside it could not add
+                             up to. Shown when the run actually charged it, the
+                             same rule the service charge column above uses. --}}
+                        @if ($hasSkbbk)
+                            <th class="px-2 py-2 text-right">SKBBK</th>
+                        @endif
                         <th class="px-2 py-2 text-right">Net</th>
                         <th class="px-2 py-2"></th>
                     </tr>
@@ -708,6 +715,16 @@
                                             &times; {{ number_format((float) $line->pay_rate, 2) }}
                                         @endif
                                     </span>
+                                @elseif ($line->isProrated())
+                                    {{-- A part month is the other figure nobody can
+                                         check against the grid without being told
+                                         what it was divided by. The payslip has said
+                                         this for a while; the run it comes from had
+                                         only the hourly case. --}}
+                                    <span class="block text-[10px] text-gray-500 whitespace-nowrap"
+                                          title="{{ $line->employmentNote() ?: 'part month' }}">
+                                        {{ $line->prorationLabel() }}
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-700">{{ (float) $line->allowances > 0 ? number_format((float) $line->allowances, 2) : '—' }}</td>
@@ -730,6 +747,9 @@
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ (float) $line->socso_employee > 0 ? number_format((float) $line->socso_employee, 2) : '—' }}</td>
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ (float) $line->eis_employee > 0 ? number_format((float) $line->eis_employee, 2) : '—' }}</td>
                             <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ (float) $line->pcb > 0 ? number_format((float) $line->pcb, 2) : '—' }}</td>
+                            @if ($hasSkbbk)
+                                <td class="px-2 py-1.5 text-right tabular-nums text-gray-600">{{ (float) $line->skbbk > 0 ? number_format((float) $line->skbbk, 2) : '—' }}</td>
+                            @endif
                             <td class="px-2 py-1.5 text-right tabular-nums font-semibold text-brand-700">{{ number_format((float) $line->net, 2) }}</td>
                             <td class="px-2 py-1.5 text-right whitespace-nowrap">
                                 <a href="{{ route('hr.payroll.payslip', [$run, $line]) }}"
@@ -754,7 +774,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="13" class="px-3 py-6 text-center text-sm text-gray-600">
+                        <tr><td colspan="{{ 13 + ($hasSkbbk ? 1 : 0) }}" class="px-3 py-6 text-center text-sm text-gray-600">
                             No employees in this run.
                         </td></tr>
                     @endforelse

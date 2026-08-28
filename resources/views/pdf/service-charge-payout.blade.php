@@ -132,6 +132,11 @@
                 That total includes {{ number_format($serviceCharge['fundPoints'], 2) }} points allocated to
                 {{ collect($serviceCharge['funds'])->pluck('name')->join(', ', ' and ') }}.
             @endif
+            @if (($serviceCharge['minDays'] ?? 0) > 0)
+                {{-- Says what the divisor was narrowed by, on the document the
+                     staff member actually receives. --}}
+                A share required at least {{ (int) $serviceCharge['minDays'] }} working days in this period.
+            @endif
             <br>
             Generated {{ now()->format('d M Y, H:i') }} by {{ $exportedBy }}.
         </div>

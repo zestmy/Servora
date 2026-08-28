@@ -16,6 +16,7 @@ class ServiceChargePeriod extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'period_from', 'period_to',
         'amount', 'retention_percent', 'mc_percent', 'abs_percent',
+        'min_working_days',
         'fund_allocations', 'special_deductions', 'excluded_employees',
         'distribution', 'calculated_at', 'calculated_by',
     ];
@@ -27,6 +28,7 @@ class ServiceChargePeriod extends Model
         'retention_percent'  => 'decimal:2',
         'mc_percent'         => 'decimal:2',
         'abs_percent'        => 'decimal:2',
+        'min_working_days'   => 'integer',
         'fund_allocations'   => 'array',
         'special_deductions' => 'array',
         'excluded_employees' => 'array',
@@ -61,19 +63,25 @@ class ServiceChargePeriod extends Model
         return [
             'rows' => collect($computed['rows'])
                 ->mapWithKeys(fn ($r) => [(string) $r['employee']->id => [
-                    'excluded'    => (bool) $r['excluded'],
-                    'elsewhere'   => (bool) $r['elsewhere'],
-                    'points'      => (float) $r['points'],
-                    'mcDays'      => (int) $r['mcDays'],
-                    'absDays'     => (int) $r['absDays'],
-                    'dedPct'      => (float) $r['dedPct'],
-                    'gross'       => (float) $r['gross'],
-                    'dedAmt'      => (float) $r['dedAmt'],
-                    'lateMins'    => (int) $r['lateMins'],
-                    'lateAmt'     => (float) $r['lateAmt'],
-                    'specialAmt'  => (float) $r['specialAmt'],
-                    'specialNote' => $r['specialNote'],
-                    'net'         => (float) $r['net'],
+                    'excluded'     => (bool) $r['excluded'],
+                    'elsewhere'    => (bool) $r['elsewhere'],
+                    'points'       => (float) $r['points'],
+                    'mcDays'       => (int) $r['mcDays'],
+                    'absDays'      => (int) $r['absDays'],
+                    'dedPct'       => (float) $r['dedPct'],
+                    'gross'        => (float) $r['gross'],
+                    'dedAmt'       => (float) $r['dedAmt'],
+                    'lateMins'     => (int) $r['lateMins'],
+                    'lateAmt'      => (float) $r['lateAmt'],
+                    'specialAmt'   => (float) $r['specialAmt'],
+                    'specialNote'  => $r['specialNote'],
+                    'net'          => (float) $r['net'],
+                    // Kept because it is the REASON a row is zero. Without it
+                    // a period calculated under a 15-day minimum reads back
+                    // as an unexplained exclusion once the days have been
+                    // re-marked, and nobody can tell what it was judged on.
+                    'workDays'     => (int) ($r['workDays'] ?? 0),
+                    'belowMinDays' => (bool) ($r['belowMinDays'] ?? false),
                 ]])
                 ->all(),
             'totals'        => $computed['totals'],
@@ -89,6 +97,7 @@ class ServiceChargePeriod extends Model
             'perPoint'      => $computed['perPoint'],
             'mcPct'         => $computed['mcPct'],
             'absPct'        => $computed['absPct'],
+            'minDays'       => $computed['minDays'],
         ];
     }
 
@@ -122,13 +131,20 @@ class ServiceChargePeriod extends Model
                     'points' => 0.0, 'mcDays' => 0, 'absDays' => 0, 'dedPct' => 0.0,
                     'gross' => 0.0, 'dedAmt' => 0.0, 'lateMins' => 0, 'lateAmt' => 0.0,
                     'specialAmt' => 0.0, 'specialNote' => null, 'net' => 0.0,
+                    'workDays' => 0, 'belowMinDays' => false,
                     // The reason the row is empty, so a screen can say
                     // "not in this calculation" rather than "excluded".
                     'notInPool' => true,
                 ];
             }
 
-            return $r + ['employee' => $emp, 'notInPool' => false];
+            // The defaults are for pools calculated before a minimum existed:
+            // `+` keeps whatever the snapshot holds, so a period that WAS
+            // judged on working days still reads back with its own figures.
+            return $r + [
+                'employee' => $emp, 'notInPool' => false,
+                'workDays' => 0, 'belowMinDays' => false,
+            ];
         })->values()->all();
 
         return [
@@ -147,9 +163,11 @@ class ServiceChargePeriod extends Model
             'perPoint'      => $snapshot['perPoint'],
             'mcPct'         => $snapshot['mcPct'],
             'absPct'        => $snapshot['absPct'],
+            'minDays'       => $snapshot['minDays'] ?? 0,
             'hasLate'       => ($snapshot['totals']['lateAmt'] ?? 0) > 0 || ($snapshot['totals']['lateMins'] ?? 0) > 0,
             'hasSpecial'    => ($snapshot['totals']['specialAmt'] ?? 0) > 0,
             'hasExcluded'   => collect($rows)->contains('excluded', true),
+            'hasBelowMin'   => collect($rows)->contains('belowMinDays', true),
             // So a screen can say when it was fixed and by whom.
             'frozen'        => true,
             'calculatedAt'  => $this->calculated_at,
@@ -160,6 +178,7 @@ class ServiceChargePeriod extends Model
     /** MySQL does not read column defaults back after an insert. */
     protected $attributes = [
         'retention_percent' => 0,
+        'min_working_days'  => 0,
     ];
 
     /** What is actually shared out, after the company's retention. */
@@ -238,6 +257,97 @@ class ServiceChargePeriod extends Model
         return $ids ? $query->whereNotIn('employees.id', $ids) : $query;
     }
 
+    /**
+     * Days somebody must have WORKED in this period to share the pool.
+     *
+     * Zero — the default, and what every pool saved before the column existed
+     * holds — means no minimum, so the rule is off unless somebody sets it.
+     */
+    public function minWorkingDays(): int
+    {
+        return max(0, (int) $this->min_working_days);
+    }
+
+    /**
+     * Working days per employee, counted off the attendance grid.
+     *
+     * WHAT COUNTS. A day counts when the cell carries a mark that says the
+     * person was engaged that day. Three kinds of mark do not:
+     *
+     *  - UNRECORDED (UNR), and an empty cell, which is the same statement
+     *    written two ways. UNR is how the grid says "nothing to record here" —
+     *    the person had not started yet, or had already left. Counting it
+     *    would hand a full month to somebody who worked three days of it,
+     *    which is the exact case this whole option exists for.
+     *  - DAY OFF. A rest day is not a working day in any month-end
+     *    conversation, and counting it would let a rota with four offs a week
+     *    clear a minimum nobody actually worked.
+     *  - ABSENT. A day they did not turn up for is not a day worked. It also
+     *    already carries its own per-day deduction, so it is never free.
+     *
+     * LEAVE COUNTS — annual, sick, public holiday, replacement. The person
+     * was employed and entitled to be away; MC carries its own deduction and
+     * losing the entire share on top of it would be the same day charged
+     * twice. The minimum is a test of ENGAGEMENT over the period, not of
+     * attendance within it.
+     *
+     * Codes are per-company configurable, so UNR is matched the way MC is in
+     * distribute(): on the code itself, or on a label that says unrecorded.
+     * Day off and absent are matched on their system keys, which cannot be
+     * renamed out from under this.
+     *
+     * @param  \Illuminate\Support\Collection  $codes    every AttendanceCode
+     * @param  iterable  $cellMap  "empId:Y-m-d" => attendance_code_id
+     * @return array<int, int>  employee_id => working days
+     */
+    public static function workingDayCounts($codes, $cellMap): array
+    {
+        $notWorkedIds = $codes
+            ->filter(fn ($c) => strtoupper(trim($c->code)) === 'UNR'
+                || stripos($c->label, 'unrecorded') !== false
+                || in_array($c->system_key, ['off', 'absent'], true))
+            ->pluck('id')
+            ->all();
+
+        $counts = [];
+        foreach ($cellMap as $key => $codeId) {
+            if ($codeId === null || in_array($codeId, $notWorkedIds, true)) {
+                continue;
+            }
+            $empId = (int) strtok($key, ':');
+            $counts[$empId] = ($counts[$empId] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Employee ids that fall short of a minimum, out of a working-day count.
+     *
+     * Lives here so the ROWS and the DIVISOR are decided by one function. The
+     * points of somebody who does not qualify have to leave the RM/point base
+     * as well as the table — a share withheld while its points stay in the
+     * divisor under-allocates the pool, and every consumer computes that base
+     * its own way. Same failure the exclusions have, same fix.
+     *
+     * @param  \Illuminate\Support\Collection  $employees
+     * @param  array<int, int>  $workDays  employee_id => working days
+     * @return array<int, int>
+     */
+    public static function belowMinimumWorkingDays($employees, array $workDays, int $minDays): array
+    {
+        if ($minDays <= 0) {
+            return [];
+        }
+
+        return $employees
+            ->filter(fn ($e) => ($workDays[$e->id] ?? 0) < $minDays)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
@@ -274,6 +384,13 @@ class ServiceChargePeriod extends Model
      * filtering the grid must never inflate the RM/point value. Falls back
      * to summing $employees when not given.
      *
+     * $minDaysFallback is the qualifying period in WORKING DAYS, used only
+     * while no pool row exists yet ($row null) — a saved pool carries its own,
+     * exactly as the percentages do. Somebody below it takes no share and
+     * their points leave the divisor with them; see workingDayCounts() for
+     * what counts as a working day, and note that $totalPoints must already
+     * have had them taken out of it by the caller that computed it.
+     *
      * $latePenalties is the web clock-in's lateness charge, keyed by
      * employee_id — see LatePenalties::forPeriod(). It is a flat RM figure
      * rather than another percentage, because it is priced per MINUTE and a
@@ -283,7 +400,7 @@ class ServiceChargePeriod extends Model
      * charge can be reduced to nothing, but it is a share of a pool, not a
      * debt, and it must never invert into money owed.
      */
-    public static function distribute(?self $row, ?int $poolOutletId, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = [], bool $recalculate = false): array
+    public static function distribute(?self $row, ?int $poolOutletId, $employees, $codes, $cellMap, float $mcPctFallback = 5.0, float $absPctFallback = 10.0, ?float $totalPoints = null, array $latePenalties = [], bool $recalculate = false, int $minDaysFallback = 0): array
     {
         /*
          * A CALCULATED PERIOD RETURNS WHAT IT WAS CALCULATED AS.
@@ -310,6 +427,12 @@ class ServiceChargePeriod extends Model
             ->pluck('id')->all();
         $absentId = $codes->firstWhere('system_key', 'absent')?->id;
 
+        // Days actually worked, for the qualifying minimum below. Counted
+        // from the same $cellMap as MC and absence, so a period cannot be
+        // judged on one reading of the grid and deducted on another.
+        $workCounts = static::workingDayCounts($codes, $cellMap);
+        $minDays    = $row ? $row->minWorkingDays() : max(0, $minDaysFallback);
+
         $mcCounts  = [];
         $absCounts = [];
         foreach ($cellMap as $key => $codeId) {
@@ -318,8 +441,15 @@ class ServiceChargePeriod extends Model
             if ($codeId === $absentId)               $absCounts[$empId] = ($absCounts[$empId] ?? 0) + 1;
         }
 
+        // The fallback drops anyone short of the minimum, because they are
+        // about to be paid nothing: points left in the divisor for a share
+        // that is never handed out under-allocate the pool. Callers that work
+        // the base out from the database pass $totalPoints and must take the
+        // same people out there — see belowMinimumWorkingDays().
         $staffPoints = $totalPoints
-            ?? $employees->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
+            ?? $employees
+                ->reject(fn ($e) => $minDays > 0 && ($workCounts[$e->id] ?? 0) < $minDays)
+                ->sum(fn ($e) => max(0, (float) $e->service_points_entitlement));
 
         // Funds take points alongside staff, so they dilute every share exactly
         // as another employee would — which is the point of expressing an
@@ -383,11 +513,31 @@ class ServiceChargePeriod extends Model
             $elsewhere = $poolOutletId !== null
                 && (int) $emp->serviceChargeOutletId() !== (int) $poolOutletId;
 
+            /*
+             * Short of the qualifying period.
+             *
+             * The case this is for is the joiner who started on the 27th and
+             * the leaver who went on the 3rd: service points are an
+             * entitlement somebody holds whether or not they worked the
+             * period, so without a minimum both take a FULL share of a month
+             * they were barely in, out of the pockets of everyone who worked
+             * it. Their days read UNR either side of their employment, which
+             * is exactly what workingDayCounts() declines to count.
+             *
+             * Flagged separately from `excluded` for the same reason
+             * `elsewhere` is: the screen has to be able to say WHY a row is
+             * zero, and "excluded from this pool" is a decision somebody made
+             * about one person, where this is a rule the whole pool was
+             * calculated under.
+             */
+            $workDays     = $workCounts[$emp->id] ?? 0;
+            $belowMinDays = $minDays > 0 && $workDays < $minDays;
+
             // Excluded from this pool: no points, so no share and nothing to
             // deduct from. The row is still listed — a name that simply
             // vanished from the table would look like a bug, and "excluded"
             // is the answer to why the figure is zero.
-            $excluded = $elsewhere || ($row ? $row->excludes($emp->id) : false);
+            $excluded = $elsewhere || $belowMinDays || ($row ? $row->excludes($emp->id) : false);
 
             $points  = $excluded ? 0.0 : max(0, (float) $emp->service_points_entitlement);
             $mcDays  = $mcCounts[$emp->id] ?? 0;
@@ -413,24 +563,29 @@ class ServiceChargePeriod extends Model
             $specialAmt = min(max(0.0, $gross - $dedAmt - $lateAmt), $special['amount']);
 
             $rows[] = [
-                'employee'    => $emp,
-                'excluded'    => $excluded,
+                'employee'     => $emp,
+                'excluded'     => $excluded,
                 // Kept separate from `excluded` even though it forces it, so a
                 // screen can say "paid from KLCC" rather than the flatly
                 // misleading "excluded from the service charge" — this person
                 // is being paid, just not out of this pool.
-                'elsewhere'   => $elsewhere,
-                'points'      => $points,
-                'mcDays'      => $mcDays,
-                'absDays'     => $absDays,
-                'dedPct'      => $dedPct,
-                'gross'       => $gross,
-                'dedAmt'      => $dedAmt,
-                'lateMins'    => $lateMins,
-                'lateAmt'     => $lateAmt,
-                'specialAmt'  => $specialAmt,
-                'specialNote' => $special['note'],
-                'net'         => $gross - $dedAmt - $lateAmt - $specialAmt,
+                'elsewhere'    => $elsewhere,
+                // Days worked and whether they cleared the minimum, so the
+                // table can show the count it was judged on rather than
+                // asking anybody to re-count the grid by eye.
+                'workDays'     => $workDays,
+                'belowMinDays' => $belowMinDays,
+                'points'       => $points,
+                'mcDays'       => $mcDays,
+                'absDays'      => $absDays,
+                'dedPct'       => $dedPct,
+                'gross'        => $gross,
+                'dedAmt'       => $dedAmt,
+                'lateMins'     => $lateMins,
+                'lateAmt'      => $lateAmt,
+                'specialAmt'   => $specialAmt,
+                'specialNote'  => $special['note'],
+                'net'          => $gross - $dedAmt - $lateAmt - $specialAmt,
             ];
             $totals['gross']      += $gross;
             $totals['deduction']  += $dedAmt;
@@ -457,9 +612,11 @@ class ServiceChargePeriod extends Model
             'perPoint'      => $perPoint,
             'mcPct'         => $mcPct,
             'absPct'        => $absPct,
+            'minDays'       => $minDays,
             'hasLate'       => $totals['lateAmt'] > 0 || $totals['lateMins'] > 0,
             'hasSpecial'    => $totals['specialAmt'] > 0,
             'hasExcluded'   => collect($rows)->contains('excluded', true),
+            'hasBelowMin'   => collect($rows)->contains('belowMinDays', true),
         ];
     }
 }
