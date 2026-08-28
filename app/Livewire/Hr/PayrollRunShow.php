@@ -748,7 +748,10 @@ class PayrollRunShow extends Component
         $claims = \App\Models\OvertimeClaim::withoutGlobalScopes()
             ->whereIn('employee_id', $employeeIds)
             ->whereIn('status', ['submitted', 'draft'])
-            ->whereBetween('claim_date', [$run->period_start, $run->period_end])
+            // The OVERTIME period: this has to describe the same window the
+            // run paid from, or it reports claims the run was never going to
+            // include and stays quiet about ones it was.
+            ->whereBetween('claim_date', $this->overtimeWindow($run))
             ->with('employee:id,name')
             ->get();
 
@@ -762,6 +765,17 @@ class PayrollRunShow extends Component
             'names' => $submitted->map(fn ($c) => $c->employee?->name)
                 ->filter()->unique()->sort()->values()->join(', '),
         ];
+    }
+
+    /**
+     * The window this run pays overtime over — its own period on an ordinary
+     * run, and always the same expression the run paid and settled with.
+     *
+     * @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}
+     */
+    private function overtimeWindow(PayrollRun $run): array
+    {
+        return $run->periodFor(\App\Services\Payroll\RunPeriods::OVERTIME);
     }
 
     /**
@@ -790,7 +804,7 @@ class PayrollRunShow extends Component
             // Not this run's own: those ARE on it, and naming them would
             // report a problem that does not exist.
             ->where(fn ($q) => $q->whereNull('paid_in_run_id')->orWhere('paid_in_run_id', '!=', $run->id))
-            ->whereBetween('claim_date', [$run->period_start, $run->period_end])
+            ->whereBetween('claim_date', $this->overtimeWindow($run))
             ->with('employee:id,name', 'paidInRun:id,reference')
             ->get();
 
@@ -823,8 +837,14 @@ class PayrollRunShow extends Component
             return null;
         }
 
-        $from = \Carbon\Carbon::parse($run->period_start)->toDateString();
-        $to   = \Carbon\Carbon::parse($run->period_end)->toDateString();
+        // THE SERVICE CHARGE PERIOD: the pool is looked up over it, so it is
+        // the one that either matches or does not. Reporting the run's own
+        // period here would name the wrong dates as the problem on exactly the
+        // runs this feature exists for.
+        [$from, $to] = array_map(
+            fn ($d) => $d->toDateString(),
+            $run->periodFor(\App\Services\Payroll\RunPeriods::SERVICE_CHARGE),
+        );
 
         // Pools that OVERLAP this run's period. The overlap is what says the
         // company levies a service charge over roughly this time; the exact
@@ -858,8 +878,11 @@ class PayrollRunShow extends Component
             return $p->outlet?->name ? $p->outlet->name . ' ' . $label : $label;
         })->join('; ');
 
-        return 'No service charge was paid by this run. A pool is matched on its exact dates, and this run covers '
-            . $run->rangeLabel() . ' while the saved pool(s) cover ' . $named
+        $covers = $run->periods()->label(\App\Services\Payroll\RunPeriods::SERVICE_CHARGE)
+            ?? $run->rangeLabel();
+
+        return 'No service charge was paid by this run. A pool is matched on its exact dates, and this run looks for one covering '
+            . $covers . ' while the saved pool(s) cover ' . $named
             . ($overlapping->count() > 4 ? ' and others' : '')
             . '. Either save a pool for this run\'s dates, or generate the run over the pool\'s.';
     }

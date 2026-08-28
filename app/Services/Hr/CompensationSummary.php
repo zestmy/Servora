@@ -8,6 +8,7 @@ use App\Models\EmployeePayComponent;
 use App\Models\OvertimeClaim;
 use App\Models\StatutorySetting;
 use App\Scopes\CompanyScope;
+use App\Services\Payroll\RunPeriods;
 use App\Services\Payroll\StatutoryCalculator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,6 +53,12 @@ class CompensationSummary
      *         the same thing.
      * @param  ?int  $settlingRunId  the run being built, when it already
      *         exists as a draft. Its OWN settled claims stay in.
+     * @param  ?RunPeriods  $periods  the dates each INPUT is counted over,
+     *         when a run gives attendance or overtime a range of its own.
+     *         Null means everything is counted over $from–$to, which is what
+     *         the live screens and every ordinary run do. Its master must be
+     *         the same $from–$to resolved below, and a mismatch throws rather
+     *         than letting two answers to "what period is this" coexist.
      * @return array{
      *     rows: Collection,
      *     totals: array<string, float>,
@@ -68,6 +75,7 @@ class CompensationSummary
         array $adjustments = [],
         bool $forPayrollRun = false,
         ?int $settlingRunId = null,
+        ?RunPeriods $periods = null,
     ): array {
         $settings = CompensationSetting::forCompany($companyId);
 
@@ -83,6 +91,51 @@ class CompensationSummary
         $from = $from->copy()->startOfDay();
         $to   = $to->copy()->endOfDay();
 
+        /*
+         * WHICH DATES EACH INPUT USES.
+         *
+         * $from–$to is the MASTER period and stays the answer for almost
+         * everything below. Only two of the queries in this method read a
+         * component period at all — the attendance one and the overtime one —
+         * and each is marked where it does.
+         *
+         * WHAT MUST KEEP USING THE MASTER, and why each would be a way to pay
+         * the wrong amount:
+         *
+         *   $staff          who is on the run. A shorter overtime window must
+         *                   not drop a leaver off the payroll.
+         *   $assignments    dated allowances. They are contractual; an
+         *                   attendance window has nothing to say about them.
+         *   $eligibleFrom   part-month proration, both the eligible days and
+         *   $wagePeriodDays the s.60I divisor. A short attendance window
+         *                   reaching either would cut every monthly salary on
+         *                   the run — the most expensive mistake available
+         *                   here.
+         *   $to (as asOf)   statutory age bands, and $month for PCB
+         *                   year-to-date.
+         *
+         * Defaulting to a periods object with no overrides rather than
+         * branching on null at each use: one shape, and the ordinary case
+         * answers the master to every question asked of it.
+         */
+        $periods ??= new RunPeriods($from, $to);
+
+        // Two sources of truth for "what period is this" is how the two ends
+        // of a calculation drift apart. Caught here, loudly, rather than
+        // showing up as a figure nobody can reconcile.
+        [$periodsFrom, $periodsTo] = $periods->master();
+
+        if ($periodsFrom->toDateString() !== $from->toDateString()
+            || $periodsTo->toDateString() !== $to->toDateString()) {
+            throw new \InvalidArgumentException(
+                'The run periods were built for ' . $periodsFrom->toDateString() . '–' . $periodsTo->toDateString()
+                . ' but this month resolves to ' . $from->toDateString() . '–' . $to->toDateString() . '.'
+            );
+        }
+
+        [$attendanceFrom, $attendanceTo] = $periods->attendance();
+        [$overtimeFrom, $overtimeTo]     = $periods->overtime();
+
         // Built once for the whole run: the rates are company-wide, only the
         // employee's own profile varies.
         $statutorySettings = StatutorySetting::forCompany($companyId);
@@ -92,12 +145,22 @@ class CompensationSummary
 
         // Staff who were employed for any part of the month: a leaver is still
         // owed for the days they worked, which is the point of the period.
+        //
+        // THE MASTER PERIOD, always. This is "who does this run pay", and a
+        // component window narrowing it would drop somebody off the payroll
+        // over a timesheet date. Somebody who left before this run therefore
+        // has no line here even if the overtime window reaches back into a
+        // month they worked — they are not on this run, and their hours wait
+        // for one they are on.
         $staff = (clone $employees)
             ->employedDuring($from->toDateString(), $to->toDateString())
             ->with('outlet:id,name', 'section:id,name')
             ->orderBy('name')
             ->get();
 
+        // THE MASTER PERIOD: an allowance is dated and contractual, and the
+        // days a timesheet happens to cover say nothing about whether it was
+        // owed.
         $assignments = EmployeePayComponent::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->whereIn('employee_id', $staff->pluck('id'))
@@ -115,7 +178,28 @@ class CompensationSummary
             // never reach a payslip, and PayrollRun::settleOvertime() likewise
             // leaves them alone so they stay available to take.
             ->where('settlement', OvertimeClaim::SETTLE_PAYROLL)
-            ->whereBetween('claim_date', [$from->toDateString(), $to->toDateString()])
+            /*
+             * THE OVERTIME PERIOD, which is not always the run's own.
+             *
+             * Claims are often approved a cycle behind, so a run pays hours
+             * that were worked before its period started. Paired with the
+             * paid_at guard below, which is what keeps a window that reaches
+             * back from paying hours an earlier run already settled.
+             *
+             * PayrollRun::settleOvertime() reads the same window, or approval
+             * would stamp a different set of claims from the one the run paid.
+             *
+             * BOUND AS DATETIMES SPANNING WHOLE DAYS, not as date strings.
+             * claim_date is a DATE column: MySQL reads it back at midnight and
+             * compares happily against a date string, but SQLite keeps the
+             * "Y-m-d H:i:s" Eloquent wrote and sorts '2026-06-30 00:00:00'
+             * AFTER '2026-06-30' — so a claim on the last day of the window
+             * was dropped under the test driver and paid under the production
+             * one. A boundary that behaves differently in CI from production
+             * is a regression the suite cannot catch; RunPeriods already hands
+             * these back at 00:00:00 and 23:59:59, which is right on both.
+             */
+            ->whereBetween('claim_date', [$overtimeFrom, $overtimeTo])
             /*
              * HOURS ANOTHER RUN HAS ALREADY PAID ARE NOT PAID AGAIN.
              *
@@ -176,7 +260,13 @@ class CompensationSummary
             ->where('company_id', $companyId)
             ->whereIn('employee_id', $staff->pluck('id'))
             ->whereNotNull('hours')
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            // THE ATTENDANCE PERIOD: a company may close its timesheet on a
+            // different day from its payroll. Hourly and daily staff only —
+            // a monthly employee's basic never reads the grid.
+            // Whole days at both ends, for the same driver reason as the
+            // overtime window below: a day's work on the last date of the
+            // period must be paid under every database.
+            ->whereBetween('work_date', [$attendanceFrom, $attendanceTo])
             ->selectRaw('employee_id, SUM(hours) as total')
             ->groupBy('employee_id')
             ->pluck('total', 'employee_id');
@@ -193,7 +283,8 @@ class CompensationSummary
             ->where('company_id', $companyId)
             ->whereIn('employee_id', $staff->pluck('id'))
             ->where('hours', '>', 0)
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            // The attendance period, for the same reason as the hours above.
+            ->whereBetween('work_date', [$attendanceFrom, $attendanceTo])
             ->selectRaw('employee_id, COUNT(*) as total')
             ->groupBy('employee_id')
             ->pluck('total', 'employee_id');
@@ -218,6 +309,12 @@ class CompensationSummary
         // Rounded before casting, never truncated: diffInDays returns a float,
         // and (int) on a 29.999999 would quietly shorten the wage period by a
         // day — which would then overpay everybody on an incomplete month.
+        //
+        // NOT A COMPONENT PERIOD, and never one. The divisor is the company's
+        // wage period; the numerator below is the master. An attendance window
+        // reaching either end of this would re-price every monthly salary on
+        // the run against a timesheet date, which is not what s.60I says and
+        // not what anybody asked for.
         [$cycleFrom, $cycleTo] = $settings->cycleFor($month);
         $wagePeriodDays = max(1, (int) round($cycleFrom->copy()->startOfDay()->diffInDays($cycleTo->copy()->startOfDay())) + 1);
 
@@ -282,6 +379,9 @@ class CompensationSummary
              * Both ends are INCLUSIVE — a leaving date is the last working day,
              * which is the same rule Employee::resignationTookEffect() applies.
              */
+            // $from and $to, THE MASTER PERIOD, on both ends. See the note on
+            // $wagePeriodDays: proration is about employment dates against the
+            // wage period, and no component window belongs in it.
             $eligibleFrom = $employee->join_date && $employee->join_date->gt($from)
                 ? $employee->join_date->copy()->startOfDay()
                 : $from->copy()->startOfDay();
@@ -432,6 +532,9 @@ class CompensationSummary
             $taxablePay   = round(max(0, $basic + $allowancesOnly->where('taxable', true)->sum('amount') + $otTotal + $adjWages), 2);
             $gross        = round($basic + $allowances + $otTotal + $adjWages, 2);
 
+            // $to is the MASTER period's end: it sets the age band a
+            // contribution is computed at, and a timesheet or overtime window
+            // has no business moving somebody across a birthday.
             $statutory = $calculator?->for(
                 $employee, $epfWages, $socsoWages, $taxablePay, $to, null,
                 $ytd[$employee->id] ?? null,
