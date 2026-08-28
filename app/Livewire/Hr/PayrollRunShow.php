@@ -765,6 +765,106 @@ class PayrollRunShow extends Component
     }
 
     /**
+     * Approved overtime in this period that a DIFFERENT run already paid.
+     *
+     * The companion to the guard in CompensationSummary: that one stops the
+     * hours being paid twice, this one says out loud that they were left out
+     * and by whom. Same shape and same scoping as pendingOvertime() above —
+     * the employees actually on this run, over this run's period.
+     *
+     * @return array{count: int, names: string, runs: string}
+     */
+    private function overtimeSettledElsewhere(PayrollRun $run): array
+    {
+        $employeeIds = $run->lines()->whereNotNull('employee_id')->pluck('employee_id');
+
+        if ($employeeIds->isEmpty() || ! $run->period_start || ! $run->period_end) {
+            return ['count' => 0, 'names' => '', 'runs' => ''];
+        }
+
+        $claims = \App\Models\OvertimeClaim::withoutGlobalScopes()
+            ->whereIn('employee_id', $employeeIds)
+            ->where('status', 'approved')
+            ->where('settlement', \App\Models\OvertimeClaim::SETTLE_PAYROLL)
+            ->whereNotNull('paid_at')
+            // Not this run's own: those ARE on it, and naming them would
+            // report a problem that does not exist.
+            ->where(fn ($q) => $q->whereNull('paid_in_run_id')->orWhere('paid_in_run_id', '!=', $run->id))
+            ->whereBetween('claim_date', [$run->period_start, $run->period_end])
+            ->with('employee:id,name', 'paidInRun:id,reference')
+            ->get();
+
+        if ($claims->isEmpty()) {
+            return ['count' => 0, 'names' => '', 'runs' => ''];
+        }
+
+        return [
+            'count' => $claims->count(),
+            'names' => $claims->map(fn ($c) => $c->employee?->name)
+                ->filter()->unique()->sort()->values()->join(', '),
+            // Named, because "an earlier run" is not something anybody can go
+            // and look at. A claim whose run has since been deleted still says
+            // something rather than printing an empty bracket.
+            'runs' => $claims->map(fn ($c) => $c->paidInRun?->reference)
+                ->filter()->unique()->sort()->values()->join(', ') ?: 'run since deleted',
+        ];
+    }
+
+    /**
+     * A service charge pool exists over these dates but not FOR them.
+     *
+     * Returns the warning text, or null when there is nothing to say — which
+     * is every company that does not levy a service charge, and every run
+     * whose pool matched.
+     */
+    private function serviceChargePoolMismatch(PayrollRun $run): ?string
+    {
+        if (! $run->period_start || ! $run->period_end) {
+            return null;
+        }
+
+        $from = \Carbon\Carbon::parse($run->period_start)->toDateString();
+        $to   = \Carbon\Carbon::parse($run->period_end)->toDateString();
+
+        // Pools that OVERLAP this run's period. The overlap is what says the
+        // company levies a service charge over roughly this time; the exact
+        // match below is what says this run could actually be paid from one.
+        $overlapping = \App\Models\ServiceChargePeriod::withoutGlobalScopes()
+            ->where('company_id', $run->company_id)
+            ->whereDate('period_from', '<=', $to)
+            ->whereDate('period_to', '>=', $from)
+            ->with('outlet:id,name')
+            ->orderBy('period_from')
+            ->get();
+
+        if ($overlapping->isEmpty()) {
+            return null;
+        }
+
+        $matches = $overlapping->filter(
+            fn ($p) => $p->period_from->isSameDay($from) && $p->period_to->isSameDay($to)
+        );
+
+        if ($matches->isNotEmpty()) {
+            return null;
+        }
+
+        // Named individually, with their outlet: the fix is either to save a
+        // pool for these dates or to run this payroll over the pool's, and
+        // neither decision can be made without seeing which dates exist.
+        $named = $overlapping->take(4)->map(function ($p) {
+            $label = $p->period_from->format('j M') . ' – ' . $p->period_to->format('j M Y');
+
+            return $p->outlet?->name ? $p->outlet->name . ' ' . $label : $label;
+        })->join('; ');
+
+        return 'No service charge was paid by this run. A pool is matched on its exact dates, and this run covers '
+            . $run->rangeLabel() . ' while the saved pool(s) cover ' . $named
+            . ($overlapping->count() > 4 ? ' and others' : '')
+            . '. Either save a pool for this run\'s dates, or generate the run over the pool\'s.';
+    }
+
+    /**
      * What one service point was worth on this run.
      *
      * RM/point is the pool divided by everybody's points, so it is the figure
@@ -909,6 +1009,43 @@ class PayrollRunShow extends Component
         if ($pendingOt['draft'] > 0) {
             $warnings[] = $pendingOt['draft'] . ' overtime claim(s) in this period are still a draft with the employee, '
                 . 'so they cannot be approved or paid in this run.';
+        }
+
+        /*
+         * HOURS THIS RUN DID NOT PAY BECAUSE ANOTHER RUN ALREADY DID.
+         *
+         * CompensationSummary now leaves them out, which is right — they were
+         * paid once. Silently leaving them out is not: an employee whose
+         * overtime is missing from a payslip asks why, and "another run paid
+         * it" is an answer somebody has to be able to give without going
+         * through the claims table by hand.
+         */
+        $settledElsewhere = $this->overtimeSettledElsewhere($run);
+
+        if ($settledElsewhere['count'] > 0) {
+            $warnings[] = $settledElsewhere['count'] . ' approved overtime claim(s) in this period were NOT paid by this run '
+                . 'because an earlier run already paid them (' . $settledElsewhere['runs'] . '): '
+                . $settledElsewhere['names'] . '. This is not an error — it is what stops the same hours being paid twice.';
+        }
+
+        /*
+         * A SERVICE CHARGE POOL THAT EXISTS BUT DOES NOT FIT.
+         *
+         * A pool is matched on BOTH its exact dates, so a company that
+         * distributes by calendar month while running payroll 26th–25th gets
+         * no match at all — and forRun() returns null rather than an error, so
+         * the run pays RM0.00 of service charge and says nothing. On an F&B
+         * payroll that is the largest line after basic.
+         *
+         * Only fires where the company actually levies one: the test is that
+         * a pool overlapping this period EXISTS and none matches it exactly.
+         * A company that has never saved a pool never sees this, which is what
+         * keeps it from becoming a warning nobody can clear.
+         */
+        $poolMismatch = $this->serviceChargePoolMismatch($run);
+
+        if ($poolMismatch !== null) {
+            $warnings[] = $poolMismatch;
         }
 
         // Nothing on this run was computed from the rates, so the caveat about

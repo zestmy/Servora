@@ -46,6 +46,12 @@ class CompensationSummary
      *         being built. Empty everywhere else: the live Compensation screen
      *         shows a month as it stands, and a correction belongs to the run
      *         that pays it rather than to the month in general.
+     * @param  bool  $forPayrollRun  this is a run being BUILT, not a month
+     *         being reviewed. Overtime another run has already paid is left
+     *         out — see the query below for why the live screens must not do
+     *         the same thing.
+     * @param  ?int  $settlingRunId  the run being built, when it already
+     *         exists as a draft. Its OWN settled claims stay in.
      * @return array{
      *     rows: Collection,
      *     totals: array<string, float>,
@@ -60,6 +66,8 @@ class CompensationSummary
         ?Carbon $from = null,
         ?Carbon $to = null,
         array $adjustments = [],
+        bool $forPayrollRun = false,
+        ?int $settlingRunId = null,
     ): array {
         $settings = CompensationSetting::forCompany($companyId);
 
@@ -108,6 +116,38 @@ class CompensationSummary
             // leaves them alone so they stay available to take.
             ->where('settlement', OvertimeClaim::SETTLE_PAYROLL)
             ->whereBetween('claim_date', [$from->toDateString(), $to->toDateString()])
+            /*
+             * HOURS ANOTHER RUN HAS ALREADY PAID ARE NOT PAID AGAIN.
+             *
+             * settleOvertime() stamps a claim on APPROVAL and skips claims
+             * another run already stamped — but that guard runs long after
+             * this query has put the amount on a line. Nothing here looked at
+             * paid_at, so two runs whose periods overlap each paid the same
+             * hours in full: verified against a claim already stamped by an
+             * approved run, picked up again at RM86.54 by the next.
+             *
+             * Reachable today only by deliberately overriding a run's period
+             * to overlap another, which is why it has gone unnoticed. It stops
+             * being exotic the moment overtime gets a period of its own.
+             *
+             * ONLY WHEN A RUN IS BEING BUILT. The live Compensation screen
+             * shows a month as it stands, and the ordinary case there is a
+             * claim paid by that very month's approved run — filtering it out
+             * would blank the overtime on the screen people use to check what
+             * the run paid, which reads as data loss rather than as a guard.
+             *
+             * A run's OWN claims stay in, or an approved run that is unlocked
+             * and regenerated would silently drop the overtime it had already
+             * committed to: releaseOvertime() clears the stamp on unlock, but
+             * a plain Regenerate on a still-stamped draft must not lose it.
+             */
+            ->when($forPayrollRun, fn ($q) => $q->where(function ($claim) use ($settlingRunId) {
+                $claim->whereNull('paid_at');
+
+                if ($settlingRunId !== null) {
+                    $claim->orWhere('paid_in_run_id', $settlingRunId);
+                }
+            }))
             // Hours already taken as TIME OFF are subtracted, not paid. An hour
             // of overtime is either paid or taken off, never both — this
             // subtraction is the only thing preventing the double count, and
