@@ -1057,6 +1057,11 @@ class PayrollRunShow extends Component
         return view('livewire.hr.payroll-run-show', [
             'run'        => $run,
             'lines'      => $lines,
+            // Whether this run charged SKBBK at all, which decides its column.
+            // Read off the LINES rather than the company setting: the run's
+            // figures are frozen at generation, so a scheme switched on last
+            // week must not grow a column of dashes on a run that predates it.
+            'hasSkbbk'   => (float) $lines->sum('skbbk') > 0,
             'warnings'   => $warnings,
             // How many rows each listing would hold, so a button with nothing
             // behind it says so instead of failing when pressed. Only worth
