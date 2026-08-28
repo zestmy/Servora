@@ -148,7 +148,20 @@ class PayrollRunBuilder
                 ->all()
             : [];
 
-        $data = $this->summary->forMonth($employees, $companyId, $month, $from, $to, $adjustments);
+        /*
+         * Built as a RUN, which is what lets the summary drop overtime some
+         * other run has already paid. The live Compensation screens pass
+         * neither flag and are unaffected — see the note on that query.
+         *
+         * $existing?->id is null for a brand new run, and that is the strict
+         * case rather than the lax one: with no id, nothing can match "this
+         * run", so every already-settled claim is somebody else's.
+         */
+        $data = $this->summary->forMonth(
+            $employees, $companyId, $month, $from, $to, $adjustments,
+            forPayrollRun: true,
+            settlingRunId: $existing?->id,
+        );
 
         $statutory = StatutorySetting::forCompany($companyId);
 
