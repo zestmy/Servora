@@ -493,6 +493,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // The run's employee table as a sheet to check before approving — allowed
     // on a draft, unlike the statutory and bank exports above.
     Route::get('/hr/payroll/{run}/list-pdf', \App\Http\Controllers\PayrollRunListPdfController::class)->name('hr.payroll.list-pdf')->middleware('can:hr.payroll');
+    // The same document as list-pdf, on the same terms — draft included.
+    Route::get('/hr/payroll/{run}/excel', \App\Http\Controllers\PayrollRunExcelController::class)->name('hr.payroll.run-excel')->middleware('can:hr.payroll');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
     // Payout slips are pay data, so hr.compensation on top of the grid's own gate.

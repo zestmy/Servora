@@ -403,10 +403,19 @@
              is the sheet somebody checks the figures on before approving, and
              holding it back until after approval would withhold it at exactly
              the moment it is useful. --}}
-        <a href="{{ route('hr.payroll.list-pdf', $run) }}" target="_blank" rel="noopener"
-           class="btn-secondary text-xs">
-            Download PDF
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('hr.payroll.list-pdf', $run) }}" target="_blank" rel="noopener"
+               class="btn-secondary text-xs">
+                Download PDF
+            </a>
+            {{-- Excel for the same reason and on the same terms, but for the
+                 part of checking a run that paper cannot do: sorting it,
+                 filtering it and totalling it against something else. --}}
+            <a href="{{ route('hr.payroll.run-excel', $run) }}"
+               class="btn-secondary text-xs">
+                Download Excel
+            </a>
+        </div>
     </div>
 
     <div class="card overflow-hidden">
