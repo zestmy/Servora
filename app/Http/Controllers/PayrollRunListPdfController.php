@@ -45,9 +45,13 @@ class PayrollRunListPdfController extends Controller
             'company'     => Company::find($payrollRun->company_id),
             'run'         => $payrollRun,
             'lines'       => $lines,
-            // Shown only when the run actually pays one — an all-zero column
-            // costs width on an already wide table and says nothing.
+            // Shown only when the run actually has one — an all-zero column
+            // costs width on an already wide table and says nothing. The same
+            // call the Excel export makes, on the same four columns.
             'hasService'  => (float) $payrollRun->total_service_charge > 0,
+            'hasAdjust'   => $lines->contains(fn ($l) => (float) $l->adjustments_total != 0.0),
+            'hasZakat'    => $lines->sum(fn ($l) => (float) $l->zakat) > 0,
+            'hasSkbbk'    => $lines->sum(fn ($l) => (float) $l->skbbk) > 0,
             'generatedBy' => Auth::user()->name,
         ])
             // Landscape: twelve money columns do not fit portrait without

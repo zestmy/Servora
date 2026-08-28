@@ -56,20 +56,35 @@
     <table class="pr">
         <thead>
             <tr>
-                <th style="width: 17%; text-align: left;">Employee</th>
-                <th class="r" style="width: 8%;">Basic</th>
-                <th class="r" style="width: 7%;">Allowances</th>
-                <th class="r" style="width: 6%;">OT</th>
+                <th style="width: 14%; text-align: left;">Employee</th>
+                <th class="r" style="width: 6%;">Basic</th>
+                <th class="r" style="width: 5%;">Allowances</th>
+                <th class="r" style="width: 5%;">OT</th>
                 @if ($hasService)
-                    <th class="r" style="width: 7%;">Svc Charge</th>
+                    <th class="r" style="width: 6%;">Svc Charge</th>
                 @endif
-                <th class="r" style="width: 7%;">Deductions</th>
-                <th class="r" style="width: 8%;">Gross</th>
-                <th class="r" style="width: 6%;">EPF</th>
-                <th class="r" style="width: 6%;">SOCSO</th>
-                <th class="r" style="width: 5%;">EIS</th>
-                <th class="r" style="width: 6%;">PCB</th>
-                <th class="r" style="width: 9%;">Net</th>
+                {{-- ADJUSTMENTS. Missing until now, and the omission was
+                     reported: a run carrying RM11,162 of corrections printed a
+                     sheet on which none of them appeared, so the Net column
+                     could not be got to from the columns beside it. --}}
+                @if ($hasAdjust)
+                    <th class="r" style="width: 6%;">Adjustments</th>
+                @endif
+                <th class="r" style="width: 5%;">Deductions</th>
+                <th class="r" style="width: 6%;">Gross</th>
+                <th class="r" style="width: 5%;">EPF</th>
+                <th class="r" style="width: 5%;">SOCSO</th>
+                <th class="r" style="width: 4%;">EIS</th>
+                <th class="r" style="width: 4%;">PCB</th>
+                @if ($hasZakat)
+                    <th class="r" style="width: 4%;">Zakat</th>
+                @endif
+                @if ($hasSkbbk)
+                    <th class="r" style="width: 4%;">SKBBK</th>
+                @endif
+                <th class="r" style="width: 5%;">Statutory</th>
+                <th class="r" style="width: 7%;">Net</th>
+                <th class="r" style="width: 6%;">Cost</th>
             </tr>
         </thead>
         <tbody>
@@ -97,19 +112,33 @@
                     @if ($hasService)
                         <td class="r">{{ number_format((float) $line->service_charge, 2) }}</td>
                     @endif
+                    @if ($hasAdjust)
+                        <td class="r {{ (float) $line->adjustments_total < 0 ? 'neg' : '' }}">
+                            {{ number_format((float) $line->adjustments_total, 2) }}
+                        </td>
+                    @endif
                     <td class="r">{{ number_format((float) $line->deductions, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->gross, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->epf_employee, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->socso_employee, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->eis_employee, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->pcb, 2) }}</td>
+                    @if ($hasZakat)
+                        <td class="r">{{ number_format((float) $line->zakat, 2) }}</td>
+                    @endif
+                    @if ($hasSkbbk)
+                        <td class="r">{{ number_format((float) $line->skbbk, 2) }}</td>
+                    @endif
+                    <td class="r">{{ number_format((float) $line->statutory_employee, 2) }}</td>
                     <td class="r {{ (float) $line->net < 0 ? 'neg' : '' }}" style="font-weight: bold;">
                         {{ number_format((float) $line->net, 2) }}
                     </td>
+                    <td class="r">{{ number_format((float) $line->employer_cost, 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $hasService ? 12 : 11 }}" class="c" style="padding: 24px; color: #9ca3af;">
+                    <td colspan="{{ 13 + ($hasService ? 1 : 0) + ($hasAdjust ? 1 : 0) + ($hasZakat ? 1 : 0) + ($hasSkbbk ? 1 : 0) }}"
+                        class="c" style="padding: 24px; color: #9ca3af;">
                         This run has no employees.
                     </td>
                 </tr>
@@ -125,13 +154,24 @@
                     @if ($hasService)
                         <td class="r">{{ number_format((float) $run->total_service_charge, 2) }}</td>
                     @endif
+                    @if ($hasAdjust)
+                        <td class="r">{{ number_format((float) $lines->sum('adjustments_total'), 2) }}</td>
+                    @endif
                     <td class="r">{{ number_format((float) $lines->sum('deductions'), 2) }}</td>
                     <td class="r">{{ number_format((float) $run->total_gross, 2) }}</td>
                     <td class="r">{{ number_format((float) $lines->sum('epf_employee'), 2) }}</td>
                     <td class="r">{{ number_format((float) $lines->sum('socso_employee'), 2) }}</td>
                     <td class="r">{{ number_format((float) $lines->sum('eis_employee'), 2) }}</td>
                     <td class="r">{{ number_format((float) $lines->sum('pcb'), 2) }}</td>
+                    @if ($hasZakat)
+                        <td class="r">{{ number_format((float) $lines->sum('zakat'), 2) }}</td>
+                    @endif
+                    @if ($hasSkbbk)
+                        <td class="r">{{ number_format((float) $lines->sum('skbbk'), 2) }}</td>
+                    @endif
+                    <td class="r">{{ number_format((float) $run->total_statutory_employee, 2) }}</td>
                     <td class="r">{{ number_format((float) $run->total_net, 2) }}</td>
+                    <td class="r">{{ number_format((float) $run->total_employer_cost, 2) }}</td>
                 </tr>
             </tfoot>
         @endif
@@ -140,10 +180,36 @@
     {{-- The two figures the table cannot show, because neither is a column:
          what the employer pays on top, and what the run costs in total. --}}
     <table style="width: 100%; margin-top: 10px; font-size: 8pt; border-collapse: collapse;">
+        {{-- Broken out rather than left as one figure, so this sheet carries
+             every number the spreadsheet does. Per employee the employer side
+             is a single Cost column above — these are the parts, and the parts
+             are what somebody reconciles against a remittance, in total. --}}
         <tr>
-            <td style="width: 60%;"></td>
-            <td style="padding: 3px 6px; color: #475569;">Employer contributions</td>
-            <td class="r" style="padding: 3px 6px; width: 14%;">{{ number_format((float) $run->total_statutory_employer, 2) }}</td>
+            <td style="width: 46%;"></td>
+            <td style="padding: 3px 6px; color: #475569;">Employer EPF</td>
+            <td class="r" style="padding: 3px 6px; width: 14%;">{{ number_format((float) $lines->sum('epf_employer'), 2) }}</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td style="padding: 3px 6px; color: #475569;">Employer SOCSO</td>
+            <td class="r" style="padding: 3px 6px;">{{ number_format((float) $lines->sum('socso_employer'), 2) }}</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td style="padding: 3px 6px; color: #475569;">Employer EIS</td>
+            <td class="r" style="padding: 3px 6px;">{{ number_format((float) $lines->sum('eis_employer'), 2) }}</td>
+        </tr>
+        @if ((float) $lines->sum('hrdf_employer') > 0)
+            <tr>
+                <td></td>
+                <td style="padding: 3px 6px; color: #475569;">HRD Corp levy</td>
+                <td class="r" style="padding: 3px 6px;">{{ number_format((float) $lines->sum('hrdf_employer'), 2) }}</td>
+            </tr>
+        @endif
+        <tr>
+            <td></td>
+            <td style="padding: 3px 6px; color: #475569; border-top: 1px solid #e2e8f0;">Employer contributions</td>
+            <td class="r" style="padding: 3px 6px; border-top: 1px solid #e2e8f0;">{{ number_format((float) $run->total_statutory_employer, 2) }}</td>
         </tr>
         <tr>
             <td></td>

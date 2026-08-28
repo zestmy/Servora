@@ -17,6 +17,11 @@
             @endif
             @if ($canApprove && $run->status === \App\Models\PayrollRun::APPROVED)
                 <button wire:click="$set('showPaid', true)" class="btn-primary">Mark paid</button>
+                {{-- The way back, for an approved run that turns out to be
+                     wrong. Only while it is APPROVED and not yet paid — once
+                     the money has moved the answer is a correction on the next
+                     run, not a rewrite of the one that paid it. --}}
+                <button wire:click="$set('showUnlock', true)" class="btn-secondary">Unlock</button>
             @endif
         </x-slot:actions>
     </x-page-header>
@@ -741,6 +746,40 @@
     </div>
 
     {{-- Approve --}}
+    @if ($showUnlock)
+        @teleport('body')
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
+            <div class="card p-5 w-full max-w-lg">
+                <h3 class="text-base font-semibold text-gray-800">Unlock {{ $run->periodLabel() }}</h3>
+                <p class="text-sm text-gray-700 mt-2">
+                    This returns the run to a <strong>draft</strong> so the figures can be corrected.
+                    It can then be regenerated, adjusted and approved again.
+                </p>
+                <div class="alert-warning mt-3 text-sm">
+                    <ul class="list-disc list-inside space-y-0.5">
+                        <li>The approval and its date are cleared — the run will need approving again.</li>
+                        <li>
+                            Overtime settled by this run is released back to unpaid, so those hours
+                            become available again until it is re-approved.
+                        </li>
+                        @if ($deliveries->isNotEmpty())
+                            <li>
+                                <strong>{{ $deliveries->count() }} payslip(s) have already been emailed
+                                from this run.</strong> Anything you change now will differ from what
+                                those staff have already received.
+                            </li>
+                        @endif
+                    </ul>
+                </div>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button wire:click="$set('showUnlock', false)" class="btn-ghost">Cancel</button>
+                    <button wire:click="unlock" class="btn-danger">Unlock and return to draft</button>
+                </div>
+            </div>
+        </div>
+        @endteleport
+    @endif
+
     @if ($showApprove)
         {{-- Teleported, like the two below it. `position: fixed` is relative to
              the viewport UNLESS an ancestor carries a transform, and

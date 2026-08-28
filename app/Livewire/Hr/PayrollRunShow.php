@@ -23,6 +23,7 @@ class PayrollRunShow extends Component
     public string $runUuid;
 
     public bool   $showApprove = false;
+    public bool   $showUnlock  = false;
     public bool   $showPaid    = false;
     public bool   $showEmail   = false;
     public bool   $resendSent  = false;
@@ -517,6 +518,65 @@ class PayrollRunShow extends Component
         );
         $this->adj_notes             = '';
         $this->resetValidation();
+    }
+
+    /**
+     * Put an approved run back to a draft so the figures can be corrected.
+     *
+     * WHY THIS EXISTS AT ALL, given that approval is described everywhere else
+     * as the point of no return: it is the point of no return for the FIGURES,
+     * not for the paperwork. An approved run that turns out to be wrong had,
+     * until now, no route back except somebody editing the database — which is
+     * the worst version of this, because it leaves the overtime claims stamped
+     * as paid by a run that is being rebuilt underneath them.
+     *
+     * It needs the APPROVER's permission, not the clerk's. The same hand that
+     * committed the company to these figures is the one that may un-commit
+     * them; letting whoever runs payroll quietly reopen an approved run would
+     * dissolve the two-hands control that approval exists to create.
+     *
+     * REFUSED ONCE THE RUN IS PAID. At that point money has left the company
+     * and the answer is a correction on the next run, not a rewrite of the one
+     * that paid it.
+     */
+    public function unlock(): void
+    {
+        abort_unless(Auth::user()->can('hr.payroll.approve'), 403);
+
+        $run = $this->run();
+
+        if (! $run->isApproved()) {
+            session()->flash('error', 'This run is already a draft.');
+            return;
+        }
+
+        if ($run->paid_at !== null) {
+            session()->flash('error', 'This run has been marked paid — the money has already moved. '
+                . 'Correct it with an adjustment on the next run rather than reopening this one.');
+            return;
+        }
+
+        $released = 0;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($run, &$released) {
+            // Released FIRST and inside the transaction: a run reopened with
+            // its overtime still stamped is the inconsistent state this whole
+            // action exists to avoid.
+            $released = $run->releaseOvertime();
+
+            $run->update([
+                'status'      => PayrollRun::DRAFT,
+                'approved_by' => null,
+                'approved_at' => null,
+            ]);
+        });
+
+        $this->showUnlock = false;
+        $this->forgetRun();
+
+        session()->flash('success', 'Payroll unlocked and returned to draft. '
+            . ($released ? "{$released} overtime claim(s) released back to unpaid. " : '')
+            . 'Regenerate or adjust it, then approve again.');
     }
 
     public function approve(): void

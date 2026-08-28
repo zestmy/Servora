@@ -105,6 +105,42 @@ class PayrollRunLine extends Model
     }
 
     /**
+     * ADJUSTMENTS THAT COUNTED AS WAGES — already inside `gross`.
+     *
+     * The split matters to anything that lays out a payslip, because the two
+     * halves enter the arithmetic in different places: CompensationSummary
+     * puts these inside gross, so they belong in the earnings column, and adds
+     * the others at NET and nowhere else, so those belong below the deductions
+     * total. Printing the two together made an earnings column that did not
+     * add up to the Gross beneath it.
+     */
+    public function wageAdjustments(): array
+    {
+        return array_values(array_filter(
+            $this->adjustments ?? [],
+            fn ($a) => (bool) ($a['affects_statutory'] ?? false)
+        ));
+    }
+
+    /** Adjustments applied AFTER statutory — in net, and nowhere else. */
+    public function netAdjustments(): array
+    {
+        return array_values(array_filter(
+            $this->adjustments ?? [],
+            fn ($a) => ! ($a['affects_statutory'] ?? false)
+        ));
+    }
+
+    /** Signed: negative when the after-statutory corrections reduce take-home. */
+    public function netAdjustmentsTotal(): float
+    {
+        return round(array_sum(array_map(
+            fn ($a) => (float) ($a['amount'] ?? 0),
+            $this->netAdjustments()
+        )), 2);
+    }
+
+    /**
      * What a payslip cannot state without it. Surfaced as a list rather than a
      * boolean so the run screen can say WHICH detail is missing for whom.
      *

@@ -34,6 +34,9 @@
     .money .rule td { border-top: 1px solid #e2e8f0; }
     .money .tot td { border-top: 1.5px solid #0f172a; font-weight: bold; padding-top: 4px; }
 
+    .postadj { margin-top: 8px; }
+    .postadj td { padding: 2.5px 4px; font-size: 8pt; }
+
     .halves td { vertical-align: top; width: 50%; padding: 0; }
     .halves .gap { width: 12px; padding: 0; }
 
@@ -66,6 +69,11 @@
     @php
         $allowances = $line->allowanceLines();
         $deductions = $line->deductionLines();
+        // Two halves, because they enter the arithmetic in two places — see
+        // PayrollRunLine::wageAdjustments().
+        $wageAdjustments    = $line->wageAdjustments();
+        $netAdjustments     = collect($line->netAdjustments());
+        $netAdjustmentTotal = $line->netAdjustmentsTotal();
         $statutoryRows = array_values(array_filter([
             (float) $line->epf_employee   > 0 ? ['EPF (KWSP)',   (float) $line->epf_employee]   : null,
             (float) $line->socso_employee > 0 ? ['SOCSO',        (float) $line->socso_employee] : null,
@@ -191,19 +199,22 @@
                                 <td class="amt">{{ number_format((float) $line->ot_amount, 2) }}</td>
                             </tr>
                         @endif
-                        {{-- One-off corrections, ITEMISED. A payslip that is
-                             RM500 short of what somebody expected has to say
-                             why on its face — a net figure they cannot account
-                             for is the one thing guaranteed to produce a
-                             conversation with the office. --}}
-                        @foreach (($line->adjustments ?? []) as $adj)
+        {{-- One-off corrections, ITEMISED. A payslip that is RM500 short of
+                             what somebody expected has to say why on its face — a
+                             net figure they cannot account for is the one thing
+                             guaranteed to produce a conversation with the office.
+
+                             ONLY THE ONES THAT COUNT AS WAGES BELONG HERE.
+                             CompensationSummary puts those inside $gross and adds
+                             the rest at NET and nowhere else, so listing an
+                             after-statutory correction in this column printed a
+                             column that did not add up to the Gross beneath it —
+                             reported from a run where a −370.97 sat under an
+                             816.13 basic above a Gross of 816.13. They are shown
+                             below the two columns instead, where they apply. --}}
+                        @foreach ($wageAdjustments as $adj)
                             <tr>
-                                <td>
-                                    {{ $adj['label'] ?? 'Adjustment' }}
-                                    @if (! ($adj['affects_statutory'] ?? false))
-                                        <span class="sub">after statutory deductions</span>
-                                    @endif
-                                </td>
+                                <td>{{ $adj['label'] ?? 'Adjustment' }}</td>
                                 <td class="amt">{{ number_format((float) ($adj['amount'] ?? 0), 2) }}</td>
                             </tr>
                         @endforeach
@@ -261,6 +272,37 @@
                 </td>
             </tr>
         </table>
+
+        {{-- AFTER THE STATUTORY DEDUCTIONS, BEFORE NET — which is exactly
+             where these are applied, so it is where they are printed.
+
+             The reconciliation is spelled out rather than left to be worked
+             out: this figure is the difference between a Gross and a Net that
+             otherwise cannot be got from one to the other, and it is the line
+             somebody rings the office about. --}}
+        @if ($netAdjustments->isNotEmpty())
+            <table class="money postadj">
+                <tr>
+                    <th>Adjustments after statutory deductions</th>
+                    <th class="amt">RM</th>
+                </tr>
+                @foreach ($netAdjustments as $adj)
+                    <tr>
+                        <td>{{ $adj['label'] ?? 'Adjustment' }}</td>
+                        <td class="amt">{{ number_format((float) ($adj['amount'] ?? 0), 2) }}</td>
+                    </tr>
+                @endforeach
+                <tr class="rule">
+                    <td colspan="2" class="sub">
+                        Applied to take-home pay only — the contributions above are worked out on the
+                        gross figure and are not changed by this.
+                        Net pay is {{ number_format((float) $line->gross + (float) $line->deductions + (float) $line->service_charge, 2) }}
+                        less {{ number_format((float) $line->statutory_employee + (float) $line->deductions, 2) }}
+                        {{ $netAdjustmentTotal < 0 ? 'less' : 'plus' }} {{ number_format(abs($netAdjustmentTotal), 2) }}.
+                    </td>
+                </tr>
+            </table>
+        @endif
 
         <div class="net">
             <span class="net-label">Net pay</span>

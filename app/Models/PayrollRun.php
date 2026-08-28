@@ -247,6 +247,30 @@ class PayrollRun extends Model
             ]);
     }
 
+    /**
+     * THE MIRROR OF settleOvertime(): hours this run had spoken for are free
+     * again.
+     *
+     * Approving stamps every payroll-settled claim in the period as paid by
+     * this run. Returning the run to a draft has to undo exactly that, or the
+     * claims keep saying they were paid by a run that is no longer approved —
+     * and TimeOffBalance reads paid_at as the thing that ends availability, so
+     * the hours would stay unavailable with nothing paying for them.
+     *
+     * Scoped on paid_in_run_id rather than on the period, so it releases what
+     * THIS run actually stamped and cannot reach a claim settled by another.
+     */
+    public function releaseOvertime(): int
+    {
+        return \App\Models\OvertimeClaim::withoutGlobalScopes()
+            ->where('paid_in_run_id', $this->id)
+            ->update([
+                'paid_at'        => null,
+                'paid_in_run_id' => null,
+                'marked_paid_by' => null,
+            ]);
+    }
+
     /** Only a draft may be regenerated or deleted. */
     public function isEditable(): bool
     {
