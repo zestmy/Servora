@@ -235,6 +235,7 @@ class PayrollUnlockAndAdjustmentDisplayTest extends TestCase
             'company' => $this->company, 'run' => $run->fresh(),
             'lines' => $run->lines()->get(),
             'hasService' => false, 'hasAdjust' => true, 'hasZakat' => false, 'hasSkbbk' => false,
+            'hasEmploymentChange' => false,
             'generatedBy' => $this->user->name,
         ])->render();
 
@@ -254,6 +255,7 @@ class PayrollUnlockAndAdjustmentDisplayTest extends TestCase
             'company' => $this->company, 'run' => $run,
             'lines' => $run->lines()->get(),
             'hasService' => false, 'hasAdjust' => false, 'hasZakat' => false, 'hasSkbbk' => false,
+            'hasEmploymentChange' => false,
             'generatedBy' => $this->user->name,
         ])->render();
 

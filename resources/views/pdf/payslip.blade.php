@@ -165,7 +165,13 @@
                                     </span>
                                 @elseif ($line->isProrated())
                                     <span class="sub">
-                                        {{ $line->prorationLabel() }} employed &mdash; part month
+                                        {{ $line->prorationLabel() }} employed
+                                        {{-- WHY, not just how much. "part month"
+                                             told somebody their salary was short
+                                             without saying what made it short,
+                                             which is the question they were
+                                             holding the payslip to ask. --}}
+                                        &mdash; {{ $line->employmentNote() ?: 'part month' }}
                                     </span>
                                 @elseif ($line->paid_days !== null)
                                     <span class="sub">

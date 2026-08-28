@@ -295,6 +295,10 @@ class PayrollRunBuilder
                     'paid_hours'         => $row['paid_hours'] ?? null,
                     'paid_days'          => $row['paid_days'] ?? null,
                     'period_days'        => $row['period_days'] ?? null,
+                    // Why the month is short — snapshotted, so the run keeps
+                    // explaining itself after the employee record moves on.
+                    'joined_on'          => $row['joined_on'] ?? null,
+                    'resigned_on'        => $row['resigned_on'] ?? null,
                     'pay_rate'           => $row['pay_rate'] ?? null,
                     'basic'              => $row['basic'],
                     'allowances'         => $row['allowances'],

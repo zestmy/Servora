@@ -23,6 +23,7 @@ class PayrollRunLine extends Model
         'outlet_name', 'section_name', 'bank_name', 'bank_account_no', 'bank_account_name',
         'epf_number', 'socso_number', 'income_tax_number',
         'pay_type', 'paid_hours', 'paid_days', 'period_days', 'pay_rate',
+        'joined_on', 'resigned_on',
         'basic', 'allowances', 'deductions', 'ot_hours', 'ot_amount',
         'service_charge', 'service_charge_detail',
         'gross', 'epf_employee', 'epf_employer', 'socso_employee', 'socso_employer',
@@ -49,6 +50,8 @@ class PayrollRunLine extends Model
         // Counted, never fractional — unlike the hours beside them.
         'paid_days'          => 'integer',
         'period_days'        => 'integer',
+        'joined_on'          => 'date',
+        'resigned_on'        => 'date',
         'skbbk'              => 'decimal:2',
         'pay_rate'           => 'decimal:2',
         'gross'              => 'decimal:2',
@@ -211,6 +214,28 @@ class PayrollRunLine extends Model
         return $this->isProrated()
             ? $this->paid_days . ' of ' . $this->period_days . ' days'
             : null;
+    }
+
+    /**
+     * WHY this month is short, in words — "joined 17 Jul 2026", "resigned
+     * 5 Aug 2026", or both when somebody joined and left inside one period.
+     *
+     * Null when neither date falls in the run, which is almost everybody, so
+     * callers can filter on truthiness and a sheet can leave the column out
+     * when nothing in the run has one.
+     *
+     * The companion to prorationLabel(): that one says by how much, this says
+     * what happened. A part month with no explanation beside it is the thing
+     * somebody stops the run to go and look up.
+     */
+    public function employmentNote(): ?string
+    {
+        $parts = array_filter([
+            $this->joined_on   ? 'joined ' . $this->joined_on->format('j M Y') : null,
+            $this->resigned_on ? 'resigned ' . $this->resigned_on->format('j M Y') : null,
+        ]);
+
+        return $parts ? implode(', ', $parts) : null;
     }
 
     /**

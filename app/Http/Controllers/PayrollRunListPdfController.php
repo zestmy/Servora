@@ -52,6 +52,7 @@ class PayrollRunListPdfController extends Controller
             'hasAdjust'   => $lines->contains(fn ($l) => (float) $l->adjustments_total != 0.0),
             'hasZakat'    => $lines->sum(fn ($l) => (float) $l->zakat) > 0,
             'hasSkbbk'    => $lines->sum(fn ($l) => (float) $l->skbbk) > 0,
+            'hasEmploymentChange' => $lines->contains(fn ($l) => $l->employmentNote() !== null),
             'generatedBy' => Auth::user()->name,
         ])
             // Landscape: twelve money columns do not fit portrait without

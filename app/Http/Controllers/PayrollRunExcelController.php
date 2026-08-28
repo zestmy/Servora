@@ -49,7 +49,7 @@ class PayrollRunExcelController extends Controller
      *
      * @return array<int, array{0: string, 1: string, 2: callable}>
      */
-    private function columns(bool $hasService, bool $hasAdjust): array
+    private function columns(bool $hasService, bool $hasAdjust, bool $hasEmploymentChange): array
     {
         $money = fn (string $attr) => fn (PayrollRunLine $l) => (float) $l->{$attr};
 
@@ -65,6 +65,12 @@ class PayrollRunExcelController extends Controller
             // for hourly staff, days for daily, "12 of 31 days" for a monthly
             // employee on a part month.
             ['Basis',            'text',  fn ($l) => $this->basisLabel($l)],
+            // WHY it is short, beside the Basis that says by how much. Left
+            // out entirely when nobody on the run joined or left inside it,
+            // which is the ordinary case.
+            $hasEmploymentChange
+                ? ['Employment', 'text', fn ($l) => $l->employmentNote()]
+                : null,
             ['Basic',            'money', $money('basic')],
             ['Allowances',       'money', $money('allowances')],
             ['OT Hours',         'hours', $money('ot_hours')],
@@ -118,8 +124,9 @@ class PayrollRunExcelController extends Controller
         // service charge, for the same reason.
         $hasService = $lines->sum(fn ($l) => (float) $l->service_charge) > 0;
         $hasAdjust  = $lines->contains(fn ($l) => (float) $l->adjustments_total != 0.0);
+        $hasEmploymentChange = $lines->contains(fn ($l) => $l->employmentNote() !== null);
 
-        $columns = $this->columns($hasService, $hasAdjust);
+        $columns = $this->columns($hasService, $hasAdjust, $hasEmploymentChange);
 
         $company   = Company::find($payrollRun->company_id);
         $brandName = $company?->brand_name ?: $company?->name;

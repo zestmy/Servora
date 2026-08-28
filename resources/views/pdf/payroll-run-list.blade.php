@@ -57,6 +57,12 @@
         <thead>
             <tr>
                 <th style="width: 14%; text-align: left;">Employee</th>
+                {{-- WHY a basic is short, where the "11 of 31 days" under the
+                     name says by how much. Absent when nobody on the run
+                     joined or left inside it. --}}
+                @if ($hasEmploymentChange)
+                    <th style="width: 8%; text-align: left;">Employment</th>
+                @endif
                 <th class="r" style="width: 6%;">Basic</th>
                 <th class="r" style="width: 5%;">Allowances</th>
                 <th class="r" style="width: 5%;">OT</th>
@@ -106,6 +112,15 @@
                             @endif
                         </span>
                     </td>
+                    @if ($hasEmploymentChange)
+                        <td>
+                            @if ($line->employmentNote())
+                                <span class="{{ $line->resigned_on ? 'neg' : '' }}">{{ $line->employmentNote() }}</span>
+                            @else
+                                <span class="sub">—</span>
+                            @endif
+                        </td>
+                    @endif
                     <td class="r">{{ number_format((float) $line->basic, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->allowances, 2) }}</td>
                     <td class="r">{{ number_format((float) $line->ot_amount, 2) }}</td>
@@ -137,7 +152,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 13 + ($hasService ? 1 : 0) + ($hasAdjust ? 1 : 0) + ($hasZakat ? 1 : 0) + ($hasSkbbk ? 1 : 0) }}"
+                    <td colspan="{{ 13 + ($hasService ? 1 : 0) + ($hasAdjust ? 1 : 0) + ($hasZakat ? 1 : 0) + ($hasSkbbk ? 1 : 0) + ($hasEmploymentChange ? 1 : 0) }}"
                         class="c" style="padding: 24px; color: #9ca3af;">
                         This run has no employees.
                     </td>
@@ -148,6 +163,7 @@
             <tfoot>
                 <tr>
                     <td>Total</td>
+                    @if ($hasEmploymentChange)<td></td>@endif
                     <td class="r">{{ number_format((float) $lines->sum('basic'), 2) }}</td>
                     <td class="r">{{ number_format((float) $lines->sum('allowances'), 2) }}</td>
                     <td class="r">{{ number_format((float) $lines->sum('ot_amount'), 2) }}</td>

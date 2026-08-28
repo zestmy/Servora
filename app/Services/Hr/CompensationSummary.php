@@ -416,6 +416,26 @@ class CompensationSummary
                 'paid_hours'  => $paidHours,
                 'paid_days'   => $isDaily ? $workedDays : ($isProrated ? $daysEligible : null),
                 'period_days' => $isProrated ? $wagePeriodDays : null,
+                /*
+                 * WHY the month is short, where the two above say by how much.
+                 *
+                 * The same two conditions that narrowed the eligible range,
+                 * reported rather than only acted on: null unless the date
+                 * actually falls INSIDE this period, so a full-month employee
+                 * carries neither and a sheet can drop the column. A join date
+                 * two years ago is not why this month is short.
+                 *
+                 * Set for every pay type, not only the pro-rated monthly case.
+                 * A daily employee who resigned on the 5th also has a reason
+                 * their pay is a third of the usual, and "check this" against
+                 * "check what" is the same question there.
+                 */
+                'joined_on'   => $employee->join_date && $employee->join_date->gt($from)
+                    ? $employee->join_date->toDateString()
+                    : null,
+                'resigned_on' => $employedUntil && $employedUntil->lt($to)
+                    ? $employedUntil->toDateString()
+                    : null,
                 'pay_rate'    => $unitRate,
                 'hourly_rate' => $rate,
                 'components'  => $components,
