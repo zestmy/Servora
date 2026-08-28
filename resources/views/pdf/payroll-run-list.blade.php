@@ -41,6 +41,15 @@
     <div class="pr-meta">
         <strong>Scope:</strong> {{ $run->scopeLabel() }}
         &nbsp;·&nbsp; <strong>Period:</strong> {{ $run->rangeLabel() }}
+        {{-- Only where an input was counted over other dates. On an ordinary
+             run all three are the period above, and a sheet that repeated it
+             three times would say nothing; on the runs that differ it is what
+             makes the columns explicable a year later. --}}
+        @php $listPeriods = $run->periods(); @endphp
+        @foreach ($listPeriods->customComponents() as $component)
+            &nbsp;·&nbsp; <strong>{{ \App\Services\Payroll\RunPeriods::LABELS[$component] }}:</strong>
+            {{ $listPeriods->label($component) }}
+        @endforeach
         &nbsp;·&nbsp; <strong>Status:</strong> {{ $run->statusLabel() }}
         @if ($run->approvedBy)
             (approved by {{ $run->approvedBy->name }})
