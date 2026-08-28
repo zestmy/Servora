@@ -29,6 +29,9 @@
                 · RM {{ number_format($serviceCharge['perPoint']) }} / point
                 · MC deduction {{ $fmtPct($serviceCharge['mcPct']) }}% / day
                 · Absent deduction {{ $fmtPct($serviceCharge['absPct']) }}% / day
+                @if (($serviceCharge['minDays'] ?? 0) > 0)
+                    · Minimum {{ (int) $serviceCharge['minDays'] }} working days
+                @endif
             </div>
             <table class="sc-table">
                 @php
@@ -40,7 +43,15 @@
                     $hasLate    = $serviceCharge['hasLate'] ?? false;
                     $hasSpecial = $serviceCharge['hasSpecial'] ?? false;
 
-                    $weights = ['#' => 3, 'name' => 18, 'outlet' => 11, 'pts' => 7, 'mc' => 6, 'abs' => 6];
+                    // The days column only where a qualifying minimum applies,
+                    // and then always — a zero row on a signed document has to
+                    // carry the count it was judged on.
+                    $minDays  = (int) ($serviceCharge['minDays'] ?? 0);
+                    $showDays = $minDays > 0;
+
+                    $weights = ['#' => 3, 'name' => 18, 'outlet' => 11, 'pts' => 7];
+                    if ($showDays)   $weights['days'] = 6;
+                    $weights += ['mc' => 6, 'abs' => 6];
                     if ($hasLate)    $weights['latemin'] = 6;
                     $weights += ['pct' => 8, 'gross' => 10, 'ded' => 10];
                     if ($hasLate)    $weights['latermk'] = 9;
@@ -51,7 +62,7 @@
                     $w   = array_map(fn ($x) => round($x * 100 / $sum, 2), $weights);
 
                     // Columns before the money columns, for the total row's span.
-                    $leadSpan = 6 + ($hasLate ? 1 : 0) + 1;
+                    $leadSpan = 6 + ($hasLate ? 1 : 0) + ($showDays ? 1 : 0) + 1;
                 @endphp
                 <thead>
                     <tr>
@@ -59,6 +70,9 @@
                         <th style="width: {{ $w['name'] }}%;">Name</th>
                         <th style="width: {{ $w['outlet'] }}%;">Outlet</th>
                         <th style="width: {{ $w['pts'] }}%;">Svc Pts</th>
+                        @if ($showDays)
+                            <th style="width: {{ $w['days'] }}%;">Days<br><span style="font-weight: normal;">min {{ $minDays }}</span></th>
+                        @endif
                         <th style="width: {{ $w['mc'] }}%;">MC Days</th>
                         <th style="width: {{ $w['abs'] }}%;">ABS Days</th>
                         @if ($hasLate)
@@ -83,6 +97,9 @@
                             <td class="l" style="font-weight: bold;">{{ $scRow['employee']->name }}</td>
                             <td class="l">{{ $scRow['employee']->outlet?->name }}</td>
                             <td class="r">{{ $scRow['points'] > 0 ? number_format($scRow['points'], 2) : '—' }}</td>
+                            @if ($showDays)
+                                <td class="c" style="{{ ($scRow['belowMinDays'] ?? false) ? 'color: #b91c1c; font-weight: bold;' : '' }}">{{ (int) ($scRow['workDays'] ?? 0) }}</td>
+                            @endif
                             <td class="c" style="{{ $scRow['mcDays'] > 0 ? 'color: #92400e; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['mcDays'] ?: '—' }}</td>
                             <td class="c" style="{{ $scRow['absDays'] > 0 ? 'color: #b91c1c; font-weight: bold;' : 'color: #cbd5e1;' }}">{{ $scRow['absDays'] ?: '—' }}</td>
                             @if ($hasLate)
@@ -153,6 +170,10 @@
                 @endif
                 @if ($hasSpecial)
                     Special (RM) is agreed per person for this period and is taken last, never below a net of zero.
+                @endif
+                @if ($showDays)
+                    Anyone with fewer than {{ $minDays }} working days in this period takes no share, and their points are out of the divisor with them.
+                    Days worked count any mark except Unrecorded (UNR), Day Off and Absent; leave days count.
                 @endif
                 Employees without Service Points are excluded from the split.
             </div>

@@ -70,6 +70,12 @@
                 <th class="right">SOCSO</th>
                 <th class="right">EIS</th>
                 <th class="right">PCB</th>
+                {{-- SKBBK is inside net, so a sheet that leaves it out prints
+                     a net its own columns cannot reach. Only where the scheme
+                     is on, so the column stays stable down the page. --}}
+                @if ($statutory->skbbk_enabled)
+                    <th class="right">SKBBK</th>
+                @endif
                 <th class="right">Net</th>
             @endif
         </tr>
@@ -103,11 +109,14 @@
                     <td class="right">{{ number_format($st['socso_employee'], 2) }}</td>
                     <td class="right">{{ number_format($st['eis_employee'], 2) }}</td>
                     <td class="right">{{ number_format($st['pcb'], 2) }}</td>
+                    @if ($statutory->skbbk_enabled)
+                        <td class="right">{{ number_format($st['skbbk'] ?? 0, 2) }}</td>
+                    @endif
                     <td class="right">{{ number_format($row['net'], 2) }}</td>
                 @endif
             </tr>
         @empty
-            <tr><td colspan="{{ $showStatutory ? 13 : 8 }}" style="text-align:center; padding:18px; color:#64748b;">
+            <tr><td colspan="{{ ($showStatutory ? 13 : 8) + ($statutory->skbbk_enabled ? 1 : 0) }}" style="text-align:center; padding:18px; color:#64748b;">
                 No employees for this period and scope.
             </td></tr>
         @endforelse
@@ -127,6 +136,9 @@
                     <td class="right">{{ number_format($summary['totals']['socso_employee'], 2) }}</td>
                     <td class="right">{{ number_format($summary['totals']['eis_employee'], 2) }}</td>
                     <td class="right">{{ number_format($summary['totals']['pcb'], 2) }}</td>
+                    @if ($statutory->skbbk_enabled)
+                        <td class="right">{{ number_format($summary['totals']['skbbk'], 2) }}</td>
+                    @endif
                     <td class="right">{{ number_format($summary['totals']['net'], 2) }}</td>
                 @endif
             </tr>
@@ -144,6 +156,11 @@
                 <th class="right">EPF</th>
                 <th class="right">SOCSO</th>
                 <th class="right">EIS</th>
+                {{-- The levy is inside Total and inside Cost to company, so
+                     without its own column the two exceed what is listed. --}}
+                @if ($statutory->hrdf_enabled)
+                    <th class="right">HRD Corp</th>
+                @endif
                 <th class="right">Total</th>
                 <th class="right">Cost to company</th>
             </tr>
@@ -154,6 +171,9 @@
                 <td class="right">{{ number_format($summary['totals']['epf_employer'], 2) }}</td>
                 <td class="right">{{ number_format($summary['totals']['socso_employer'], 2) }}</td>
                 <td class="right">{{ number_format($summary['totals']['eis_employer'], 2) }}</td>
+                @if ($statutory->hrdf_enabled)
+                    <td class="right">{{ number_format($summary['totals']['hrdf_employer'], 2) }}</td>
+                @endif
                 <td class="right">{{ number_format($summary['totals']['statutory_employer'], 2) }}</td>
                 <td class="right">{{ number_format($summary['totals']['employer_cost'], 2) }}</td>
             </tr>

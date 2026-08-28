@@ -133,6 +133,13 @@
                                         <span class="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-brand-50 text-brand-800">
                                             paid from {{ $row['employee']->serviceChargeOutlet?->name ?? 'another outlet' }}
                                         </span>
+                                    @elseif ($row['belowMinDays'] ?? false)
+                                        {{-- The pool's own rule rather than a decision
+                                             about this person, so it names the rule and
+                                             the count it was applied to. --}}
+                                        <span class="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
+                                            {{ (int) ($row['workDays'] ?? 0) }} of {{ (int) ($d['minDays'] ?? 0) }} working days
+                                        </span>
                                     @elseif ($row['excluded'])
                                         <span class="mt-0.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
                                             excluded from this pool
