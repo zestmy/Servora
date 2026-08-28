@@ -22,6 +22,10 @@ use Tests\TestCase;
  * on the `.sub` line beneath, which is the same idiom the cert-no and typhoid
  * columns already use.
  *
+ * Gated on hr.compensation alongside salary and service points, which is also
+ * why the two layouts are 16 columns and 13 rather than 16 and 14 — the bank
+ * column rides the same gate the pay columns do.
+ *
  * The assertions are made against the rendered VIEW rather than the PDF bytes,
  * because dompdf compresses its streams and `assertStringContainsString` on the
  * file is worth nothing. One test still goes through dompdf end to end, to
@@ -153,7 +157,33 @@ class EmployeeListPdfBankColumnTest extends TestCase
         $this->assertStringContainsString('colspan="16"', $html,
             'The outlet row must span the pay layout in full.');
 
-        $this->assertStringContainsString('colspan="14"', $this->html(false));
+        // 13, not 14: without the pay ability the bank column is gone too.
+        $this->assertStringContainsString('colspan="13"', $this->html(false));
+    }
+
+    /**
+     * Without the pay ability the column is not on the sheet at all — neither
+     * the heading nor any account number anywhere in the document.
+     */
+    public function test_the_column_is_absent_without_the_pay_ability(): void
+    {
+        $this->employee([
+            'name' => 'AMINAH', 'staff_id' => 'E001',
+            'bank_name' => 'MAYBANK', 'bank_account_no' => '0123456789',
+            'bank_account_name' => 'SITI BINTI ALI',
+        ]);
+
+        $html = $this->html(false);
+
+        $this->assertStringNotContainsString('Bank Account', $html);
+        $this->assertStringNotContainsString('0123456789', $html);
+        $this->assertStringNotContainsString('MAYBANK', $html);
+        $this->assertStringNotContainsString('SITI BINTI ALI', $html);
+
+        // Still the employee list it was — a gate that emptied the page would
+        // pass every assertion above.
+        $this->assertStringContainsString('AMINAH', $html);
+        $this->assertStringContainsString('Halal Training', $html);
     }
 
     /** dompdf renders it, at the new width, without choking. */

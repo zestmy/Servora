@@ -130,8 +130,18 @@ class EmployeeExportController extends Controller
         $company   = Auth::user()->company;
         $brandName = $company?->brand_name ?: $company?->name;
 
-        // Salary and service points only reach the file for permitted users —
-        // the sheet's column layout shifts accordingly.
+        /*
+         * Salary, service points AND BANK DETAILS only reach the file for
+         * permitted users — the sheet's column layout shifts accordingly.
+         *
+         * Bank details are gated HERE rather than by adding the columns to
+         * Employee::SENSITIVE_PAY_ATTRIBUTES, which would also hide them on
+         * the Personal tab of the employee form and reverse the 2026-08-11
+         * decision that put them there. The rule this encodes is narrower
+         * than that one: maintaining an account number on a record you are
+         * already editing is not the same act as carrying every account
+         * number in the company out of the building in one file.
+         */
         $canViewPay = Employee::canViewPay();
 
         $spreadsheet = new Spreadsheet();
@@ -139,11 +149,14 @@ class EmployeeExportController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Employees');
 
-        $headers = [
-            'No.', 'Name', 'Staff ID', 'Designation', 'Section', 'Outlet', 'E-mail', 'Phone',
-            'Bank', 'Bank Account No.', 'Account Holder',
+        $headers = ['No.', 'Name', 'Staff ID', 'Designation', 'Section', 'Outlet', 'E-mail', 'Phone'];
+        if ($canViewPay) {
+            array_push($headers, 'Bank', 'Bank Account No.', 'Account Holder');
+        }
+        array_push(
+            $headers,
             'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training',
-        ];
+        );
         if ($canViewPay) {
             $headers[] = 'Service Points';
             $headers[] = 'Basic Salary';
@@ -201,6 +214,9 @@ class EmployeeExportController extends Controller
                 $halal .= ' (attended ' . $emp->halal_training_date->format('d M Y') . ')';
             }
 
+            // Built in the same two halves as $headers, and the halves must
+            // stay in step: a value pushed on one side of a gate the header
+            // was not would shift every column after it.
             $values = [
                 $i + 1,
                 $emp->name,
@@ -210,19 +226,27 @@ class EmployeeExportController extends Controller
                 $emp->outlet?->name,
                 $emp->email,
                 $emp->phone,
-                $emp->bank_name,
-                $emp->bank_account_no,
-                // Blank on the record means "the account is their own", so the
-                // holder is spelled out rather than left empty — this column is
-                // read by somebody keying in a transfer.
-                filled($emp->bank_account_no) ? $emp->payeeName() : null,
+            ];
+            if ($canViewPay) {
+                array_push(
+                    $values,
+                    $emp->bank_name,
+                    $emp->bank_account_no,
+                    // Blank on the record means "the account is their own", so
+                    // the holder is spelled out rather than left empty — this
+                    // column is read by somebody keying in a transfer.
+                    filled($emp->bank_account_no) ? $emp->payeeName() : null,
+                );
+            }
+            array_push(
+                $values,
                 $emp->join_date?->format('Y-m-d'),
                 $employment,
                 $emp->food_handler_certified ? 'Certified' : 'No',
                 $emp->food_handler_cert_no,
                 $typhoid,
                 $halal,
-            ];
+            );
             if ($canViewPay) {
                 $values[] = $emp->service_points_entitlement !== null ? (float) $emp->service_points_entitlement : null;
                 $values[] = $emp->basic_salary !== null ? (float) $emp->basic_salary : null;

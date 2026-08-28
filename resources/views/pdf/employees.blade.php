@@ -86,7 +86,9 @@
                 <th style="width: 50px;">Section</th>
                 <th style="width: 88px;">E-mail</th>
                 <th style="width: 60px;">Phone</th>
-                <th style="width: 100px;">Bank Account</th>
+                @if ($canViewPay)
+                    <th style="width: 100px;">Bank Account</th>
+                @endif
                 <th style="width: 48px;">Join Date</th>
                 <th style="width: 76px;" class="c">Employment</th>
                 <th style="width: 66px;" class="c">Food Handler</th>
@@ -119,7 +121,7 @@
             @endphp
             @foreach ($employees->groupBy(fn ($e) => $e->outlet?->name ?? 'No Outlet') as $outletName => $group)
                 <tr class="outlet-row">
-                    <td colspan="{{ $canViewPay ? 16 : 14 }}">{{ $outletName }} ({{ $group->count() }})</td>
+                    <td colspan="{{ $canViewPay ? 16 : 13 }}">{{ $outletName }} ({{ $group->count() }})</td>
                 </tr>
                 @foreach ($group as $emp)
                     @php
@@ -136,6 +138,7 @@
                         <td>{{ $emp->section?->name ?? '—' }}</td>
                         <td>{{ $emp->email ?? '—' }}</td>
                         <td>{{ $emp->phone ?? '—' }}</td>
+                        @if ($canViewPay)
                         <td>
                             @if (filled($emp->bank_account_no))
                                 <span class="mono">{{ $emp->bank_account_no }}</span>
@@ -157,6 +160,7 @@
                                 —
                             @endif
                         </td>
+                        @endif
                         <td>{{ $emp->join_date?->format('d M Y') ?? '—' }}</td>
                         <td class="c">
                             @if ($emp->employment_status)
@@ -197,7 +201,7 @@
                 @endforeach
             @endforeach
             @if ($employees->isEmpty())
-                <tr><td colspan="{{ $canViewPay ? 16 : 14 }}" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
+                <tr><td colspan="{{ $canViewPay ? 16 : 13 }}" style="text-align: center; color: #999; padding: 12px;">No employees match the selected filters.</td></tr>
             @endif
         </tbody>
     </table>
