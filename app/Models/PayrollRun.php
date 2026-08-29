@@ -37,20 +37,44 @@ class PayrollRun extends Model
      * bank file by following a link or guessing a uuid. The permission and the
      * company scope both passed; nothing asked about the outlet.
      *
-     * A COMPANY-WIDE RUN (outlet_id null) stays visible, which is the rule the
-     * two existing copies already applied and is kept deliberately rather than
-     * by accident: it is the only run a single-outlet company has, and it is
-     * how a company-wide payroll is read at all. It does mean such a run shows
-     * every branch's pay to anybody with hr.payroll — worth narrowing on
-     * purpose if that is not wanted, but not as a side effect of closing the
-     * hole above.
-     *
-     * @param  array<int, int>  $accessibleOutletIds
+     * A COMPANY-WIDE RUN (outlet_id null) needs access to the WHOLE company,
+     * narrowed on purpose on 2026-08-29. It used to be visible to anyone with
+     * hr.payroll, which was the rule the two existing copies applied — and it
+     * meant the one document that pays every branch was the one document with
+     * no branch check on it. Asking for every outlet rather than refusing
+     * outright is what keeps it readable where it should be: a single-outlet
+     * company's manager holds every outlet there is, and so does anyone with
+     * the view-all flag. See User::coversEveryOutlet().
      */
-    public function isWithinOutlets(array $accessibleOutletIds): bool
+    public function isWithinOutlets(User $user): bool
     {
-        return $this->outlet_id === null
-            || in_array((int) $this->outlet_id, $accessibleOutletIds, true);
+        if ($this->outlet_id === null) {
+            return $user->coversEveryOutlet();
+        }
+
+        return in_array((int) $this->outlet_id, $user->accessibleOutletIds(), true);
+    }
+
+    /**
+     * The same rule as a QUERY, for the list.
+     *
+     * The list had no outlet filter at all — it paginated every run in the
+     * company — so a manager restricted to one branch read another branch's
+     * gross, net and headcount straight off the index, before any of the
+     * checks above were reached. Written here rather than in the component so
+     * the row you can see and the run you can open cannot drift apart.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        $accessible = $user->accessibleOutletIds();
+
+        return $query->where(function ($q) use ($accessible, $user) {
+            $q->whereIn('outlet_id', $accessible ?: [0]);
+
+            if ($user->coversEveryOutlet()) {
+                $q->orWhereNull('outlet_id');
+            }
+        });
     }
 
     public const DRAFT    = 'draft';

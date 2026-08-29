@@ -289,6 +289,34 @@ class User extends Authenticatable
         return $this->outlets()->where('outlets.company_id', $this->company_id);
     }
 
+    /**
+     * Whether this user's access reaches EVERY outlet of the active company.
+     *
+     * The question a company-wide document has to ask. A payroll run with no
+     * outlet pays the whole company, so "may they see it" is not answered by
+     * any single outlet: it is answered by whether anything is being hidden
+     * from them at all.
+     *
+     * Not the same as canViewAllOutlets(), which is the flag. Somebody
+     * explicitly assigned all three outlets of a three-outlet company can see
+     * the whole company just as surely, and a single-outlet company's manager
+     * holds every outlet there is — which is what stops this rule locking the
+     * only run a small company ever makes.
+     */
+    public function coversEveryOutlet(): bool
+    {
+        if ($this->canViewAllOutlets()) {
+            return true;
+        }
+
+        $all = Outlet::where('company_id', $this->company_id)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        // A company with no outlets hides nothing, so there is nothing to
+        // withhold. Returning false there would lock a run nobody can reach.
+        return $all === [] || array_diff($all, $this->accessibleOutletIds()) === [];
+    }
+
     /** Accessible outlet ids for the active company. */
     public function accessibleOutletIds(): array
     {

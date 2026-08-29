@@ -22,18 +22,19 @@ use Tests\TestCase;
  * REPORTED AS: payroll — draft and approved, and the payslips with it —
  * should only be viewable for the outlets a user is allowed.
  *
- * The LIST was already scoped. What was not: the run screen fetched by uuid,
- * the payslip PDFs fetched by run id, and the statutory submission and bank
- * payment files. Each checked the permission and the company and stopped
- * there, so a manager restricted to one branch could not see another branch's
- * run in the list and could open it by following a link or guessing a uuid —
- * then print every payslip on it. The Excel and list-PDF exports had the
- * check; nothing else did.
+ * NOTHING was scoped except two of the exports. The list paginated every run
+ * in the company, so another branch's gross, net and headcount were readable
+ * from the index; the run screen fetched by uuid, the payslip PDFs fetched by
+ * run id, and the statutory submission and bank payment files each checked
+ * the permission and the company and stopped there. Only the Excel and
+ * list-PDF exports asked about the outlet — each with its own copy of the
+ * question, which is how the rest came to be missed.
  *
- * A COMPANY-WIDE run (no outlet) stays visible to anyone with hr.payroll.
- * That was the existing rule in the two exports that already checked, and it
- * is kept on purpose rather than tightened as a side effect — see
- * PayrollRun::isWithinOutlets().
+ * A COMPANY-WIDE run (no outlet) needs access to the WHOLE company. It pays
+ * every branch, so no single outlet answers the question; asking for all of
+ * them rather than refusing outright is what keeps it readable where it
+ * should be, since a single-outlet company's manager holds every outlet
+ * there is. See User::coversEveryOutlet().
  */
 class PayrollOutletVisibilityTest extends TestCase
 {
@@ -164,17 +165,64 @@ class PayrollOutletVisibilityTest extends TestCase
             ->assertOk();
     }
 
-    /**
-     * A company-wide run stays readable. Kept deliberately: it is the only run
-     * a single-outlet company has, and narrowing it is a policy decision to
-     * take on purpose rather than as fallout from closing the hole above.
-     */
-    public function test_a_company_wide_run_is_still_visible(): void
+    /** It pays every branch, so one branch's manager may not read it. */
+    public function test_a_company_wide_run_is_hidden_from_a_restricted_user(): void
     {
         $run = $this->makeRun(null);
 
         Livewire::actingAs($this->manager())
             ->test(PayrollRunShow::class, ['run' => $run->uuid])
+            ->assertForbidden();
+    }
+
+    /**
+     * And is readable by somebody who covers the whole company, whether by
+     * the view-all flag or by simply holding every outlet — which is what
+     * stops this rule locking the only run a small company ever makes.
+     */
+    public function test_a_company_wide_run_opens_for_somebody_who_covers_every_outlet(): void
+    {
+        $run = $this->makeRun(null);
+
+        $user = User::factory()->create([
+            'company_id' => $this->company->id, 'can_view_all_outlets' => false,
+        ]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->mine->id, $this->theirs->id]);
+
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo(['hr.view', 'hr.payroll']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Livewire::actingAs($user)
+            ->test(PayrollRunShow::class, ['run' => $run->uuid])
             ->assertOk();
+    }
+
+    /** The list is the other way in, and it had no filter at all. */
+    public function test_the_list_shows_only_runs_the_user_may_open(): void
+    {
+        $mine    = $this->makeRun($this->mine);
+        $theirs  = $this->makeRun($this->theirs);
+        $company = $this->makeRun(null);
+
+        $html = Livewire::actingAs($this->manager())
+            ->test(\App\Livewire\Hr\Payroll::class)
+            ->html();
+
+        $this->assertStringContainsString($mine->uuid, $html);
+        $this->assertStringNotContainsString($theirs->uuid, $html);
+        $this->assertStringNotContainsString($company->uuid, $html);
+    }
+
+    /** Generating a company-wide run needs the same reach as reading one. */
+    public function test_a_restricted_user_cannot_generate_a_company_wide_run(): void
+    {
+        Livewire::actingAs($this->manager())
+            ->test(\App\Livewire\Hr\Payroll::class)
+            ->set('newMonth', '2026-08')
+            ->set('newOutlet', '')
+            ->call('generate')
+            ->assertHasErrors('newOutlet');
     }
 }

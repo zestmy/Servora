@@ -61,7 +61,7 @@ class PayslipController extends Controller
         // And the outlet, which was missing: a payslip is the most detailed
         // pay document there is, and this route took a run id straight from
         // the URL. See PayrollRun::isWithinOutlets().
-        abort_unless($run->isWithinOutlets(Auth::user()->accessibleOutletIds()), 403);
+        abort_unless($run->isWithinOutlets(Auth::user()), 403);
     }
 
     private function render(PayrollRun $run, $lines, string $filename)

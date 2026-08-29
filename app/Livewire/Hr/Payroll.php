@@ -393,6 +393,15 @@ class Payroll extends Component
             return;
         }
 
+        // And "All outlets" is a choice about the whole company, so it needs
+        // the whole company. Without this a restricted user could generate a
+        // run they are then not allowed to open — which reads as the run
+        // having failed rather than as a refusal.
+        if ($outletId === null && ! $user->coversEveryOutlet()) {
+            $this->addError('newOutlet', 'A company-wide run needs access to every outlet. Choose an outlet instead.');
+            return;
+        }
+
         try {
             $run = app(PayrollRunBuilder::class)->generate(
                 $user->company_id,
@@ -502,6 +511,10 @@ class Payroll extends Component
         $user = Auth::user();
 
         $runs = PayrollRun::with('outlet:id,name', 'section:id,name', 'approvedBy:id,name')
+            // Every run in the company used to be listed, whatever branch it
+            // paid — the gross, net and headcount of one were readable from
+            // the index by anyone with hr.payroll.
+            ->visibleTo($user)
             ->orderByDesc('period_month')
             ->orderByDesc('id')
             ->paginate(15);

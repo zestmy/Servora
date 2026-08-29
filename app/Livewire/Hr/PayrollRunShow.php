@@ -108,7 +108,7 @@ class PayrollRunShow extends Component
         // A uuid in a link or a guess would otherwise open another branch's
         // run in full — every salary on it, and the payslip buttons with it.
         abort_unless(
-            $this->cachedRun->isWithinOutlets(Auth::user()->accessibleOutletIds()),
+            $this->cachedRun->isWithinOutlets(Auth::user()),
             403,
         );
 
