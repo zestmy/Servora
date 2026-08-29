@@ -96,9 +96,23 @@ class PayrollRunShow extends Component
 
     public function run(): PayrollRun
     {
-        return $this->cachedRun ??= PayrollRun::with('outlet:id,name', 'section:id,name', 'generatedBy:id,name', 'approvedBy:id,name')
+        if ($this->cachedRun) {
+            return $this->cachedRun;
+        }
+
+        $this->cachedRun = PayrollRun::with('outlet:id,name', 'section:id,name', 'generatedBy:id,name', 'approvedBy:id,name')
             ->where('uuid', $this->runUuid)
             ->firstOrFail();
+
+        // The company scope got this far; the OUTLET is what was never asked.
+        // A uuid in a link or a guess would otherwise open another branch's
+        // run in full — every salary on it, and the payslip buttons with it.
+        abort_unless(
+            $this->cachedRun->isWithinOutlets(Auth::user()->accessibleOutletIds()),
+            403,
+        );
+
+        return $this->cachedRun;
     }
 
     private function forgetRun(): void

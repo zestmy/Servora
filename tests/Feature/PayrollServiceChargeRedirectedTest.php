@@ -138,6 +138,31 @@ class PayrollServiceChargeRedirectedTest extends TestCase
         $this->assertSame(1000.0, $paid);
     }
 
+    /**
+     * THEY ARE NOT ON THE OTHER BRANCH'S RUN AT ALL.
+     *
+     * The share-paid-once test above would still pass if their line existed on
+     * the KLCC run carrying RM0 of service charge — and it would carry their
+     * BASIC SALARY, so somebody posted to HQ would appear on KLCC's payroll
+     * and KLCC's payslips because of where their service charge comes from.
+     * Runs are scoped by home outlet, and this is the assertion that says the
+     * pool must never drag a person across.
+     */
+    public function test_a_redirected_employee_has_no_line_on_the_pool_outlets_run(): void
+    {
+        $klcc = $this->scOnRun($this->klcc);
+        $hq   = $this->scOnRun($this->hq);
+
+        $this->assertArrayNotHasKey($this->redirected->id, $klcc,
+            'Paid from KLCC, posted to HQ — KLCC pays their share, HQ pays them.');
+        $this->assertArrayHasKey($this->redirected->id, $hq);
+
+        // And the reverse, so this is a statement about home outlet rather
+        // than about one employee: KLCC's own staff are not on the HQ run.
+        $this->assertArrayHasKey($this->atKlcc->id, $klcc);
+        $this->assertArrayNotHasKey($this->atKlcc->id, $hq);
+    }
+
     public function test_a_company_wide_run_still_pays_everyone_once(): void
     {
         $all = $this->scOnRun(null);

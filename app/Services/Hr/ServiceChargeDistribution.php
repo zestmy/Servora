@@ -5,7 +5,9 @@ namespace App\Services\Hr;
 use App\Models\AttendanceCode;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\PayrollRun;
 use App\Models\ServiceChargePeriod;
+use App\Services\Payroll\RunPeriods;
 use Carbon\Carbon;
 
 /**
@@ -279,6 +281,42 @@ class ServiceChargeDistribution
             'collected' => round(array_sum(array_map(fn ($p) => (float) $p['collected'], $perPool)), 2),
             'pools'     => $perPool,
         ];
+    }
+
+    /**
+     * Payroll runs that are PAID FROM a given pool.
+     *
+     * Asked of forRun() rather than re-derived, and that is the whole point:
+     * which pools a run draws on is a rule with three parts — the run's own
+     * service charge window, a company-wide pool beating the per-outlet ones,
+     * and a per-outlet run reaching into whatever pool pays the people posted
+     * to it. That rule has been got wrong twice already, once paying nobody
+     * and once paying somebody nothing. A second copy written here to answer
+     * "is this pool in use" would be a third chance to get it wrong, and it
+     * would be wrong in the direction of deleting evidence somebody was paid.
+     *
+     * Runs are few — a handful a month — so the cost of asking properly is
+     * paid once, on a button press, and only by whoever is about to delete
+     * something.
+     *
+     * @return \Illuminate\Support\Collection<int, PayrollRun>
+     */
+    public function runsUsing(ServiceChargePeriod $pool, array $accessibleOutletIds)
+    {
+        return PayrollRun::withoutGlobalScopes()
+            ->where('company_id', $pool->company_id)
+            ->get()
+            ->filter(function (PayrollRun $run) use ($pool, $accessibleOutletIds) {
+                [$from, $to] = RunPeriods::fromRun($run)->serviceCharge();
+
+                $result = $this->forRun(
+                    $pool->company_id, $accessibleOutletIds, $from, $to, $run->outlet_id
+                );
+
+                return collect($result['pools'] ?? [])
+                    ->contains(fn ($p) => (int) ($p['row']->id ?? 0) === (int) $pool->id);
+            })
+            ->values();
     }
 
     /**

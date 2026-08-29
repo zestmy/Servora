@@ -111,11 +111,7 @@ class PayrollRunExcelController extends Controller
 
         // The global scope already limits this to the viewer's company; the
         // outlet check is what stops a run for a branch they cannot see.
-        abort_unless(
-            $payrollRun->outlet_id === null
-                || in_array((int) $payrollRun->outlet_id, Auth::user()->accessibleOutletIds(), true),
-            403,
-        );
+        abort_unless($payrollRun->isWithinOutlets(Auth::user()->accessibleOutletIds()), 403);
 
         $lines = $payrollRun->lines()->orderBy('employee_name')->get();
 

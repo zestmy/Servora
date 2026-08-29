@@ -466,6 +466,21 @@ return [
                     'title' => 'HR — Service Charge',
                     'help'  => 'Open the service charge panel, set the pool and distribute it, and read the payout report.',
                 ],
+
+                /*
+                 * Setting a pool and destroying one are different acts, the
+                 * same reason clock punches and overtime claims each have a
+                 * delete of their own. A saved pool is the working behind
+                 * money that has already been handed out, and it is the only
+                 * copy — the payslips keep their figures, but nothing else
+                 * records how a point came to be worth what it was.
+                 */
+                'service_charge_delete' => [
+                    'name'  => 'hr.attendance.service_charge.delete',
+                    'label' => 'Delete a service charge pool',
+                    'title' => 'HR — Service Charge (Delete)',
+                    'help'  => 'Remove a saved pool and the split kept with it. Refused while an approved payroll run has paid from it.',
+                ],
             ],
         ],
 

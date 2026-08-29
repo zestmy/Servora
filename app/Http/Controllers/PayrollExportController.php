@@ -21,6 +21,9 @@ class PayrollExportController extends Controller
     {
         abort_unless(Auth::user()?->can('hr.payroll'), 403);
         abort_unless($run->company_id === Auth::user()->company_id, 404);
+        // The outlet check the Excel and list-PDF exports already had, and
+        // this one did not — these are the submission and BANK PAYMENT files.
+        abort_unless($run->isWithinOutlets(Auth::user()->accessibleOutletIds()), 403);
         abort_unless(array_key_exists($type, PayrollExports::TYPES), 404);
 
         abort_unless(

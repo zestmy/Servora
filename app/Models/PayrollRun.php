@@ -26,6 +26,33 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PayrollRun extends Model
 {
+    /**
+     * Whether a viewer's OUTLET access reaches this run.
+     *
+     * Written once because it was written twice and forgotten three times: the
+     * Excel and list-PDF controllers each carried their own copy, while the
+     * run screen, the payslips and the statutory exports carried none — so a
+     * manager restricted to one branch could not see another branch's run in
+     * the list, and could open it, print every payslip on it and download its
+     * bank file by following a link or guessing a uuid. The permission and the
+     * company scope both passed; nothing asked about the outlet.
+     *
+     * A COMPANY-WIDE RUN (outlet_id null) stays visible, which is the rule the
+     * two existing copies already applied and is kept deliberately rather than
+     * by accident: it is the only run a single-outlet company has, and it is
+     * how a company-wide payroll is read at all. It does mean such a run shows
+     * every branch's pay to anybody with hr.payroll — worth narrowing on
+     * purpose if that is not wanted, but not as a side effect of closing the
+     * hole above.
+     *
+     * @param  array<int, int>  $accessibleOutletIds
+     */
+    public function isWithinOutlets(array $accessibleOutletIds): bool
+    {
+        return $this->outlet_id === null
+            || in_array((int) $this->outlet_id, $accessibleOutletIds, true);
+    }
+
     public const DRAFT    = 'draft';
     public const APPROVED = 'approved';
     public const PAID     = 'paid';

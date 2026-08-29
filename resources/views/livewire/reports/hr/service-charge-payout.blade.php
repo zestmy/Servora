@@ -26,6 +26,13 @@
         @endif
     </div>
 
+    @if (session('status'))
+        <div class="alert-success mb-4 text-sm">{{ session('status') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="alert-danger mb-4 text-sm">{{ session('error') }}</div>
+    @endif
+
     @if ($periods->isEmpty())
         <div class="card p-8 text-center">
             <p class="text-sm text-gray-700">No service charge has been saved yet.</p>
@@ -50,6 +57,15 @@
                         {{ $p->period_from->format('d M') }} – {{ $p->period_to->format('d M Y') }}
                         <span class="block text-[10px] {{ $period && $period->id === $p->id ? 'text-brand-100' : 'text-gray-500' }}">
                             {{ $p->outlet?->name ?? 'All outlets' }} · RM {{ number_format((float) $p->amount, 2) }}
+                        </span>
+                        {{-- Calculated or not, on the button itself. A pool with
+                             an amount but no calculation pays nothing, and
+                             finding that out by selecting it and reading an
+                             empty table is the slow way round. --}}
+                        <span class="block text-[10px] {{ $period && $period->id === $p->id ? 'text-brand-100' : ($p->isFrozen() ? 'text-success-600' : 'text-warning-700') }}">
+                            {{ $p->isFrozen()
+                                ? 'Calculated ' . $p->calculated_at->format('d M Y')
+                                : 'Not calculated' }}
                         </span>
                     </button>
                 @endforeach
@@ -205,6 +221,50 @@
                 Pools are entered on <a href="{{ route('hr.attendance') }}" class="text-brand-600 hover:underline">Attendance Record</a>.
             </p>
         </div>
+
+        {{-- Deleting the pool you are LOOKING AT, rather than a row of bins in
+             the picker above. The figures it paid are on the screen directly
+             beneath the button, which is the difference between deleting a
+             record and deleting a date you half remember. --}}
+        @if ($canDelete)
+            <div class="card p-4 mt-4 border-danger-100">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-700">Delete this pool</p>
+                        <p class="text-xs text-gray-600 mt-1">
+                            Removes the RM {{ number_format((float) $period->amount, 2) }} pool for
+                            {{ $period->period_from->format('d M Y') }} – {{ $period->period_to->format('d M Y') }}
+                            ({{ $period->outlet?->name ?? 'All outlets' }}) and the split kept with it.
+                            The attendance marks behind it are not touched.
+                        </p>
+
+                        @if ($approvedRuns->isNotEmpty())
+                            <p class="text-xs text-danger-600 mt-2 font-medium">
+                                Cannot be deleted: paid out by an approved payroll run
+                                ({{ $approvedRuns->map(fn ($r) => $r->period_month?->format('M Y') ?? 'run #' . $r->id)->unique()->implode(', ') }}).
+                                Those payslips keep their own figures, but this is the working behind them.
+                            </p>
+                        @elseif ($runsUsing->isNotEmpty())
+                            <p class="text-xs text-warning-700 mt-2">
+                                {{ $runsUsing->count() }} draft payroll
+                                {{ \Illuminate\Support\Str::plural('run', $runsUsing->count()) }}
+                                {{ $runsUsing->count() === 1 ? 'draws' : 'draw' }} on this pool. Nothing has been paid,
+                                but regenerating {{ $runsUsing->count() === 1 ? 'it' : 'them' }} after this is deleted
+                                pays no service charge at all.
+                            </p>
+                        @endif
+                    </div>
+
+                    @if ($approvedRuns->isEmpty())
+                        <button wire:click="delete({{ $period->id }})"
+                                data-confirm-delete="Delete the service charge pool for {{ $period->period_from->format('d M Y') }} – {{ $period->period_to->format('d M Y') }} ({{ $period->outlet?->name ?? 'All outlets' }}), RM {{ number_format((float) $period->amount, 2) }}?{{ $runsUsing->isNotEmpty() ? ' ' . $runsUsing->count() . ' draft payroll run(s) draw on it and will pay no service charge once it is gone.' : '' }} This cannot be undone."
+                                class="btn-danger btn-sm whitespace-nowrap">
+                            Delete pool
+                        </button>
+                    @endif
+                </div>
+            </div>
+        @endif
     @elseif ($periods->isNotEmpty())
         <div class="card p-8 text-center text-sm text-gray-600">Select a period above.</div>
     @endif
