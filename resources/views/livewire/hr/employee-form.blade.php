@@ -1061,11 +1061,26 @@
                 </div>
             </div>
 
+            @else
+                {{-- Named rather than left blank. A tab that simply stops after
+                     three boxes reads as a page that failed to load, and the
+                     next thing that happens is somebody asking why the EPF
+                     switch has gone missing. --}}
+                <p class="text-xs text-gray-500 pt-1 border-t border-gray-100">
+                    Which contributions apply — EPF, SOCSO, EIS, HRD Corp, PCB, SKBBK — and the EPF
+                    rate override are set by someone with compensation access. They are unchanged by
+                    anything saved here.
+                </p>
+            @endif
+
+            {{-- OPEN, unlike the switches above: a PCB category, a number of
+                 children, a monthly zakat and an annual relief are the person's
+                 own circumstances, told to whoever keeps their record. They do
+                 move a PCB figure, and that is accepted — the same trade as an
+                 EPF number, and the reason this sits below the split rather
+                 than beside the switches that turn a deduction off entirely. --}}
             <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
-                <div class="flex items-start justify-between gap-3">
-                    <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
-                    <span class="badge-warning whitespace-nowrap">restricted</span>
-                </div>
+                <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div>
                         <label class="text-xs font-semibold text-gray-600">Category</label>
@@ -1093,17 +1108,6 @@
                     </div>
                 </div>
             </div>
-            @else
-                {{-- Named rather than left blank. A tab that simply stops after
-                     three boxes reads as a page that failed to load, and the
-                     next thing that happens is somebody asking why the EPF
-                     switch has gone missing. --}}
-                <p class="text-xs text-gray-500 pt-1 border-t border-gray-100">
-                    Which contributions apply — EPF, SOCSO, EIS, HRD Corp, PCB, SKBBK — and the PCB
-                    inputs are set by someone with compensation access. They are unchanged by anything
-                    saved here.
-                </p>
-            @endif
 
             </fieldset>
         </div>

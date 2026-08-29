@@ -40,10 +40,13 @@ use Tests\TestCase;
  *   OPEN — EPF, SOCSO and income tax numbers, and citizenship. A scheme
  *   number is a person's own detail, theirs the way an IC number is.
  *
- *   STILL RESTRICTED — the contribution switches (EPF, SOCSO, EIS, HRD Corp,
- *   PCB, SKBBK), the EPF rate override, and the PCB inputs. Those decide
- *   whether a deduction happens and how big it is, which is a payroll
- *   decision and not a record being kept up to date.
+ *   OPEN, added the same day — the PCB inputs: category, children, monthly
+ *   zakat, annual relief. Circumstances the person tells whoever keeps their
+ *   record. They do move a PCB figure, and that is the accepted trade.
+ *
+ *   STILL RESTRICTED — the switches that decide whether a contribution
+ *   happens AT ALL (EPF, SOCSO, EIS, HRD Corp, PCB, SKBBK) and the EPF rate
+ *   override. Those are a payroll decision, not a record being kept current.
  *
  * The split runs through hydration AND writing, and the tests below hold both
  * ends: the dangerous failure is a field written but not hydrated, which saves
@@ -166,7 +169,27 @@ class EmployeeFormTabsTest extends TestCase
         $this->assertSame('EPF-70000001', $this->profile()->epf_number);
     }
 
-    /** The other half of the split: the deduction inputs are not shown. */
+    /** The PCB inputs are editable by a records keeper, which is the point. */
+    public function test_pcb_inputs_can_be_changed_without_salary_access(): void
+    {
+        $this->form(['hr.view', 'hr.employees.manage'])
+            ->set('s_pcb_category', 'spouse_not_working')
+            ->set('s_children', '4')
+            ->set('s_zakat', '120.75')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = $this->profile();
+
+        $this->assertSame('spouse_not_working', $profile->pcb_category);
+        $this->assertSame(4, (int) $profile->children);
+        $this->assertEqualsWithDelta(120.75, (float) $profile->monthly_zakat, 0.01);
+
+        // And doing so leaves the switches beside them alone.
+        $this->assertFalse((bool) $profile->epf_enabled);
+    }
+
+    /** The other half of the split: the contribution switches are not shown. */
     public function test_the_contribution_switches_stay_behind_the_pay_wall(): void
     {
         $html = $this->form(['hr.view', 'hr.employees.manage'])->html();
@@ -180,10 +203,15 @@ class EmployeeFormTabsTest extends TestCase
          * test that forbids the words forbids explaining the gap.
          */
         foreach (['s_epf', 's_socso', 's_eis', 's_hrdf', 's_pcb', 's_skbbk',
-                  's_epf_override', 's_pcb_category', 's_children', 's_zakat',
-                  's_other_relief'] as $field) {
+                  's_epf_override'] as $field) {
             $this->assertStringNotContainsString('wire:model="' . $field . '"', $html,
-                "$field decides a deduction and must stay behind the pay wall.");
+                "$field decides whether a contribution happens and must stay behind the pay wall.");
+        }
+
+        // The PCB inputs came out from behind the wall on 2026-08-29.
+        foreach (['s_pcb_category', 's_children', 's_zakat', 's_other_relief'] as $field) {
+            $this->assertStringContainsString('wire:model="' . $field . '"', $html,
+                "$field is a person's own circumstance and is open.");
         }
     }
 
@@ -222,6 +250,10 @@ class EmployeeFormTabsTest extends TestCase
 
         $this->assertFalse((bool) $profile->epf_enabled, 'A live EPF opt-out was switched back on.');
         $this->assertFalse((bool) $profile->socso_enabled);
+
+        // These are open now, so they survive for the other reason: they were
+        // LOADED into the form and written back unchanged. Worth asserting all
+        // the same — the failure looks identical from the outside.
         $this->assertSame('spouse_working', $profile->pcb_category);
         $this->assertSame(3, (int) $profile->children);
         $this->assertEqualsWithDelta(55.50, (float) $profile->monthly_zakat, 0.01);
@@ -232,12 +264,12 @@ class EmployeeFormTabsTest extends TestCase
     {
         $this->form(['hr.view', 'hr.employees.manage', 'hr.compensation'])
             ->set('s_epf', true)
-            ->set('s_children', '5')
+            ->set('s_epf_override', '13')
             ->call('save')
             ->assertHasNoErrors();
 
         $this->assertTrue((bool) $this->profile()->epf_enabled);
-        $this->assertSame(5, (int) $this->profile()->children);
+        $this->assertEqualsWithDelta(13, (float) $this->profile()->epf_employee_rate_override, 0.01);
     }
 
     private function profile(): \App\Models\EmployeeStatutoryProfile

@@ -405,8 +405,12 @@ class EmployeeForm extends Component
          * trade as the bank details on the Personal tab; see
          * Employee::SENSITIVE_PAY_ATTRIBUTES.
          *
-         * Everything BELOW the split decides whether a deduction happens and
-         * how big it is, so it stays behind hr.compensation with the salary.
+         * The PCB inputs joined them on 2026-08-29: a tax category, children,
+         * zakat and relief are the person's circumstances too.
+         *
+         * What stays behind hr.compensation is the set of switches that decide
+         * whether a contribution HAPPENS AT ALL — EPF, SOCSO, EIS, HRD Corp,
+         * PCB, SKBBK — and the EPF rate override.
          *
          * THE TWO HALVES MUST MATCH syncStatutoryProfile() EXACTLY. A field
          * hydrated but not written loses its edits silently; a field written
@@ -419,6 +423,14 @@ class EmployeeForm extends Component
         $this->s_socso_number = $p->socso_number ?? '';
         $this->s_tax_number   = $p->income_tax_number ?? '';
         $this->s_is_malaysian = (bool) $p->is_malaysian;
+        // The PCB inputs are the person's own circumstances, so they sit on
+        // the open side with the scheme numbers. They DO move a PCB figure;
+        // that is the accepted trade, and the line is drawn at the switches
+        // that turn a deduction off entirely.
+        $this->s_pcb_category = $p->pcb_category ?: 'single';
+        $this->s_children     = (string) $p->children;
+        $this->s_zakat        = (string) (float) $p->monthly_zakat;
+        $this->s_other_relief = (string) (float) $p->annual_other_relief;
 
         if ($this->canViewPay()) {
             $this->s_epf          = (bool) $p->epf_enabled;
@@ -429,10 +441,6 @@ class EmployeeForm extends Component
             $this->s_pcb          = (bool) $p->pcb_enabled;
             $this->s_epf_override = $p->epf_employee_rate_override !== null
                 ? (string) (float) $p->epf_employee_rate_override : '';
-            $this->s_pcb_category = $p->pcb_category ?: 'single';
-            $this->s_children     = (string) $p->children;
-            $this->s_zakat        = (string) (float) $p->monthly_zakat;
-            $this->s_other_relief = (string) (float) $p->annual_other_relief;
         }
 
         $this->f_is_active = (bool) $emp->is_active;
@@ -1164,9 +1172,10 @@ class EmployeeForm extends Component
      * Write the statutory profile alongside the employee.
      *
      * SPLIT ON THE SAME LINE AS mount(), and it has to stay that way. The
-     * scheme numbers and citizenship are written by anyone who may edit an
-     * employee; the contribution switches and PCB inputs only by somebody who
-     * can see pay, because those are not hydrated for anyone else and writing
+     * scheme numbers, citizenship and the PCB inputs are written by anyone who
+     * may edit an employee; the contribution switches and the EPF rate
+     * override only by somebody who can see pay, because those are not
+     * hydrated for anyone else and writing
      * them from an unfilled form would switch off a real EPF contribution
      * nobody was ever shown.
      *
@@ -1182,6 +1191,10 @@ class EmployeeForm extends Component
             'socso_number'      => $this->s_socso_number ?: null,
             'income_tax_number' => $this->s_tax_number ?: null,
             'is_malaysian'      => $this->s_is_malaysian,
+            'pcb_category'        => $this->s_pcb_category,
+            'children'            => (int) $this->s_children,
+            'monthly_zakat'       => round((float) $this->s_zakat, 2),
+            'annual_other_relief' => round((float) $this->s_other_relief, 2),
         ];
 
         // What a deduction is worked out from. Left untouched otherwise, so a
@@ -1199,10 +1212,6 @@ class EmployeeForm extends Component
                 'pcb_enabled'       => $this->s_pcb,
                 'epf_employee_rate_override' => $this->s_epf_override !== ''
                     ? round((float) $this->s_epf_override, 2) : null,
-                'pcb_category'        => $this->s_pcb_category,
-                'children'            => (int) $this->s_children,
-                'monthly_zakat'       => round((float) $this->s_zakat, 2),
-                'annual_other_relief' => round((float) $this->s_other_relief, 2),
             ];
         }
 
