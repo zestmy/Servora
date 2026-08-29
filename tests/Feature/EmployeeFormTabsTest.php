@@ -33,14 +33,22 @@ use Tests\TestCase;
  * name that is often a family member's. That was the instruction and it is
  * recorded here, in the test that would fail if somebody quietly put it back.
  *
- * 2026-08-29, the same direction again: the whole STATUTORY tab came out from
- * behind the pay wall, at Affandy's request. Scheme numbers and the inputs
- * behind a deduction are facts about the person rather than the company's
- * payroll. It widens further than the bank fields did, and the cost is worth
- * stating plainly: the contribution switches are on that tab, so anyone who
- * may edit an employee can now turn somebody's EPF, SOCSO, EIS or PCB off and
- * set a zakat or relief figure that lands on a payslip. Salary itself did not
- * move, and the tests below hold that line.
+ * 2026-08-29, the same direction again, and then narrowed the same day: the
+ * STATUTORY tab came out from behind the pay wall so a Branch Manager could
+ * keep personal details current, and is now SPLIT rather than open.
+ *
+ *   OPEN — EPF, SOCSO and income tax numbers, and citizenship. A scheme
+ *   number is a person's own detail, theirs the way an IC number is.
+ *
+ *   STILL RESTRICTED — the contribution switches (EPF, SOCSO, EIS, HRD Corp,
+ *   PCB, SKBBK), the EPF rate override, and the PCB inputs. Those decide
+ *   whether a deduction happens and how big it is, which is a payroll
+ *   decision and not a record being kept up to date.
+ *
+ * The split runs through hydration AND writing, and the tests below hold both
+ * ends: the dangerous failure is a field written but not hydrated, which saves
+ * a blank form over real data and would switch a live EPF contribution off.
+ * Salary itself never moved.
  */
 class EmployeeFormTabsTest extends TestCase
 {
@@ -77,7 +85,14 @@ class EmployeeFormTabsTest extends TestCase
             'employee_id' => $this->employee->id,
             'epf_number'  => 'EPF-55512345',
             'socso_number' => 'SOC-99887766',
-            'epf_enabled' => true,
+            // Deliberately NOT the default. A switch that is already off is
+            // the only way to prove a save did not quietly rewrite it: saving
+            // `true` over `true` proves nothing.
+            'epf_enabled'   => false,
+            'socso_enabled' => false,
+            'pcb_category'  => 'spouse_working',
+            'children'      => 3,
+            'monthly_zakat' => 55.50,
         ]);
 
         foreach (['hr.view', 'hr.employees.manage', 'hr.compensation', 'hr.employment'] as $name) {
@@ -140,20 +155,95 @@ class EmployeeFormTabsTest extends TestCase
             ->assertSee('EPF No.');
     }
 
-    /** And editable, which is the point of moving it. */
-    public function test_statutory_can_be_changed_without_salary_access(): void
+    /** And editable, which is the point of opening it. */
+    public function test_scheme_numbers_can_be_changed_without_salary_access(): void
     {
         $this->form(['hr.view', 'hr.employees.manage'])
             ->set('s_epf_number', 'EPF-70000001')
-            ->set('s_epf', false)
             ->call('save')
             ->assertHasNoErrors();
 
-        $profile = \App\Models\EmployeeStatutoryProfile::withoutGlobalScopes()
-            ->where('employee_id', $this->employee->id)->firstOrFail();
+        $this->assertSame('EPF-70000001', $this->profile()->epf_number);
+    }
 
-        $this->assertSame('EPF-70000001', $profile->epf_number);
-        $this->assertFalse((bool) $profile->epf_enabled);
+    /** The other half of the split: the deduction inputs are not shown. */
+    public function test_the_contribution_switches_stay_behind_the_pay_wall(): void
+    {
+        $html = $this->form(['hr.view', 'hr.employees.manage'])->html();
+
+        $this->assertStringContainsString('wire:model="s_epf_number"', $html, 'The numbers are open.');
+
+        /*
+         * The INPUTS, not the words. Asserting on labels failed against the
+         * note that tells this user the switches exist and who sets them —
+         * "SKBBK" and "PCB inputs" appear in that sentence on purpose, and a
+         * test that forbids the words forbids explaining the gap.
+         */
+        foreach (['s_epf', 's_socso', 's_eis', 's_hrdf', 's_pcb', 's_skbbk',
+                  's_epf_override', 's_pcb_category', 's_children', 's_zakat',
+                  's_other_relief'] as $field) {
+            $this->assertStringNotContainsString('wire:model="' . $field . '"', $html,
+                "$field decides a deduction and must stay behind the pay wall.");
+        }
+    }
+
+    /** And are there for somebody who holds compensation. */
+    public function test_the_contribution_switches_are_there_with_compensation(): void
+    {
+        $html = $this->form(['hr.view', 'hr.employees.manage', 'hr.compensation'])->html();
+
+        foreach (['s_epf', 's_socso', 's_eis', 's_hrdf', 's_pcb', 's_skbbk',
+                  's_epf_override', 's_pcb_category', 's_children', 's_zakat',
+                  's_other_relief'] as $field) {
+            $this->assertStringContainsString('wire:model="' . $field . '"', $html);
+        }
+    }
+
+    /**
+     * THE DESTRUCTIVE CASE, and the reason the split runs through both
+     * hydration and writing.
+     *
+     * The switches are not loaded for a user without compensation, so their
+     * properties sit at the class defaults — every contribution ON, no zakat,
+     * category "single". Writing those back would silently re-enable an EPF
+     * contribution that was deliberately off, blank a zakat figure, and change
+     * somebody's take-home. The employee here is seeded with all three set the
+     * unusual way so that a rewrite cannot pass unnoticed.
+     */
+    public function test_a_records_update_does_not_rewrite_the_deduction_inputs(): void
+    {
+        $this->form(['hr.view', 'hr.employees.manage'])
+            ->set('s_epf_number', 'EPF-70000001')
+            ->set('f_designation', 'Sous Chef')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = $this->profile();
+
+        $this->assertFalse((bool) $profile->epf_enabled, 'A live EPF opt-out was switched back on.');
+        $this->assertFalse((bool) $profile->socso_enabled);
+        $this->assertSame('spouse_working', $profile->pcb_category);
+        $this->assertSame(3, (int) $profile->children);
+        $this->assertEqualsWithDelta(55.50, (float) $profile->monthly_zakat, 0.01);
+    }
+
+    /** Somebody who CAN see them still writes them. */
+    public function test_the_deduction_inputs_are_still_writable_with_compensation(): void
+    {
+        $this->form(['hr.view', 'hr.employees.manage', 'hr.compensation'])
+            ->set('s_epf', true)
+            ->set('s_children', '5')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertTrue((bool) $this->profile()->epf_enabled);
+        $this->assertSame(5, (int) $this->profile()->children);
+    }
+
+    private function profile(): \App\Models\EmployeeStatutoryProfile
+    {
+        return \App\Models\EmployeeStatutoryProfile::withoutGlobalScopes()
+            ->where('employee_id', $this->employee->id)->firstOrFail();
     }
 
     /**
@@ -171,11 +261,8 @@ class EmployeeFormTabsTest extends TestCase
             ->call('save')
             ->assertHasNoErrors();
 
-        $profile = \App\Models\EmployeeStatutoryProfile::withoutGlobalScopes()
-            ->where('employee_id', $this->employee->id)->firstOrFail();
-
-        $this->assertSame('EPF-55512345', $profile->epf_number);
-        $this->assertSame('SOC-99887766', $profile->socso_number);
+        $this->assertSame('EPF-55512345', $this->profile()->epf_number);
+        $this->assertSame('SOC-99887766', $this->profile()->socso_number);
     }
 
     /** Salary itself did NOT move. */

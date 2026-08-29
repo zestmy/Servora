@@ -822,7 +822,7 @@
                         <h3 class="text-sm font-semibold text-gray-700">Compensation</h3>
                         <p class="text-xs text-gray-500">What they are paid and where it goes.</p>
                     </div>
-                    <span class="badge-warning whitespace-nowrap">affects payslips</span>
+                    <span class="badge-warning whitespace-nowrap">restricted</span>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -927,7 +927,9 @@
                         <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
                     </p>
                 </div>
-                <span class="badge-warning whitespace-nowrap">restricted</span>
+                {{-- No badge on the tab as a whole any more: half of it is open
+                     and half is not, so one label over both could only be wrong
+                     about one of them. The restricted halves carry their own. --}}
             </div>
 
             @if ($noStatutory)
@@ -1004,8 +1006,20 @@
                 <span class="text-sm text-gray-700">Malaysian citizen / PR</span>
             </label>
 
+            {{-- FROM HERE DOWN IS STILL BEHIND THE PAY WALL.
+                 The numbers above are a person's details — an EPF number is
+                 theirs the way an IC number is, and a branch manager keeping
+                 records current needs to key one in. What follows decides
+                 whether a deduction HAPPENS and how big it is, which is the
+                 payroll decision the fields above are not: switching EPF off
+                 changes somebody's take-home, and a zakat figure is money on a
+                 payslip. Splitting the tab here was the point of opening it. --}}
+            @if ($canViewPay)
             <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
-                <p class="text-xs font-semibold text-gray-600">Contributes to</p>
+                <div class="flex items-start justify-between gap-3">
+                    <p class="text-xs font-semibold text-gray-600">Contributes to</p>
+                    <span class="badge-warning whitespace-nowrap">restricted</span>
+                </div>
                 <div class="flex flex-wrap gap-x-5 gap-y-2">
                     <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_epf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EPF</span></label>
                     <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_socso" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">SOCSO</span></label>
@@ -1048,7 +1062,10 @@
             </div>
 
             <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
-                <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
+                <div class="flex items-start justify-between gap-3">
+                    <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
+                    <span class="badge-warning whitespace-nowrap">restricted</span>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div>
                         <label class="text-xs font-semibold text-gray-600">Category</label>
@@ -1076,6 +1093,17 @@
                     </div>
                 </div>
             </div>
+            @else
+                {{-- Named rather than left blank. A tab that simply stops after
+                     three boxes reads as a page that failed to load, and the
+                     next thing that happens is somebody asking why the EPF
+                     switch has gone missing. --}}
+                <p class="text-xs text-gray-500 pt-1 border-t border-gray-100">
+                    Which contributions apply — EPF, SOCSO, EIS, HRD Corp, PCB, SKBBK — and the PCB
+                    inputs are set by someone with compensation access. They are unchanged by anything
+                    saved here.
+                </p>
+            @endif
 
             </fieldset>
         </div>

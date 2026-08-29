@@ -396,37 +396,44 @@ class EmployeeForm extends Component
         }
 
         /*
-         * THE STATUTORY PROFILE IS NOT PAY-GATED, by decision on 2026-08-29.
+         * THE STATUTORY TAB IS SPLIT, by decision on 2026-08-29.
          *
-         * Hydrated for anyone who may edit an employee, because the Statutory
-         * tab is now shown to them: scheme numbers and the inputs behind a
-         * deduction are facts about the person, not the company's payroll, and
-         * records staff were having to ask somebody with salary access to key
-         * an EPF number. Same trade as the bank details on the Personal tab —
-         * see Employee::SENSITIVE_PAY_ATTRIBUTES.
+         * The scheme NUMBERS and citizenship are a person's details — an EPF
+         * number is theirs the way an IC number is — so they are loaded for
+         * anyone who may edit an employee, which is what lets a Branch Manager
+         * keep records current without being shown the company's payroll. Same
+         * trade as the bank details on the Personal tab; see
+         * Employee::SENSITIVE_PAY_ATTRIBUTES.
          *
-         * It must stay in step with syncStatutoryProfile(): hydrating without
-         * writing loses every edit silently, and writing without hydrating
-         * blanks a profile from an empty form. Neither half is safe alone,
-         * which is why both say so.
+         * Everything BELOW the split decides whether a deduction happens and
+         * how big it is, so it stays behind hr.compensation with the salary.
+         *
+         * THE TWO HALVES MUST MATCH syncStatutoryProfile() EXACTLY. A field
+         * hydrated but not written loses its edits silently; a field written
+         * but not hydrated is saved from a blank form, which DESTROYS what was
+         * there — an unticked EPF box that nobody was shown would switch a
+         * real contribution off. Change one list, change the other.
          */
         $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
         $this->s_epf_number   = $p->epf_number ?? '';
         $this->s_socso_number = $p->socso_number ?? '';
         $this->s_tax_number   = $p->income_tax_number ?? '';
         $this->s_is_malaysian = (bool) $p->is_malaysian;
-        $this->s_epf          = (bool) $p->epf_enabled;
-        $this->s_socso        = (bool) $p->socso_enabled;
-        $this->s_eis          = (bool) $p->eis_enabled;
-        $this->s_skbbk        = $p->skbbk_enabled === null ? '' : ($p->skbbk_enabled ? 'yes' : 'no');
-        $this->s_hrdf         = (bool) $p->hrdf_enabled;
-        $this->s_pcb          = (bool) $p->pcb_enabled;
-        $this->s_epf_override = $p->epf_employee_rate_override !== null
-            ? (string) (float) $p->epf_employee_rate_override : '';
-        $this->s_pcb_category = $p->pcb_category ?: 'single';
-        $this->s_children     = (string) $p->children;
-        $this->s_zakat        = (string) (float) $p->monthly_zakat;
-        $this->s_other_relief = (string) (float) $p->annual_other_relief;
+
+        if ($this->canViewPay()) {
+            $this->s_epf          = (bool) $p->epf_enabled;
+            $this->s_socso        = (bool) $p->socso_enabled;
+            $this->s_eis          = (bool) $p->eis_enabled;
+            $this->s_skbbk        = $p->skbbk_enabled === null ? '' : ($p->skbbk_enabled ? 'yes' : 'no');
+            $this->s_hrdf         = (bool) $p->hrdf_enabled;
+            $this->s_pcb          = (bool) $p->pcb_enabled;
+            $this->s_epf_override = $p->epf_employee_rate_override !== null
+                ? (string) (float) $p->epf_employee_rate_override : '';
+            $this->s_pcb_category = $p->pcb_category ?: 'single';
+            $this->s_children     = (string) $p->children;
+            $this->s_zakat        = (string) (float) $p->monthly_zakat;
+            $this->s_other_relief = (string) (float) $p->annual_other_relief;
+        }
 
         $this->f_is_active = (bool) $emp->is_active;
     }
@@ -1156,26 +1163,31 @@ class EmployeeForm extends Component
     /**
      * Write the statutory profile alongside the employee.
      *
-     * NOT pay-gated since 2026-08-29 — the tab is shown to anyone who may
-     * edit an employee, so it is written by them too. The guard that used to
-     * be here existed because the fields were not hydrated for those users
-     * and saving would have blanked a profile they could not read; both halves
-     * moved together, and they have to stay together. mount() carries the same
-     * note.
+     * SPLIT ON THE SAME LINE AS mount(), and it has to stay that way. The
+     * scheme numbers and citizenship are written by anyone who may edit an
+     * employee; the contribution switches and PCB inputs only by somebody who
+     * can see pay, because those are not hydrated for anyone else and writing
+     * them from an unfilled form would switch off a real EPF contribution
+     * nobody was ever shown.
      *
-     * This form is behind hr.employees.manage, so "anyone" is the people who
-     * keep staff records — not every user.
+     * This form is behind hr.employees.manage, so the wider half is still the
+     * people who keep staff records — not every user.
      */
     private function syncStatutoryProfile(Employee $employee): void
     {
-        \App\Models\EmployeeStatutoryProfile::updateOrCreate(
-            ['employee_id' => $employee->id],
-            [
-                'company_id'        => $employee->company_id,
-                'epf_number'        => $this->s_epf_number ?: null,
-                'socso_number'      => $this->s_socso_number ?: null,
-                'income_tax_number' => $this->s_tax_number ?: null,
-                'is_malaysian'      => $this->s_is_malaysian,
+        // A person's own details: theirs the way an IC number is.
+        $data = [
+            'company_id'        => $employee->company_id,
+            'epf_number'        => $this->s_epf_number ?: null,
+            'socso_number'      => $this->s_socso_number ?: null,
+            'income_tax_number' => $this->s_tax_number ?: null,
+            'is_malaysian'      => $this->s_is_malaysian,
+        ];
+
+        // What a deduction is worked out from. Left untouched otherwise, so a
+        // records update never silently re-decides somebody's contributions.
+        if ($this->canViewPay()) {
+            $data += [
                 'epf_enabled'       => $this->s_epf,
                 'socso_enabled'     => $this->s_socso,
                 'eis_enabled'       => $this->s_eis,
@@ -1191,7 +1203,12 @@ class EmployeeForm extends Component
                 'children'            => (int) $this->s_children,
                 'monthly_zakat'       => round((float) $this->s_zakat, 2),
                 'annual_other_relief' => round((float) $this->s_other_relief, 2),
-            ]
+            ];
+        }
+
+        \App\Models\EmployeeStatutoryProfile::updateOrCreate(
+            ['employee_id' => $employee->id],
+            $data
         );
     }
 
