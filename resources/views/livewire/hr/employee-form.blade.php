@@ -37,9 +37,10 @@
         'employment' => 'Employment',
     ];
     if ($canViewPay) {
-        $tabs['pay']       = 'Compensation';
-        $tabs['statutory'] = 'Statutory';
+        $tabs['pay'] = 'Compensation';
     }
+    // Statutory is NOT pay-gated — see the note above its panel below.
+    $tabs['statutory']  = 'Statutory';
     $tabs['compliance'] = 'Certifications';
     if ($employeeId) {
         // Uploads need a record to hang off, so this tab only exists on edit.
@@ -821,7 +822,7 @@
                         <h3 class="text-sm font-semibold text-gray-700">Compensation</h3>
                         <p class="text-xs text-gray-500">What they are paid and where it goes.</p>
                     </div>
-                    <span class="badge-warning whitespace-nowrap">restricted</span>
+                    <span class="badge-warning whitespace-nowrap">affects payslips</span>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -899,170 +900,185 @@
                     </p>
                 @endif
             </div>
-
-            {{-- ── Statutory ───────────────────────────────────────────── --}}
-            <div x-show="tab === 'statutory'" x-cloak class="card p-5 space-y-4">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h3 class="text-sm font-semibold text-gray-700">Statutory</h3>
-                        <p class="text-xs text-gray-500">
-                            Scheme numbers and the inputs no company-wide setting can answer. Rates live on
-                            <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
-                        </p>
-                    </div>
-                    <span class="badge-warning whitespace-nowrap">restricted</span>
-                </div>
-
-                @if ($noStatutory)
-                    {{-- Disabled, not hidden, and the difference matters.
-
-                         Hiding it would leave whoever opens this tab wondering
-                         whether the section failed to load; worse, a person
-                         moved off the agency — or an intern taken onto the
-                         books — needs their EPF number to still BE here rather
-                         than to have been quietly discarded. So the values are
-                         kept and the controls are shut: nothing is written
-                         while the status applies, and changing it back hands
-                         the whole section over intact.
-
-                         The calculation does not rely on this being disabled —
-                         StatutoryCalculator::for() exempts these employees
-                         outright, whatever these boxes say. This is the same
-                         rule shown, not the rule itself. --}}
-                    <div class="alert-info">
-                        <p class="text-sm">
-                            <strong>
-                                Not applicable — this employee is
-                                {{ $isIntern ? 'on an internship' : 'outsourced' }}.
-                            </strong>
-                        </p>
-                        @if ($isIntern)
-                            <p class="text-xs mt-1">
-                                An internship is paid as basic plus overtime and any allowance, with
-                                <strong>nothing deducted</strong> — no EPF, SOCSO, EIS, PCB or HRD Corp levy,
-                                and no company deductions either. Payroll runs these figures at zero and
-                                payslips say so.
-                            </p>
-                        @else
-                            <p class="text-xs mt-1">
-                                EPF, SOCSO, EIS, PCB and the HRD Corp levy are the obligation of
-                                <strong>{{ $f_outsourcing_provider === 'others' ? ($f_outsourcing_company ?: 'the outsourcing agent') : 'Experiva' }}</strong>
-                                as the employer of record. This company pays a contract rate for the head and
-                                deducts nothing, so payroll runs these figures at zero and payslips say so.
-                            </p>
-                        @endif
-                        <p class="text-xs mt-1">
-                            Anything already recorded below is kept and shown, but nothing here is used
-                            while this status applies. Change their employment status on the
-                            <strong>Employment</strong> tab to bring this section back.
-                        </p>
-                    </div>
-                @endif
-
-                {{-- fieldset, so one `disabled` shuts every control inside it
-                     rather than thirteen @disabled attributes that can drift
-                     apart as fields are added. --}}
-                <fieldset @disabled($noStatutory) class="space-y-4 disabled:opacity-60">
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">EPF No.</label>
-                        <input type="text" maxlength="30" wire:model="s_epf_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                        <x-input-error :messages="$errors->get('s_epf_number')" class="mt-1" />
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">SOCSO No.</label>
-                        <input type="text" maxlength="30" wire:model="s_socso_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                        <x-input-error :messages="$errors->get('s_socso_number')" class="mt-1" />
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600">Income Tax No.</label>
-                        <input type="text" maxlength="30" wire:model="s_tax_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                        <x-input-error :messages="$errors->get('s_tax_number')" class="mt-1" />
-                    </div>
-                </div>
-
-                <label class="inline-flex items-center gap-2">
-                    <input type="checkbox" wire:model="s_is_malaysian" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                    <span class="text-sm text-gray-700">Malaysian citizen / PR</span>
-                </label>
-
-                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
-                    <p class="text-xs font-semibold text-gray-600">Contributes to</p>
-                    <div class="flex flex-wrap gap-x-5 gap-y-2">
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_epf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EPF</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_socso" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">SOCSO</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_eis" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EIS</span></label>
-                        <label class="inline-flex items-center gap-2" title="HRD Corp levy — paid by the employer, never deducted from this employee"><input type="checkbox" wire:model="s_hrdf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">HRDF</span></label>
-                        <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_pcb" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">PCB</span></label>
-                    </div>
-
-                    {{-- SKBBK is a SELECT, not a tick, because it has three
-                         answers and only two of them are decisions.
-
-                         Mandatory for foreign workers; voluntary for locals
-                         since 14 July 2026, when they could opt out by filing
-                         a liability release. "Not recorded" and "opted out"
-                         look identical on a payslip — both deduct nothing —
-                         but only one has a signed release behind it, and a
-                         tickbox would collapse them into each other. --}}
-                    <div class="sm:w-2/3 pt-1">
-                        <label class="text-xs font-semibold text-gray-600">
-                            SKBBK — LINDUNG 24 Jam
-                        </label>
-                        <select wire:model="s_skbbk" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                            <option value="">Follow the rule — {{ $s_is_malaysian ? 'not deducted (local, voluntary)' : 'deducted (foreign worker, mandatory)' }}</option>
-                            <option value="yes">Yes — contributes</option>
-                            <option value="no">No — opted out, release on file</option>
-                        </select>
-                        <p class="mt-1 text-[11px] text-gray-500">
-                            Paid entirely by the employee; there is no employer share. Mandatory for
-                            foreign workers. Voluntary for locals since 14 July 2026 — set
-                            <strong>Yes</strong> for a local who chose to stay in.
-                        </p>
-                    </div>
-                    <div class="sm:w-1/2">
-                        <label class="text-xs font-semibold text-gray-600">EPF employee rate override (%)</label>
-                        <input type="number" step="0.01" min="0" max="100" wire:model="s_epf_override"
-                               placeholder="statutory rate" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                        <p class="mt-1 text-[11px] text-gray-500">For a voluntary higher rate. It never lowers the statutory one.</p>
-                        <x-input-error :messages="$errors->get('s_epf_override')" class="mt-1" />
-                    </div>
-                </div>
-
-                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
-                    <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Category</label>
-                            <select wire:model="s_pcb_category" class="mt-1 w-full text-sm rounded-lg border-gray-300">
-                                @foreach (\App\Models\StatutorySetting::PCB_CATEGORIES as $pcValue => $pcLabel)
-                                    <option value="{{ $pcValue }}">{{ $pcLabel }}</option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('s_pcb_category')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Children</label>
-                            <input type="number" min="0" max="50" wire:model="s_children" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <x-input-error :messages="$errors->get('s_children')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Monthly zakat</label>
-                            <input type="number" step="0.01" min="0" wire:model="s_zakat" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <x-input-error :messages="$errors->get('s_zakat')" class="mt-1" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-600">Other relief / yr</label>
-                            <input type="number" step="0.01" min="0" wire:model="s_other_relief" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
-                            <x-input-error :messages="$errors->get('s_other_relief')" class="mt-1" />
-                        </div>
-                    </div>
-                </div>
-
-                </fieldset>
-            </div>
         @endif
+
+        {{-- ── Statutory ─────────────────────────────────────────────
+             NOT behind the pay wall, by decision on 2026-08-29. The tab
+             holds scheme numbers and the inputs behind a deduction, and
+             none of it is a salary — so the people who keep staff records
+             current can maintain an EPF number without being shown the
+             company's payroll to do it. Same trade as the bank details on
+             the Personal tab; see Employee::SENSITIVE_PAY_ATTRIBUTES.
+
+             THE COST, STATED: the contribution switches live here too, so
+             anyone who may edit an employee can now turn somebody's EPF,
+             SOCSO, EIS or PCB off, and set a zakat or relief figure that
+             lands on a payslip. Reversing it is moving this block back
+             inside the @if above and re-gating the two guards in
+             EmployeeForm (hydration in mount, and syncStatutoryProfile).
+             The reader is still narrower than "everyone": this form is
+             behind hr.employees.manage. --}}
+        <div x-show="tab === 'statutory'" x-cloak class="card p-5 space-y-4">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700">Statutory</h3>
+                    <p class="text-xs text-gray-500">
+                        Scheme numbers and the inputs no company-wide setting can answer. Rates live on
+                        <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
+                    </p>
+                </div>
+                <span class="badge-warning whitespace-nowrap">restricted</span>
+            </div>
+
+            @if ($noStatutory)
+                {{-- Disabled, not hidden, and the difference matters.
+
+                     Hiding it would leave whoever opens this tab wondering
+                     whether the section failed to load; worse, a person
+                     moved off the agency — or an intern taken onto the
+                     books — needs their EPF number to still BE here rather
+                     than to have been quietly discarded. So the values are
+                     kept and the controls are shut: nothing is written
+                     while the status applies, and changing it back hands
+                     the whole section over intact.
+
+                     The calculation does not rely on this being disabled —
+                     StatutoryCalculator::for() exempts these employees
+                     outright, whatever these boxes say. This is the same
+                     rule shown, not the rule itself. --}}
+                <div class="alert-info">
+                    <p class="text-sm">
+                        <strong>
+                            Not applicable — this employee is
+                            {{ $isIntern ? 'on an internship' : 'outsourced' }}.
+                        </strong>
+                    </p>
+                    @if ($isIntern)
+                        <p class="text-xs mt-1">
+                            An internship is paid as basic plus overtime and any allowance, with
+                            <strong>nothing deducted</strong> — no EPF, SOCSO, EIS, PCB or HRD Corp levy,
+                            and no company deductions either. Payroll runs these figures at zero and
+                            payslips say so.
+                        </p>
+                    @else
+                        <p class="text-xs mt-1">
+                            EPF, SOCSO, EIS, PCB and the HRD Corp levy are the obligation of
+                            <strong>{{ $f_outsourcing_provider === 'others' ? ($f_outsourcing_company ?: 'the outsourcing agent') : 'Experiva' }}</strong>
+                            as the employer of record. This company pays a contract rate for the head and
+                            deducts nothing, so payroll runs these figures at zero and payslips say so.
+                        </p>
+                    @endif
+                    <p class="text-xs mt-1">
+                        Anything already recorded below is kept and shown, but nothing here is used
+                        while this status applies. Change their employment status on the
+                        <strong>Employment</strong> tab to bring this section back.
+                    </p>
+                </div>
+            @endif
+
+            {{-- fieldset, so one `disabled` shuts every control inside it
+                 rather than thirteen @disabled attributes that can drift
+                 apart as fields are added. --}}
+            <fieldset @disabled($noStatutory) class="space-y-4 disabled:opacity-60">
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">EPF No.</label>
+                    <input type="text" maxlength="30" wire:model="s_epf_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <x-input-error :messages="$errors->get('s_epf_number')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">SOCSO No.</label>
+                    <input type="text" maxlength="30" wire:model="s_socso_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <x-input-error :messages="$errors->get('s_socso_number')" class="mt-1" />
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Income Tax No.</label>
+                    <input type="text" maxlength="30" wire:model="s_tax_number" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <x-input-error :messages="$errors->get('s_tax_number')" class="mt-1" />
+                </div>
+            </div>
+
+            <label class="inline-flex items-center gap-2">
+                <input type="checkbox" wire:model="s_is_malaysian" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                <span class="text-sm text-gray-700">Malaysian citizen / PR</span>
+            </label>
+
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                <p class="text-xs font-semibold text-gray-600">Contributes to</p>
+                <div class="flex flex-wrap gap-x-5 gap-y-2">
+                    <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_epf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EPF</span></label>
+                    <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_socso" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">SOCSO</span></label>
+                    <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_eis" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">EIS</span></label>
+                    <label class="inline-flex items-center gap-2" title="HRD Corp levy — paid by the employer, never deducted from this employee"><input type="checkbox" wire:model="s_hrdf" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">HRDF</span></label>
+                    <label class="inline-flex items-center gap-2"><input type="checkbox" wire:model="s_pcb" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" /><span class="text-sm text-gray-700">PCB</span></label>
+                </div>
+
+                {{-- SKBBK is a SELECT, not a tick, because it has three
+                     answers and only two of them are decisions.
+
+                     Mandatory for foreign workers; voluntary for locals
+                     since 14 July 2026, when they could opt out by filing
+                     a liability release. "Not recorded" and "opted out"
+                     look identical on a payslip — both deduct nothing —
+                     but only one has a signed release behind it, and a
+                     tickbox would collapse them into each other. --}}
+                <div class="sm:w-2/3 pt-1">
+                    <label class="text-xs font-semibold text-gray-600">
+                        SKBBK — LINDUNG 24 Jam
+                    </label>
+                    <select wire:model="s_skbbk" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">Follow the rule — {{ $s_is_malaysian ? 'not deducted (local, voluntary)' : 'deducted (foreign worker, mandatory)' }}</option>
+                        <option value="yes">Yes — contributes</option>
+                        <option value="no">No — opted out, release on file</option>
+                    </select>
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        Paid entirely by the employee; there is no employer share. Mandatory for
+                        foreign workers. Voluntary for locals since 14 July 2026 — set
+                        <strong>Yes</strong> for a local who chose to stay in.
+                    </p>
+                </div>
+                <div class="sm:w-1/2">
+                    <label class="text-xs font-semibold text-gray-600">EPF employee rate override (%)</label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model="s_epf_override"
+                           placeholder="statutory rate" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                    <p class="mt-1 text-[11px] text-gray-500">For a voluntary higher rate. It never lowers the statutory one.</p>
+                    <x-input-error :messages="$errors->get('s_epf_override')" class="mt-1" />
+                </div>
+            </div>
+
+            <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-3">
+                <p class="text-xs font-semibold text-gray-600">PCB inputs</p>
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Category</label>
+                        <select wire:model="s_pcb_category" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                            @foreach (\App\Models\StatutorySetting::PCB_CATEGORIES as $pcValue => $pcLabel)
+                                <option value="{{ $pcValue }}">{{ $pcLabel }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('s_pcb_category')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Children</label>
+                        <input type="number" min="0" max="50" wire:model="s_children" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('s_children')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Monthly zakat</label>
+                        <input type="number" step="0.01" min="0" wire:model="s_zakat" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('s_zakat')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Other relief / yr</label>
+                        <input type="number" step="0.01" min="0" wire:model="s_other_relief" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                        <x-input-error :messages="$errors->get('s_other_relief')" class="mt-1" />
+                    </div>
+                </div>
+            </div>
+
+            </fieldset>
+        </div>
 
         {{-- ── Certifications ──────────────────────────────────────────── --}}
         <div x-show="tab === 'compliance'" x-cloak class="card p-5 space-y-3">

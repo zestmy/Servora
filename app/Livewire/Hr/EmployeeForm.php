@@ -393,25 +393,41 @@ class EmployeeForm extends Component
                 ? number_format((float) $emp->basic_salary, 2, '.', '')
                 : '';
             $this->f_pay_type = $emp->pay_type ?? '';
-
-            $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
-            $this->s_epf_number   = $p->epf_number ?? '';
-            $this->s_socso_number = $p->socso_number ?? '';
-            $this->s_tax_number   = $p->income_tax_number ?? '';
-            $this->s_is_malaysian = (bool) $p->is_malaysian;
-            $this->s_epf          = (bool) $p->epf_enabled;
-            $this->s_socso        = (bool) $p->socso_enabled;
-            $this->s_eis          = (bool) $p->eis_enabled;
-            $this->s_skbbk        = $p->skbbk_enabled === null ? '' : ($p->skbbk_enabled ? 'yes' : 'no');
-            $this->s_hrdf         = (bool) $p->hrdf_enabled;
-            $this->s_pcb          = (bool) $p->pcb_enabled;
-            $this->s_epf_override = $p->epf_employee_rate_override !== null
-                ? (string) (float) $p->epf_employee_rate_override : '';
-            $this->s_pcb_category = $p->pcb_category ?: 'single';
-            $this->s_children     = (string) $p->children;
-            $this->s_zakat        = (string) (float) $p->monthly_zakat;
-            $this->s_other_relief = (string) (float) $p->annual_other_relief;
         }
+
+        /*
+         * THE STATUTORY PROFILE IS NOT PAY-GATED, by decision on 2026-08-29.
+         *
+         * Hydrated for anyone who may edit an employee, because the Statutory
+         * tab is now shown to them: scheme numbers and the inputs behind a
+         * deduction are facts about the person, not the company's payroll, and
+         * records staff were having to ask somebody with salary access to key
+         * an EPF number. Same trade as the bank details on the Personal tab —
+         * see Employee::SENSITIVE_PAY_ATTRIBUTES.
+         *
+         * It must stay in step with syncStatutoryProfile(): hydrating without
+         * writing loses every edit silently, and writing without hydrating
+         * blanks a profile from an empty form. Neither half is safe alone,
+         * which is why both say so.
+         */
+        $p = \App\Models\EmployeeStatutoryProfile::forEmployee($emp);
+        $this->s_epf_number   = $p->epf_number ?? '';
+        $this->s_socso_number = $p->socso_number ?? '';
+        $this->s_tax_number   = $p->income_tax_number ?? '';
+        $this->s_is_malaysian = (bool) $p->is_malaysian;
+        $this->s_epf          = (bool) $p->epf_enabled;
+        $this->s_socso        = (bool) $p->socso_enabled;
+        $this->s_eis          = (bool) $p->eis_enabled;
+        $this->s_skbbk        = $p->skbbk_enabled === null ? '' : ($p->skbbk_enabled ? 'yes' : 'no');
+        $this->s_hrdf         = (bool) $p->hrdf_enabled;
+        $this->s_pcb          = (bool) $p->pcb_enabled;
+        $this->s_epf_override = $p->epf_employee_rate_override !== null
+            ? (string) (float) $p->epf_employee_rate_override : '';
+        $this->s_pcb_category = $p->pcb_category ?: 'single';
+        $this->s_children     = (string) $p->children;
+        $this->s_zakat        = (string) (float) $p->monthly_zakat;
+        $this->s_other_relief = (string) (float) $p->annual_other_relief;
+
         $this->f_is_active = (bool) $emp->is_active;
     }
 
@@ -1140,16 +1156,18 @@ class EmployeeForm extends Component
     /**
      * Write the statutory profile alongside the employee.
      *
-     * Only for users who may see pay: the fields are not hydrated for anyone
-     * else, so writing them would blank a profile they cannot even read. That
-     * is the same rule the salary fields follow, for the same reason.
+     * NOT pay-gated since 2026-08-29 — the tab is shown to anyone who may
+     * edit an employee, so it is written by them too. The guard that used to
+     * be here existed because the fields were not hydrated for those users
+     * and saving would have blanked a profile they could not read; both halves
+     * moved together, and they have to stay together. mount() carries the same
+     * note.
+     *
+     * This form is behind hr.employees.manage, so "anyone" is the people who
+     * keep staff records — not every user.
      */
     private function syncStatutoryProfile(Employee $employee): void
     {
-        if (! $this->canViewPay()) {
-            return;
-        }
-
         \App\Models\EmployeeStatutoryProfile::updateOrCreate(
             ['employee_id' => $employee->id],
             [

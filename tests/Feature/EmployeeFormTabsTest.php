@@ -32,6 +32,15 @@ use Tests\TestCase;
  * The second direction WIDENS who can see an account number and a holder's
  * name that is often a family member's. That was the instruction and it is
  * recorded here, in the test that would fail if somebody quietly put it back.
+ *
+ * 2026-08-29, the same direction again: the whole STATUTORY tab came out from
+ * behind the pay wall, at Affandy's request. Scheme numbers and the inputs
+ * behind a deduction are facts about the person rather than the company's
+ * payroll. It widens further than the bank fields did, and the cost is worth
+ * stating plainly: the contribution switches are on that tab, so anyone who
+ * may edit an employee can now turn somebody's EPF, SOCSO, EIS or PCB off and
+ * set a zakat or relief figure that lands on a payslip. Salary itself did not
+ * move, and the tests below hold that line.
  */
 class EmployeeFormTabsTest extends TestCase
 {
@@ -61,6 +70,14 @@ class EmployeeFormTabsTest extends TestCase
             'bank_name' => 'MAYBANK', 'bank_account_no' => '1234567890',
             'allow_anywhere' => true, 'overtime_as_time_off' => true,
             'is_active' => true,
+        ]);
+
+        \App\Models\EmployeeStatutoryProfile::create([
+            'company_id'  => $this->company->id,
+            'employee_id' => $this->employee->id,
+            'epf_number'  => 'EPF-55512345',
+            'socso_number' => 'SOC-99887766',
+            'epf_enabled' => true,
         ]);
 
         foreach (['hr.view', 'hr.employees.manage', 'hr.compensation', 'hr.employment'] as $name) {
@@ -110,6 +127,55 @@ class EmployeeFormTabsTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame('9988776655', $this->employee->fresh()->bank_account_no);
+    }
+
+    /** The 2026-08-29 widening, stated as a test. */
+    public function test_statutory_is_visible_without_salary_access(): void
+    {
+        $form = $this->form(['hr.view', 'hr.employees.manage']);
+
+        $form->assertSet('s_epf_number', 'EPF-55512345')
+            ->assertSet('s_socso_number', 'SOC-99887766')
+            ->assertSee('Statutory')
+            ->assertSee('EPF No.');
+    }
+
+    /** And editable, which is the point of moving it. */
+    public function test_statutory_can_be_changed_without_salary_access(): void
+    {
+        $this->form(['hr.view', 'hr.employees.manage'])
+            ->set('s_epf_number', 'EPF-70000001')
+            ->set('s_epf', false)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = \App\Models\EmployeeStatutoryProfile::withoutGlobalScopes()
+            ->where('employee_id', $this->employee->id)->firstOrFail();
+
+        $this->assertSame('EPF-70000001', $profile->epf_number);
+        $this->assertFalse((bool) $profile->epf_enabled);
+    }
+
+    /**
+     * Hydration and writing have to move together.
+     *
+     * The guard that used to sit on the write existed because the fields were
+     * not loaded for these users, so a save would have blanked a profile they
+     * could not read. Ungating one half and not the other silently destroys
+     * data, and this is the test that catches it.
+     */
+    public function test_an_unrelated_save_leaves_the_statutory_profile_intact(): void
+    {
+        $this->form(['hr.view', 'hr.employees.manage'])
+            ->set('f_designation', 'Sous Chef')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $profile = \App\Models\EmployeeStatutoryProfile::withoutGlobalScopes()
+            ->where('employee_id', $this->employee->id)->firstOrFail();
+
+        $this->assertSame('EPF-55512345', $profile->epf_number);
+        $this->assertSame('SOC-99887766', $profile->socso_number);
     }
 
     /** Salary itself did NOT move. */
