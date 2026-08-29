@@ -500,6 +500,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Payout slips are pay data, so hr.compensation on top of the grid's own gate.
     Route::get('/hr/attendance/service-charge-payout', [\App\Http\Controllers\AttendanceExportController::class, 'payout'])->name('hr.attendance.payout-pdf')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
     Route::get('/hr/attendance/service-charge-distribution', [\App\Http\Controllers\AttendanceExportController::class, 'distribution'])->name('hr.attendance.distribution-pdf')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
+    Route::get('/hr/attendance/service-charge-distribution-excel', [\App\Http\Controllers\AttendanceExportController::class, 'distributionExcel'])->name('hr.attendance.distribution-excel')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
     // Web clock-in — the staff-facing app lives in routes/clock-staff.php;
     // these are the manager-facing review, policy and enrolment screens.
     Route::get('/hr/clock-ins', \App\Livewire\Hr\ClockEvents::class)->name('hr.clock-ins')->middleware('can:hr.clock');

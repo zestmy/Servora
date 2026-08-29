@@ -531,6 +531,23 @@
                         </svg>
                         Distribution PDF
                     </x-download-link>
+                    {{-- The same document as a sheet. Green against the PDF's
+                         red, and the same table icon, because that is the pair
+                         the Employees list already uses — two identically
+                         styled download buttons side by side is how the wrong
+                         one gets clicked. --}}
+                    <x-download-link :href="route('hr.attendance.distribution-excel', [
+                                'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
+                                'outlet' => $outletFilter, 'section' => $sectionFilter,
+                                'search' => $search, 'employment_status' => $employmentStatusFilter,
+                            ])"
+                            title="The distribution as a spreadsheet, with a status column and the pool's arithmetic"
+                            class="px-3 py-2 text-sm font-medium text-success-700 border border-success-200 rounded-lg hover:bg-success-50 transition flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-8 0h16a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Distribution Excel
+                    </x-download-link>
                 @endif
                 @if ($serviceCharge['row'])
                     @canDo('hr.compensation')

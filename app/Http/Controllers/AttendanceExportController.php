@@ -60,6 +60,34 @@ class AttendanceExportController extends Controller
     }
 
     /**
+     * The same distribution as a spreadsheet.
+     *
+     * Same gather(), same guard, same 404 — so the sheet and the PDF cannot
+     * disagree about what a period paid. What differs is what each medium can
+     * hold: the sheet carries the staff id and a Status column saying in words
+     * why a share is nil, because a page runs out of width and a filter cannot
+     * read a shade of grey.
+     */
+    public function distributionExcel(Request $request)
+    {
+        $data = $this->gather($request, forceServiceCharge: true);
+
+        abort_unless($data['canManageServiceCharge'], 403);
+        abort_if($data['serviceCharge'] === null, 404,
+            'No service charge has been saved for this period and outlet.');
+
+        $sheet = app(\App\Services\Hr\ServiceChargeDistributionSheet::class);
+
+        return response()
+            ->download(
+                $sheet->write($data, Auth::user()->name ?? Auth::user()->email),
+                $sheet->filename($data),
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
      * One service charge payout slip per employee.
      *
      * Built from the SAME gather() the grid export uses, so a slip and the
