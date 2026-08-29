@@ -1041,6 +1041,10 @@ class AttendanceRecords extends Component
 
         $scRow = $this->loadServiceCharge();
 
+        // What the KEPT calculation was actually worked out with, captured
+        // before the live ticks overwrite it below.
+        $scCalculatedExclusions = $scRow?->isFrozen() ? $scRow->excludedEmployeeIds() : [];
+
         // Ticks that have not been saved yet are applied to the in-memory row
         // so the table and the RM/point above it move together — a divisor
         // that already dropped the points while the row was still being paid
@@ -1051,6 +1055,35 @@ class AttendanceRecords extends Component
         if ($scRow) {
             $scRow->excluded_employees = $scExcludedIds ?: null;
         }
+
+        /*
+         * A CALCULATED PERIOD DOES NOT MOVE WHEN A TICK DOES, AND HAS TO SAY SO.
+         *
+         * REPORTED AS: ticking "No service point" changed nothing — the row
+         * still showed RM516.75. Everything was working: a frozen pool returns
+         * the split it was calculated with (see distribute()), which is the
+         * whole point of freezing it, and the tick is held until somebody
+         * presses Save & Calculate. But the checkbox is `.live` and the panel
+         * gave no sign of that, so a control that looked instant looked broken
+         * instead — and a stale row beside it, ZULFADHLI, already read
+         * "excluded" because HIS tick was there when the pool was calculated.
+         * Two identical ticks, two different outcomes, nothing explaining why.
+         *
+         * The symmetric difference, not just additions: UNticking somebody the
+         * kept calculation excluded is equally pending and equally invisible.
+         */
+        $scPendingExclusions = $scRow?->isFrozen()
+            ? array_values(array_unique(array_merge(
+                array_diff($scExcludedIds, $scCalculatedExclusions),
+                array_diff($scCalculatedExclusions, $scExcludedIds),
+            )))
+            : [];
+
+        // The minimum has exactly the same hazard: the box is editable on a
+        // calculated period and the table below it keeps the figure it was
+        // judged on until somebody recalculates.
+        $scPendingMinDays = $scRow?->isFrozen()
+            && max(0, (int) $this->scMinWorkingDays) !== $scRow->minWorkingDays();
 
         /*
          * Who falls short of the qualifying period, and therefore whose points
@@ -1115,6 +1148,7 @@ class AttendanceRecords extends Component
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
+            'scPendingExclusions', 'scPendingMinDays',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }

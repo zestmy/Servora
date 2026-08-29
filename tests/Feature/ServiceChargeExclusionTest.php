@@ -121,6 +121,44 @@ class ServiceChargeExclusionTest extends TestCase
             'Their points leave the divisor, so the pool goes to the rest rather than being left short.');
     }
 
+    /**
+     * REPORTED AS: ticking "No service point" changed nothing — the row still
+     * showed its full share, while the row under it read "excluded" from the
+     * same-looking tick.
+     *
+     * Nothing was broken: a calculated period returns the split it was
+     * calculated with, and the other row's tick was there when it was
+     * calculated. What was missing was any sign of that on screen, so a live
+     * checkbox that does not move the table looks like a bug.
+     */
+    public function test_a_tick_on_a_calculated_period_says_it_is_not_applied_yet(): void
+    {
+        $this->staff('Stays', 10);
+        $later = $this->staff('Ticked Later', 10);
+
+        $user = $this->manager();
+
+        // Save & Calculate with nobody excluded: the pool is now frozen.
+        $this->panel($user)->call('saveServiceCharge')->assertHasNoErrors();
+
+        $html = $this->panel($user)
+            ->set('scExcluded.' . $later->id, true)
+            ->html();
+
+        $this->assertStringContainsString('Not applied yet', $html);
+        $this->assertStringContainsString('not applied', $html);
+
+        // And the kept figures genuinely have not moved, which is the
+        // behaviour the notice exists to explain rather than to change.
+        $pool = ServiceChargePeriod::withoutGlobalScopes()
+            ->where('company_id', $this->company->id)
+            ->where('outlet_id', $this->outlet->id)
+            ->firstOrFail();
+
+        $this->assertGreaterThan(0, (float) $pool->distribution['rows'][(string) $later->id]['net']);
+        $this->assertSame([], $pool->excludedEmployeeIds());
+    }
+
     public function test_somebody_this_pool_does_not_pay_cannot_be_excluded_from_it(): void
     {
         $this->staff('KLCC Staff', 10);

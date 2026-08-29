@@ -585,6 +585,28 @@
                                     by {{ $serviceCharge['calculatedBy'] }}
                                 @endif
                             </span>
+                            {{-- The figures beside this are the KEPT ones, so an
+                                 edit made since is held rather than applied. Said
+                                 out loud because the alternative is a tick that
+                                 looks broken: the control is .live, the table does
+                                 not move, and nothing on screen explains the gap. --}}
+                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false))
+                                <span class="px-2.5 py-1 rounded-full bg-warning-50 text-warning-800 font-medium"
+                                      title="A calculated period keeps its figures until it is recalculated.">
+                                    @php
+                                        $pendingBits = [];
+                                        if (count($scPendingExclusions ?? [])) {
+                                            $pendingBits[] = count($scPendingExclusions) . ' service point '
+                                                . \Illuminate\Support\Str::plural('tick', count($scPendingExclusions));
+                                        }
+                                        if ($scPendingMinDays ?? false) {
+                                            $pendingBits[] = 'the minimum';
+                                        }
+                                    @endphp
+                                    Not applied yet: {{ implode(' and ', $pendingBits) }} —
+                                    press Save &amp; Calculate to re-price this period.
+                                </span>
+                            @endif
                         @endif
                     </div>
                 @endif
@@ -715,6 +737,13 @@
                                                 <span class="text-[11px] font-normal {{ $scRow['excluded'] ? 'text-danger-600 font-medium' : 'text-gray-600' }}">
                                                     No service point
                                                 </span>
+                                                {{-- On THIS row, so the answer to "why is
+                                                     that one excluded and mine is not" is
+                                                     next to the tick rather than only in a
+                                                     banner above the table. --}}
+                                                @if (in_array($scRow['employee']->id, $scPendingExclusions ?? [], true))
+                                                    <span class="text-[10px] font-medium text-warning-700">not applied</span>
+                                                @endif
                                             </label>
                                         @endunless
                                     </td>
