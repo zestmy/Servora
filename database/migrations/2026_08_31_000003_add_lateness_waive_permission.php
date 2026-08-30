@@ -25,6 +25,11 @@ use Illuminate\Support\Facades\DB;
  * than no screen. Nobody else gets it, including HR Manager, who owns
  * attendance and payroll but was not named; it is one tick in Settings › Roles
  * if that turns out to be wrong.
+ *
+ * SUPERSEDED IN PART: it turned out to be wrong the same day. HR Manager was
+ * added by 2026_08_31_000004_grant_lateness_waiver_to_hr_manager, in a separate
+ * migration rather than by editing the list above — this one has already run,
+ * so an edit here would only ever take effect on a database created afterwards.
  */
 return new class extends Migration
 {
