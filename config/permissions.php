@@ -525,6 +525,12 @@ return [
                     'title' => 'HR — Clock-In (Delete Punches)',
                     'help'  => 'Delete a recorded clock-in or clock-out punch.',
                 ],
+                'waive_lateness' => [
+                    'name'  => 'hr.clock.waive_lateness',
+                    'label' => 'Waive late charges',
+                    'title' => 'HR — Clock-In (Waive Late Charges)',
+                    'help'  => 'Write off the late charge on a punch, with a reason. The punch keeps its minutes and its amount on record; the charge stops being deducted from the service charge.',
+                ],
             ],
         ],
 

@@ -177,7 +177,8 @@ class ClockEvent extends Model
         'work_date', 'happened_at', 'latitude', 'longitude', 'accuracy_m',
         'distance_m', 'within_geofence', 'face_distance', 'face_verified',
         'selfie_path', 'minutes_late', 'chargeable_late_minutes',
-        'penalty_amount', 'status', 'flags', 'reason', 'reviewed_by',
+        'penalty_amount', 'lateness_waived_at', 'lateness_waived_by',
+        'lateness_waive_reason', 'status', 'flags', 'reason', 'reviewed_by',
         'reviewed_at', 'review_note', 'override_late_minutes', 'device_label',
         'user_agent', 'ip_address',
     ];
@@ -201,6 +202,7 @@ class ClockEvent extends Model
         'chargeable_late_minutes' => 'integer',
         'override_late_minutes'   => 'integer',
         'penalty_amount'          => 'decimal:2',
+        'lateness_waived_at'      => 'datetime',
         'flags'                   => 'array',
     ];
 
@@ -289,6 +291,38 @@ class ClockEvent extends Model
     public function effectiveLateMinutes(): int
     {
         return $this->override_late_minutes ?? $this->chargeable_late_minutes;
+    }
+
+    /** Whether somebody has decided this late charge will not be collected. */
+    public function latenessWaived(): bool
+    {
+        return $this->lateness_waived_at !== null;
+    }
+
+    /**
+     * What this punch actually costs, as opposed to what it computed.
+     *
+     * The one method anything totalling money should call. penalty_amount is
+     * kept exactly as the clock worked it out — the record has to go on saying
+     * the person was late and by how much it would have cost — so a waived
+     * punch is the one place where the stored figure and the collected figure
+     * legitimately differ, and reading the column directly quietly charges
+     * somebody a fee that was forgiven.
+     */
+    public function chargeableAmount(): float
+    {
+        return $this->latenessWaived() ? 0.0 : (float) $this->penalty_amount;
+    }
+
+    /** Whether there is a charge here worth forgiving in the first place. */
+    public function hasLatenessCharge(): bool
+    {
+        return (float) $this->penalty_amount > 0;
+    }
+
+    public function latenessWaiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'lateness_waived_by');
     }
 
     /**

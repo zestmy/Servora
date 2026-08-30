@@ -64,6 +64,18 @@ class ClockEvents extends Component
     /** Chargeable minutes a manager is substituting for the computed figure. */
     public string $overrideMinutes = '';
 
+    /**
+     * Why a late charge is being written off.
+     *
+     * Its own field rather than reuse of $reviewNote, which the employee sees
+     * when a punch is rejected. These are two different sentences written to
+     * two different readers — "your punch was outside the geofence" and "car
+     * broke down on the LDP, charge waived" — and one box collecting both
+     * would either leak a manager's private note or lose the record of why
+     * money was forgiven.
+     */
+    public string $waiveReason = '';
+
     public function mount(): void
     {
         $user = Auth::user();
@@ -101,6 +113,7 @@ class ClockEvents extends Component
 
         $this->viewingId       = $event->id;
         $this->reviewNote      = (string) $event->review_note;
+        $this->waiveReason     = (string) $event->lateness_waive_reason;
         $this->overrideMinutes = $event->override_late_minutes !== null
             ? (string) $event->override_late_minutes
             : '';
@@ -110,6 +123,7 @@ class ClockEvents extends Component
     {
         $this->viewingId       = null;
         $this->reviewNote      = '';
+        $this->waiveReason     = '';
         $this->overrideMinutes = '';
     }
 
@@ -121,6 +135,107 @@ class ClockEvents extends Component
     public function reject(int $id): void
     {
         $this->decide($id, ClockEvent::STATUS_REJECTED);
+    }
+
+    /**
+     * Whether this user may write off a late charge.
+     *
+     * Its own ability, not implied by hr.clock or by being able to see pay.
+     * Approving a flagged punch says it is genuine; this says the money
+     * attached to a genuine punch will not be collected, and the two are not
+     * the same trust. canDo() lets system roles through, as everywhere.
+     */
+    public function canWaiveLateness(): bool
+    {
+        return Auth::user()->can('hr.clock.waive_lateness');
+    }
+
+    /**
+     * Forgive the late charge on one punch.
+     *
+     * Leaves minutes_late, chargeable_late_minutes and penalty_amount exactly
+     * as they were. The punch goes on saying the person was late and what it
+     * would have cost; only what is COLLECTED changes, and it changes through
+     * ClockEvent::chargeableAmount() rather than by rewriting the figure. A
+     * waiver that zeroed penalty_amount would be indistinguishable a month
+     * later from a punch that was never late, which is precisely the question
+     * anybody auditing waivers is asking.
+     */
+    public function waiveLateness(int $id): void
+    {
+        abort_unless($this->canWaiveLateness(), 403);
+
+        $event = $this->findEvent($id);
+
+        if (! $event) {
+            return;
+        }
+
+        if ($event->trashed()) {
+            // A deleted punch already costs nothing. Waiving one would write a
+            // decision onto a record that counts for nothing and leave a
+            // waiver in the log for money nobody was going to collect.
+            session()->flash('error', 'That punch is deleted, so it carries no charge to waive.');
+
+            return;
+        }
+
+        if (! $event->hasLatenessCharge()) {
+            session()->flash('error', 'There is no late charge on that punch to waive.');
+
+            return;
+        }
+
+        $reason = trim($this->waiveReason);
+
+        if ($reason === '') {
+            // The reason IS the feature. A waiver with none is a mis-click
+            // that nobody can tell apart from a decision three weeks later.
+            $this->addError('waiveReason', 'Say why the charge is being waived.');
+
+            return;
+        }
+
+        $event->update([
+            'lateness_waived_at'    => now(),
+            'lateness_waived_by'    => Auth::id(),
+            'lateness_waive_reason' => mb_substr($reason, 0, 500),
+        ]);
+
+        session()->flash('success', $this->canViewPay()
+            ? sprintf('RM%s late charge waived.', number_format((float) $event->penalty_amount, 2))
+            : 'Late charge waived.');
+    }
+
+    /**
+     * Put a waived charge back.
+     *
+     * Nothing has to be recomputed, which is the payoff for never having
+     * overwritten the figure: clearing the three columns restores exactly the
+     * charge the clock worked out at the time, at the rate then in force,
+     * rather than re-pricing it against whatever the rate is today.
+     */
+    public function restoreLatenessCharge(int $id): void
+    {
+        abort_unless($this->canWaiveLateness(), 403);
+
+        $event = $this->findEvent($id);
+
+        if (! $event || ! $event->latenessWaived()) {
+            return;
+        }
+
+        $event->update([
+            'lateness_waived_at'    => null,
+            'lateness_waived_by'    => null,
+            'lateness_waive_reason' => null,
+        ]);
+
+        $this->waiveReason = '';
+
+        session()->flash('success', $this->canViewPay()
+            ? sprintf('RM%s late charge applies again.', number_format((float) $event->penalty_amount, 2))
+            : 'Late charge applies again.');
     }
 
     /**
@@ -254,10 +369,10 @@ class ClockEvents extends Component
 
         // Names the money, because that is the part a manager cannot see
         // undone from this screen and would otherwise learn about at payout.
-        session()->flash('success', $this->canViewPay() && (float) $event->penalty_amount > 0
+        session()->flash('success', $this->canViewPay() && $event->chargeableAmount() > 0
             ? sprintf(
                 'Punch deleted. The RM%s late charge it carried no longer applies.',
-                number_format((float) $event->penalty_amount, 2)
+                number_format($event->chargeableAmount(), 2)
             )
             : 'Punch deleted.');
     }
@@ -291,10 +406,12 @@ class ClockEvents extends Component
         $event->restore();
         $event->forceFill(['deleted_by' => null])->saveQuietly();
 
-        session()->flash('success', $this->canViewPay() && (float) $event->penalty_amount > 0
+        // chargeableAmount(), so a punch whose charge was waived before it was
+        // deleted does not announce that the charge is back. It is not.
+        session()->flash('success', $this->canViewPay() && $event->chargeableAmount() > 0
             ? sprintf(
                 'Punch restored. Its RM%s late charge applies again.',
-                number_format((float) $event->penalty_amount, 2)
+                number_format($event->chargeableAmount(), 2)
             )
             : 'Punch restored.');
     }

@@ -115,7 +115,19 @@ class LatePenalties
             }
 
             $minutes = $event->effectiveLateMinutes();
-            $amount  = (float) $event->penalty_amount;
+
+            /*
+             * chargeableAmount(), not penalty_amount — a waived charge is
+             * still stored on the punch and is not collected from anybody.
+             *
+             * The MINUTES are deliberately kept. Someone was late, that is a
+             * fact about the shift rather than about the fee, and a report
+             * showing "45 min late, RM0.00" says both what happened and what
+             * was decided about it. Dropping the minutes too would make a
+             * waiver indistinguishable from a punctual arrival, which is the
+             * one thing a manager reviewing waivers needs to be able to see.
+             */
+            $amount  = $event->chargeableAmount();
 
             if ($minutes <= 0 && $amount <= 0) {
                 continue;

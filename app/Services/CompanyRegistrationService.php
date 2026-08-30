@@ -64,7 +64,7 @@ class CompanyRegistrationService
                 'hr.documents.view', 'hr.documents.manage',
                 // Were capability flags before Phase 1: approve PO/PR, delete records.
                 'purchasing.approve', 'purchasing.request', 'purchasing.delete',
-                'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
+                'sales.delete', 'hr.clock.delete', 'hr.clock.waive_lateness', 'hr.claims.delete',
                 // Phase 4b split inventory.delete per document type.
                 'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
                 'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
@@ -150,7 +150,7 @@ class CompanyRegistrationService
                 'hr.attendance', 'hr.claims', 'hr.clock', 'hr.clock.manage', 'staff.pins',
                 'hr.documents.view', 'hr.documents.manage',
                 'purchasing.approve', 'purchasing.request', 'purchasing.delete',
-                'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
+                'sales.delete', 'hr.clock.delete', 'hr.clock.waive_lateness', 'hr.claims.delete',
                 'purchasing.orders.create', 'purchasing.orders.edit', 'purchasing.requests.create',
                 'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
                 'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',

@@ -97,7 +97,9 @@
                     @else
                         {{ $lastEvent->minutes_late }} {{ Str::plural('minute', $lastEvent->minutes_late) }} late.
                     @endif
-                    @if ((float) $lastEvent->penalty_amount > 0)
+                    @if ($lastEvent->latenessWaived() && (float) $lastEvent->penalty_amount > 0)
+                        RM {{ number_format((float) $lastEvent->penalty_amount, 2) }} was waived — nothing deducted.
+                    @elseif ((float) $lastEvent->penalty_amount > 0)
                         RM {{ number_format((float) $lastEvent->penalty_amount, 2) }} deducted from your service charge.
                     @else
                         Within grace — nothing deducted.
@@ -436,7 +438,17 @@
                         @endif
                     </p>
 
-                    @if ((float) $lastEvent->penalty_amount > 0)
+                    @if ($lastEvent->latenessWaived() && (float) $lastEvent->penalty_amount > 0)
+                        {{-- Struck through rather than hidden. The charge was
+                             real and somebody chose not to collect it, and a
+                             card that simply stopped mentioning it would take
+                             the credit for a decision away from whoever made
+                             it — and leave the employee unsure what happened. --}}
+                        <p class="mt-1 text-3xl font-bold tabular-nums text-white/60 line-through">
+                            RM {{ number_format((float) $lastEvent->penalty_amount, 2) }}
+                        </p>
+                        <p class="text-xs {{ $skin['ink'] }}">waived — nothing off your service charge</p>
+                    @elseif ((float) $lastEvent->penalty_amount > 0)
                         <p class="mt-1 text-3xl font-bold tabular-nums text-white">
                             RM {{ number_format((float) $lastEvent->penalty_amount, 2) }}
                         </p>

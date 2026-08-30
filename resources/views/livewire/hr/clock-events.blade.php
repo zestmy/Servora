@@ -167,10 +167,19 @@
                             {{ $event->minutes_late > 0 ? $event->minutes_late . 'm' : '—' }}
                         </td>
                         @if ($this->canViewPay())
-                            <td class="px-2 py-2 text-right tabular-nums {{ (float) $event->penalty_amount > 0 ? 'text-danger-600' : 'text-gray-500' }}">
-                                {{ (float) $event->penalty_amount > 0 ? number_format((float) $event->penalty_amount, 2) : '—' }}
-                                @if ($event->override_late_minutes !== null)
-                                    <span class="block text-[10px] font-normal text-gray-500">adjusted</span>
+                            {{-- A waived charge is struck through rather than blanked.
+                                 Showing "—" would say no charge was ever incurred, which
+                                 is the opposite of what happened and hides the decision
+                                 from the one column a manager scans for money. --}}
+                            <td class="px-2 py-2 text-right tabular-nums {{ $event->chargeableAmount() > 0 ? 'text-danger-600' : 'text-gray-500' }}">
+                                @if ($event->latenessWaived() && (float) $event->penalty_amount > 0)
+                                    <span class="line-through text-gray-400">{{ number_format((float) $event->penalty_amount, 2) }}</span>
+                                    <span class="block text-[10px] font-normal text-success-700">waived</span>
+                                @else
+                                    {{ (float) $event->penalty_amount > 0 ? number_format((float) $event->penalty_amount, 2) : '—' }}
+                                    @if ($event->override_late_minutes !== null)
+                                        <span class="block text-[10px] font-normal text-gray-500">adjusted</span>
+                                    @endif
                                 @endif
                             </td>
                         @endif
@@ -379,6 +388,72 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1">Note (the employee sees this if you reject)</label>
                         <textarea wire:model="reviewNote" rows="2" class="w-full rounded-lg border-gray-300 text-sm"></textarea>
                     </div>
+
+                    {{-- ── Waiving the late charge ──────────────────────────
+                         Its own block, below the review controls and visually
+                         separated from them, because it is not part of the
+                         approve/reject decision. A punch can be perfectly
+                         verified and still carry a charge somebody decides not
+                         to collect — and the reverse: approving a flagged punch
+                         confirms it happened, which is the opposite of
+                         forgiving what it cost. --}}
+                    @if ($this->canWaiveLateness() && $viewing->hasLatenessCharge())
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            @if ($viewing->latenessWaived())
+                                <p class="text-sm font-medium text-success-800">
+                                    @if ($this->canViewPay())
+                                        RM{{ number_format((float) $viewing->penalty_amount, 2) }} late charge waived
+                                    @else
+                                        Late charge waived
+                                    @endif
+                                </p>
+                                <p class="mt-0.5 text-xs text-gray-600">
+                                    by {{ $viewing->latenessWaiver?->name ?? 'someone since removed' }}
+                                    @if ($viewing->lateness_waived_at)
+                                        on {{ $viewing->lateness_waived_at->format('d M Y, g:i A') }}
+                                    @endif
+                                </p>
+                                @if (filled($viewing->lateness_waive_reason))
+                                    <p class="mt-2 text-sm text-gray-800">{{ $viewing->lateness_waive_reason }}</p>
+                                @endif
+
+                                {{-- The punch still says how late it was, and still
+                                     says what that would have cost. Only the
+                                     collection changed. --}}
+                                <button type="button"
+                                        wire:click="restoreLatenessCharge({{ $viewing->id }})"
+                                        wire:confirm="Charge this late arrival again?"
+                                        class="btn-secondary mt-3">
+                                    Apply the charge again
+                                </button>
+                            @else
+                                <label class="block text-xs font-medium text-gray-600 mb-1">
+                                    @if ($this->canViewPay())
+                                        Waive the RM{{ number_format((float) $viewing->penalty_amount, 2) }} late charge — say why
+                                    @else
+                                        Waive the late charge — say why
+                                    @endif
+                                </label>
+                                <textarea wire:model="waiveReason" rows="2"
+                                          placeholder="e.g. Roster changed at short notice; told to come in at 10."
+                                          class="w-full rounded-lg border-gray-300 text-sm"></textarea>
+                                @error('waiveReason')
+                                    <p class="text-xs text-danger-600 mt-1">{{ $message }}</p>
+                                @enderror
+
+                                <p class="mt-1 text-[11px] text-gray-500">
+                                    The punch keeps its {{ $viewing->minutes_late }} minutes and the amount on record —
+                                    the charge simply stops being deducted from the service charge.
+                                </p>
+
+                                <button type="button"
+                                        wire:click="waiveLateness({{ $viewing->id }})"
+                                        class="btn-secondary mt-3">
+                                    Waive the charge
+                                </button>
+                            @endif
+                        </div>
+                    @endif
 
                     @endif
 

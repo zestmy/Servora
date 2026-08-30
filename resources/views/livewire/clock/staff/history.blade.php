@@ -61,7 +61,14 @@
                         @if ($event->minutes_late > 0)
                             <p class="mt-0.5 text-xs text-amber-700">
                                 {{ $event->minutes_late }} {{ Str::plural('minute', $event->minutes_late) }} late
-                                @if ((float) $event->penalty_amount > 0)
+                                @if ($event->latenessWaived() && (float) $event->penalty_amount > 0)
+                                    {{-- Said plainly, and said as good news. The
+                                         employee was charged and then somebody
+                                         decided not to collect it; leaving this
+                                         reading "RM9.00 deducted" would be a
+                                         screen lying to them about their own pay. --}}
+                                    · RM {{ number_format((float) $event->penalty_amount, 2) }} waived
+                                @elseif ((float) $event->penalty_amount > 0)
                                     · RM {{ number_format((float) $event->penalty_amount, 2) }} deducted
                                 @endif
                                 @if ($event->override_late_minutes !== null)
