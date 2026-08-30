@@ -147,6 +147,53 @@
                 @endif
             </div>
 
+            {{-- Presence. Its own bordered block for the same reason the
+                 geocoding one has: it collects something about staff outside
+                 the moment they punched, and a setting like that should not
+                 sit in a list of tick boxes as though it were a threshold. --}}
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <label class="flex items-start gap-3">
+                    <input type="checkbox" wire:model.live="location_heartbeat" class="mt-0.5 rounded border-gray-300 text-brand-600">
+                    <span class="text-sm">
+                        <span class="font-medium text-gray-900">Record where staff were when they last opened the app</span>
+                        <span class="block text-xs text-gray-600">
+                            Adds a "Last seen" column to the employee list — "At Bangsar, 6 minutes ago".
+                            Without this, that column still shows the time, but never a place.
+                        </span>
+                    </span>
+                </label>
+
+                @if ($location_heartbeat)
+                    <div class="mt-3 pl-8 space-y-2">
+                        {{-- The limits go FIRST and are not softened. Somebody
+                             ticking this box is picturing live tracking, and
+                             they will picture it until they are told otherwise
+                             — better here than after they have told a manager
+                             the app can find people. --}}
+                        <p class="text-xs text-gray-700">
+                            <strong>This is not live tracking, and cannot be.</strong> A location is recorded only
+                            while an employee has the Staff Portal open on screen. No web app on any phone can read a
+                            location in the background — once the app is closed or the screen locks, nothing is
+                            recorded until they open it again.
+                        </p>
+                        <p class="text-xs text-gray-600">
+                            Only the <strong>most recent</strong> location is kept, overwritten each time. No history
+                            or movement trail is stored. Staff who have not granted location to the app are never
+                            prompted by this — the permission is asked for once, at a clock-in, and this uses it only
+                            if it was already given.
+                        </p>
+                        <p class="text-xs text-gray-600">
+                            Locations older than {{ \App\Models\Employee::LAST_SEEN_FRESH_MINUTES }} minutes stop
+                            being shown as a place, and vague fixes (over 500m) are discarded rather than displayed.
+                        </p>
+                        <p class="text-[11px] text-gray-500">
+                            Switching this off again <strong>deletes every location already recorded</strong>.
+                            Under the PDPA, tell your staff this is on and why before you switch it on.
+                        </p>
+                    </div>
+                @endif
+            </div>
+
             <label class="flex items-start gap-3">
                 <input type="checkbox" wire:model="require_face" class="mt-0.5 rounded border-gray-300 text-brand-600">
                 <span class="text-sm">

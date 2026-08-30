@@ -22,6 +22,7 @@
 
 import { beepError, beepSuccess, playFailureSound, playSuccessSound, unlockSound } from './beep.js';
 import { looksLikeFace } from './face-geometry.js';
+import { GEO_GRANTED_KEY, startHeartbeat } from './heartbeat.js';
 
 const MODEL_URL = document.querySelector('meta[name="face-models-url"]')?.content || '/face-models';
 
@@ -707,11 +708,27 @@ export function currentPosition({ timeout = 12000 } = {}) {
         }
 
         navigator.geolocation.getCurrentPosition(
-            (position) => resolve({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                accuracy: position.coords.accuracy,
-            }),
+            (position) => {
+                /*
+                 * A fix came back, so the permission was granted — remembered
+                 * for the heartbeat, which will not ask for one itself unless
+                 * it already knows the answer is yes. See mayLocate() in
+                 * heartbeat.js for why that matters.
+                 *
+                 * Recorded HERE rather than in heartbeat.js because this is
+                 * the only place a prompt is ever shown: the punch screen,
+                 * where the person is being told why their location is wanted.
+                 */
+                try {
+                    window.localStorage.setItem(GEO_GRANTED_KEY, '1');
+                } catch { /* private mode; the Permissions API path still works */ }
+
+                resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                });
+            },
             () => resolve(null),
             // enableHighAccuracy asks for GPS rather than the wifi/cell
             // estimate, which indoors is routinely a few hundred metres out —
@@ -1725,6 +1742,18 @@ if (document.readyState === 'loading') {
 } else {
     boot();
 }
+
+/*
+ * Presence, on every screen of the Staff Portal rather than just this one.
+ *
+ * It lives in the clock entry because the staff layout already loads that
+ * entry everywhere, so this costs no extra request — and because the one
+ * signal it depends on, a granted location permission, is produced by the
+ * punch screen above. It registers its own listeners and does nothing at all
+ * until the page is visible, so calling it here is safe on screens that have
+ * no camera and no punch.
+ */
+startHeartbeat();
 
 // Livewire swaps the DOM without a page load.
 document.addEventListener('livewire:navigated', boot);

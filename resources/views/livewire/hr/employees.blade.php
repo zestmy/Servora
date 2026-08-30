@@ -346,6 +346,11 @@
                     <th class="px-4 py-3 text-left">Email</th>
                     <th class="px-4 py-3 text-left">Phone</th>
                     <th class="px-4 py-3 text-left">Join Date</th>
+                    {{-- "Last seen", NOT "Location" — the column is a time
+                         with a place attached to it, and naming it after the
+                         place would promise a live position the Staff Portal
+                         cannot give. See PresenceHeartbeat. --}}
+                    <th class="px-4 py-3 text-left">Last Seen</th>
                     <th class="px-4 py-3 text-center">Employment</th>
                     <th class="px-4 py-3 text-center">Food Handler</th>
                     <th class="px-4 py-3 text-center">Typhoid Card</th>
@@ -409,6 +414,25 @@
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->email ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $emp->phone ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{{ $emp->join_date?->format('d M Y') ?? '—' }}</td>
+                        <td class="px-4 py-3 text-xs whitespace-nowrap">
+                            @if ($emp->lastSeenLabel())
+                                {{-- A dot for "on the app right now", because
+                                     the difference between 4 minutes and 4
+                                     hours is the whole value of the column and
+                                     two identical grey lines hide it. --}}
+                                <span class="inline-flex items-center gap-1.5 {{ $emp->lastSeenIsFresh() ? 'text-gray-800' : 'text-gray-600' }}">
+                                    @if ($emp->lastSeenIsFresh())
+                                        <span class="h-1.5 w-1.5 rounded-full bg-success-500 shrink-0"></span>
+                                    @endif
+                                    {{ $emp->lastSeenLabel() }}
+                                </span>
+                                @if ($emp->lastSeenPlaceLabel())
+                                    <div class="text-[10px] text-gray-600">{{ $emp->lastSeenPlaceLabel() }}</div>
+                                @endif
+                            @else
+                                <span class="text-gray-600">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-center">
                             @if ($emp->employment_status)
                                 @php
@@ -526,7 +550,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="{{ $canViewPay ? 17 : 15 }}" class="px-4 py-8 text-center text-gray-600">No employees yet. Add one or import from CSV.</td></tr>
+                    <tr><td colspan="{{ $canViewPay ? 18 : 16 }}" class="px-4 py-8 text-center text-gray-600">No employees yet. Add one or import from CSV.</td></tr>
                 @endforelse
             </tbody>
         </table>

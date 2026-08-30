@@ -427,7 +427,98 @@ class Employee extends Model
         'basic_salary'               => 'decimal:2',
         'label_pin_set_at'           => 'datetime',
         'pin_login_disabled_at'      => 'datetime',
+        // Presence. NOT in $fillable and deliberately so: PresenceHeartbeat
+        // is the only writer, it writes with a bare query builder update, and
+        // nothing on any form should be able to set where somebody was.
+        'last_seen_at'               => 'datetime',
+        'last_seen_latitude'         => 'decimal:7',
+        'last_seen_longitude'        => 'decimal:7',
+        'last_seen_accuracy_m'       => 'integer',
     ];
+
+    /**
+     * Past this, "last seen" has stopped being an answer to "where are they".
+     *
+     * Not a hard cutoff — the timestamp is still shown, because "yesterday
+     * 18:40" is a useful thing to know about somebody you cannot find. It is
+     * the point at which the screens stop styling it as current and stop
+     * pairing it with a place, since a location four hours old presented
+     * beside a live-looking row is worse than no location at all.
+     */
+    public const LAST_SEEN_FRESH_MINUTES = 30;
+
+    /** Whether the last ping is recent enough to read as "now". */
+    public function lastSeenIsFresh(): bool
+    {
+        return $this->last_seen_at
+            && $this->last_seen_at->gt(now()->subMinutes(self::LAST_SEEN_FRESH_MINUTES));
+    }
+
+    /**
+     * WHEN the Staff Portal was last open on this person's phone.
+     *
+     * Always relative ("6 minutes ago"), never an absolute time, and that is
+     * the point: the age IS the information. An absolute time invites somebody
+     * to read the row as a live position, which it is not and cannot be — see
+     * the migration for why no browser can offer one.
+     */
+    public function lastSeenLabel(): ?string
+    {
+        return $this->last_seen_at?->diffForHumans();
+    }
+
+    /**
+     * WHERE that phone was, relative to the outlet they are posted to.
+     *
+     * Null whenever there is nothing honest to say — no ping, no coordinates,
+     * a ping too old to stand for a current position, or an outlet with no
+     * coordinates of its own to measure against. Every caller renders this
+     * BESIDE lastSeenLabel(), never instead of it: a place without its age is
+     * a claim this feature cannot support.
+     */
+    public function lastSeenPlaceLabel(): ?string
+    {
+        if (! $this->lastSeenIsFresh() || $this->last_seen_latitude === null) {
+            return null;
+        }
+
+        $outlet = $this->outlet;
+
+        if (! $outlet || ! \App\Services\Hr\Geo::isValidCoordinate($outlet->latitude, $outlet->longitude)) {
+            return 'Location recorded';
+        }
+
+        $distance = \App\Services\Hr\Geo::distanceMetres(
+            (float) $this->last_seen_latitude,
+            (float) $this->last_seen_longitude,
+            (float) $outlet->latitude,
+            (float) $outlet->longitude,
+        );
+
+        /*
+         * The fix's own error widens the fence before we call anybody "at"
+         * their outlet — the same tolerance ClockInService applies to a punch,
+         * for the same reason. A 90m fix taken 60m from the door is not
+         * evidence that somebody left.
+         *
+         * A geofence radius is used where the outlet has one; 150m stands in
+         * where it does not, because an outlet with no radius set still has a
+         * useful answer to "are they roughly here" and refusing to give one
+         * would leave the column blank for most of the estate.
+         */
+        $radius    = (int) ($outlet->clock_radius_m ?: 150);
+        $tolerance = $this->last_seen_accuracy_m ?? 0;
+
+        if ($distance <= $radius + $tolerance) {
+            return 'At ' . $outlet->name;
+        }
+
+        $away = $distance >= 1000
+            ? number_format($distance / 1000, 1) . ' km'
+            : number_format($distance) . ' m';
+
+        return $away . ' from ' . $outlet->name;
+    }
 
     /**
      * Paths collected while the row still exists, removed once it is gone.

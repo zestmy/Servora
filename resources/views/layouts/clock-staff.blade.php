@@ -41,6 +41,19 @@
          production and a sub-path locally, and the JS should not have to
          know which. --}}
     <meta name="face-models-url" content="{{ asset('face-models') }}">
+    {{-- Presence. Only for a signed-in person: the sign-in screen posting a
+         heartbeat would be a redirect to itself, and there is nobody to
+         attribute it to yet.
+
+         The location half is a COMPANY decision (HR › Clock settings) and is
+         off until somebody makes it. It is passed down as its own flag so the
+         phone does not even look at its permission state for a company that
+         has not asked for this — see heartbeat.js, which never prompts. --}}
+    @isset($staff)
+        <meta name="staff-heartbeat-url" content="{{ route('clock.staff.heartbeat') }}">
+        <meta name="staff-heartbeat-location"
+              content="{{ \App\Models\ClockSetting::forCompany($staff->company_id)->location_heartbeat ? '1' : '0' }}">
+    @endisset
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

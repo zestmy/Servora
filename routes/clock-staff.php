@@ -258,6 +258,26 @@ $group->group(function () {
             ->whereNumber('leaveRequest')
             ->name('clock.staff.leave.attachment');
         Route::get('/time-off', ClockTimeOff::class)->name('clock.staff.time-off');
+        /*
+         * "I am open, and here is where" — see PresenceHeartbeat.
+         *
+         * INSIDE the PIN gate and taking no employee id: whose row this writes
+         * is decided by the session, not by the payload.
+         *
+         * NOT exempt from CSRF, unlike the kiosk endpoints beside it. Those
+         * are exempt because a kiosk screen outlives the session whose token
+         * rendered it; this one is posted from a page a person just opened, so
+         * the token is fresh, and a stale one failing is the correct outcome —
+         * the client treats any error as "skip this ping".
+         *
+         * Throttled per session as a backstop. The client throttles and the
+         * service refuses to rewrite the row inside a minute, but this is the
+         * only one of the three that a hostile caller does not control.
+         */
+        Route::post('/heartbeat', [\App\Http\Controllers\Hr\StaffHeartbeatController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('clock.staff.heartbeat');
+
         // A plain form post, not a Livewire action: the control lives in the
         // layout, outside any component root, where wire:click never binds.
         Route::post('/logout', [ClockSessionController::class, 'destroy'])->name('clock.staff.logout');

@@ -6,6 +6,7 @@ use App\Models\ClockEvent;
 use App\Models\ClockSetting;
 use App\Models\Outlet;
 use App\Services\Geocoding\ReverseGeocoder;
+use App\Services\Hr\PresenceHeartbeat;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -34,6 +35,16 @@ class ClockSettings extends Component
     public bool $mark_attendance           = false;
     public bool $allow_offsite_with_reason = true;
     public bool $resolve_addresses         = false;
+
+    /**
+     * Record WHERE a phone was when the Staff Portal was last opened, not
+     * just when. See App\Services\Hr\PresenceHeartbeat.
+     *
+     * Off until somebody turns it on, and turning it off again erases what was
+     * collected — the screen says so, because a toggle that keeps yesterday's
+     * locations after being switched off is not the toggle it appears to be.
+     */
+    public bool $location_heartbeat        = false;
 
     /** Which ways in the company allows at all. Per-outlet mode narrows these. */
     public bool $kiosk_enabled = true;
@@ -87,6 +98,7 @@ class ClockSettings extends Component
         $this->mark_attendance           = (bool) $settings->mark_attendance;
         $this->allow_offsite_with_reason = (bool) $settings->allow_offsite_with_reason;
         $this->resolve_addresses         = (bool) $settings->resolve_addresses;
+        $this->location_heartbeat        = (bool) $settings->location_heartbeat;
 
         $this->kiosk_enabled   = (bool) $settings->kiosk_enabled;
         $this->byod_enabled    = (bool) $settings->byod_enabled;
@@ -163,6 +175,9 @@ class ClockSettings extends Component
 
         $settings = ClockSetting::forCompany(Auth::user()->company_id);
 
+        // Read BEFORE the update, so the transition can be seen at all.
+        $heartbeatWasOn = (bool) $settings->location_heartbeat;
+
         $settings->update([
             'grace_minutes'        => (int) $this->grace_minutes,
             'late_rate_per_minute' => (float) $this->late_rate_per_minute,
@@ -176,6 +191,7 @@ class ClockSettings extends Component
             'mark_attendance'      => $this->mark_attendance,
             'allow_offsite_with_reason' => $this->allow_offsite_with_reason,
             'resolve_addresses'         => $this->resolve_addresses,
+            'location_heartbeat'        => $this->location_heartbeat,
             'kiosk_enabled'             => $this->kiosk_enabled,
             'byod_enabled'              => $this->byod_enabled,
             'kiosk_allow_pin'           => $this->kiosk_allow_pin,
@@ -198,6 +214,19 @@ class ClockSettings extends Component
                 $this->reviewFlags,
             )),
         ]);
+
+        /*
+         * Switching location off ERASES what it gathered.
+         *
+         * Keeping it would leave a company holding staff locations that it has
+         * just decided it does not collect — the exact position nobody wants to
+         * explain to the person whose row it is. The timestamps stay: "last
+         * opened the app 10 minutes ago" is not a location and is not what the
+         * toggle governs.
+         */
+        if ($heartbeatWasOn && ! $this->location_heartbeat) {
+            PresenceHeartbeat::forget(Auth::user()->company_id);
+        }
 
         foreach ($this->outlets() as $outlet) {
             $fence = $this->fences[$outlet->id] ?? null;
