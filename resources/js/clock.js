@@ -70,6 +70,9 @@ async function loadModels() {
             faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         ]);
 
+        // Weights in memory is not the same as ready to run.
+        await warmUp(faceapi);
+
         return faceapi;
     })().catch((error) => {
         // Reset so a later attempt can retry rather than resolving the same
@@ -80,6 +83,69 @@ async function loadModels() {
     });
 
     return modelsReady;
+}
+
+/**
+ * Push one throwaway frame through every network, before anybody is waiting.
+ *
+ * Loading the weights does not make a model fast — the FIRST inference through
+ * each net compiles its WebGL shader programs, and on tablet GPUs that is
+ * commonly one to three seconds. Without this it is paid by whoever clocks in
+ * first, on a screen that has been sitting idle since the shop opened. The
+ * tablet has nothing else to do while the kiosk waits for a face; spend it
+ * here instead of on a person.
+ *
+ * Deliberately swallows everything. This is an optimisation, and a warm-up
+ * that fails must never be the reason the camera does not open — the real
+ * inference will simply pay the compile cost the old way.
+ */
+async function warmUp(api) {
+    try {
+        const canvas = document.createElement('canvas');
+
+        // Big enough that the shaders compiled here are the ones a real frame
+        // will use. tfjs specialises on tensor shape, so warming on a 1x1 would
+        // compile programs that a 640x480 frame then throws away.
+        canvas.width  = 320;
+        canvas.height = 240;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Both detectors, because the kiosk runs tiny continuously and ssd on
+        // every capture, and each carries its own programs. The landmark and
+        // recognition nets are warmed through the chained call rather than
+        // separately — that is the exact path capture() takes.
+        await api.detectSingleFace(canvas, new api.TinyFaceDetectorOptions({
+            inputSize: DETECTOR_INPUT_SIZE,
+            scoreThreshold: DETECTOR_SCORE_THRESHOLD,
+        }));
+
+        await api.detectSingleFace(canvas, new api.SsdMobilenetv1Options({
+            minConfidence: CAPTURE_MIN_CONFIDENCE,
+            maxResults: 1,
+        })).withFaceLandmarks().withFaceDescriptor();
+    } catch (error) {
+        /* Warm or cold, the app works. */
+    }
+}
+
+/**
+ * Re-warm after the browser takes the GPU back.
+ *
+ * A kiosk is open for fourteen hours on a device that dims, sleeps and gets
+ * backgrounded, and mobile browsers reclaim WebGL contexts under memory
+ * pressure. When the context returns every shader has to be recompiled, so
+ * without this the first punch after every nap pays the full compile cost
+ * again — which is the same slow-first-punch bug, arriving several times a day
+ * instead of once.
+ */
+if (typeof window !== 'undefined') {
+    window.addEventListener('webglcontextrestored', () => {
+        if (faceapi) warmUp(faceapi);
+    }, true);
 }
 
 /**
@@ -401,65 +467,207 @@ export class ClockCamera {
 
         // The accurate detector, not the fast one. This is the frame that
         // becomes a descriptor and gets written to somebody's attendance
-        // record, and it happens once per punch — there is nothing to spend
-        // the speed on. tinyFaceDetector at its old threshold accepted an
-        // open hand here.
+        // record. tinyFaceDetector at its old threshold accepted an open hand
+        // here.
         const options = new api.SsdMobilenetv1Options({
             minConfidence: CAPTURE_MIN_CONFIDENCE,
             maxResults: 1,
         });
 
-        // Best of three. A single frame catches motion blur often enough to
-        // be annoying, and the detector's own score is a decent proxy for
-        // which frame is worth keeping.
-        let best = null;
-        let rejected = null;
+        /*
+         * Best of three, in TWO passes, and the split is the whole reason this
+         * runs in about a third of the time it used to.
+         *
+         * It used to run detect + landmarks + descriptor on all three frames
+         * and keep the one with the best DETECTION score — a number the
+         * detector alone produces. Two descriptors out of every three were
+         * computed through a 6.4MB network and thrown away, and on a counter
+         * tablet that was most of the wait between somebody standing there and
+         * their name appearing.
+         *
+         * So: rank all three cheaply, then run the whole accurate pipeline on
+         * the winner alone. The landmark second opinion and its fall-through to
+         * the runner-up are both preserved below, and the descriptor is still
+         * produced by exactly the ssd-to-landmarks-to-recognition path it
+         * always was — which matters more than the speed, because a descriptor
+         * built any other way would not be comparable against the enrolments
+         * already on file.
+         */
+        const frames = [];
 
         for (let i = 0; i < 3; i++) {
-            const result = await api
-                .detectSingleFace(this.video, options)
-                .withFaceLandmarks()
-                .withFaceDescriptor();
+            // Snapshot first. The old code re-read `this.video` at every
+            // stage, which was fine when each frame was consumed immediately;
+            // now that detection and description happen at different moments,
+            // the live element has moved on in between and the descriptor
+            // would come from a frame the detector never scored.
+            frames.push(this.snapshot());
 
-            if (result) {
-                // Second opinion, and a cheap one. The detector says where a
-                // face is; this says whether the landmarks it produced
-                // describe one. Both have to agree before a descriptor is
-                // built out of the frame.
-                const real = looksLikeFace(result.landmarks);
+            if (i < 2) await this.nextFrame();
+        }
 
-                if (! real.ok) {
-                    rejected = real.why;
-                } else if (! best || result.detection.score > best.detection.score) {
-                    best = result;
-                }
+        /*
+         * Stage one ranks the frames with the CHEAP detector, and that choice
+         * is worth stating because it looks like the thing this file warns
+         * against everywhere else.
+         *
+         * tinyFaceDetector is not trusted here to decide whether something is
+         * a face. It is asked only which of three frames taken 40ms apart is
+         * the sharpest — a question about motion blur, where its score is as
+         * good a proxy as anything and it answers in a fraction of the time.
+         * Every guarantee that matters is still made by stage two: ssd finds
+         * the face, looksLikeFace() confirms the landmarks describe one, and a
+         * frame that fails either falls through to the next best.
+         *
+         * The alternative — ranking with ssd — meant paying the expensive
+         * detector three times to save paying it once, and left the capture
+         * barely faster than the version that computed three descriptors.
+         */
+        const ranker = new api.TinyFaceDetectorOptions({
+            inputSize: DETECTOR_INPUT_SIZE,
+            scoreThreshold: DETECTOR_SCORE_THRESHOLD,
+        });
+
+        const scored = [];
+
+        for (const frame of frames) {
+            let found = null;
+
+            try {
+                found = await api.detectSingleFace(frame, ranker);
+            } catch (error) {
+                continue;
             }
 
-            if (i < 2) await new Promise((r) => setTimeout(r, 100));
+            if (found) {
+                scored.push({ frame, score: found.score ?? found.detection?.score ?? 0 });
+            }
         }
 
-        if (! best) {
-            // Distinguishes "nothing found" from "found something that was
-            // not a face", because the two need different things from the
-            // person holding the phone.
-            this.lastRejection = rejected;
-
-            return null;
+        // Nothing tiny recognised at all still gets one honest ssd attempt on
+        // the newest frame. tiny is the model that misses a face in poor light,
+        // and letting its silence end the capture would make the accurate
+        // detector unreachable exactly when it is most needed.
+        if (scored.length === 0 && frames.length) {
+            scored.push({ frame: frames[frames.length - 1], score: 0 });
         }
 
-        this.lastRejection = null;
+        scored.sort((a, b) => b.score - a.score);
 
-        return {
-            descriptor: Array.from(best.descriptor),
-            score: best.detection.score,
-            selfie: this.still(),
-        };
+        let rejected = null;
+
+        for (const { frame } of scored) {
+            let result = null;
+
+            try {
+                result = await api
+                    .detectSingleFace(frame, options)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+            } catch (error) {
+                continue;
+            }
+
+            if (! result) continue;
+
+            // Second opinion, and a cheap one. The detector says where a face
+            // is; this says whether the landmarks it produced describe one.
+            // Both have to agree before a descriptor is built out of the
+            // frame. A frame that fails falls through to the next best, which
+            // is what the old loop did by carrying on scoring.
+            const real = looksLikeFace(result.landmarks);
+
+            if (! real.ok) {
+                rejected = real.why;
+                continue;
+            }
+
+            this.lastRejection = null;
+
+            return {
+                descriptor: Array.from(result.descriptor),
+                score: result.detection.score,
+                // The selfie is now the frame the descriptor was built FROM,
+                // rather than whatever the camera happened to be showing a
+                // moment later. The evidence and the measurement are the same
+                // photograph, which is what a disputed punch needs them to be.
+                selfie: this.still(frame),
+            };
+        }
+
+        // Distinguishes "nothing found" from "found something that was not a
+        // face", because the two need different things from the person
+        // standing there.
+        this.lastRejection = rejected;
+
+        return null;
     }
 
-    /** The current frame as a JPEG data URL, sized for a review screen. */
-    still() {
+    /**
+     * The current video frame, copied off at full size.
+     *
+     * A canvas rather than the <video> element so it can be scored now and
+     * described later without changing underneath. drawImage of a 640x480
+     * frame costs a millisecond or two — nothing against the inference it
+     * feeds.
+     */
+    snapshot() {
+        const canvas = document.createElement('canvas');
+
+        canvas.width  = this.video.videoWidth  || 640;
+        canvas.height = this.video.videoHeight || 480;
+
+        canvas.getContext('2d').drawImage(this.video, 0, 0, canvas.width, canvas.height);
+
+        return canvas;
+    }
+
+    /**
+     * Wait for the camera to actually produce a NEW frame.
+     *
+     * Replaces a flat 100ms sleep, which at 30fps waited out three frames to
+     * get one. requestVideoFrameCallback fires on the next decoded frame —
+     * about 33ms — and the timeout is a floor for Safari builds that lack it
+     * and for a camera that has stalled, where waiting forever would hang the
+     * punch.
+     */
+    nextFrame({ timeout = 120 } = {}) {
+        return new Promise((resolve) => {
+            let settled = false;
+
+            const done = () => {
+                if (settled) return;
+                settled = true;
+                resolve();
+            };
+
+            const timer = setTimeout(done, timeout);
+
+            if (typeof this.video?.requestVideoFrameCallback === 'function') {
+                this.video.requestVideoFrameCallback(() => {
+                    clearTimeout(timer);
+                    done();
+                });
+            }
+        });
+    }
+
+    /**
+     * A frame as a JPEG data URL, sized for a review screen.
+     *
+     * Takes the frame to draw so a caller that already holds the one it
+     * measured can store THAT rather than the live camera, which by then is
+     * showing something else. Defaults to the live element for the callers
+     * that only ever wanted "now".
+     */
+    still(source = null) {
+        const from = source || this.video;
+
+        const sourceWidth  = from.videoWidth  || from.width  || 640;
+        const sourceHeight = from.videoHeight || from.height || 480;
+
         const width = 480;
-        const height = Math.round((this.video.videoHeight / this.video.videoWidth) * width) || 360;
+        const height = Math.round((sourceHeight / sourceWidth) * width) || 360;
 
         this.canvas.width = width;
         this.canvas.height = height;
@@ -478,7 +686,7 @@ export class ClockCamera {
             ctx.scale(-1, 1);
         }
 
-        ctx.drawImage(this.video, 0, 0, width, height);
+        ctx.drawImage(from, 0, 0, width, height);
         ctx.restore();
 
         return this.canvas.toDataURL('image/jpeg', 0.75);

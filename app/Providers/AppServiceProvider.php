@@ -41,6 +41,25 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         /*
+         * Drop the clock-settings memo on every boot.
+         *
+         * ClockSetting::forCompany() memoises per company_id so the staff app's
+         * history screen does not re-read the review policy once per punch row.
+         * The memo is a static, so its real lifetime is the PROCESS, not the
+         * request — which is correct in php-fpm, where the two are the same
+         * thing, and wrong everywhere else.
+         *
+         * Under RefreshDatabase the database is truncated between tests and
+         * auto-increment ids restart, so company 1 in one test is a different
+         * company 1 in the next and would have been handed the previous one's
+         * settings. The same applies to a queue worker, which boots once and
+         * then processes jobs for every tenant on the box in turn.
+         *
+         * Boot is the honest scope: one flush per request, per test, per job.
+         */
+        \App\Models\ClockSetting::forget();
+
+        /*
          * One reverse-geocoding request a second, company-wide.
          *
          * Nominatim's usage policy asks for no more than that and would be

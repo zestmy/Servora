@@ -230,10 +230,11 @@ class ClockInService
 
         $selfiePath = $this->storeSelfie($employee, $input['selfie'] ?? null);
 
-        // Which flags actually send a punch to a human. The list is on the
-        // model, because the staff app explains this decision using the same
-        // one — see ClockEvent::NON_REVIEWABLE_FLAGS for what is on it and why.
-        $reviewable = array_values(array_diff($flags, ClockEvent::NON_REVIEWABLE_FLAGS));
+        // Which flags actually send a punch to a human. Resolved on the model,
+        // because the staff app explains this decision using the same call —
+        // see ClockEvent::reviewableFlags() and the company's own policy in
+        // ClockSetting::autoApproveFlags().
+        $reviewable = ClockEvent::reviewableFlags($flags, $employee->company_id);
 
         $event = ClockEvent::create([
             'company_id'      => $employee->company_id,

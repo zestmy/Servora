@@ -204,6 +204,60 @@
         </div>
     </div>
 
+    {{-- ── What needs a manager ─────────────────────────────────────────
+         Sits directly under Checks, because it answers the question Checks
+         raises: those settings decide what gets FLAGGED, this one decides
+         what a flag actually costs somebody's morning. --}}
+    <div class="panel p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-900">What needs a manager</h3>
+        <p class="help mt-1 max-w-2xl">
+            Every one of these is still recorded on the punch, shown on the punch, and counted in
+            reports whether or not it is ticked here. Ticking one only decides whether the punch
+            waits for somebody to approve it before it counts.
+        </p>
+        <p class="help mt-2 max-w-2xl">
+            Untick the ones you find yourself waving through without thinking. A queue full of
+            punches nobody reads is worse than a short one, because the two that matter are in it
+            somewhere.
+        </p>
+
+        <div class="mt-4 space-y-5">
+            @foreach ($policyGroups as $key => $group)
+                <div>
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {{ $group['label'] }}
+                    </h4>
+                    <p class="text-xs text-gray-600 mt-1">{{ $group['note'] }}</p>
+
+                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                        @foreach ($group['flags'] as $flag)
+                            <label class="flex items-start gap-3">
+                                <input type="checkbox"
+                                       wire:model="reviewFlags"
+                                       value="{{ $flag }}"
+                                       class="mt-0.5 rounded border-gray-300 text-brand-600">
+                                <span class="text-sm text-gray-900">{{ $flagLabels[$flag] ?? $flag }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    @if ($key === 'identity')
+                        <p class="mt-2 text-xs text-amber-700">
+                            These are the ones worth keeping. Unticking “Face did not match” means a punch
+                            whose face did not match the enrolled staff member is counted without anybody
+                            being told — which is the check the whole camera is there to make.
+                        </p>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+
+        <p class="mt-4 text-[11px] text-gray-500">
+            This changes punches recorded from now on. Anything already sitting in the review queue
+            stays there until somebody clears it.
+        </p>
+    </div>
+
     {{-- ── How staff clock in ───────────────────────────────────────────── --}}
     <div class="panel p-5 mt-6">
         <div class="flex flex-wrap items-start justify-between gap-3">

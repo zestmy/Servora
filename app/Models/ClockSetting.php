@@ -22,6 +22,7 @@ class ClockSetting extends Model
         'kiosk_enabled', 'byod_enabled',
         'kiosk_face_threshold', 'kiosk_face_margin', 'kiosk_cooldown_minutes',
         'kiosk_allow_pin',
+        'auto_approve_flags',
     ];
 
     protected $casts = [
@@ -43,11 +44,39 @@ class ClockSetting extends Model
         'kiosk_face_margin'         => 'decimal:3',
         'kiosk_cooldown_minutes'    => 'integer',
         'kiosk_allow_pin'           => 'boolean',
+        'auto_approve_flags'        => 'array',
     ];
+
+    /**
+     * One row per company, memoised for the life of the request.
+     *
+     * forCompany() went from being read once per punch to being read once per
+     * PUNCH ROW on the staff app's history screen, because the review policy
+     * now decides which flags an employee is shown as waiting on. A page of
+     * thirty punches was thirty identical queries.
+     */
+    private static array $cache = [];
 
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        // Any write drops the memo. Without this the settings screen saves,
+        // re-reads in the same request, and renders what it just replaced.
+        static::saved(fn (self $settings) => self::forget($settings->company_id));
+        static::deleted(fn (self $settings) => self::forget($settings->company_id));
+    }
+
+    /** Drop the memo for one company, or all of them. */
+    public static function forget(?int $companyId = null): void
+    {
+        if ($companyId === null) {
+            self::$cache = [];
+
+            return;
+        }
+
+        unset(self::$cache[$companyId]);
     }
 
     public function company(): BelongsTo
@@ -78,6 +107,10 @@ class ClockSetting extends Model
      */
     public static function forCompany(int $companyId): self
     {
+        if (isset(self::$cache[$companyId])) {
+            return self::$cache[$companyId];
+        }
+
         $settings = static::withoutGlobalScope(CompanyScope::class)
             ->firstOrCreate(['company_id' => $companyId]);
 
@@ -85,7 +118,36 @@ class ClockSetting extends Model
             $settings->refresh();
         }
 
-        return $settings;
+        return self::$cache[$companyId] = $settings;
+    }
+
+    /**
+     * Which flags this company does NOT want a manager asked about.
+     *
+     * NULL is not an empty list — it means the column was never written, and
+     * the company gets the shipped default. An empty ARRAY is a real answer
+     * and means the opposite: review everything, including lateness.
+     *
+     * Unknown keys are dropped on the way out rather than on the way in, so a
+     * flag retired in some later release cannot leave a stale string sitting
+     * in the policy of every company that ever ticked it.
+     */
+    public function autoApproveFlags(): array
+    {
+        if ($this->auto_approve_flags === null) {
+            return ClockEvent::DEFAULT_AUTO_APPROVE_FLAGS;
+        }
+
+        return array_values(array_intersect(
+            $this->auto_approve_flags,
+            array_keys(ClockEvent::FLAG_LABELS),
+        ));
+    }
+
+    /** Whether this flag, on its own, would send a punch to a manager. */
+    public function sendsToReview(string $flag): bool
+    {
+        return ! in_array($flag, $this->autoApproveFlags(), true);
     }
 
     /** RM charged for one late minute, or null when lateness is free. */

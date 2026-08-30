@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Models\ClockEvent;
 use App\Models\ClockSetting;
 use App\Models\Outlet;
 use App\Services\Geocoding\ReverseGeocoder;
@@ -51,6 +52,16 @@ class ClockSettings extends Component
     public string $kiosk_face_margin      = '0.08';
     public string $kiosk_cooldown_minutes = '3';
 
+    /**
+     * The flags that DO send a punch to a manager.
+     *
+     * Held as the review list rather than the stored skip list because that is
+     * what the screen asks — a ticked box means "ask me about this" — and a
+     * checkbox bound to the negative of its own label is how a settings screen
+     * ends up meaning the opposite of what it says. Inverted once on save.
+     */
+    public array $reviewFlags = [];
+
     /** Result of the "test" button on the geocoding block. */
     public ?array $geocodeTest = null;
 
@@ -85,6 +96,11 @@ class ClockSettings extends Component
         $this->kiosk_face_margin    = rtrim(rtrim(number_format((float) $settings->kiosk_face_margin, 3, '.', ''), '0'), '.');
         $this->kiosk_cooldown_minutes = (string) $settings->kiosk_cooldown_minutes;
 
+        $this->reviewFlags = array_values(array_diff(
+            self::policyFlags(),
+            $settings->autoApproveFlags(),
+        ));
+
         foreach ($this->outlets() as $outlet) {
             $this->fences[$outlet->id] = [
                 'latitude'  => $outlet->latitude !== null ? (string) $outlet->latitude : '',
@@ -117,6 +133,9 @@ class ClockSettings extends Component
             'kiosk_face_threshold'   => ['required', 'numeric', 'min:0.30', 'max:0.60'],
             'kiosk_face_margin'      => ['required', 'numeric', 'min:0.02', 'max:0.30'],
             'kiosk_cooldown_minutes' => ['required', 'integer', 'min:0', 'max:120'],
+
+            'reviewFlags'   => ['array'],
+            'reviewFlags.*' => ['string', 'in:' . implode(',', self::policyFlags())],
 
             'fences.*.latitude'  => ['nullable', 'numeric', 'between:-90,90'],
             'fences.*.longitude' => ['nullable', 'numeric', 'between:-180,180'],
@@ -163,6 +182,21 @@ class ClockSettings extends Component
             'kiosk_face_threshold'      => (float) $this->kiosk_face_threshold,
             'kiosk_face_margin'         => (float) $this->kiosk_face_margin,
             'kiosk_cooldown_minutes'    => (int) $this->kiosk_cooldown_minutes,
+            /*
+             * Stored as the SKIP list, which is the inverse of what the screen
+             * collects. Deliberate: a flag added in a later release is absent
+             * from every company's skip list and therefore reviewed by default,
+             * so a new check starts by asking rather than being silently
+             * ignored by everybody who saved this screen before it existed.
+             *
+             * Always an array, never null. Null means "never configured, use
+             * the shipped default" — once a manager has answered this screen,
+             * their answer stands even when it happens to match the default.
+             */
+            'auto_approve_flags' => array_values(array_diff(
+                self::policyFlags(),
+                $this->reviewFlags,
+            )),
         ]);
 
         foreach ($this->outlets() as $outlet) {
@@ -201,6 +235,22 @@ class ClockSettings extends Component
         session()->flash('success', 'Clock-in settings saved.');
     }
 
+    /**
+     * Every flag the policy screen offers, flattened.
+     *
+     * Read off ClockEvent::REVIEW_POLICY_GROUPS rather than FLAG_LABELS so the
+     * screen and the saved policy can never cover different sets — a flag with
+     * no group would otherwise be un-tickable here and therefore auto-approved
+     * for everybody on the next save, which is silent and wrong. A test asserts
+     * the groups stay exhaustive.
+     *
+     * @return array<int, string>
+     */
+    public static function policyFlags(): array
+    {
+        return array_merge(...array_column(ClockEvent::REVIEW_POLICY_GROUPS, 'flags'));
+    }
+
     public function outlets()
     {
         return Outlet::whereIn('id', Auth::user()->accessibleOutletIds() ?: [0])
@@ -232,6 +282,8 @@ class ClockSettings extends Component
             'outlets'          => $this->outlets(),
             'geocodeProvider'  => ReverseGeocoder::PROVIDERS[$geocoder->provider()] ?? $geocoder->provider(),
             'geocodeReady'     => $geocoder->isConfigured(),
+            'policyGroups'     => ClockEvent::REVIEW_POLICY_GROUPS,
+            'flagLabels'       => ClockEvent::FLAG_LABELS,
         ])->layout('layouts.app', ['title' => 'Clock-In Settings']);
     }
 }

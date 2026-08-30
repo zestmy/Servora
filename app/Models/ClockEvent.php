@@ -92,9 +92,11 @@ class ClockEvent extends Model
     ];
 
     /**
-     * Flags that are a RECORD of what happened rather than a problem to be
-     * reviewed. Anything else means a check could not be satisfied and a human
-     * has to look.
+     * The flags that do NOT send a punch to a manager, unless a company says
+     * otherwise on the clock settings screen.
+     *
+     * A DEFAULT now, not a rule — see ClockSetting::autoApproveFlags(). What
+     * follows is why each one starts here.
      *
      *   late     — the deduction is the consequence, and a manager who wants
      *              to waive it can still find the punch.
@@ -107,15 +109,67 @@ class ClockEvent extends Model
      *              A dead kiosk is worth surfacing on the DEVICES screen where
      *              somebody can go and plug it in; here it would flag every
      *              punch at the outlet for a fault none of those people caused.
+     *   no_outlet_fence — the outlet has no coordinates set, so there was
+     *              nothing to measure against. That is a gap in the outlet's
+     *              configuration, identical on every punch made there until
+     *              somebody fills it in, and no decision a manager can take on
+     *              an individual punch will change it. `within_geofence` still
+     *              records false, so nothing reads as "everyone was on site" —
+     *              the measurement is kept and only the queue is spared.
      *
-     * Lives on the model rather than in ClockInService because two things need
-     * it and they must not drift: the service decides STATUS from it, and the
-     * staff app explains that status from it. They disagreed — a punch flagged
-     * only for being a duplicate told the employee "No rostered shift, Already
-     * clocked in", listing a reason that had nothing to do with why a manager
-     * was being asked.
+     * Lives on the model rather than in ClockInService because three things
+     * need it and they must not drift: the service decides STATUS from it, the
+     * staff app explains that status from it, and the settings screen offers it
+     * as the starting point.
      */
-    public const NON_REVIEWABLE_FLAGS = ['late', 'no_shift', 'kiosk_down'];
+    public const DEFAULT_AUTO_APPROVE_FLAGS = ['late', 'no_shift', 'kiosk_down', 'no_outlet_fence'];
+
+    /**
+     * Every flag a company may route, grouped the way the settings screen asks
+     * about them.
+     *
+     * Grouped rather than listed because the three groups carry genuinely
+     * different risk and a manager turning them off should feel that. Waving
+     * through a punch with no rostered shift costs nothing; waving through one
+     * where the face did not match is the whole control.
+     */
+    public const REVIEW_POLICY_GROUPS = [
+        'identity' => [
+            'label' => 'Who was it',
+            'note'  => 'These are the checks that establish the punch belongs to the person it names.',
+            'flags' => ['face_mismatch', 'face_ambiguous', 'no_face', 'pin_fallback', 'not_enrolled'],
+        ],
+        'location' => [
+            'label' => 'Where it happened',
+            'note'  => 'Staff already excused from the geofence never raise these — set “can clock in anywhere” on the employee instead.',
+            'flags' => ['outside_geofence', 'no_location', 'weak_location', 'no_outlet_fence', 'byod_when_kiosk_up', 'kiosk_down'],
+        ],
+        'shape' => [
+            'label' => 'How the day is shaped',
+            'note'  => 'Punches that do not fit the roster or sit oddly against each other.',
+            'flags' => ['no_shift', 'late', 'too_early', 'duplicate', 'no_open_punch', 'no_open_break', 'break_overrun'],
+        ],
+    ];
+
+    /**
+     * The flags on a punch that a manager is actually being asked about.
+     *
+     * The one place the policy is applied. ClockInService uses it to set the
+     * status; the staff app uses it to explain that status; both have to
+     * arrive at the same answer or an employee is told they are waiting on a
+     * decision nobody has been asked to make.
+     *
+     * @param  array<int, string>  $flags
+     * @return array<int, string>
+     */
+    public static function reviewableFlags(array $flags, ?int $companyId = null): array
+    {
+        $skip = $companyId
+            ? ClockSetting::forCompany($companyId)->autoApproveFlags()
+            : self::DEFAULT_AUTO_APPROVE_FLAGS;
+
+        return array_values(array_diff($flags, $skip));
+    }
 
     protected $fillable = [
         'company_id', 'outlet_id', 'employee_id', 'roster_entry_id', 'type',
@@ -363,8 +417,7 @@ class ClockEvent extends Model
      */
     public function reviewFlagLabels(): array
     {
-        return collect($this->flags ?? [])
-            ->reject(fn ($f) => in_array($f, self::NON_REVIEWABLE_FLAGS, true))
+        return collect(self::reviewableFlags($this->flags ?? [], $this->company_id))
             ->map(fn ($f) => self::FLAG_LABELS[$f] ?? null)
             ->filter()
             ->values()
