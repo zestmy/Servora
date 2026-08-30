@@ -20,7 +20,7 @@
  * puts it in front of a manager.
  */
 
-import { beepError, beepSuccess, unlockSound } from './beep.js';
+import { beepError, beepSuccess, playFailureSound, playSuccessSound, unlockSound } from './beep.js';
 import { looksLikeFace } from './face-geometry.js';
 
 const MODEL_URL = document.querySelector('meta[name="face-models-url"]')?.content || '/face-models';
@@ -1568,6 +1568,43 @@ function boot() {
     ['pointerdown', 'touchstart', 'keydown'].forEach((event) => {
         document.addEventListener(event, unlockSound, { once: true, capture: true, passive: true });
     });
+
+    /*
+     * Start the samples downloading now, not on the first tap.
+     *
+     * unlockSound() creates the context and warms both files; the resume half
+     * simply fails until a gesture arrives, which is free. Without this the
+     * FIRST outcome of the day races a 68KB fetch and falls back to the chirp —
+     * correct behaviour, but the wrong sound for the one punch somebody is
+     * most likely to be listening to.
+     */
+    unlockSound();
+
+
+    /*
+     * The outcome sound, driven from the SERVER's answer rather than from this
+     * side of the submit.
+     *
+     * It has to be. The punch goes through Livewire and the verdict is reached
+     * in ClockInService — a refusal for being off-site, or a recorded punch —
+     * so the browser learns which happened only when the component dispatches
+     * it. Guessing here from "the request came back 200" would play the success
+     * sound over a refusal, which is precisely the mistake the screen's own
+     * copy is written to avoid: somebody who hears a success and walks away
+     * from a punch that never recorded.
+     *
+     * `once` is deliberately NOT used, and the listener is on window rather
+     * than the component, so it survives every Livewire re-render. It is also
+     * registered once per boot() — re-registering on navigation would stack
+     * listeners and play the sound twice, so the flag guards it.
+     */
+    if (! window.__clockOutcomeSound) {
+        window.__clockOutcomeSound = true;
+
+        window.addEventListener('punch-outcome', (event) => {
+            event.detail?.ok ? playSuccessSound() : playFailureSound();
+        });
+    }
 
     const found = findScreen();
 

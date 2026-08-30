@@ -20,6 +20,8 @@
  * music URL in as an x-data argument — data travels in the page, behaviour
  * travels in the bundle.
  */
+
+import { playFailureSound, playSuccessSound, unlockSound } from './beep.js';
 /*
          * In the bundle this always takes the alpine:init path — the module
          * evaluates in <head>, before Alpine exists. The direct-call branch
@@ -59,6 +61,14 @@
                         if (this.musicFile) {
                             this.mountAudio();
                         }
+
+                        // Warm the verdict sounds while somebody is still
+                        // reading the start screen. The context is created
+                        // suspended until the first tap, which is fine —
+                        // decoding does not need it running, and the first
+                        // right answer then plays a sound rather than the
+                        // fallback chime.
+                        unlockSound();
                     },
 
                     /**
@@ -135,18 +145,34 @@
                         osc.stop(at + length + 0.02);
                     },
 
-                    // C6 then E6 — up, and over in a third of a second.
+                    /*
+                     * Right and wrong, played from the shared sound module.
+                     *
+                     * The same two files the clock uses, deliberately: a member
+                     * of staff meets the success sound when they clock in and
+                     * again when they get an answer right, and one product
+                     * saying "yes" one way is worth more than two cleverer
+                     * sounds nobody learns.
+                     *
+                     * playSuccessSound() falls back to a synthesised chime if
+                     * the file has not loaded, so a quiz on a bad connection is
+                     * never silent — the tones that used to live here are still
+                     * in beep.js doing exactly that job.
+                     *
+                     * The old note() helper stays below: toggleSound() still
+                     * needs a sound it can play THROUGH the tap that unlocks
+                     * audio, and a decoded sample may not be ready at that
+                     * moment.
+                     */
                     ding() {
-                        this.note(1046.5, 0, 0.14, 'sine', 0.18);
-                        this.note(1318.5, 0.09, 0.22, 'sine', 0.18);
+                        playSuccessSound();
                     },
 
-                    // Down a step, and rough enough to be unmistakable without
-                    // being loud — this plays in a room where other people can
-                    // hear it, and humiliation is not the feedback we are after.
+                    // Not loud, and not a joke at anybody's expense — this
+                    // plays in a room where other people can hear it, and
+                    // humiliation is not the feedback we are after.
                     buzz() {
-                        this.note(196, 0, 0.16, 'sawtooth', 0.10);
-                        this.note(146.8, 0.1, 0.24, 'sawtooth', 0.10);
+                        playFailureSound();
                     },
 
                     react(detail) {
@@ -191,6 +217,10 @@
                         // Play the confirmation THROUGH the gesture that turned
                         // it on, which is also what unlocks the AudioContext.
                         if (this.sound) {
+                            // Unlocks the SHARED context too, and starts the
+                            // samples downloading, so the first correct answer
+                            // is not the thing waiting on a fetch.
+                            unlockSound();
                             this.note(880, 0, 0.12);
                         }
                     },

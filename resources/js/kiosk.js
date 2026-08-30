@@ -27,7 +27,7 @@
  *   ceremony here. That belongs to enrolment, which happens once.
  */
 
-import { beepError, beepSuccess, unlockSound } from './beep.js';
+import { beepError, beepSuccess, playFailureSound, playSuccessSound, unlockSound } from './beep.js';
 import { ClockCamera, loadModels } from './clock.js';
 import { looksLikeFace } from './face-geometry.js';
 
@@ -291,13 +291,24 @@ let noticeTimer = null;
  * @param {{offerPin?: boolean, ms?: number}} options
  *        offerPin reveals the fallback, for as long as the notice is up.
  */
-function notice(text, { offerPin = false, ms = null } = {}) {
+function notice(text, options = {}) {
+    beepError();
+    noticeQuietly(text, options);
+}
+
+/**
+ * The same message with no sound of its own.
+ *
+ * For the one caller that has already played a failure sound: a refused punch
+ * plays the outcome mp3, and chirping over it would make one refusal sound like
+ * two separate things going wrong.
+ */
+function noticeQuietly(text, { offerPin = false, ms = null } = {}) {
     show('idle');
     setHint(text);
     // Amber ring for as long as the message is up, so the outcome is legible
     // from further away than the sentence is.
     setScan('fail');
-    beepError();
 
     const offer   = el('kiosk-pin-offer');
     const showing = offerPin && pinAllowed();
@@ -848,6 +859,12 @@ async function punch(intent = 'shift') {
     if (! result.ok || data.status !== 'ok') {
         state.mode = previous;
 
+        // A punch was ATTEMPTED and REFUSED, which is the outcome the failure
+        // sound is for — not the scanning hiccups that notice() handles
+        // elsewhere with a chirp. A wrong PIN is the same event wearing a
+        // different screen, so it gets the same sound.
+        playFailureSound();
+
         if (previous === 'pin') {
             state.pin = '';
             paintPinStep();
@@ -857,7 +874,9 @@ async function punch(intent = 'shift') {
             return;
         }
 
-        notice(data.message || 'Could not record that. Try again.');
+        // notice() would chirp over the top of the sound just played, and two
+        // failure noises for one refusal is worse than either alone.
+        noticeQuietly(data.message || 'Could not record that. Try again.');
 
         return;
     }
@@ -866,6 +885,11 @@ async function punch(intent = 'shift') {
 }
 
 function showResult(data) {
+    // The punch is on record. This is the moment the sound is for — not the
+    // face match a second earlier, which is only an acknowledgement that the
+    // camera is looking at somebody.
+    playSuccessSound();
+
     setText('kiosk-result-name', data.name || '');
     setText('kiosk-result-headline', data.headline || 'Recorded');
     setText('kiosk-result-at', data.at || '');
@@ -1482,6 +1506,18 @@ function bind() {
     ['pointerdown', 'touchstart', 'keydown'].forEach((event) => {
         document.addEventListener(event, unlockSound, { once: true, capture: true, passive: true });
     });
+
+    /*
+     * Start the samples downloading now, not on the first tap.
+     *
+     * unlockSound() creates the context and warms both files; the resume half
+     * simply fails until a gesture arrives, which is free. Without this the
+     * FIRST outcome of the day races a 68KB fetch and falls back to the chirp —
+     * correct behaviour, but the wrong sound for the one punch somebody is
+     * most likely to be listening to.
+     */
+    unlockSound();
+
 
     document.addEventListener('visibilitychange', revive);
     window.addEventListener('pageshow', revive);

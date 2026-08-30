@@ -78,6 +78,7 @@ class Punch extends StaffComponent
         if (! $type) {
             $this->errorMessage = 'That is not something you can do right now. Reload and try again.';
             $this->showResult   = true;
+            $this->announce(false);
 
             return;
         }
@@ -102,6 +103,7 @@ class Punch extends StaffComponent
             // refused punch believing they clocked in.
             $this->errorMessage = $e->getMessage();
             $this->showResult   = true;
+            $this->announce(false);
 
             return;
         }
@@ -110,6 +112,30 @@ class Punch extends StaffComponent
         $this->showResult    = true;
         $this->reason        = '';
         $this->shiftResolved = false;
+
+        /*
+         * Recorded, INCLUDING a punch that was flagged for review. The person
+         * is clocked in either way, and the screen already takes care to say
+         * so — a flagged punch gets the same big confirmation, because
+         * anybody who reads it as a failure will stand there tapping again.
+         * Playing the failure sound over that would undo the whole point of
+         * the wording.
+         */
+        $this->announce(true);
+    }
+
+    /**
+     * Tell the page which way it went, so it can make the right noise.
+     *
+     * The browser cannot work this out for itself. A refusal and a recorded
+     * punch are both a successful round trip, and the difference is decided
+     * here — guessing from the response would play a success chime over a
+     * punch that was never recorded, which is the exact failure the refusal
+     * copy above is written to prevent.
+     */
+    private function announce(bool $ok): void
+    {
+        $this->dispatch('punch-outcome', ok: $ok);
     }
 
 
