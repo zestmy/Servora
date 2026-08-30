@@ -159,8 +159,15 @@ class Assignments extends Component
         $paths   = TrainingPath::published()->orderBy('name')->get(['id', 'name']);
         // Published only: assigning a draft would be a requirement nobody can
         // meet, because the trainee's course page never offers it.
+        // No section_id. The column was dropped when a quiz gained a pivot of
+        // sections — one paper can be for FOH and Bar but not the kitchen —
+        // and this select was left naming it, so every visit to this screen
+        // died on "Unknown column 'section_id'". The list here is only what the
+        // <option> needs: a title, a language for the suffix, and the course id
+        // the eager load hangs off. Which sections a quiz is for is not asked
+        // on this screen at all.
         $quizzes = TrainingQuiz::published()->with('course:id,title')
-            ->orderBy('title')->get(['id', 'title', 'training_course_id', 'language', 'section_id']);
+            ->orderBy('title')->get(['id', 'title', 'training_course_id', 'language']);
         $sections = \App\Models\Section::active()->ordered()->get(['id', 'name']);
         $outlets = Outlet::where('company_id', $companyId)->where('is_active', true)
             ->orderBy('name')->get(['id', 'name']);
