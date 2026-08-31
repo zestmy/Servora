@@ -49,14 +49,39 @@ class StockBalancePackage extends Component
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Stock Balance (Package)']);
     }
 
+    /**
+     * Lines that may answer "last counted".
+     *
+     * A count is a COMPLETED stock take that still exists. Reading any stock
+     * take row meant this column was fed by half-filled drafts and by counts
+     * somebody had deleted — and since a draft starts every line at zero, the
+     * report showed a confident 0 for items nobody had counted yet.
+     */
+    private function countedLines()
+    {
+        return StockTakeLine::query()
+            ->join('stock_takes', 'stock_takes.id', '=', 'stock_take_lines.stock_take_id')
+            ->where('stock_takes.status', 'completed')
+            ->whereNull('stock_takes.deleted_at')
+            ->when($this->outletFilter, fn ($q) => $q->where('stock_takes.outlet_id', $this->outletFilter));
+    }
+
     private function buildQuery()
     {
-        // Subquery: latest stock take line per ingredient (filtered by outlet if needed)
-        $latestStockTake = StockTakeLine::query()
-            ->select('ingredient_id', DB::raw('MAX(stock_take_lines.id) as max_id'))
-            ->join('stock_takes', 'stock_takes.id', '=', 'stock_take_lines.stock_take_id')
-            ->when($this->outletFilter, fn ($q) => $q->where('stock_takes.outlet_id', $this->outletFilter))
-            ->groupBy('ingredient_id');
+        // "Last" is the latest count DATE, not the highest row id: saving a stock
+        // take rewrites its lines, so ids track when a sheet was last touched
+        // rather than when the stock was counted. Take the newest date per
+        // ingredient, then the last line written on that date to break ties.
+        $latestDate = $this->countedLines()
+            ->select('stock_take_lines.ingredient_id', DB::raw('MAX(stock_takes.stock_take_date) as max_date'))
+            ->groupBy('stock_take_lines.ingredient_id');
+
+        $latestStockTake = $this->countedLines()
+            ->joinSub($latestDate, 'ld', fn ($join) => $join
+                ->on('ld.ingredient_id', '=', 'stock_take_lines.ingredient_id')
+                ->on('ld.max_date', '=', 'stock_takes.stock_take_date'))
+            ->select('stock_take_lines.ingredient_id', DB::raw('MAX(stock_take_lines.id) as max_id'))
+            ->groupBy('stock_take_lines.ingredient_id');
 
         $query = Ingredient::query()
             ->select([
