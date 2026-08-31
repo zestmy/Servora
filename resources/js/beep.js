@@ -116,6 +116,28 @@ function note(ctx, { frequency, startAt, duration, gain }) {
 }
 
 /**
+ * How much noise this page is allowed to make, per the company's setting.
+ *
+ * Read from the DOM on EVERY call rather than captured once. A kiosk is opened
+ * in a stand and left for weeks — a mode cached at load would mean a manager
+ * turning the sound off watches the tablet go on chiming until somebody
+ * remembers to reload it, which is the same bug the PIN fallback already had to
+ * fix by shipping the setting on every identify response.
+ *
+ * Absent means `full`: pages outside the clock carry no attribute, and the
+ * safe reading of "no answer" is the behaviour that existed before the setting.
+ * Silence is not safe here — a face scan gives nothing to feel, so a screen
+ * that has quietly muted itself leaves somebody standing at it leaning in.
+ *
+ * @returns {'off'|'chirp'|'full'}
+ */
+function clockSoundMode() {
+    const value = document.documentElement?.dataset?.clockSound;
+
+    return value === 'off' || value === 'chirp' ? value : 'full';
+}
+
+/**
  * Play a tone.
  *
  * Never throws and never returns a rejected promise. This is decoration on a
@@ -271,7 +293,7 @@ function preloadSamples() {
  *
  * @param {'success'|'error'} kind
  */
-export function playSound(kind = 'success') {
+function playSample(kind = 'success') {
     if (muted) {
         return;
     }
@@ -335,22 +357,77 @@ export function playSound(kind = 'success') {
     }
 }
 
-/** A clock-in was recorded, or a quiz answer was right. */
-export function playSuccessSound() {
-    playSound('success');
-}
+/*
+ * ── The clock's two doors ────────────────────────────────────────────────
+ *
+ * Both consult the company's setting; the quiz's do not, and that separation is
+ * the whole reason there are four exported functions rather than two. Training
+ * keeps its own per-device sound button — a tablet bolted to a counter and a
+ * trainee's phone are not the same room, and one control over both would mean
+ * muting a shop floor to silence a quiz.
+ */
 
-/** A clock-in was refused, or a quiz answer was wrong. */
-export function playFailureSound() {
-    playSound('error');
-}
-
-/** Recognised — the one this exists for. */
+/** Recognised — the in-flight acknowledgement this file was written for. */
 export function beepSuccess() {
+    if (clockSoundMode() === 'off') {
+        return;
+    }
+
     playTone('success');
 }
 
-/** Not recognised, or refused. */
+/** Not recognised, or a frame that could not be read. */
 export function beepError() {
+    if (clockSoundMode() === 'off') {
+        return;
+    }
+
     playTone('error');
+}
+
+/**
+ * A clock-in was recorded or refused.
+ *
+ * `chirp` deliberately still makes a noise. The mode says the CHIME is too much
+ * for the room, not that the outcome should pass in silence — and an outcome
+ * that says nothing is worse than one that says something short.
+ */
+function playClockOutcome(kind) {
+    const mode = clockSoundMode();
+
+    if (mode === 'off') {
+        return;
+    }
+
+    if (mode === 'chirp') {
+        playTone(kind);
+
+        return;
+    }
+
+    playSample(kind);
+}
+
+/** A clock-in was recorded. */
+export function playSuccessSound() {
+    playClockOutcome('success');
+}
+
+/** A clock-in was refused. */
+export function playFailureSound() {
+    playClockOutcome('error');
+}
+
+/**
+ * The quiz's verdict sounds, which the clock setting does not govern.
+ *
+ * Gated by the quiz's own toggle at the call site in quiz-fx.js, so a company
+ * that silences its kiosk does not silence a trainee's phone.
+ */
+export function playQuizSuccess() {
+    playSample('success');
+}
+
+export function playQuizFailure() {
+    playSample('error');
 }

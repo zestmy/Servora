@@ -26,9 +26,25 @@
      * legible at 48px — which is a different job from a logo.
      */
     $appIcon      = asset('clock-app/staff-portal.png');
+
+    /*
+     * How much noise the clock may make, resolved from the company on the
+     * request rather than from an authenticated user — the Staff Portal runs
+     * on a PIN session with no web user, so Auth::user() is null here.
+     *
+     * Defaults to `full` when there is no company to ask, which is the
+     * behaviour every screen had before the setting existed. Silence is not the
+     * safe default: it would leave a face scan with no confirmation at all on
+     * any page that somehow lost its tenant.
+     */
+    $clockSoundMode = $brandCompany
+        ? \App\Models\ClockSetting::forCompany($brandCompany->id)->soundMode()
+        : 'full';
 @endphp
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+{{-- Read by beep.js on every play rather than once at load, so the setting
+     takes effect on the next punch instead of the next reload. --}}
+<html lang="en" class="h-full" data-clock-sound="{{ $clockSoundMode }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">

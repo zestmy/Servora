@@ -3,6 +3,7 @@
 namespace App\Livewire\Training;
 
 use App\Models\TrainingQuestion;
+use App\Models\TrainingMusicTrack;
 use App\Models\TrainingQuiz;
 use App\Services\Training\QuizGeneratorService;
 use App\Traits\RequiresActiveCompany;
@@ -131,6 +132,34 @@ class QuizBuilder extends Component
 
     public ?string $musicPath = null;
 
+    /**
+     * A track picked from the company's library, as an id, or '' for none.
+     *
+     * Separate from $musicPath rather than binding the select straight to it.
+     * The path is what gets SAVED and can come from three places — the library,
+     * a fresh upload, or the quiz's existing value — and a select bound to it
+     * would show "no track" for any quiz whose file was uploaded before the
+     * library existed and is not in it, which is every one of them until the
+     * migration adopts them.
+     */
+    public string $musicTrackId = '';
+
+    /** Rename the track that is on this quiz, in the library. */
+    public string $musicTitle = '';
+
+    /**
+     * The upload's own name and size, read BEFORE it is stored.
+     *
+     * Not Livewire state — they live for the length of one save. store() moves
+     * the temporary file, so asking a TemporaryUploadedFile for its size
+     * afterwards is asking about something that may no longer be there, and a
+     * library row would end up with a null size for every uploaded track while
+     * looking like it worked.
+     */
+    private ?string $pendingOriginalName = null;
+
+    private ?int $pendingSize = null;
+
     public function mount(int $id): void
     {
         $this->requireActiveCompany();
@@ -152,6 +181,8 @@ class QuizBuilder extends Component
         $this->wrongPenaltyPercent = (int) $quiz->wrong_penalty_percent;
         $this->autoAdvanceSeconds = (int) $quiz->auto_advance_seconds;
         $this->musicPath         = $quiz->music_path;
+        $this->musicTrackId      = (string) (TrainingMusicTrack::where('path', $quiz->music_path)->value('id') ?: '');
+        $this->musicTitle        = (string) TrainingMusicTrack::where('path', $quiz->music_path)->value('title');
         $this->shuffleQuestions  = $quiz->shuffle_questions;
         $this->shuffleOptions    = $quiz->shuffle_options;
         $this->maxAttempts       = $quiz->max_attempts;
@@ -225,6 +256,12 @@ class QuizBuilder extends Component
             'outletIds'    => ['array'],
             'outletIds.*'  => [Rule::exists('outlets', 'id')
                 ->where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)],
+            // Scoped to this company for the same reason the sections are:
+            // an id from another tenant's library must resolve to nothing
+            // rather than to their file.
+            'musicTrackId'   => ['nullable', 'string', Rule::exists('training_music_tracks', 'id')
+                ->where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)],
+            'musicTitle'     => ['nullable', 'string', 'max:120'],
             'status'         => ['required', Rule::in(array_keys(TrainingQuiz::STATUSES))],
             'passMark'       => ['required', 'integer', 'min:1', 'max:100'],
             'defaultSeconds' => ['required', 'integer', 'min:5', 'max:300'],
@@ -266,9 +303,7 @@ class QuizBuilder extends Component
              * unrelated settings save would be a quiet data loss.
              */
             'auto_advance_seconds' => $data['autoAdvanceSeconds'],
-            'music_path'         => $this->musicFile
-                ? $this->musicFile->store('training/music', 'public')
-                : $this->musicPath,
+            'music_path'         => $musicPath = $this->resolveMusicPath(),
             'shuffle_questions'  => $this->shuffleQuestions,
             'shuffle_options'    => $this->shuffleOptions,
             'max_attempts'       => $data['maxAttempts'],
@@ -283,8 +318,36 @@ class QuizBuilder extends Component
         $quiz->sections()->sync(array_map('intval', $data['sectionIds'] ?? []));
         $quiz->outlets()->sync(array_map('intval', $data['outletIds'] ?? []));
 
-        $this->musicFile = null;
-        $this->musicPath = $quiz->fresh()->music_path;
+        /*
+         * The library entry is written AFTER the quiz, so a save that fails
+         * validation cannot leave a track listed that no paper points at.
+         */
+        if ($musicPath) {
+            $track = TrainingMusicTrack::adopt(
+                (int) $quiz->company_id,
+                $musicPath,
+                $this->musicTitle !== '' ? $this->musicTitle : ($this->pendingOriginalName ?: $quiz->title),
+                $this->pendingOriginalName,
+                $this->pendingSize,
+                \Illuminate\Support\Facades\Auth::id(),
+            );
+
+            // A rename typed against a track already in the library.
+            if ($this->musicTitle !== '' && $track->title !== $this->musicTitle) {
+                $track->update(['title' => mb_substr($this->musicTitle, 0, 120)]);
+            }
+
+            $this->musicTrackId = (string) $track->id;
+            $this->musicTitle   = $track->title;
+        } else {
+            $this->musicTrackId = '';
+            $this->musicTitle   = '';
+        }
+
+        $this->musicFile           = null;
+        $this->pendingOriginalName = null;
+        $this->pendingSize         = null;
+        $this->musicPath           = $quiz->fresh()->music_path;
 
         session()->flash('success', 'Quiz settings saved.');
     }
@@ -298,8 +361,77 @@ class QuizBuilder extends Component
      */
     public function removeMusicFile(): void
     {
-        $this->musicFile = null;
-        $this->musicPath = null;
+        $this->musicFile    = null;
+        $this->musicPath    = null;
+        $this->musicTrackId = '';
+        $this->musicTitle   = '';
+    }
+
+    /**
+     * Which file this quiz will play, out of the three places one can come from.
+     *
+     * A FRESH UPLOAD WINS. Somebody who has just chosen a file expects it to be
+     * the one that plays, and a library selection left over from before they
+     * browsed would silently beat it.
+     *
+     * Nothing here deletes anything. A track dropped from this quiz stays on
+     * disk and stays in the library, because other papers may be playing it —
+     * which is the entire reason the library exists.
+     */
+    private function resolveMusicPath(): ?string
+    {
+        if ($this->musicFile) {
+            // Read first, store second. See the properties' docblock.
+            $this->pendingOriginalName = $this->musicFile->getClientOriginalName();
+            $this->pendingSize         = (int) $this->musicFile->getSize();
+
+            return $this->musicFile->store('training/music', 'public');
+        }
+
+        if ($this->musicTrackId !== '') {
+            // Company-scoped by the model's global scope, so an id from another
+            // tenant's library resolves to nothing rather than to their file.
+            $path = TrainingMusicTrack::whereKey((int) $this->musicTrackId)->value('path');
+
+            if ($path) {
+                return $path;
+            }
+        }
+
+        return $this->musicPath;
+    }
+
+    /**
+     * Choosing a track from the library.
+     *
+     * Clears any pending upload. The two are alternatives, and leaving a
+     * half-uploaded file in place while the screen shows a chosen track is how
+     * somebody saves the wrong song.
+     */
+    public function updatedMusicTrackId(): void
+    {
+        if ($this->musicTrackId === '') {
+            $this->musicPath  = null;
+            $this->musicTitle = '';
+
+            return;
+        }
+
+        $track = TrainingMusicTrack::find((int) $this->musicTrackId);
+
+        if (! $track) {
+            return;
+        }
+
+        $this->musicFile  = null;
+        $this->musicPath  = $track->path;
+        $this->musicTitle = $track->title;
+    }
+
+    /** A new upload supersedes a library choice — see resolveMusicPath(). */
+    public function updatedMusicFile(): void
+    {
+        $this->musicTrackId = '';
     }
 
     // ── Questions ─────────────────────────────────────────────────────────
@@ -728,6 +860,10 @@ class QuizBuilder extends Component
 
         $sections = \App\Models\Section::active()->ordered()->get(['id', 'name']);
 
+        // The library. Company-scoped by the model, so this is only ever this
+        // tenant's own tracks.
+        $musicTracks = TrainingMusicTrack::ordered()->get();
+
         $outlets = \App\Models\Outlet::where('company_id', \Illuminate\Support\Facades\Auth::user()->company_id)
             ->where('is_active', true)
             ->orderBy('name')
@@ -747,6 +883,7 @@ class QuizBuilder extends Component
 
         return view('livewire.training.quiz-builder', compact(
             'quiz', 'questions', 'aiReady', 'sections', 'outlets', 'shareUrl', 'shareQr', 'coverage', 'available',
+            'musicTracks',
         ))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $quiz->title]);
     }

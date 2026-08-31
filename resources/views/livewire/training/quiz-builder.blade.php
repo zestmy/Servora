@@ -356,19 +356,66 @@
                                 <audio controls preload="none" class="mt-2 w-full"
                                        src="{{ Storage::disk('public')->url($musicPath) }}"></audio>
                             @endif
+                            {{-- Takes the track off THIS quiz. It stays in the
+                                 library and stays on disk, because other papers
+                                 may be playing it. --}}
                             <button type="button" wire:click="removeMusicFile"
-                                    class="mt-2 text-xs text-gray-600 hover:text-danger-600">Remove</button>
+                                    class="mt-2 text-xs text-gray-600 hover:text-danger-600">
+                                Use no music on this quiz
+                            </button>
                         </div>
                     @endif
 
-                    <label class="sr-only" for="quiz-music-file">Upload a track</label>
+                    {{-- ── Pick from what is already here ──
+                         The library comes FIRST, above the upload, because the
+                         commonest case by far is one song across every paper —
+                         and an upload field on top invites a company to carry
+                         eight copies of it, which is exactly what this is for.
+                         Hidden entirely when the library is empty: an empty
+                         select is a control that only teaches you it has
+                         nothing in it. --}}
+                    @if ($musicTracks->isNotEmpty())
+                        <label class="label" for="quiz-music-track">Choose a track</label>
+                        <select id="quiz-music-track" wire:model.live="musicTrackId" class="input mb-2">
+                            <option value="">No music</option>
+                            @foreach ($musicTracks as $track)
+                                <option value="{{ $track->id }}">
+                                    {{ $track->title }}{{ $track->sizeLabel() ? ' · ' . $track->sizeLabel() : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('musicTrackId') <p class="error-text">{{ $message }}</p> @enderror
+
+                        <p class="help mb-3">
+                            Every track this company has uploaded. Choosing one here does not copy
+                            the file — several quizzes can share the same song.
+                        </p>
+                    @endif
+
+                    <label class="label" for="quiz-music-file">
+                        {{ $musicTracks->isNotEmpty() ? 'Or upload a new one' : 'Upload a track' }}
+                    </label>
                     <input id="quiz-music-file" type="file" wire:model="musicFile" accept="audio/*" class="input">
                     <p class="help mt-1" wire:loading wire:target="musicFile">Uploading…</p>
                     <p class="help">
                         An mp3 or m4a, up to 12&nbsp;MB. Plays on every phone,
-                        iPhones included.
+                        iPhones included. A track uploaded here joins the list above
+                        for every other quiz to use.
                     </p>
                     @error('musicFile') <p class="error-text">{{ $message }}</p> @enderror
+
+                    {{-- Naming is what makes the list usable at all: the stored
+                         filename is a hash, so without this the picker is a
+                         column of things nobody can tell apart. --}}
+                    @if ($musicPath || $musicFile)
+                        <div class="mt-3">
+                            <label class="label" for="quiz-music-title">What to call this track</label>
+                            <input id="quiz-music-title" type="text" wire:model="musicTitle" maxlength="120"
+                                   placeholder="Upbeat intro" class="input">
+                            @error('musicTitle') <p class="error-text">{{ $message }}</p> @enderror
+                            <p class="help">Renaming it here renames it everywhere it is used.</p>
+                        </div>
+                    @endif
 
                     {{-- NO LINK FIELD. A YouTube link cannot be background
                          music on a phone — Apple blocks the start and YouTube

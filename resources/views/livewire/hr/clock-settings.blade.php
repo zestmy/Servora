@@ -305,6 +305,42 @@
         </p>
     </div>
 
+    {{-- ── Sound ────────────────────────────────────────────────────────
+         Its own small block. It belongs beside the kiosk settings because the
+         kiosk is what makes this a question at all — a phone in somebody's
+         hand is their own business, a tablet on a counter is everybody's. --}}
+    <div class="panel p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-900">Sound</h3>
+        <p class="help mt-1 max-w-2xl">
+            What the kiosk and the Staff Portal play when somebody clocks in or is turned away.
+        </p>
+
+        <div class="mt-3 max-w-md">
+            <label class="label" for="sound_mode">When a punch is recorded or refused</label>
+            <select id="sound_mode" wire:model="sound_mode" class="input">
+                @foreach ($soundModes as $value => $label)
+                    <option value="{{ $value }}">{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('sound_mode') <p class="error-text">{{ $message }}</p> @enderror
+        </div>
+
+        {{-- The middle option is the one that needs explaining, because
+             "chirp only" means nothing until you know what the chirp is for. --}}
+        <p class="mt-3 text-xs text-gray-600 max-w-2xl">
+            <strong>Chirp only</strong> keeps the short two-note tone that fires while the camera is
+            working and drops the longer chime at the end. Worth choosing over
+            <strong>Silent</strong> in a room where the chime is too much: a face scan gives nothing
+            to feel, so with no sound at all somebody looking at the camera has no way to know it
+            saw them, and stands there leaning in.
+        </p>
+
+        <p class="mt-2 text-[11px] text-gray-500">
+            Training quizzes are not affected — they keep their own sound button, on each phone.
+            A tablet on a counter and a trainee's phone are not the same room.
+        </p>
+    </div>
+
     {{-- ── How staff clock in ───────────────────────────────────────────── --}}
     <div class="panel p-5 mt-6">
         <div class="flex flex-wrap items-start justify-between gap-3">

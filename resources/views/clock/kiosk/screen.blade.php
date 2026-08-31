@@ -32,7 +32,10 @@
     $brandName = $company?->brand_name ?? $company?->name ?? 'Servora';
 @endphp
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+{{-- data-clock-sound is read by beep.js on every play, not once at load, so a
+     manager changing the setting takes effect on the next punch rather than
+     waiting for somebody to reload a tablet nobody ever reloads. --}}
+<html lang="en" class="h-full" data-clock-sound="{{ $settings->soundMode() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">

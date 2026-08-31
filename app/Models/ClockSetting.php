@@ -22,7 +22,7 @@ class ClockSetting extends Model
         'kiosk_enabled', 'byod_enabled',
         'kiosk_face_threshold', 'kiosk_face_margin', 'kiosk_cooldown_minutes',
         'kiosk_allow_pin',
-        'auto_approve_flags',
+        'auto_approve_flags', 'sound_mode',
     ];
 
     protected $casts = [
@@ -46,6 +46,7 @@ class ClockSetting extends Model
         'kiosk_cooldown_minutes'    => 'integer',
         'kiosk_allow_pin'           => 'boolean',
         'auto_approve_flags'        => 'array',
+        'sound_mode'                => 'string',
     ];
 
     /**
@@ -151,7 +152,37 @@ class ClockSetting extends Model
         return ! in_array($flag, $this->autoApproveFlags(), true);
     }
 
-    /** RM charged for one late minute, or null when lateness is free. */
+    /**
+     * How much noise the clock is allowed to make.
+     *
+     *   full   the outcome mp3s and the in-flight chirps. The default.
+     *   chirp  the short synthesised tones only — feedback without a fanfare.
+     *   off    silent.
+     *
+     * The quiz is NOT governed by this and keeps its own per-device toggle;
+     * see the migration for why one control over both would be wrong.
+     */
+    public const SOUND_MODES = [
+        'full'  => 'Full — chime on a recorded or refused punch',
+        'chirp' => 'Chirp only — short tones, no chime',
+        'off'   => 'Silent — no sound at all',
+    ];
+
+    /**
+     * The mode as a value the page can carry, never null.
+     *
+     * Falls back to `full` rather than to silence: a company that has never
+     * opened this screen has the behaviour it has today, and a column that
+     * somehow arrives empty must not quietly mute a kiosk nobody chose to mute.
+     */
+    public function soundMode(): string
+    {
+        return array_key_exists((string) $this->sound_mode, self::SOUND_MODES)
+            ? (string) $this->sound_mode
+            : 'full';
+    }
+
+        /** RM charged for one late minute, or null when lateness is free. */
     public function chargesForLateness(): bool
     {
         return (float) $this->late_rate_per_minute > 0;

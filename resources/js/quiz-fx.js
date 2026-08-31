@@ -21,7 +21,7 @@
  * travels in the bundle.
  */
 
-import { playFailureSound, playSuccessSound, unlockSound } from './beep.js';
+import { playQuizFailure, playQuizSuccess, unlockSound } from './beep.js';
 /*
          * In the bundle this always takes the alpine:init path — the module
          * evaluates in <head>, before Alpine exists. The direct-call branch
@@ -154,10 +154,15 @@ import { playFailureSound, playSuccessSound, unlockSound } from './beep.js';
                      * saying "yes" one way is worth more than two cleverer
                      * sounds nobody learns.
                      *
-                     * playSuccessSound() falls back to a synthesised chime if
+                     * playQuizSuccess() falls back to a synthesised chime if
                      * the file has not loaded, so a quiz on a bad connection is
                      * never silent — the tones that used to live here are still
                      * in beep.js doing exactly that job.
+                     *
+                     * Quiz-specific ON PURPOSE. It bypasses the company's clock
+                     * sound setting, which governs a tablet on a counter; this
+                     * is a phone in a trainee's hand, and it answers to the
+                     * sound button on this screen instead.
                      *
                      * The old note() helper stays below: toggleSound() still
                      * needs a sound it can play THROUGH the tap that unlocks
@@ -165,14 +170,14 @@ import { playFailureSound, playSuccessSound, unlockSound } from './beep.js';
                      * moment.
                      */
                     ding() {
-                        playSuccessSound();
+                        playQuizSuccess();
                     },
 
                     // Not loud, and not a joke at anybody's expense — this
                     // plays in a room where other people can hear it, and
                     // humiliation is not the feedback we are after.
                     buzz() {
-                        playFailureSound();
+                        playQuizFailure();
                     },
 
                     react(detail) {

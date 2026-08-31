@@ -64,6 +64,16 @@ class ClockSettings extends Component
     public string $kiosk_cooldown_minutes = '3';
 
     /**
+     * How much noise the kiosk and the staff app make. See ClockSetting::SOUND_MODES.
+     *
+     * Not a boolean, because the complaint this answers is "the chime is too
+     * much in this room" and the honest answer to that is not "then have no
+     * feedback at all" — a face scan gives nothing to feel, so somebody with a
+     * silent screen stands there leaning in.
+     */
+    public string $sound_mode = 'full';
+
+    /**
      * The flags that DO send a punch to a manager.
      *
      * Held as the review list rather than the stored skip list because that is
@@ -108,6 +118,8 @@ class ClockSettings extends Component
         $this->kiosk_face_margin    = rtrim(rtrim(number_format((float) $settings->kiosk_face_margin, 3, '.', ''), '0'), '.');
         $this->kiosk_cooldown_minutes = (string) $settings->kiosk_cooldown_minutes;
 
+        $this->sound_mode = $settings->soundMode();
+
         $this->reviewFlags = array_values(array_diff(
             self::policyFlags(),
             $settings->autoApproveFlags(),
@@ -145,6 +157,8 @@ class ClockSettings extends Component
             'kiosk_face_threshold'   => ['required', 'numeric', 'min:0.30', 'max:0.60'],
             'kiosk_face_margin'      => ['required', 'numeric', 'min:0.02', 'max:0.30'],
             'kiosk_cooldown_minutes' => ['required', 'integer', 'min:0', 'max:120'],
+
+            'sound_mode'    => ['required', 'in:' . implode(',', array_keys(ClockSetting::SOUND_MODES))],
 
             'reviewFlags'   => ['array'],
             'reviewFlags.*' => ['string', 'in:' . implode(',', self::policyFlags())],
@@ -209,6 +223,7 @@ class ClockSettings extends Component
              * the shipped default" — once a manager has answered this screen,
              * their answer stands even when it happens to match the default.
              */
+            'sound_mode' => $this->sound_mode,
             'auto_approve_flags' => array_values(array_diff(
                 self::policyFlags(),
                 $this->reviewFlags,
@@ -311,6 +326,7 @@ class ClockSettings extends Component
             'outlets'          => $this->outlets(),
             'geocodeProvider'  => ReverseGeocoder::PROVIDERS[$geocoder->provider()] ?? $geocoder->provider(),
             'geocodeReady'     => $geocoder->isConfigured(),
+            'soundModes'       => ClockSetting::SOUND_MODES,
             'policyGroups'     => ClockEvent::REVIEW_POLICY_GROUPS,
             'flagLabels'       => ClockEvent::FLAG_LABELS,
         ])->layout('layouts.app', ['title' => 'Clock-In Settings']);
