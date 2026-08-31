@@ -78,6 +78,7 @@ class StockTakeForm extends Component
         }
 
         $record = StockTake::with([
+            'lines.uom',
             'lines.ingredient.baseUom',
             'lines.ingredient.recipeUom',
             'lines.ingredient.uomConversions',
@@ -95,11 +96,29 @@ class StockTakeForm extends Component
         $this->summary_amount   = (string) floatval($record->total_stock_cost);
 
         $refreshCost = $record->status !== 'completed';
+        $uomService  = app(\App\Services\UomService::class);
 
-        $this->lines = $record->lines->map(function ($l) use ($refreshCost) {
-            $unitCost = $refreshCost && $l->ingredient
-                ? floatval($l->ingredient->current_cost)
-                : floatval($l->unit_cost);
+        $this->lines = $record->lines->map(function ($l) use ($refreshCost, $uomService) {
+            // A draft re-prices off the ingredient's live cost, but it has to be
+            // priced in the UOM the line is COUNTED in. current_cost is per BASE
+            // UOM, so using it raw turns cost-per-pack into cost-per-piece the
+            // moment a draft is reopened (RM2.845 becomes RM28.45 on a 1:10 base
+            // to recipe conversion). Same call buildLine() uses when adding a row.
+            $unitCost = floatval($l->unit_cost);
+
+            if ($refreshCost && $l->ingredient) {
+                $countUom = $l->uom ?: ($l->ingredient->recipeUom ?: $l->ingredient->baseUom);
+                $unitCost = $countUom
+                    ? $uomService->convertCost($l->ingredient, $countUom)
+                    : floatval($l->ingredient->current_cost);
+            }
+
+            // Keep the variance in step with the cost we just refreshed, or the
+            // row shows a variance value that no longer matches qty x unit cost.
+            $varianceQty  = floatval($l->variance_quantity);
+            $varianceCost = $refreshCost
+                ? round($varianceQty * $unitCost, 4)
+                : floatval($l->variance_cost);
 
             return [
                 'ingredient_id'        => $l->ingredient_id,
@@ -109,9 +128,9 @@ class StockTakeForm extends Component
                 'uom_abbr'             => $l->uom->abbreviation ?? '',
                 'system_quantity'      => (string) floatval($l->system_quantity),
                 'actual_quantity'      => (string) floatval($l->actual_quantity),
-                'variance_quantity'    => floatval($l->variance_quantity),
+                'variance_quantity'    => $varianceQty,
                 'unit_cost'            => (string) $unitCost,
-                'variance_cost'        => floatval($l->variance_cost),
+                'variance_cost'        => $varianceCost,
                 ...$this->categoryFields($l->ingredient),
             ];
         })->toArray();
