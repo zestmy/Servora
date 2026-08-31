@@ -6,13 +6,14 @@ use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\StockTake;
+use App\Traits\LocksLineUnitCost;
 use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class StockTakeForm extends Component
 {
-    use PicksRecordOutlet;
+    use PicksRecordOutlet, LocksLineUnitCost;
 
     public ?int $recordId      = null;
     public ?int $department_id = null;
@@ -50,6 +51,7 @@ class StockTakeForm extends Component
         } else {
             $rules['lines']                    = 'required|array|min:1';
             $rules['lines.*.actual_quantity']  = 'required|numeric|min:0';
+            // unit_cost is derived, not entered — see LocksLineUnitCost.
         }
 
         return $rules;
@@ -120,7 +122,7 @@ class StockTakeForm extends Component
                 ? round($varianceQty * $unitCost, 4)
                 : floatval($l->variance_cost);
 
-            return [
+            return $this->rememberLineCost([
                 'ingredient_id'        => $l->ingredient_id,
                 'ingredient_name'      => $l->ingredient?->name ?? '(Deleted ingredient)',
                 'is_prep'              => (bool) ($l->ingredient?->is_prep ?? false),
@@ -129,10 +131,9 @@ class StockTakeForm extends Component
                 'system_quantity'      => (string) floatval($l->system_quantity),
                 'actual_quantity'      => (string) floatval($l->actual_quantity),
                 'variance_quantity'    => $varianceQty,
-                'unit_cost'            => (string) $unitCost,
                 'variance_cost'        => $varianceCost,
                 ...$this->categoryFields($l->ingredient),
-            ];
+            ], $unitCost);
         })->toArray();
     }
 
@@ -230,7 +231,7 @@ class StockTakeForm extends Component
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
-        if (count($parts) === 2 && in_array($parts[1], ['actual_quantity', 'unit_cost', 'system_quantity'])) {
+        if (count($parts) === 2 && in_array($parts[1], ['actual_quantity', 'system_quantity'])) {
             $this->recalcLine((int) $parts[0]);
         }
     }
@@ -263,8 +264,10 @@ class StockTakeForm extends Component
             $totalStockCost    = floatval($this->summary_amount);
             $totalVarianceCost = 0;
         } else {
-            $totalVarianceCost = $lines->sum(fn ($l) => floatval($l['variance_cost']));
-            $totalStockCost    = $lines->sum(fn ($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
+            $totalVarianceCost = $lines->sum(fn ($l) => round(
+                (floatval($l['actual_quantity']) - floatval($l['system_quantity'])) * $this->lockedLineCost($l), 4
+            ));
+            $totalStockCost    = $lines->sum(fn ($l) => floatval($l['actual_quantity']) * $this->lockedLineCost($l));
         }
 
         $data = [
@@ -295,7 +298,7 @@ class StockTakeForm extends Component
                 $actualQty    = floatval($line['actual_quantity']);
                 $systemQty    = floatval($line['system_quantity']);
                 $varianceQty  = $actualQty - $systemQty;
-                $unitCost     = floatval($line['unit_cost']);
+                $unitCost     = $this->lockedLineCost($line);
                 $varianceCost = $varianceQty * $unitCost;
 
                 $record->lines()->create([
@@ -358,7 +361,7 @@ class StockTakeForm extends Component
         }
 
         $totalVarianceCost = collect($this->lines)->sum(fn ($l) => floatval($l['variance_cost']));
-        $totalStockCost    = collect($this->lines)->sum(fn ($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
+        $totalStockCost    = collect($this->lines)->sum(fn ($l) => floatval($l['actual_quantity']) * $this->lockedLineCost($l));
         $positiveVariance  = collect($this->lines)->where(fn ($l) => floatval($l['variance_quantity']) > 0)->count();
         $negativeVariance  = collect($this->lines)->where(fn ($l) => floatval($l['variance_quantity']) < 0)->count();
 
@@ -389,7 +392,7 @@ class StockTakeForm extends Component
             ? app(\App\Services\UomService::class)->convertCost($ingredient, $countUom)
             : floatval($ingredient->current_cost);
 
-        return [
+        return $this->rememberLineCost([
             'ingredient_id'     => $ingredient->id,
             'ingredient_name'   => $ingredient->name,
             'is_prep'           => (bool) $ingredient->is_prep,
@@ -398,10 +401,9 @@ class StockTakeForm extends Component
             'system_quantity'   => '0',
             'actual_quantity'   => '0',
             'variance_quantity' => 0,
-            'unit_cost'         => (string) $unitCost,
             'variance_cost'     => 0,
             ...$this->categoryFields($ingredient),
-        ];
+        ], $unitCost);
     }
 
     private function categoryFields(?Ingredient $ingredient): array
@@ -437,7 +439,7 @@ class StockTakeForm extends Component
 
         $actual   = floatval($this->lines[$idx]['actual_quantity'] ?? 0);
         $system   = floatval($this->lines[$idx]['system_quantity'] ?? 0);
-        $unitCost = floatval($this->lines[$idx]['unit_cost'] ?? 0);
+        $unitCost = $this->lockedLineCost($this->lines[$idx]);
 
         $variance = $actual - $system;
         $this->lines[$idx]['variance_quantity'] = round($variance, 4);

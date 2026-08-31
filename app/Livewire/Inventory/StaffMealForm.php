@@ -7,13 +7,14 @@ use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\StaffMealRecord;
+use App\Traits\LocksLineUnitCost;
 use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class StaffMealForm extends Component
 {
-    use PicksRecordOutlet;
+    use PicksRecordOutlet, LocksLineUnitCost;
 
     public ?int $recordId      = null;
     public ?int $department_id = null;
@@ -35,7 +36,6 @@ class StaffMealForm extends Component
             'notes'              => 'nullable|string',
             'lines'              => 'required|array|min:1',
             'lines.*.quantity'   => 'required|numeric|min:0',
-            'lines.*.unit_cost'  => 'required|numeric|min:0',
         ];
     }
 
@@ -69,7 +69,7 @@ class StaffMealForm extends Component
 
         $this->lines = $record->lines->map(function ($l) {
             if ($l->recipe_id) {
-                return [
+                return $this->rememberLineCost([
                     'item_type'     => 'recipe',
                     'ingredient_id' => null,
                     'recipe_id'     => $l->recipe_id,
@@ -78,13 +78,12 @@ class StaffMealForm extends Component
                     'uom_id'        => $l->uom_id,
                     'uom_abbr'      => $l->uom?->abbreviation ?? '',
                     'quantity'      => (string) floatval($l->quantity),
-                    'unit_cost'     => (string) floatval($l->unit_cost),
                     'total_cost'    => floatval($l->total_cost),
                     'reason'        => $l->reason ?? '',
-                ];
+                ], floatval($l->unit_cost));
             }
 
-            return [
+            return $this->rememberLineCost([
                 'item_type'     => 'ingredient',
                 'ingredient_id' => $l->ingredient_id,
                 'recipe_id'     => null,
@@ -93,10 +92,9 @@ class StaffMealForm extends Component
                 'uom_id'        => $l->uom_id,
                 'uom_abbr'      => $l->uom?->abbreviation ?? '',
                 'quantity'      => (string) floatval($l->quantity),
-                'unit_cost'     => (string) floatval($l->unit_cost),
                 'total_cost'    => floatval($l->total_cost),
                 'reason'        => $l->reason ?? '',
-            ];
+            ], floatval($l->unit_cost));
         })->toArray();
     }
 
@@ -126,7 +124,7 @@ class StaffMealForm extends Component
 
                 $qty = max(0, (int) $tLine->default_quantity);
 
-                $this->lines[] = [
+                $this->lines[] = $this->rememberLineCost([
                     'item_type'     => 'ingredient',
                     'ingredient_id' => $tLine->ingredient->id,
                     'recipe_id'     => null,
@@ -135,10 +133,9 @@ class StaffMealForm extends Component
                     'uom_id'        => $tLine->ingredient->base_uom_id,
                     'uom_abbr'      => $tLine->ingredient->baseUom?->abbreviation ?? '',
                     'quantity'      => (string) $qty,
-                    'unit_cost'     => (string) $unitCost,
                     'total_cost'    => round($qty * $unitCost, 4),
                     'reason'        => '',
-                ];
+                ], $unitCost);
                 $existingIngIds[] = $tLine->ingredient_id;
                 $added++;
             } elseif ($tLine->item_type === 'recipe' && $tLine->recipe) {
@@ -147,7 +144,7 @@ class StaffMealForm extends Component
                 $unitCost = floatval($tLine->recipe->cost_per_yield_unit);
                 $qty = max(0, (int) $tLine->default_quantity);
 
-                $this->lines[] = [
+                $this->lines[] = $this->rememberLineCost([
                     'item_type'     => 'recipe',
                     'ingredient_id' => null,
                     'recipe_id'     => $tLine->recipe->id,
@@ -156,10 +153,9 @@ class StaffMealForm extends Component
                     'uom_id'        => $tLine->recipe->yield_uom_id,
                     'uom_abbr'      => $tLine->recipe->yieldUom?->abbreviation ?? '',
                     'quantity'      => (string) $qty,
-                    'unit_cost'     => (string) $unitCost,
                     'total_cost'    => round($qty * $unitCost, 4),
                     'reason'        => '',
-                ];
+                ], $unitCost);
                 $existingRecipeIds[] = $tLine->recipe_id;
                 $added++;
             }
@@ -185,7 +181,7 @@ class StaffMealForm extends Component
 
         $unitCost = floatval($ingredient->current_cost);
 
-        $this->lines[] = [
+        $this->lines[] = $this->rememberLineCost([
             'item_type'     => 'ingredient',
             'ingredient_id' => $ingredient->id,
             'recipe_id'     => null,
@@ -194,10 +190,9 @@ class StaffMealForm extends Component
             'uom_id'        => $ingredient->base_uom_id,
             'uom_abbr'      => $ingredient->baseUom->abbreviation ?? '',
             'quantity'      => '1',
-            'unit_cost'     => (string) $unitCost,
             'total_cost'    => $unitCost,
             'reason'        => '',
-        ];
+        ], $unitCost);
 
         $this->itemSearch = '';
     }
@@ -215,7 +210,7 @@ class StaffMealForm extends Component
 
         $unitCost = floatval($recipe->cost_per_yield_unit);
 
-        $this->lines[] = [
+        $this->lines[] = $this->rememberLineCost([
             'item_type'     => 'recipe',
             'ingredient_id' => null,
             'recipe_id'     => $recipe->id,
@@ -224,10 +219,9 @@ class StaffMealForm extends Component
             'uom_id'        => $recipe->yield_uom_id,
             'uom_abbr'      => $recipe->yieldUom?->abbreviation ?? '',
             'quantity'      => '1',
-            'unit_cost'     => (string) $unitCost,
             'total_cost'    => $unitCost,
             'reason'        => '',
-        ];
+        ], $unitCost);
 
         $this->itemSearch = '';
     }
@@ -241,7 +235,7 @@ class StaffMealForm extends Component
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
-        if (count($parts) === 2 && in_array($parts[1], ['quantity', 'unit_cost'])) {
+        if (count($parts) === 2 && in_array($parts[1], ['quantity'])) {
             $this->recalcLine((int) $parts[0]);
         }
     }
@@ -289,7 +283,7 @@ class StaffMealForm extends Component
         $record->lines()->delete();
         foreach ($this->lines as $line) {
             $qty      = floatval($line['quantity']);
-            $unitCost = floatval($line['unit_cost']);
+            $unitCost = $this->lockedLineCost($line);
 
             $record->lines()->create([
                 'ingredient_id' => $line['ingredient_id'] ?: null,
@@ -371,7 +365,7 @@ class StaffMealForm extends Component
     {
         if (! isset($this->lines[$idx])) return;
         $qty      = floatval($this->lines[$idx]['quantity'] ?? 0);
-        $unitCost = floatval($this->lines[$idx]['unit_cost'] ?? 0);
+        $unitCost = $this->lockedLineCost($this->lines[$idx]);
         $this->lines[$idx]['total_cost'] = round($qty * $unitCost, 4);
     }
 }

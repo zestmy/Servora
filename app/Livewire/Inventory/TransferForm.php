@@ -5,6 +5,7 @@ namespace App\Livewire\Inventory;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
+use App\Traits\LocksLineUnitCost;
 use App\Traits\ScopesToActiveOutlet;
 use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
@@ -12,7 +13,7 @@ use Livewire\Component;
 
 class TransferForm extends Component
 {
-    use ScopesToActiveOutlet;
+    use ScopesToActiveOutlet, LocksLineUnitCost;
     use ValidatesCompanyOutlet;
 
     public ?int $transferId = null;
@@ -45,7 +46,6 @@ class TransferForm extends Component
             'to_outlet_id'      => ['required', 'different:from_outlet_id', $this->outletExistsRule()],
             'lines'             => 'required|array|min:1',
             'lines.*.quantity'  => 'required|numeric|min:0.0001',
-            'lines.*.unit_cost' => 'required|numeric|min:0',
         ];
     }
 
@@ -80,16 +80,15 @@ class TransferForm extends Component
             $this->status          = $transfer->status;
             $this->notes           = $transfer->notes ?? '';
 
-            $this->lines = $transfer->lines->map(fn ($l) => [
+            $this->lines = $transfer->lines->map(fn ($l) => $this->rememberLineCost([
                 'ingredient_id' => $l->ingredient_id,
                 'item_name'     => $l->ingredient?->name ?? '—',
                 'is_prep'       => (bool) ($l->ingredient?->is_prep ?? false),
                 'uom_id'        => $l->uom_id,
                 'uom_abbr'      => $l->uom?->abbreviation ?? '',
                 'quantity'      => (string) floatval($l->quantity),
-                'unit_cost'     => (string) floatval($l->unit_cost),
                 'total_cost'    => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-            ])->toArray();
+            ], floatval($l->unit_cost)))->toArray();
         } else {
             $this->transfer_number = $this->generateTransferNumber();
 
@@ -115,16 +114,15 @@ class TransferForm extends Component
 
         $unitCost = floatval($ingredient->current_cost);
 
-        $this->lines[] = [
+        $this->lines[] = $this->rememberLineCost([
             'ingredient_id' => $ingredient->id,
             'item_name'     => $ingredient->name,
             'is_prep'       => (bool) $ingredient->is_prep,
             'uom_id'        => $ingredient->base_uom_id,
             'uom_abbr'      => $ingredient->baseUom->abbreviation ?? '',
             'quantity'      => '1',
-            'unit_cost'     => (string) $unitCost,
             'total_cost'    => $unitCost,
-        ];
+        ], $unitCost);
 
         $this->itemSearch = '';
     }
@@ -138,7 +136,7 @@ class TransferForm extends Component
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
-        if (count($parts) === 2 && in_array($parts[1], ['quantity', 'unit_cost'])) {
+        if (count($parts) === 2 && in_array($parts[1], ['quantity'])) {
             $this->recalcLine((int) $parts[0]);
         }
     }
@@ -197,7 +195,7 @@ class TransferForm extends Component
         $transfer->lines()->delete();
         foreach ($this->lines as $line) {
             $qty      = floatval($line['quantity']);
-            $unitCost = floatval($line['unit_cost']);
+            $unitCost = $this->lockedLineCost($line);
 
             $transfer->lines()->create([
                 'ingredient_id' => $line['ingredient_id'],
@@ -323,7 +321,7 @@ class TransferForm extends Component
             return;
         }
         $qty      = floatval($this->lines[$idx]['quantity'] ?? 0);
-        $unitCost = floatval($this->lines[$idx]['unit_cost'] ?? 0);
+        $unitCost = $this->lockedLineCost($this->lines[$idx]);
         $this->lines[$idx]['total_cost'] = round($qty * $unitCost, 4);
     }
 

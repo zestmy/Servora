@@ -257,10 +257,7 @@
                                 </td>
                                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $line['uom_abbr'] }}</td>
                                 <td class="px-4 py-2">
-                                    <input type="number" step="0.0001" min="0"
-                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.unit_cost"
-                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
-                                    <x-input-error :messages="$errors->get('lines.'.$idx.'.unit_cost')" class="mt-0.5" />
+                                    <span class="block text-right tabular-nums text-gray-600" title="Price comes from purchasing — goods received, supplier invoices and price lists. Not editable here.">{{ number_format(floatval($line['unit_cost']), 4) }}</span>
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-semibold text-danger-600">
                                     {{ number_format(floatval($line['total_cost']), 2) }}
