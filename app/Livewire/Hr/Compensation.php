@@ -76,7 +76,7 @@ class Compensation extends Component
     public function period(): Carbon
     {
         try {
-            return Carbon::createFromFormat('Y-m', $this->month)->startOfMonth();
+            return Carbon::createFromFormat('!Y-m', $this->month)->startOfMonth();
         } catch (\Throwable $e) {
             $this->month = now()->format('Y-m');
             return now()->startOfMonth();

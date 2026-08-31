@@ -215,7 +215,7 @@ class Payroll extends Component
 
         if ($mode === self::MODE_MONTHLY) {
             try {
-                return RunPeriods::monthOf(Carbon::createFromFormat('Y-m', $this->newMonth)->startOfMonth());
+                return RunPeriods::monthOf(Carbon::createFromFormat('!Y-m', $this->newMonth)->startOfMonth());
             } catch (\Throwable $e) {
                 return null;
             }
@@ -406,7 +406,7 @@ class Payroll extends Component
             $run = app(PayrollRunBuilder::class)->generate(
                 $user->company_id,
                 $this->accessibleOutletIds(),
-                Carbon::createFromFormat('Y-m', $this->newMonth)->startOfMonth(),
+                Carbon::createFromFormat('!Y-m', $this->newMonth)->startOfMonth(),
                 $outletId,
                 $user->id,
                 $this->customPeriod ? Carbon::parse($this->newFrom)->startOfDay() : null,
@@ -464,7 +464,26 @@ class Payroll extends Component
     public function newMonthRange(): ?array
     {
         try {
-            $month = Carbon::createFromFormat('Y-m', $this->newMonth)->startOfMonth();
+            /*
+             * `!Y-m`, and the bang is the whole thing.
+             *
+             * createFromFormat fills every field the format does not name from
+             * NOW — so a plain 'Y-m' takes today's day-of-month. Ask for
+             * "2026-09" on the 31st and PHP builds 31 September, which does not
+             * exist, overflows to 1 October, and startOfMonth() then lands on a
+             * month nobody chose. With a 26th-25th cycle that seeds the payroll
+             * form with 26 Sep - 25 Oct in place of 26 Aug - 25 Sep.
+             *
+             * It only misfires when today's day-of-month exceeds the length of
+             * the month being asked for, which is why it survived: three days a
+             * month, and those three are month-end, which is exactly when
+             * payroll gets run.
+             *
+             * The bang resets the unnamed fields to their defaults instead —
+             * day 1, midnight. Every other month input in the product already
+             * spells it this way; these six were the ones that missed it.
+             */
+            $month = Carbon::createFromFormat('!Y-m', $this->newMonth)->startOfMonth();
         } catch (\Throwable $e) {
             return null;
         }

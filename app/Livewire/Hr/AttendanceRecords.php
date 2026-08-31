@@ -116,7 +116,7 @@ class AttendanceRecords extends Component
     {
         if ($this->periodMode === 'month') {
             try {
-                $from = Carbon::createFromFormat('Y-m', $this->month)->startOfMonth();
+                $from = Carbon::createFromFormat('!Y-m', $this->month)->startOfMonth();
             } catch (\Throwable $e) {
                 $from = now()->startOfMonth();
                 $this->month = $from->format('Y-m');

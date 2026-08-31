@@ -32,7 +32,7 @@ class CompensationPdfController extends Controller
         $accessible = $user->accessibleOutletIds();
 
         try {
-            $month = Carbon::createFromFormat('Y-m', (string) $request->input('month'))->startOfMonth();
+            $month = Carbon::createFromFormat('!Y-m', (string) $request->input('month'))->startOfMonth();
         } catch (\Throwable $e) {
             $month = now()->startOfMonth();
         }
