@@ -17,7 +17,9 @@ class StockTakeCountSheetController extends Controller
         $stockTake = StockTake::with([
             'outlet',
             'department',
+            'lines.uom',
             'lines.ingredient.baseUom',
+            'lines.ingredient.recipeUom',
             'lines.ingredient.ingredientCategory.parent',
             'createdBy',
         ])->findOrFail($id);

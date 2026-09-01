@@ -71,7 +71,14 @@
                             @endif
                             {{ $line->ingredient?->name ?? '—' }}
                         </td>
-                        <td class="center">{{ $line->ingredient?->baseUom?->abbreviation ?? '' }}</td>
+                        {{-- The unit this LINE is counted in, not the one the item is
+                             bought in. The sheet was printing the purchase UOM, so it
+                             asked for kilograms of something the form counts in grams:
+                             whoever filled it in wrote a number a thousand times off,
+                             and the value that came back was wrong by the same factor. --}}
+                        <td class="center">{{ $line->uom?->abbreviation
+                            ?? $line->ingredient?->recipeUom?->abbreviation
+                            ?? $line->ingredient?->baseUom?->abbreviation ?? '' }}</td>
                         <td style="border: 1px solid #000; min-height: 20px;">&nbsp;</td>
                     </tr>
                 @endforeach
