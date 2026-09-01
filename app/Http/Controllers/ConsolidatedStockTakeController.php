@@ -34,28 +34,37 @@ class ConsolidatedStockTakeController extends Controller
             [$from, $to] = [$to, $from];
         }
 
-        $query = StockTake::query()
-            ->whereBetween('stock_take_date', [$from, $to])
-            ->where('method', 'detailed');
-
-        $this->scopeByOutletFilter($query, $request->query('outlet'));
-
         $department = $request->query('department', '');
-        if ($department === 'none') {
-            $query->whereNull('department_id');
-        } elseif ($department !== '' && $department !== null) {
-            $query->where('department_id', (int) $department);
-        }
+        $search     = trim((string) $request->query('search', ''));
 
-        if ($status = $request->query('status')) {
-            $query->where('status', $status);
-        }
+        // Everything the range covers, whatever state it is in. Status is the
+        // only thing that separates what goes in the file from what is merely
+        // counted towards it, so it is applied last, twice.
+        $inRange = function () use ($request, $from, $to, $department, $search) {
+            $query = StockTake::query()
+                ->whereBetween('stock_take_date', [$from, $to])
+                ->where('method', 'detailed');
 
-        if ($search = trim((string) $request->query('search', ''))) {
-            $query->where('reference_number', 'like', '%' . $search . '%');
-        }
+            $this->scopeByOutletFilter($query, $request->query('outlet'));
 
-        $stockTakes = $query
+            if ($department === 'none') {
+                $query->whereNull('department_id');
+            } elseif ($department !== '' && $department !== null) {
+                $query->where('department_id', (int) $department);
+            }
+
+            if ($search !== '') {
+                $query->where('reference_number', 'like', '%' . $search . '%');
+            }
+
+            return $query;
+        };
+
+        // Completed only. A file for the cabinet should be of counts somebody
+        // finished, not of sheets still being walked around a chiller — those
+        // change after the PDF is printed.
+        $stockTakes = $inRange()
+            ->where('status', 'completed')
             ->with(['lines', 'outlet', 'department'])
             ->orderBy('stock_take_date')
             ->orderBy('id')
@@ -63,6 +72,10 @@ class ConsolidatedStockTakeController extends Controller
 
         $report  = $consolidator->consolidate($stockTakes);
         $company = Company::find(Auth::user()->company_id);
+
+        // The screen counts drafts and this file does not, so it says how many
+        // it left behind rather than letting the reader wonder where they went.
+        $excludedDrafts = $inRange()->where('status', '!=', 'completed')->count();
 
         $scope = [
             'from'       => $from,
@@ -77,7 +90,7 @@ class ConsolidatedStockTakeController extends Controller
                     : 'All departments'),
         ];
 
-        $pdf = Pdf::loadView('pdf.consolidated-stock-take', compact('report', 'company', 'scope'))
+        $pdf = Pdf::loadView('pdf.consolidated-stock-take', compact('report', 'company', 'scope', 'excludedDrafts'))
             ->setPaper('a4', 'portrait');
 
         return $pdf->download('Consolidated-Inventory-' . $from . '-to-' . $to . '.pdf');

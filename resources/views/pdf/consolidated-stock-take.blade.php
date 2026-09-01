@@ -34,23 +34,30 @@
             <td style="padding: 6px 10px; background: #f9fafb; font-size: 8.5pt; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e5e7eb;">Items</td>
             <td style="padding: 6px 10px; font-size: 9.5pt; color: #0f172a; border-right: 1px solid #e5e7eb;">{{ number_format($report['itemCount']) }}</td>
             <td style="padding: 6px 10px; background: #f9fafb; font-size: 8.5pt; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e5e7eb;">Generated</td>
-            <td style="padding: 6px 10px; font-size: 9.5pt; color: #0f172a;">{{ now()->format('d M Y, H:i') }}</td>
+            <td style="padding: 6px 10px; font-size: 9.5pt; color: #0f172a;">{{ now()->format('d M Y, H:i') }} &middot;
+                <span style="color: #64748b;">completed counts only</span></td>
         </tr>
     </table>
 
-    {{-- A file that includes counts still being worked on should say so on its
-         face, or it reads as final when it is not. --}}
-    @if ($report['draftCount'] > 0)
-        <div style="border: 1px solid #f59e0b; background: #fffbeb; padding: 6px 10px; margin-bottom: 12px; font-size: 9pt; color: #92400e;">
-            <strong>Not final.</strong>
-            {{ $report['draftCount'] }} of the {{ $report['takes']->count() }} counts merged here
-            {{ $report['draftCount'] === 1 ? 'is' : 'are' }} still a draft and may change.
+    {{-- The screen counts drafts and this file does not, so it says what it
+         left behind. Otherwise a file of 4 counts, printed from a screen
+         showing 30, reads as though something went wrong. --}}
+    @if ($excludedDrafts > 0)
+        <div style="border: 1px solid #e5e7eb; background: #f9fafb; padding: 6px 10px; margin-bottom: 12px; font-size: 9pt; color: #475569;">
+            <strong>Completed counts only.</strong>
+            {{ $excludedDrafts }} draft {{ $excludedDrafts === 1 ? 'count' : 'counts' }} in this range
+            {{ $excludedDrafts === 1 ? 'was' : 'were' }} not included; complete
+            {{ $excludedDrafts === 1 ? 'it' : 'them' }} to have {{ $excludedDrafts === 1 ? 'it' : 'them' }} counted here.
         </div>
     @endif
 
     @if ($report['itemCount'] === 0)
         <div style="border: 1px solid #e5e7eb; padding: 24px; text-align: center; color: #64748b; font-size: 10pt;">
-            No counted items in this range.
+            No completed counts in this range.
+            @if ($excludedDrafts > 0)
+                <br><span style="font-size: 9pt;">There
+                {{ $excludedDrafts === 1 ? 'is 1 draft' : 'are ' . $excludedDrafts . ' drafts' }} waiting to be completed.</span>
+            @endif
         </div>
     @else
         {{-- Items --}}

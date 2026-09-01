@@ -13,14 +13,23 @@
                    subtitle="Counts, wastage, staff meals, transfers and captured purchases.">
         <x-slot:actions>
             @if ($tab === 'stock-takes')
-                {{-- One inventory out of however many sheets the range holds, for
-                     filing. Carries the filters the table is showing, so what
-                     comes out is what is on screen. --}}
+                {{-- One inventory out of however many completed sheets the range
+                     holds, for filing. Carries the filters the table is showing.
+                     Drafts are not in it, so when none are finished the button
+                     says so rather than handing back an empty PDF. --}}
                 @if ($consolidatedUrl && $records->total() > 0)
-                    <a href="{{ $consolidatedUrl }}" class="btn-secondary">
-                        <x-icon name="printer" size="h-4 w-4" />
-                        Consolidated Inventory
-                    </a>
+                    @if ($completedInRange > 0)
+                        <a href="{{ $consolidatedUrl }}" class="btn-secondary">
+                            <x-icon name="printer" size="h-4 w-4" />
+                            Consolidated Inventory
+                        </a>
+                    @else
+                        <span class="btn-secondary opacity-50 cursor-not-allowed"
+                              title="Nothing to file yet: the export covers completed counts, and every count in this range is still a draft.">
+                            <x-icon name="printer" size="h-4 w-4" />
+                            Consolidated Inventory
+                        </span>
+                    @endif
                 @endif
                 @canDo('inventory.stock_takes.record')
                     <a href="{{ route('inventory.stock-takes.create') }}" class="btn-primary">+ New Stock Take</a>

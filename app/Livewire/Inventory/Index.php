@@ -549,6 +549,18 @@ class Index extends Component
     }
 
     /**
+     * How many of the counts on screen would actually reach the file.
+     *
+     * The export is of completed counts; the table shows drafts too. Offering
+     * the button regardless would hand back an empty PDF and read as broken,
+     * so the screen says up front that there is nothing finished to file yet.
+     */
+    private function completedInRange(): int
+    {
+        return (clone $this->filtered())->where('status', 'completed')->count();
+    }
+
+    /**
      * The consolidated inventory for what the table is currently showing.
      *
      * The filters go over in the query string rather than being read again on
@@ -650,6 +662,7 @@ class Index extends Component
             'stats'             => $this->stats(),
             'departmentValues'  => $this->departmentValues(),
             'consolidatedUrl'   => $this->tab === 'stock-takes' ? $this->consolidatedUrl() : null,
+            'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,
             'categoryBreakdown' => $this->categoryBreakdown($latestStockTake),

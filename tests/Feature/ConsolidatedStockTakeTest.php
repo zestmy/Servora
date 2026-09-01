@@ -195,17 +195,50 @@ class ConsolidatedStockTakeTest extends TestCase
         $this->assertCount(2, $report['groups']);
     }
 
-    public function test_drafts_are_merged_but_counted_so_the_file_can_say_it_is_not_final(): void
+    // ── What reaches the file ────────────────────────────────────────────
+
+    public function test_a_draft_in_the_range_is_left_out_of_the_file(): void
     {
         $flour = $this->ingredient('Flour');
 
-        $this->line($this->sheet('2026-08-01', 'completed'), $flour, 1, 10);
-        $this->line($this->sheet('2026-08-02', 'draft'), $flour, 1, 10);
+        $this->line($this->sheet('2026-08-10', 'completed'), $flour, 5, 10);
+        $this->line($this->sheet('2026-08-11', 'draft'), $flour, 99, 10);
 
-        $report = $this->consolidate();
+        // A file for the cabinet is of counts somebody finished. The draft is
+        // still being walked around a chiller and will change after printing.
+        $response = $this->actingAs($this->user)->get(route('inventory.stock-takes.consolidated', [
+            'from' => '2026-08-01', 'to' => '2026-08-31',
+        ]));
 
-        $this->assertSame(2, $report['takes']->count());
-        $this->assertSame(1, $report['draftCount']);
+        $response->assertOk();
+
+        $takes = StockTake::with('lines')
+            ->whereBetween('stock_take_date', ['2026-08-01', '2026-08-31'])
+            ->where('status', 'completed')->get();
+
+        $this->assertSame(50.0, app(StockTakeConsolidator::class)->consolidate($takes)['total']);
+    }
+
+    public function test_the_button_is_not_offered_when_every_count_is_still_a_draft(): void
+    {
+        $this->line($this->sheet(today()->toDateString(), 'draft'), $this->ingredient('Flour'), 5, 10);
+
+        $screen = Livewire::actingAs($this->user)->test(StockManagement::class)
+            ->call('setQuickRange', 'today');
+
+        $this->assertSame(0, $screen->viewData('completedInRange'));
+        $screen->assertSee('Nothing to file yet', false);
+    }
+
+    public function test_the_button_is_offered_once_something_is_completed(): void
+    {
+        $this->line($this->sheet(today()->toDateString(), 'completed'), $this->ingredient('Flour'), 5, 10);
+
+        $screen = Livewire::actingAs($this->user)->test(StockManagement::class)
+            ->call('setQuickRange', 'today');
+
+        $this->assertSame(1, $screen->viewData('completedInRange'));
+        $screen->assertDontSee('Nothing to file yet', false);
     }
 
     // ── The screen ───────────────────────────────────────────────────────
