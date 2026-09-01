@@ -251,22 +251,49 @@ class IngredientCostPermissionTest extends TestCase
 
     // ── The screen says so ───────────────────────────────────────────────
 
-    public function test_the_price_fields_are_disabled_without_the_cost_ability(): void
+    public function test_the_price_field_is_a_real_input_that_the_permission_toggles(): void
     {
         $flour = $this->flour();
 
-        $html = Livewire::actingAs($this->user(['ingredients.view', 'ingredients.manage']))
-            ->test(MarketList::class)
-            ->call('openEdit', $flour->id)
-            ->html();
+        $without = Livewire::actingAs($this->user(['ingredients.view', 'ingredients.manage']))
+            ->test(MarketList::class)->call('openEdit', $flour->id)->html();
 
-        $this->assertStringContainsString('Set by whoever holds the cost permission.', $html);
+        $with = Livewire::actingAs($this->user(['ingredients.view', 'ingredients.manage', 'ingredients.cost']))
+            ->test(MarketList::class)->call('openEdit', $flour->id)->html();
 
-        $withCost = Livewire::actingAs($this->user(['ingredients.view', 'ingredients.manage', 'ingredients.cost']))
-            ->test(MarketList::class)
-            ->call('openEdit', $flour->id)
-            ->html();
+        foreach (['purchase_price', 'pack_size', 'yield_percent'] as $field) {
+            // It must still BE an input. Asserting only on the help text let a
+            // broken field ship: @disabled() inside an <x-...> tag stops Blade
+            // compiling the component, so the tag reached the browser verbatim
+            // and there was no input at all — for anyone, permission or not.
+            $this->assertMatchesRegularExpression(
+                '/<input[^>]*id="' . $field . '"/',
+                $with,
+                "{$field} does not render as an input element."
+            );
 
-        $this->assertStringNotContainsString('Set by whoever holds the cost permission.', $withCost);
+            preg_match('/<input[^>]*id="' . $field . '"[^>]*>/', $with, $granted);
+            preg_match('/<input[^>]*id="' . $field . '"[^>]*>/', $without, $denied);
+
+            $this->assertStringNotContainsString('disabled', $granted[0], "{$field} should be editable with the ability.");
+            $this->assertStringContainsString('disabled', $denied[0] ?? '', "{$field} should be locked without it.");
+        }
+
+        $this->assertStringContainsString('Set by whoever holds the cost permission.', $without);
+        $this->assertStringNotContainsString('Set by whoever holds the cost permission.', $with);
+    }
+
+    public function test_the_screen_leaves_no_blade_component_tag_uncompiled(): void
+    {
+        // A component tag that reaches the browser verbatim renders as nothing
+        // usable. Cheap to check, and it catches the whole class of mistake.
+        $html = Livewire::actingAs($this->user(['ingredients.view', 'ingredients.manage', 'ingredients.cost']))
+            ->test(MarketList::class)->call('openEdit', $this->flour()->id)->html();
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/<x-[a-z][a-z0-9.-]*/i',
+            $html,
+            'An <x-...> tag survived into the output, so Blade did not compile it.'
+        );
     }
 }
