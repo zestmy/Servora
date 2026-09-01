@@ -213,7 +213,10 @@
                     </thead>
                     <tbody>
                         @foreach ($lines as $idx => $line)
-                            <tr class="hover:bg-gray-50 transition">
+                            @php $lineKey = ($line['source'] ?? 'prep') === 'production'
+                                ? 'production-' . $line['production_recipe_id']
+                                : 'prep-' . $line['recipe_id']; @endphp
+                            <tr wire:key="po-line-{{ $lineKey }}" class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2 font-medium text-gray-800">
                                     {{ $line['recipe_name'] }}
@@ -228,7 +231,7 @@
                                 <td class="px-4 py-2">
                                     @if ($isEditable)
                                         <input type="number" step="0.01" min="0.01"
-                                               wire:model.lazy="lines.{{ $idx }}.planned_quantity"
+                                               wire:model.blur="lines.{{ $idx }}.planned_quantity"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     @else
                                         <p class="text-right tabular-nums text-gray-700">{{ rtrim(rtrim(number_format(floatval($line['planned_quantity']), 4), '0'), '.') }}</p>
@@ -236,13 +239,8 @@
                                 </td>
                                 <td class="px-4 py-2 text-sm font-medium text-gray-600">{{ $line['uom_name'] }}</td>
                                 <td class="px-4 py-2">
-                                    @if ($isEditable)
-                                        <input type="number" step="0.0001" min="0"
-                                               wire:model.lazy="lines.{{ $idx }}.unit_cost"
-                                               class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
-                                    @else
-                                        <p class="text-right tabular-nums text-gray-700">{{ number_format(floatval($line['unit_cost']), 4) }}</p>
-                                    @endif
+                                    <p class="text-right tabular-nums text-gray-700"
+                                       title="Rolled up from the recipe's ingredients, which are priced by purchasing. Not editable here.">{{ number_format(floatval($line['unit_cost']), 4) }}</p>
                                 </td>
                                 <td class="px-4 py-2">
                                     @if ($isEditable)

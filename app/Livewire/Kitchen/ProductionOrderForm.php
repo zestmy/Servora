@@ -8,6 +8,7 @@ use App\Models\ProductionOrder;
 use App\Models\ProductionRecipe;
 use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
+use App\Traits\LocksLineUnitCost;
 use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ use Livewire\Component;
 
 class ProductionOrderForm extends Component
 {
-    use ValidatesCompanyOutlet;
+    use ValidatesCompanyOutlet, LocksLineUnitCost;
 
     public ?int $orderId = null;
 
@@ -125,7 +126,7 @@ class ProductionOrderForm extends Component
         $this->needed_by_date  = $order->needed_by_date?->toDateString() ?? '';
         $this->notes           = $order->notes ?? '';
 
-        $this->lines = $order->lines->map(fn ($l) => [
+        $this->lines = $order->lines->map(fn ($l) => $this->rememberLineCost([
             'source'               => $l->production_recipe_id ? 'production' : 'prep',
             'recipe_id'            => $l->recipe_id,
             'production_recipe_id' => $l->production_recipe_id,
@@ -133,9 +134,8 @@ class ProductionOrderForm extends Component
             'planned_quantity'     => (string) floatval($l->planned_quantity),
             'uom_id'               => $l->uom_id,
             'uom_name'             => $l->uom?->abbreviation ?? '-',
-            'unit_cost'            => (string) floatval($l->unit_cost),
             'to_outlet_id'         => $l->to_outlet_id,
-        ])->toArray();
+        ], floatval($l->unit_cost)))->toArray();
     }
 
     /** Add a Central Kitchen production recipe. */
@@ -151,7 +151,7 @@ class ProductionOrderForm extends Component
             }
         }
 
-        $this->lines[] = [
+        $this->lines[] = $this->rememberLineCost([
             'source'               => 'production',
             'recipe_id'            => null,
             'production_recipe_id' => $id,
@@ -161,9 +161,8 @@ class ProductionOrderForm extends Component
             'planned_quantity'     => (string) floatval($recipe->yield_quantity ?: 1),
             'uom_id'               => $recipe->yield_uom_id,
             'uom_name'             => $recipe->yieldUom?->abbreviation ?? '-',
-            'unit_cost'            => (string) floatval($recipe->total_cost_per_unit),
             'to_outlet_id'         => null,
-        ];
+        ], floatval($recipe->total_cost_per_unit));
 
         $this->recipeSearch = '';
     }
@@ -182,7 +181,7 @@ class ProductionOrderForm extends Component
             }
         }
 
-        $this->lines[] = [
+        $this->lines[] = $this->rememberLineCost([
             'source'               => 'prep',
             'recipe_id'            => $recipeId,
             'production_recipe_id' => null,
@@ -190,11 +189,39 @@ class ProductionOrderForm extends Component
             'planned_quantity'     => '1',
             'uom_id'               => $recipe->yield_uom_id,
             'uom_name'             => $recipe->yieldUom?->abbreviation ?? '-',
-            'unit_cost'            => (string) floatval($recipe->cost_per_yield_unit),
             'to_outlet_id'         => null,
-        ];
+        ], floatval($recipe->cost_per_yield_unit));
 
         $this->recipeSearch = '';
+    }
+
+    /**
+     * A production order line is a recipe, not an ingredient, so it does not
+     * share the stock forms' key shape — it is one of two recipe tables.
+     */
+    protected function lineCostKey(array $line): string
+    {
+        return ($line['source'] ?? 'prep') === 'production'
+            ? 'production:' . (int) ($line['production_recipe_id'] ?? 0)
+            : 'prep:' . (int) ($line['recipe_id'] ?? 0);
+    }
+
+    /**
+     * What a batch costs is what its ingredients cost, rolled up by the recipe.
+     * Both models are company-scoped, so a forged id from another tenant finds
+     * nothing and prices at zero rather than leaking a cost across companies.
+     */
+    protected function deriveLineCost(array $line): float
+    {
+        if (($line['source'] ?? 'prep') === 'production') {
+            $recipe = ProductionRecipe::find($line['production_recipe_id'] ?? null);
+
+            return $recipe ? round((float) $recipe->total_cost_per_unit, 4) : 0.0;
+        }
+
+        $recipe = Recipe::find($line['recipe_id'] ?? null);
+
+        return $recipe ? round((float) $recipe->cost_per_yield_unit, 4) : 0.0;
     }
 
     public function removeLine(int $idx): void
@@ -238,7 +265,7 @@ class ProductionOrderForm extends Component
                     'production_recipe_id' => ($line['source'] ?? 'prep') === 'production' ? $line['production_recipe_id'] : null,
                     'planned_quantity' => floatval($line['planned_quantity']),
                     'uom_id'           => $line['uom_id'],
-                    'unit_cost'        => floatval($line['unit_cost']),
+                    'unit_cost'        => $this->lockedLineCost($line),
                     'to_outlet_id'     => $line['to_outlet_id'] ?: null,
                     'status'           => 'pending',
                 ]);
