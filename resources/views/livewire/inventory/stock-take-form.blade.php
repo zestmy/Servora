@@ -421,7 +421,7 @@
                                                 <span class="block text-right tabular-nums text-gray-600">{{ number_format(floatval($line['system_quantity']), 2) }}</span>
                                             @else
                                                 <input type="number" step="0.1" min="0"
-                                                       wire:model.live.debounce.400ms="lines.{{ $idx }}.system_quantity"
+                                                       wire:model.blur="lines.{{ $idx }}.system_quantity"
                                                        class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                             @endif
                                         </td>
@@ -431,7 +431,7 @@
                                             <span class="block text-right tabular-nums font-medium text-gray-800">{{ number_format(floatval($line['actual_quantity']), 2) }}</span>
                                         @else
                                             <input type="number" step="0.1" min="0"
-                                                   wire:model.live.debounce.400ms="lines.{{ $idx }}.actual_quantity"
+                                                   wire:model.blur="lines.{{ $idx }}.actual_quantity"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 font-medium" />
                                             <x-input-error :messages="$errors->get('lines.'.$idx.'.actual_quantity')" class="mt-0.5" />
                                         @endif
@@ -449,9 +449,10 @@
                                         </td>
                                     @endif
                                     @if (! $isCompleted)
-                                        <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 transition">
+                                        <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
                                             <button type="button" wire:click="removeLine({{ $idx }})"
-                                                    class="text-danger-400 hover:text-danger-600 transition">
+                                                    tabindex="-1" aria-label="Remove {{ $line['ingredient_name'] }}"
+                                            class="text-danger-400 hover:text-danger-600 transition">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>

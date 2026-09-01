@@ -243,8 +243,9 @@
                                            placeholder="e.g. Lunch, Dinner…"
                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                 </td>
-                                <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 transition">
+                                <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
                                     <button type="button" wire:click="removeLine({{ $idx }})"
+                                            tabindex="-1" aria-label="Remove {{ $line['item_name'] }}"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
