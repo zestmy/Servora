@@ -44,7 +44,10 @@
             <div class="flex items-center gap-4">
                 <div>
                     <h3 class="text-sm font-semibold text-brand-800">{{ $ingredient->name }}</h3>
-                    <p class="text-xs text-brand-500">{{ $ingredient->code ?? '' }} &middot; UOM: {{ $ingredient->baseUom?->abbreviation ?? '-' }}</p>
+                    {{-- The unit the card is KEPT in. It said the purchase unit while
+                         every figure below is in the counted unit, so a card of grams
+                         was headed "kg". Every movement is converted into this one. --}}
+                    <p class="text-xs text-brand-500">{{ $ingredient->code ?? '' }} &middot; All quantities in {{ $stockUom ?? '-' }}</p>
                 </div>
                 <div class="ml-auto text-right">
                     <p class="text-xs text-brand-400">{{ $movements->count() }} movements</p>
