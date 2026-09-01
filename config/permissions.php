@@ -81,7 +81,13 @@ return [
                     'name'  => 'ingredients.manage',
                     'label' => 'Add & edit',
                     'title' => 'Ingredients (Add & Edit)',
-                    'help'  => 'Create and change ingredients, their costs and categories.',
+                    'help'  => 'Create and change ingredients, their names, UOMs and categories. Costs need "Set costs" as well.',
+                ],
+                'cost' => [
+                    'name'  => 'ingredients.cost',
+                    'label' => 'Set costs',
+                    'title' => 'Ingredients (Set Costs)',
+                    'help'  => 'Change purchase price, pack size and yield — by hand, in the quick-edit grid, or by importing a price list. Without this, other edits still save and the price is left as it stands.',
                 ],
                 'delete' => [
                     'name'  => 'ingredients.delete',

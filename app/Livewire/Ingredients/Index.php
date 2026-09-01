@@ -250,6 +250,39 @@ class Index extends Component
             && ! $user?->canBypassLock();
     }
 
+    /**
+     * Cost is its own key.
+     *
+     * Renaming an item or filing it under a category is housekeeping; changing
+     * what it costs moves stock value, every recipe costing built on it and the
+     * margin on everything it appears in — with no invoice behind it. Since the
+     * stock forms stopped accepting a typed cost, this screen is the only place
+     * a price is set by hand, so it is worth its own ability.
+     */
+    public function getCanSetCostProperty(): bool
+    {
+        return (bool) auth()->user()?->canDo('ingredients.cost');
+    }
+
+    /**
+     * Strip the price fields from a write when the person may not set them.
+     *
+     * Dropped rather than refused: someone who may tidy the catalogue should
+     * still be able to fix a name or a category without being turned away for
+     * a price they never touched. What they submitted for cost is discarded and
+     * the stored figures stand.
+     */
+    private function withoutCostFields(array $data): array
+    {
+        if ($this->canSetCost) {
+            return $data;
+        }
+
+        return array_diff_key($data, array_flip([
+            'purchase_price', 'pack_size', 'yield_percent', 'current_cost',
+        ]));
+    }
+
     private function assertUnlocked(): bool
     {
         if ($this->locked) {
@@ -291,13 +324,17 @@ class Index extends Component
             'remark'                 => $this->remark ?: null,
         ];
 
+        $data = $this->withoutCostFields($data);
+
         if ($this->editingId) {
             $ingredient = Ingredient::findOrFail($this->editingId);
             $oldPrice   = floatval($ingredient->purchase_price);
             $ingredient->update($data);
             $this->saveConversions($ingredient);
             $this->saveSupplierLinks($ingredient);
-            $this->logManualPriceChange($ingredient, $oldPrice, $purchasePrice);
+            if ($this->canSetCost) {
+                $this->logManualPriceChange($ingredient, $oldPrice, $purchasePrice);
+            }
             session()->flash('success', 'Product updated.');
         } else {
             $data['company_id'] = Auth::user()->company_id;
@@ -305,7 +342,7 @@ class Index extends Component
             $this->saveConversions($ingredient);
             $this->saveSupplierLinks($ingredient);
             // Baseline row so future changes have something to diff against.
-            if ($purchasePrice > 0) {
+            if ($this->canSetCost && $purchasePrice > 0) {
                 \App\Models\IngredientPriceHistory::create([
                     'ingredient_id'  => $ingredient->id,
                     'supplier_id'    => null,
@@ -447,6 +484,12 @@ class Index extends Component
 
     public function processImport(): void
     {
+        // This action had no permission check at all: the route only asks for
+        // `ingredients.view`, and a Livewire action is its own request, so
+        // view-only access was enough to rewrite the whole catalogue's prices
+        // from a CSV — which would walk straight around the cost gate below.
+        abort_unless(auth()->user()?->canDo('ingredients.import'), 403);
+
         if (! $this->assertUnlocked()) return;
         $this->validate([
             'importFile' => 'required|file|mimes:csv,txt|max:5120',
@@ -543,6 +586,9 @@ class Index extends Component
             }
 
             if (! empty($changes)) {
+                // An import is a price list, so it is a cost write like any other.
+                $changes = $this->withoutCostFields($changes);
+
                 // Recalculate effective cost if price, pack_size, or yield changed
                 if (isset($changes['purchase_price']) || isset($changes['yield_percent']) || isset($changes['pack_size'])) {
                     $pp = $changes['purchase_price'] ?? (float) $ingredient->purchase_price;
@@ -1107,7 +1153,7 @@ class Index extends Component
             $baseCost = $pp / $ps;
             $effectiveCost = $baseCost / ($yp / 100);
 
-            $ingredient->update([
+            $ingredient->update($this->withoutCostFields([
                 'name'                   => trim($row['name']) ?: $ingredient->name,
                 'code'                   => trim($row['code'] ?? '') ?: null,
                 'ingredient_category_id' => $row['ingredient_category_id'] ?: null,
@@ -1119,7 +1165,7 @@ class Index extends Component
                 'current_cost'           => round($effectiveCost, 4),
                 'tax_rate_id'            => $row['tax_rate_id'] ?: null,
                 'is_active'              => (bool) ($row['is_active'] ?? true),
-            ]);
+            ]));
 
             // Sync conversion factor
             $factor = floatval($row['factor'] ?? 0);

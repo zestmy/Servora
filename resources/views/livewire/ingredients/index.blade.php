@@ -291,11 +291,11 @@
                                     </select>
                                 </td>
                                 <td class="px-2 py-1.5">
-                                    <input type="number" step="0.01" min="0" wire:model.blur="editableRows.{{ $ingId }}.purchase_price"
+                                    <input type="number" step="0.01" min="0" wire:model.blur="editableRows.{{ $ingId }}.purchase_price" @disabled(! $this->canSetCost)
                                            class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
                                 </td>
                                 <td class="px-2 py-1.5">
-                                    <input type="number" step="0.01" min="0.0001" wire:model.blur="editableRows.{{ $ingId }}.pack_size"
+                                    <input type="number" step="0.01" min="0.0001" wire:model.blur="editableRows.{{ $ingId }}.pack_size" @disabled(! $this->canSetCost)
                                            class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
                                 </td>
                                 <td class="px-2 py-1.5">
@@ -304,7 +304,7 @@
                                            placeholder="—" />
                                 </td>
                                 <td class="px-2 py-1.5">
-                                    <input type="number" step="0.1" min="0.01" max="100" wire:model.blur="editableRows.{{ $ingId }}.yield_percent"
+                                    <input type="number" step="0.1" min="0.01" max="100" wire:model.blur="editableRows.{{ $ingId }}.yield_percent" @disabled(! $this->canSetCost)
                                            class="w-full text-xs text-right rounded border-gray-200 py-1 px-1.5 focus:border-purple-500 focus:ring-purple-500" />
                                 </td>
                                 <td class="px-2 py-1.5">
@@ -748,15 +748,18 @@
                     <div class="grid grid-cols-3 gap-4">
                         <div>
                             <x-input-label for="purchase_price" value="Purchase Price *" />
-                            <x-text-input id="purchase_price" wire:model.live="purchase_price"
+                            <x-text-input id="purchase_price" wire:model.live="purchase_price" @disabled(! $this->canSetCost)
                                           type="number" step="0.0001" min="0"
                                           class="mt-1 block w-full" />
                             <p class="mt-0.5 text-xs text-gray-600">Price per pack/unit</p>
+                            @unless ($this->canSetCost)
+                                <p class="mt-0.5 text-xs text-gray-600">Set by whoever holds the cost permission.</p>
+                            @endunless
                             <x-input-error :messages="$errors->get('purchase_price')" class="mt-1" />
                         </div>
                         <div>
                             <x-input-label for="pack_size" value="Pack Size" />
-                            <x-text-input id="pack_size" wire:model.live="pack_size"
+                            <x-text-input id="pack_size" wire:model.live="pack_size" @disabled(! $this->canSetCost)
                                           type="number" step="0.1" min="0.1"
                                           class="mt-1 block w-full" />
                             <p class="mt-0.5 text-xs text-gray-600">{{ $baseUomAbbr ?? 'base UOM' }} per pack (1 = no pack)</p>
@@ -765,7 +768,7 @@
                         <div>
                             <x-input-label for="yield_percent" value="Yield %" />
                             <div class="mt-1 relative">
-                                <x-text-input id="yield_percent" wire:model.live="yield_percent"
+                                <x-text-input id="yield_percent" wire:model.live="yield_percent" @disabled(! $this->canSetCost)
                                               type="number" step="0.01" min="0.01" max="100"
                                               class="block w-full pr-8" />
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">%</span>
