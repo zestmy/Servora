@@ -13,6 +13,15 @@
                    subtitle="Counts, wastage, staff meals, transfers and captured purchases.">
         <x-slot:actions>
             @if ($tab === 'stock-takes')
+                {{-- One inventory out of however many sheets the range holds, for
+                     filing. Carries the filters the table is showing, so what
+                     comes out is what is on screen. --}}
+                @if ($consolidatedUrl && $records->total() > 0)
+                    <a href="{{ $consolidatedUrl }}" class="btn-secondary">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Consolidated Inventory
+                    </a>
+                @endif
                 @canDo('inventory.stock_takes.record')
                     <a href="{{ route('inventory.stock-takes.create') }}" class="btn-primary">+ New Stock Take</a>
                 @endcanDo
@@ -92,6 +101,35 @@
                     <p class="text-xs text-gray-600 mt-1 tabular-nums">
                         Previous period: RM {{ number_format($stats['previousValue'], 2) }}
                     </p>
+                @endif
+
+                {{-- Where that money sits. An outlet that counts its kitchen, bar
+                     and store as separate sheets is not asking for one number;
+                     these are the same rows the total above is made of, so the
+                     parts always add up to it. --}}
+                @if (count($departmentValues) > 1)
+                    <div class="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+                        @foreach (array_slice($departmentValues, 0, 6) as $dept)
+                            <div>
+                                <div class="flex items-baseline justify-between gap-3 text-xs">
+                                    <span class="text-gray-600 truncate">{{ $dept['name'] }}</span>
+                                    <span class="tabular-nums font-medium text-gray-800 shrink-0">
+                                        RM {{ number_format($dept['value'], 2) }}
+                                    </span>
+                                </div>
+                                <div class="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                                    <div class="h-full rounded-full bg-brand-500"
+                                         style="width: {{ number_format(max($dept['share'], 1), 2, '.', '') }}%"></div>
+                                </div>
+                            </div>
+                        @endforeach
+                        @if (count($departmentValues) > 6)
+                            <p class="text-xs text-gray-600 pt-0.5">
+                                +{{ count($departmentValues) - 6 }} more
+                                {{ Str::plural('department', count($departmentValues) - 6) }}
+                            </p>
+                        @endif
+                    </div>
                 @endif
             </div>
         @endif

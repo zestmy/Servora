@@ -505,6 +505,67 @@ class Index extends Component
     }
 
     /**
+     * The money card, split by the department that recorded it.
+     *
+     * The card answered "how much, in this range" and stopped there — which on
+     * an outlet that counts its hot kitchen, bar and store separately is the
+     * one number nobody is asking for. The split is over exactly the same rows
+     * the card totals, so the parts always add up to the whole shown above them.
+     *
+     * @return array<int, array{name: string, value: float, share: float}>
+     */
+    private function departmentValues(): array
+    {
+        $config = $this->tabConfig();
+
+        if (! $config['dept'] || ! $config['amount']) {
+            return [];
+        }
+
+        $rows = (clone $this->filtered())
+            ->selectRaw('department_id, SUM(' . $config['amount'] . ') AS amount')
+            ->groupBy('department_id')
+            ->get();
+
+        $total = (float) $rows->sum('amount');
+
+        if ($total <= 0) {
+            return [];
+        }
+
+        $names = Department::whereIn('id', $rows->pluck('department_id')->filter())
+            ->pluck('name', 'id');
+
+        return $rows
+            ->map(fn ($row) => [
+                'name'  => $row->department_id ? ($names[$row->department_id] ?? '—') : 'No department',
+                'value' => (float) $row->amount,
+                'share' => $total > 0 ? ((float) $row->amount / $total) * 100 : 0.0,
+            ])
+            ->filter(fn ($row) => $row['value'] > 0)
+            ->sortByDesc('value')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The consolidated inventory for what the table is currently showing.
+     *
+     * The filters go over in the query string rather than being read again on
+     * the other side, so the file is of the same rows the screen is of.
+     */
+    private function consolidatedUrl(): string
+    {
+        return route('inventory.stock-takes.consolidated', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /**
      * Stock value split by category, from the most recent completed count.
      *
      * Only built on the Stock Takes tab. It loads every line of that count with
@@ -587,6 +648,8 @@ class Index extends Component
         return view('livewire.inventory.index', [
             'records'           => $records,
             'stats'             => $this->stats(),
+            'departmentValues'  => $this->departmentValues(),
+            'consolidatedUrl'   => $this->tab === 'stock-takes' ? $this->consolidatedUrl() : null,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,
             'categoryBreakdown' => $this->categoryBreakdown($latestStockTake),
