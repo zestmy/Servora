@@ -224,7 +224,7 @@
                     </thead>
                     <tbody
                            x-data
-                           x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })">
+                           x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })" wire:loading.class="opacity-60" wire:target="reorderLines,reorderPackagingLines">
                         @foreach ($lines as $idx => $line)
                             <tr wire:key="wa-line-{{ $idx }}-{{ ($line['item_type'] ?? 'i') . '-' . ($line['ingredient_id'] ?? $line['recipe_id'] ?? 'x') }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
                                 <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
@@ -243,7 +243,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.1" min="0"
-                                           wire:model.blur="lines.{{ $idx }}.quantity"
+                                           wire:model.blur="lines.{{ $idx }}.quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
@@ -256,7 +256,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="text"
-                                           wire:model.blur="lines.{{ $idx }}.reason"
+                                           wire:model.blur="lines.{{ $idx }}.reason" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                            placeholder="e.g. Expired, Spillage, Over-prep…"
                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                 </td>

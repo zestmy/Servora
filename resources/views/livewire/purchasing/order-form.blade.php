@@ -306,7 +306,7 @@
                     <tbody
                         @if ($isEditable)
                             x-data
-                            x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })"
+                            x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })" wire:loading.class="opacity-60" wire:target="reorderLines,reorderPackagingLines"
                         @endif
                     >
                         @foreach ($lines as $idx => $line)
@@ -341,7 +341,7 @@
                                 <td x-show="detailed" class="px-4 py-2">
                                     @if (floatval($line['par_level'] ?? 0) > 0)
                                         <input type="number" step="0.01" min="0"
-                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.balance"
+                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.balance" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                placeholder="0"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 bg-warning-50" />
                                     @else
@@ -352,7 +352,7 @@
                                 <td class="px-4 py-2">
                                     @if ($isEditable)
                                         <input type="number" step="1" min="1"
-                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
+                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                     @else
@@ -367,7 +367,7 @@
                                 <td x-show="detailed" class="px-4 py-2">
                                     @if ($isEditable)
                                         <input type="number" step="0.0001" min="0"
-                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.unit_cost"
+                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.unit_cost" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         <x-input-error :messages="$errors->get('lines.'.$idx.'.unit_cost')" class="mt-0.5" />
                                     @else

@@ -201,6 +201,25 @@ class StockTakeQuantityStaysOnItsRowTest extends TestCase
         }
     }
 
+    public function test_a_count_field_refuses_input_while_a_reorder_is_in_flight(): void
+    {
+        // Reordering rebuilds the rows, so a value typed while the request is
+        // out has its payload built after the morph already threw the element
+        // away: it commits empty and the keystroke is gone with no sign of it.
+        // Refusing input for those few hundred milliseconds is the difference
+        // between "not accepted" and "silently lost".
+        $html = $this->screenWithThreeRows()->html();
+
+        preg_match_all('/<input[^>]*wire:model\.blur="lines\.\d+\.(?:actual|system)_quantity"[^>]*>/', $html, $m);
+
+        $this->assertCount(6, $m[0], 'Two quantity fields per row.');
+
+        foreach ($m[0] as $input) {
+            $this->assertStringContainsString('wire:loading.attr="disabled"', $input);
+            $this->assertStringContainsString('reorderLines', $input, 'The guard must name the reorder.');
+        }
+    }
+
     public function test_reordering_refuses_a_list_that_is_not_a_permutation(): void
     {
         // The order arrives from the browser. Counting it was not enough: a list

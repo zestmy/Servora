@@ -340,7 +340,7 @@
                     <tbody
                         @if (! $isCompleted)
                             x-data
-                            x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })"
+                            x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })" wire:loading.class="opacity-60" wire:target="reorderLines,reorderPackagingLines"
                         @endif
                     >
                         @php $rowNum = 0; @endphp
@@ -411,7 +411,7 @@
                                                 <span class="block text-right tabular-nums text-gray-600">{{ number_format(floatval($line['system_quantity']), 2) }}</span>
                                             @else
                                                 <input type="number" step="0.1" min="0"
-                                                       wire:model.blur="lines.{{ $idx }}.system_quantity"
+                                                       wire:model.blur="lines.{{ $idx }}.system_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                        class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                             @endif
                                         </td>
@@ -421,7 +421,7 @@
                                             <span class="block text-right tabular-nums font-medium text-gray-800">{{ number_format(floatval($line['actual_quantity']), 2) }}</span>
                                         @else
                                             <input type="number" step="0.1" min="0"
-                                                   wire:model.blur="lines.{{ $idx }}.actual_quantity"
+                                                   wire:model.blur="lines.{{ $idx }}.actual_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 font-medium" />
                                             <x-input-error :messages="$errors->get('lines.'.$idx.'.actual_quantity')" class="mt-0.5" />
                                         @endif

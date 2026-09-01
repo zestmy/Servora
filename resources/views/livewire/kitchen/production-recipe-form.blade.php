@@ -299,7 +299,7 @@
                             </thead>
                             <tbody
                                    x-data
-                                   x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })">
+                                   x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })" wire:loading.class="opacity-60" wire:target="reorderLines,reorderPackagingLines">
                                 @foreach ($lines as $idx => $line)
                                     @php
                                         $cost     = floatval($line['unit_cost'] ?? 0);
@@ -321,11 +321,11 @@
                                         <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
                                         <td class="px-4 py-2">
                                             <input type="number" step="0.01" min="0.01"
-                                                   wire:model.live.debounce.500ms="lines.{{ $idx }}.quantity"
+                                                   wire:model.live.debounce.500ms="lines.{{ $idx }}.quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         </td>
                                         <td class="px-4 py-2">
-                                            <select wire:model.live="lines.{{ $idx }}.uom_id"
+                                            <select wire:model.live="lines.{{ $idx }}.uom_id" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                     class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
                                                 @foreach ($lineUoms as $u)
                                                     <option value="{{ $u->id }}">{{ $u->abbreviation }}</option>
@@ -334,7 +334,7 @@
                                         </td>
                                         <td class="px-4 py-2">
                                             <input type="number" step="0.1" min="0" max="100"
-                                                   wire:model.live.debounce.500ms="lines.{{ $idx }}.waste_percentage"
+                                                   wire:model.live.debounce.500ms="lines.{{ $idx }}.waste_percentage" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                    class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                         </td>
                                         <td class="px-4 py-2 text-right tabular-nums text-gray-600">

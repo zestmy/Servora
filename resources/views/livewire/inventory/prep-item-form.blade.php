@@ -452,7 +452,7 @@
                     </thead>
                     <tbody
                            x-data
-                           x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })">
+                           x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })" wire:loading.class="opacity-60" wire:target="reorderLines,reorderPackagingLines">
                         @foreach ($lines as $idx => $line)
                             <tr wire:key="pi-line-{{ $idx }}-{{ $line['ingredient_id'] }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
                                 <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
@@ -469,7 +469,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.1" min="0.0001"
-                                           wire:model.blur="lines.{{ $idx }}.quantity"
+                                           wire:model.blur="lines.{{ $idx }}.quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
@@ -483,7 +483,7 @@
                                             ? $uoms->whereIn('id', $piUomIds)->values()
                                             : $uoms;
                                     @endphp
-                                    <select wire:model.live="lines.{{ $idx }}.uom_id"
+                                    <select wire:model.live="lines.{{ $idx }}.uom_id" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                             class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
                                         @if (count($piUomIds))
                                             @foreach ($piValidUoms as $uom)
@@ -500,7 +500,7 @@
                                 <td class="px-4 py-2">
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
-                                               wire:model.blur="lines.{{ $idx }}.waste_percentage"
+                                               wire:model.blur="lines.{{ $idx }}.waste_percentage" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 pr-7" />
                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600">%</span>
                                     </div>
