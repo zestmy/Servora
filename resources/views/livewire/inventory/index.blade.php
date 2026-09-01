@@ -174,7 +174,14 @@
             @endif
         </div>
 
-        <div class="mt-3 flex flex-col lg:flex-row gap-3">
+        {{-- The row aligns its controls rather than stretching them. A flex row
+             defaults to align-items: stretch, and the date pair below wrapped to
+             two lines when it ran out of room — so every sibling grew to match
+             it and the search box and both selects rendered as tall empty boxes.
+             The dates are capped and told not to wrap from lg, which stops the
+             two-line case arising; the alignment stops it mattering if it does.
+             Mobile keeps the column layout and its full-width controls. --}}
+        <div class="mt-3 flex flex-col lg:flex-row lg:items-center gap-3">
             <input type="text" wire:model.live.debounce.300ms="search"
                    placeholder="{{ $tab === 'transfers' ? 'Search transfer number…' : ($tab === 'purchases' ? 'Search reference or supplier…' : 'Search reference number…') }}"
                    class="input flex-1" />
@@ -224,10 +231,10 @@
                  takes its cross size from the widest item — so on a 360px
                  phone the pair stretched every other filter with it and
                  pushed the page over the edge. --}}
-            <div class="flex min-w-0 flex-wrap items-center gap-1">
-                <input type="date" wire:model.live="dateFrom" class="input" aria-label="From date" />
+            <div class="flex min-w-0 flex-wrap lg:flex-nowrap items-center gap-1">
+                <input type="date" wire:model.live="dateFrom" class="input lg:w-40" aria-label="From date" />
                 <span class="text-xs text-gray-600">to</span>
-                <input type="date" wire:model.live="dateTo" class="input" aria-label="To date" />
+                <input type="date" wire:model.live="dateTo" class="input lg:w-40" aria-label="To date" />
             </div>
 
             <button wire:click="resetFilters" class="btn-ghost whitespace-nowrap">Reset</button>
@@ -291,6 +298,24 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    {{-- A finished count is a document: the PDF is for
+                                         filing, the workbook for anyone who needs to
+                                         work the numbers. Only once it is completed —
+                                         a draft is still being counted. --}}
+                                    @if ($record->status === 'completed')
+                                        <a href="{{ route('inventory.stock-takes.result', $record->id) }}"
+                                           title="Download PDF" aria-label="Download this count as PDF"
+                                           class="text-gray-500 hover:text-gray-700 transition">
+                                            <x-icon name="printer" size="h-4 w-4" />
+                                        </a>
+                                        <a href="{{ route('inventory.stock-takes.result-excel', $record->id) }}"
+                                           title="Download Excel" aria-label="Download this count as Excel"
+                                           class="text-success-600 hover:text-success-700 transition">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </a>
+                                    @endif
                                     @if ($record->status === 'draft' || $canDeleteRecords)
                                         <button wire:click="deleteStockTake({{ $record->id }})"
                                                 data-confirm-delete="{{ $record->status === 'draft' ? 'Delete this stock take? This cannot be undone.' : 'Delete this COMPLETED stock take? This cannot be undone.' }}"
