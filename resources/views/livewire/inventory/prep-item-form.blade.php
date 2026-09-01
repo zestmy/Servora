@@ -477,7 +477,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.1" min="0.0001"
-                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
+                                           wire:model.blur="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
@@ -508,7 +508,7 @@
                                 <td class="px-4 py-2">
                                     <div class="relative">
                                         <input type="number" step="0.1" min="0" max="100"
-                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.waste_percentage"
+                                               wire:model.blur="lines.{{ $idx }}.waste_percentage"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 pr-7" />
                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600">%</span>
                                     </div>

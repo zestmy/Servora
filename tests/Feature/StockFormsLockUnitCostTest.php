@@ -196,6 +196,47 @@ class StockFormsLockUnitCostTest extends TestCase
         $this->assertSame(28.45, round($stored, 4), 'An unrelated UOM prices off the base cost, not the request.');
     }
 
+    // ── Data entry must not be interrupted mid-count ─────────────────────
+
+    public function test_no_stock_form_leaves_a_hidden_control_in_the_tab_order(): void
+    {
+        foreach ([StockTakeForm::class, WastageForm::class, StaffMealForm::class, TransferForm::class] as $screen) {
+            $html = Livewire::actingAs($this->user)->test($screen)
+                ->call('addIngredient', $this->dough->id)
+                ->html();
+
+            // The row remove button only appears on hover. Focusable and invisible
+            // is how a tabbed quantity ended up on the line below — and how a
+            // keyboard user lands on an unseen control that deletes a line.
+            preg_match_all('/<button[^>]*wire:click="removeLine\([^"]*\)"[^>]*>/i', $html, $m);
+
+            $this->assertNotEmpty($m[0], $screen . ' should still offer a per-row remove.');
+
+            foreach ($m[0] as $button) {
+                $this->assertStringContainsString('tabindex="-1"', $button, $screen . ': hidden tab stop.');
+                $this->assertStringContainsString('aria-label=', $button, $screen . ': icon button with no name.');
+            }
+        }
+    }
+
+    public function test_every_stock_form_commits_a_line_on_blur_rather_than_on_a_timer(): void
+    {
+        foreach ([StockTakeForm::class, WastageForm::class, StaffMealForm::class, TransferForm::class] as $screen) {
+            $html = Livewire::actingAs($this->user)->test($screen)
+                ->call('addIngredient', $this->dough->id)
+                ->html();
+
+            // A debounce timer holds the value client-side while the table
+            // re-renders around it, and fast entry loses rows outright.
+            $this->assertStringNotContainsString(
+                'debounce.400ms="lines.',
+                $html,
+                $screen . ' still holds line input behind a debounce timer.'
+            );
+            $this->assertStringContainsString('wire:model.blur="lines.', $html, $screen);
+        }
+    }
+
     // ── And the markup no longer offers the field ────────────────────────
 
     public function test_no_stock_form_renders_an_editable_cost_input(): void

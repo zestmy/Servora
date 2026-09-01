@@ -100,7 +100,7 @@
                 </dl>
                 <div class="mt-4 pt-4 border-t border-gray-100">
                     <p class="text-xs text-gray-600 leading-relaxed">
-                        Unit cost for ingredients uses <strong>purchase price</strong>. For recipes, cost is per yield unit. Adjust if needed.
+                        Unit cost for ingredients comes from <strong>purchasing</strong>. For recipes, cost is per yield unit.
                     </p>
                 </div>
             </div>
@@ -251,7 +251,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="0.1" min="0"
-                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
+                                           wire:model.blur="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
@@ -264,7 +264,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="text"
-                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.reason"
+                                           wire:model.blur="lines.{{ $idx }}.reason"
                                            placeholder="e.g. Expired, Spillage, Over-prep…"
                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                 </td>

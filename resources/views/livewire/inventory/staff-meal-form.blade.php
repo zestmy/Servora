@@ -226,7 +226,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="number" step="1" min="0"
-                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
+                                           wire:model.blur="lines.{{ $idx }}.quantity"
                                            class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     <x-input-error :messages="$errors->get('lines.'.$idx.'.quantity')" class="mt-0.5" />
                                 </td>
@@ -239,7 +239,7 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="text"
-                                           wire:model.live.debounce.400ms="lines.{{ $idx }}.reason"
+                                           wire:model.blur="lines.{{ $idx }}.reason"
                                            placeholder="e.g. Lunch, Dinner…"
                                            class="w-full rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                 </td>

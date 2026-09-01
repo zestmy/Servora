@@ -258,7 +258,7 @@
                                 <td class="px-4 py-2">
                                     @if ($isDraft)
                                         <input type="number" step="0.01" min="0.0001"
-                                               wire:model.live.debounce.400ms="lines.{{ $idx }}.quantity"
+                                               wire:model.blur="lines.{{ $idx }}.quantity"
                                                class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     @else
                                         <span class="block text-right tabular-nums">{{ number_format(floatval($line['quantity']), 2) }}</span>
