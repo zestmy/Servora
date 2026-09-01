@@ -32,10 +32,11 @@ class StockBalancePackage extends Component
         $rows = $this->buildQuery()->get();
 
         return $this->exportCsvDownload('stock-balance-package.csv', [
-            'Ingredient', 'Code', 'Category', 'Pack Size', 'UOM', 'Purchase Price', 'Current Cost', 'Last Stock Take Qty',
+            'Ingredient', 'Code', 'Category', 'Pack Size', 'Purchase UOM', 'Purchase Price',
+            'Current Cost', 'Last Stock Take Qty', 'Counted In',
         ], $rows->map(fn ($r) => [
             $r->name, $r->code, $r->category_name, $r->pack_size, $r->uom,
-            $r->purchase_price, $r->current_cost, $r->last_qty,
+            $r->purchase_price, $r->current_cost, $r->last_qty, $r->last_qty_uom,
         ])->toArray());
     }
 
@@ -90,6 +91,12 @@ class StockBalancePackage extends Component
                 'ic.name as category_name',
                 'u.abbreviation as uom',
                 'stl.actual_quantity as last_qty',
+                // The unit the COUNT was recorded in, which is not the unit the
+                // item is bought in. Pack size, purchase price and current cost
+                // are all per purchase unit, so the quantity sitting among them
+                // with no unit of its own read as though it shared theirs: 3,860
+                // next to "kg" is 3,860 grams.
+                'cu.abbreviation as last_qty_uom',
             ])
             ->leftJoin('ingredient_categories as ic', 'ic.id', '=', 'ingredients.ingredient_category_id')
             ->leftJoin('units_of_measure as u', 'u.id', '=', 'ingredients.base_uom_id')
@@ -97,6 +104,7 @@ class StockBalancePackage extends Component
                 $join->on('lst.ingredient_id', '=', 'ingredients.id')
             )
             ->leftJoin('stock_take_lines as stl', 'stl.id', '=', 'lst.max_id')
+            ->leftJoin('units_of_measure as cu', 'cu.id', '=', 'stl.uom_id')
             ->where('ingredients.is_active', true);
 
         if ($this->categoryFilter) {

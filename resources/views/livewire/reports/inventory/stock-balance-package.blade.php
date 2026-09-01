@@ -49,7 +49,7 @@
                     <th class="px-4 py-3 text-left">Code</th>
                     <th class="px-4 py-3 text-left">Category</th>
                     <th class="px-4 py-3 text-right">Pack Size</th>
-                    <th class="px-4 py-3 text-left">UOM</th>
+                    <th class="px-4 py-3 text-left">Purchase UOM</th>
                     <th class="px-4 py-3 text-right">Purchase Price</th>
                     <th class="px-4 py-3 text-right">Current Cost</th>
                     <th class="px-4 py-3 text-right">Last ST Qty</th>
@@ -65,8 +65,19 @@
                         <td class="px-4 py-3 text-gray-600">{{ $item->uom ?? '-' }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($item->purchase_price, 4) }}</td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-700">{{ number_format($item->current_cost, 4) }}</td>
+                        {{-- The quantity carries its own unit. It is counted in the
+                             recipe uom while everything to its left — pack size,
+                             purchase price, current cost — is per purchase unit, so
+                             an unlabelled number here read as though it shared theirs. --}}
                         <td class="px-4 py-3 text-right tabular-nums font-medium {{ ($item->last_qty ?? 0) > 0 ? 'text-gray-800' : 'text-gray-600' }}">
-                            {{ $item->last_qty !== null ? number_format($item->last_qty, 2) : '-' }}
+                            @if ($item->last_qty !== null)
+                                {{ number_format($item->last_qty, 2) }}
+                                @if ($item->last_qty_uom)
+                                    <span class="text-xs font-normal text-gray-600">{{ $item->last_qty_uom }}</span>
+                                @endif
+                            @else
+                                -
+                            @endif
                         </td>
                     </tr>
                 @empty
