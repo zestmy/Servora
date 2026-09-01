@@ -174,6 +174,70 @@ class StockTakeQuantityStaysOnItsRowTest extends TestCase
         $this->assertStringNotContainsString('debounce.400ms="lines.0.actual_quantity"', $html);
     }
 
+    // ── Drag to reorder ──────────────────────────────────────────────────
+
+    public function test_a_row_key_carries_the_position_its_inputs_are_bound_to(): void
+    {
+        // The inputs bind by array position (lines.N.actual_quantity), so a row
+        // that survives a reorder keeps its element while its binding path moves
+        // underneath it. Livewire then holds two paths for one input: typing 44
+        // into one row went out as lines.1, lines.3 AND lines.5 at once, and
+        // three counts were overwritten. Naming the position in the key means a
+        // reordered row is rebuilt rather than rebound.
+        $html = $this->screenWithThreeRows()->html();
+
+        preg_match_all('/wire:key="st-line-([^"]+)"/', $html, $keys);
+        preg_match_all('/wire:model\.blur="lines\.(\d+)\.actual_quantity"/', $html, $binds);
+
+        $this->assertCount(3, $keys[1]);
+        $this->assertSame($keys[1], array_values(array_unique($keys[1])), 'Row keys must be distinct.');
+
+        foreach ($binds[1] as $i => $index) {
+            $this->assertStringStartsWith(
+                $index . '-',
+                $keys[1][$i],
+                "Row {$i} binds to lines.{$index} but its key does not name that position."
+            );
+        }
+    }
+
+    public function test_reordering_refuses_a_list_that_is_not_a_permutation(): void
+    {
+        // The order arrives from the browser. Counting it was not enough: a list
+        // naming one row twice and another not at all is the same length, so it
+        // passed — storing one count under two items and losing a third.
+        $component = $this->screenWithThreeRows()
+            ->set('lines.0.actual_quantity', '5')
+            ->set('lines.1.actual_quantity', '6')
+            ->set('lines.2.actual_quantity', '7');
+
+        $before = collect($component->get('lines'))
+            ->map(fn ($l) => $l['ingredient_name'] . '=' . $l['actual_quantity'])->all();
+
+        $component->call('reorderLines', ['0', '0', '2']);   // 1 missing, 0 twice
+
+        $after = collect($component->get('lines'))
+            ->map(fn ($l) => $l['ingredient_name'] . '=' . $l['actual_quantity'])->all();
+
+        $this->assertSame($before, $after, 'A malformed order must leave the lines alone.');
+    }
+
+    public function test_a_genuine_reorder_moves_each_row_with_its_own_count(): void
+    {
+        $component = $this->screenWithThreeRows()
+            ->set('lines.0.actual_quantity', '5')
+            ->set('lines.1.actual_quantity', '6')
+            ->set('lines.2.actual_quantity', '7');
+
+        $component->call('reorderLines', ['2', '0', '1']);
+
+        $this->assertSame(
+            ['CARROT=7', 'APPLE=5', 'BUTTER=6'],
+            collect($component->get('lines'))
+                ->map(fn ($l) => $l['ingredient_name'] . '=' . floatval($l['actual_quantity']))->all()
+        );
+    }
+
     // ── The server half ──────────────────────────────────────────────────
 
     public function test_typing_a_quantity_leaves_the_other_rows_alone(): void

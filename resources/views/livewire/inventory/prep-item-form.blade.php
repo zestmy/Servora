@@ -452,15 +452,7 @@
                     </thead>
                     <tbody
                            x-data
-                           x-init="new Sortable($el, {
-                               handle: '.line-drag-handle',
-                               animation: 150,
-                               ghostClass: 'bg-brand-50',
-                               onEnd: () => {
-                                   const idxs = Array.from($el.querySelectorAll('tr[data-idx]')).map(tr => tr.dataset.idx);
-                                   $wire.reorderLines(idxs);
-                               }
-                           })">
+                           x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })">
                         @foreach ($lines as $idx => $line)
                             <tr wire:key="pi-line-{{ $idx }}-{{ $line['ingredient_id'] }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group">
                                 <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">

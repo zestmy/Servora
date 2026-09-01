@@ -140,3 +140,62 @@ document.addEventListener('click', (event) => {
     event.preventDefault();
     window.history.back();
 });
+
+/**
+ * Drag-to-reorder rows that Livewire owns.
+ *
+ * Sortable moves DOM nodes. Livewire owns those nodes and keeps its own map of
+ * which element is bound to which property, so a drag pulls the rows out from
+ * under it: type into a row afterwards and Livewire writes that one value into
+ * several lines at once. Seen on a stock take as 77 typed into one row and
+ * sent as lines.0, lines.1, lines.2 and lines.3 all at once, wiping three
+ * counts — a stock take is a document of record, so a count landing on the
+ * wrong item is not a cosmetic bug.
+ *
+ * The fix is to stop the two of them fighting over the same DOM. Read the order
+ * the drag produced, put the rows back exactly as they were, and hand the order
+ * to the server — the re-render is then the only thing that ever moves a row,
+ * which is the state Livewire's bindings assume.
+ *
+ * Usage from a blade:
+ *   x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })"
+ */
+window.sortableRows = (el, options = {}) => {
+    const {
+        handle   = '.line-drag-handle',
+        filter   = '.sortable-skip',
+        selector = 'tr[data-idx]',
+        value    = (row) => row.dataset.idx,
+        commit,
+    } = options;
+
+    if (! window.Sortable || ! el || typeof commit !== 'function') return;
+
+    // Where the dragged row sat before it moved, so it can be put back. Held as
+    // a node rather than an index: insertBefore(node, null) appends, which is
+    // exactly right when the row started last.
+    let returnBefore = null;
+
+    return new window.Sortable(el, {
+        handle,
+        filter,
+        preventOnFilter: false,
+        animation: 150,
+        ghostClass: 'bg-brand-50',
+
+        onStart: (event) => {
+            returnBefore = event.item.nextSibling;
+        },
+
+        onEnd: (event) => {
+            const order = Array.from(el.querySelectorAll(selector)).map(value);
+
+            // Undo the drag before telling the server. The row visibly stays put
+            // for the one frame it takes the re-render to come back and place it.
+            event.item.parentNode.insertBefore(event.item, returnBefore);
+            returnBefore = null;
+
+            commit(order);
+        },
+    });
+};

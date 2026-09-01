@@ -340,17 +340,7 @@
                     <tbody
                         @if (! $isCompleted)
                             x-data
-                            x-init="new Sortable($el, {
-                                handle: '.line-drag-handle',
-                                filter: '.sortable-skip',
-                                preventOnFilter: false,
-                                animation: 150,
-                                ghostClass: 'bg-brand-50',
-                                onEnd: () => {
-                                    const idxs = Array.from($el.querySelectorAll('tr[data-idx]')).map(tr => tr.dataset.idx);
-                                    $wire.reorderLines(idxs);
-                                }
-                            })"
+                            x-init="window.sortableRows($el, { commit: (order) => $wire.reorderLines(order) })"
                         @endif
                     >
                         @php $rowNum = 0; @endphp
@@ -397,7 +387,7 @@
                                     $varColor     = $variance > 0 ? 'text-success-600' : ($variance < 0 ? 'text-danger-500' : 'text-gray-600');
                                     $rowNum++;
                                 @endphp
-                                <tr wire:key="st-line-{{ $line['ingredient_id'] ?? $idx }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group border-t border-gray-50">
+                                <tr wire:key="st-line-{{ $idx }}-{{ $line['ingredient_id'] ?? 'x' }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition group border-t border-gray-50">
                                     @if (! $isCompleted)
                                         <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
                                             <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>

@@ -140,16 +140,36 @@ class StockTakeForm extends Component
     /** Reorder lines by new sequence of indexes (from drag-drop). */
     public function reorderLines(array $orderedIndexes): void
     {
+        // Every line exactly once, or leave the order alone.
+        //
+        // Counting the result was not enough: a list that names one row twice
+        // and another not at all is the same length, so it passed — and stored
+        // one count under two items while losing a third. The order arrives
+        // from the browser and only ever reorders; it is not a place to accept
+        // a set of rows different from the one we hold.
+        if (! $this->lines) {
+            return;
+        }
+
+        $wanted = array_map('intval', $orderedIndexes);
+
+        if (array_keys($this->lines) !== range(0, count($this->lines) - 1)) {
+            $this->lines = array_values($this->lines);
+        }
+
+        $existing = range(0, count($this->lines) - 1);
+
+        sort($wanted);
+        if ($wanted !== $existing) {
+            return;
+        }
+
         $ordered = [];
         foreach ($orderedIndexes as $idx) {
-            $idx = (int) $idx;
-            if (isset($this->lines[$idx])) {
-                $ordered[] = $this->lines[$idx];
-            }
+            $ordered[] = $this->lines[(int) $idx];
         }
-        if (count($ordered) === count($this->lines)) {
-            $this->lines = $ordered;
-        }
+
+        $this->lines = $ordered;
     }
 
     // ── Add ingredient from search ────────────────────────────────────────
