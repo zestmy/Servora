@@ -8,6 +8,7 @@ use Livewire\Component;
 
 class FormTemplates extends Component
 {
+    public string $search      = '';
     public string $typeFilter  = '';
     public bool   $showModal   = false;
     public ?int   $editingId   = null;
@@ -17,6 +18,22 @@ class FormTemplates extends Component
     public string $description = '';
     public bool   $is_active   = true;
     public string $sort_order  = '0';
+
+    protected $queryString = [
+        'search'     => ['except' => ''],
+        'typeFilter' => ['except' => '', 'as' => 'type'],
+    ];
+
+    public function clearSearch(): void
+    {
+        $this->search = '';
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search     = '';
+        $this->typeFilter = '';
+    }
 
     protected function rules(): array
     {
@@ -100,6 +117,13 @@ class FormTemplates extends Component
     {
         $templates = FormTemplate::withCount('lines')
             ->when($this->typeFilter, fn ($q) => $q->where('form_type', $this->typeFilter))
+            ->when(trim($this->search), function ($q) {
+                $term = '%' . trim($this->search) . '%';
+                $q->where(fn ($sub) => $sub
+                    ->where('name', 'like', $term)
+                    ->orWhere('description', 'like', $term)
+                );
+            })
             ->ordered()
             ->get();
 

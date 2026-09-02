@@ -36,14 +36,33 @@
         Each section (Bar, Kitchen, Pastry, etc.) can have its own template for faster data entry.
     </div>
 
-    {{-- Type filter tabs --}}
-    <div class="seg mb-4">
-        @foreach (['' => 'All', 'stock_take' => 'Stock Take', 'purchase_order' => 'Purchase Order', 'wastage' => 'Wastage'] as $val => $label)
-            <button wire:click="$set('typeFilter', '{{ $val }}')"
-                    class="seg-item {{ $typeFilter === $val ? 'seg-item-on' : '' }}">
-                {{ $label }}
-            </button>
-        @endforeach
+    {{-- Filter strip: type tabs + name/description search --}}
+    <div class="toolbar mb-4">
+        <div class="seg">
+            @foreach (['' => 'All', 'stock_take' => 'Stock Take', 'purchase_order' => 'Purchase Order', 'wastage' => 'Wastage'] as $val => $label)
+                <button wire:click="$set('typeFilter', '{{ $val }}')"
+                        class="seg-item {{ $typeFilter === $val ? 'seg-item-on' : '' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
+
+        <div class="relative flex-1 min-w-[200px]">
+            <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <x-icon name="magnifier" size="h-4 w-4" class="text-gray-500" />
+            </div>
+            <input type="text" wire:model.live.debounce.300ms="search"
+                   placeholder="Search templates by name or description..."
+                   aria-label="Search templates"
+                   class="input pl-9 {{ $search !== '' ? 'pr-10' : 'pr-4' }} py-2" />
+            @if ($search !== '')
+                <button type="button" wire:click="clearSearch"
+                        aria-label="Clear search"
+                        class="absolute inset-y-0 right-2 flex items-center px-1 text-gray-500 hover:text-gray-800 transition">
+                    &#10005;
+                </button>
+            @endif
+        </div>
     </div>
 
     {{-- Templates table — horizontally scrollable on mobile. --}}
@@ -123,12 +142,21 @@
         @else
             <div class="py-16 text-center text-gray-600">
                 <p class="text-4xl mb-3">📋</p>
-                <p class="font-medium text-gray-500">No templates yet</p>
-                <p class="text-xs mt-1">Create a template to pre-define item lists for stock takes, orders, or wastage entries.</p>
-                <button wire:click="openCreate"
-                        class="btn-primary mt-4">
-                    Create First Template
-                </button>
+                @if ($search !== '' || $typeFilter !== '')
+                    <p class="font-medium text-gray-500">No templates match your search</p>
+                    <p class="text-xs mt-1">Try a different name, or clear the filters to see every template.</p>
+                    <button wire:click="clearFilters"
+                            class="btn-secondary mt-4">
+                        Clear Filters
+                    </button>
+                @else
+                    <p class="font-medium text-gray-500">No templates yet</p>
+                    <p class="text-xs mt-1">Create a template to pre-define item lists for stock takes, orders, or wastage entries.</p>
+                    <button wire:click="openCreate"
+                            class="btn-primary mt-4">
+                        Create First Template
+                    </button>
+                @endif
             </div>
         @endif
     </div>
