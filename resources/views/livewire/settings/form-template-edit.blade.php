@@ -237,12 +237,46 @@
                 </div>
 
                 {{-- Lines table --}}
+                @php $filtering = trim($lineFilter) !== ''; @endphp
+
                 @if (count($lines))
+                    {{-- Filter the items already in this template. Distinct from
+                         the box above, which searches the catalogue to ADD items. --}}
+                    <div class="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                        <div class="relative flex-1 min-w-[200px]">
+                            <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                <x-icon name="magnifier" size="h-4 w-4" class="text-gray-500" />
+                            </div>
+                            <input type="text"
+                                   wire:model.live.debounce.300ms="lineFilter"
+                                   placeholder="Filter the {{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }} in this template&hellip;"
+                                   aria-label="Filter items in this template"
+                                   class="input pl-9 {{ $filtering ? 'pr-10' : 'pr-4' }} py-2" />
+                            @if ($filtering)
+                                <button type="button" wire:click="clearLineFilter"
+                                        aria-label="Clear filter"
+                                        class="absolute inset-y-0 right-2 flex items-center px-1 text-gray-500 hover:text-gray-800 transition">
+                                    &#10005;
+                                </button>
+                            @endif
+                        </div>
+                        @if ($filtering)
+                            <p class="text-xs text-gray-600">
+                                Showing <span class="font-semibold text-gray-800">{{ count($visibleLines) }}</span> of {{ count($lines) }}.
+                                Clear the filter to reorder.
+                            </p>
+                        @endif
+                    </div>
+                @endif
+
+                @if (count($visibleLines))
                     <div class="overflow-x-auto">
                         <table class="table-surface min-w-full">
                             <thead>
                                 <tr>
-                                    <th class="px-2 py-2 w-6"></th>
+                                    @unless ($filtering)
+                                        <th class="px-2 py-2 w-6"></th>
+                                    @endunless
                                     <th class="px-4 py-2 text-left w-8">#</th>
                                     <th class="px-4 py-2 text-left">Item</th>
                                     <th class="px-4 py-2 text-left w-16">UOM</th>
@@ -251,14 +285,18 @@
                                 </tr>
                             </thead>
                             <tbody
-                                   x-data
-                                   x-init="window.sortableRows($el, { value: (row) => row.dataset.id, selector: 'tr[data-id]', commit: (order) => $wire.reorderLines(order) })">
-                                @foreach ($lines as $idx => $line)
+                                   @unless ($filtering)
+                                       x-data
+                                       x-init="window.sortableRows($el, { value: (row) => row.dataset.id, selector: 'tr[data-id]', commit: (order) => $wire.reorderLines(order) })"
+                                   @endunless>
+                                @foreach ($visibleLines as $line)
                                     <tr wire:key="ft-line-{{ $line['id'] }}" data-id="{{ $line['id'] }}" class="hover:bg-gray-50 transition group">
-                                        <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
-                                            <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
-                                        </td>
-                                        <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
+                                        @unless ($filtering)
+                                            <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
+                                                <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+                                            </td>
+                                        @endunless
+                                        <td class="px-4 py-2 text-gray-600 text-xs">{{ $line['position'] }}</td>
                                         <td class="px-4 py-2">
                                             <div class="flex items-center gap-2">
                                                 <span class="font-medium text-gray-800">{{ $line['item_name'] }}</span>
@@ -290,6 +328,15 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+                @elseif ($filtering)
+                    <div class="py-12 text-center text-gray-600">
+                        <p class="text-3xl mb-2">🔍</p>
+                        <p class="font-medium">Nothing in this template matches &ldquo;{{ $lineFilter }}&rdquo;</p>
+                        <p class="text-xs mt-1">It may not have been added yet &mdash; the search box at the top adds new items.</p>
+                        <button type="button" wire:click="clearLineFilter" class="btn-secondary mt-4">
+                            Clear Filter
+                        </button>
                     </div>
                 @else
                     <div class="py-12 text-center text-gray-600">

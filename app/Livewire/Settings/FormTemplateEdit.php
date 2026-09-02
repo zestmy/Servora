@@ -29,8 +29,11 @@ class FormTemplateEdit extends Component
     // Lines loaded from DB (keyed by line ID for easy update/remove)
     public array  $lines       = [];
 
-    // Search
+    // Search box that ADDS items to the template
     public string $itemSearch  = '';
+
+    // Filter over the items already IN the template
+    public string $lineFilter  = '';
 
     public function mount(?int $id = null): void
     {
@@ -271,6 +274,41 @@ class FormTemplateEdit extends Component
         $this->itemSearch = '';
     }
 
+    public function clearLineFilter(): void
+    {
+        $this->lineFilter = '';
+    }
+
+    /**
+     * The lines to render, each carrying the position it holds in the FULL
+     * template.
+     *
+     * The number in the # column is the item's place in the count sheet, not
+     * its place in whatever the filter happens to be showing — renumbering it
+     * 1..n per filtered view would have the screen state a running order that
+     * nothing will ever print.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function visibleLines(): array
+    {
+        $rows = [];
+        foreach ($this->lines as $i => $line) {
+            $line['position'] = $i + 1;
+            $rows[] = $line;
+        }
+
+        $term = trim($this->lineFilter);
+        if ($term === '') {
+            return $rows;
+        }
+
+        return array_values(array_filter(
+            $rows,
+            fn ($l) => mb_stripos((string) $l['item_name'], $term) !== false
+        ));
+    }
+
     public function removeLine(int $lineId): void
     {
         FormTemplateLine::destroy($lineId);
@@ -296,6 +334,15 @@ class FormTemplateEdit extends Component
 
     public function reorderLines(array $orderedIds): void
     {
+        // A drop while the list is filtered would hand us only the rows on
+        // screen, and every one of them would be renumbered 0..n — landing the
+        // three visible items on top of positions already held by items the
+        // filter is hiding. The handles are not rendered while a filter is on;
+        // this is the half of that guard the browser cannot be trusted with.
+        if (trim($this->lineFilter) !== '') {
+            return;
+        }
+
         $ids = array_map('intval', $orderedIds);
 
         foreach ($ids as $idx => $id) {
@@ -375,7 +422,9 @@ class FormTemplateEdit extends Component
         $departments = Department::active()->ordered()->get();
         $categories  = IngredientCategory::roots()->with('children')->active()->ordered()->get();
 
-        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments', 'categories'))
+        $visibleLines = $this->visibleLines();
+
+        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments', 'categories', 'visibleLines'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Edit Template: ' . $this->name]);
     }
 }
