@@ -578,6 +578,27 @@ class Index extends Component
     }
 
     /**
+     * Purchases by supplier, for the rows the table is currently showing.
+     *
+     * Same trick as consolidatedUrl(): the filters travel in the query string
+     * rather than being read again on the other side, so the summary is of the
+     * same purchases the screen is of. The supplier filter goes over too — a
+     * one-supplier report is a perfectly reasonable thing to want, and leaving
+     * it behind would hand back a file wider than the screen that asked for it.
+     */
+    private function supplierSummaryUrl(): string
+    {
+        return route('inventory.purchases.supplier-summary', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'supplier'   => $this->supplierFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /**
      * Stock value split by category, from the most recent completed count.
      *
      * Only built on the Stock Takes tab. It loads every line of that count with
@@ -662,6 +683,7 @@ class Index extends Component
             'stats'             => $this->stats(),
             'departmentValues'  => $this->departmentValues(),
             'consolidatedUrl'   => $this->tab === 'stock-takes' ? $this->consolidatedUrl() : null,
+            'supplierSummaryUrl'=> $this->tab === 'purchases' ? $this->supplierSummaryUrl() : null,
             'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,

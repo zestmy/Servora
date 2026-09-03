@@ -49,6 +49,15 @@
                     <a href="{{ route('inventory.transfers.create') }}" class="btn-primary">+ New Transfer</a>
                 @endcanDo
             @elseif ($tab === 'purchases')
+                {{-- Who we are actually paying, over whatever the filters are
+                     currently showing. Hidden on an empty range rather than
+                     handing back a page of zeroes. --}}
+                @if ($supplierSummaryUrl && $records->total() > 0)
+                    <a href="{{ $supplierSummaryUrl }}" class="btn-secondary">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Purchases by Supplier
+                    </a>
+                @endif
                 @canDo('inventory.purchases.record')
                     <a href="{{ route('inventory.purchases.create') }}" class="btn-primary">+ Record Purchase</a>
                 @endcanDo

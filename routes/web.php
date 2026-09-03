@@ -317,6 +317,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/transfers/create', TransferForm::class)->name('inventory.transfers.create')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/purchases/create', PurchaseCaptureForm::class)->name('inventory.purchases.create')->middleware('can:inventory.purchases.record');
+    // Above the {id} route on purpose: "supplier-summary" is a valid {id} as far
+    // as the router is concerned, and registered the other way round this would
+    // open the capture form on a record that does not exist.
+    Route::get('/inventory/purchases/supplier-summary', \App\Http\Controllers\PurchaseSupplierSummaryController::class)->name('inventory.purchases.supplier-summary')->middleware('can:inventory.view');
     Route::get('/inventory/purchases/{id}', PurchaseCaptureForm::class)->name('inventory.purchases.show')->middleware('can:inventory.purchases.record');
     Route::get('/reports', \App\Livewire\Reports\Hub::class)->name('reports.hub')->middleware('can:reports.view');
     Route::get('/reports/cost-summary', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');
