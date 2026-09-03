@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Outlet;
 use App\Models\PurchaseCapture;
 use App\Models\Supplier;
+use App\Services\PurchaseSupplierBreakdown;
 use App\Traits\ScopesToActiveOutlet;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,26 +32,6 @@ use Illuminate\Support\Facades\Auth;
 class PurchaseSupplierSummaryController extends Controller
 {
     use ScopesToActiveOutlet;
-
-    /**
-     * Series colours for the charts.
-     *
-     * Hex, because a PDF is rendered by dompdf and never sees a Tailwind class —
-     * this is the one place the palette cannot come from `tailwind.config.js`.
-     * It opens on the brand teal and then walks deliberately AWAY from the
-     * semantic hues: no green, amber or red, because on a spend chart those read
-     * as "good", "watch" and "over budget" rather than as "supplier 4".
-     */
-    private const SERIES = [
-        '#0b7677', '#43bdb8', '#1d4ed8', '#7c3aed', '#0891b2',
-        '#be185d', '#4338ca', '#0f766e', '#6d28d9', '#155e75',
-    ];
-
-    /** Everything past the tenth supplier is drawn as one grey band. */
-    private const OTHER_COLOR = '#94a3b8';
-
-    /** Suppliers drawn in their own colour before the rest becomes "Other". */
-    private const CHART_SLICES = 10;
 
     /**
      * Purchases listed under each supplier before the block says "+N more".
@@ -164,66 +145,16 @@ class PurchaseSupplierSummaryController extends Controller
     /**
      * Spend per supplier, biggest first.
      *
-     * Grouped in SQL on the two columns a purchase can name a supplier with, so
-     * the totals hold however many rows the range covers. A capture either
-     * points at a Supplier record or carries a typed name, and the same vendor
-     * can arrive both ways — so the SQL groups are merged in PHP on the name,
-     * which is what the reader recognises. Only MIN/MAX/SUM/COUNT are used: no
-     * date functions, because those are the part that differs between MySQL in
-     * production and SQLite under test.
+     * The grouping itself — merging a linked Supplier and a hand-typed name
+     * for the same vendor into one row — lives in PurchaseSupplierBreakdown,
+     * shared with the interactive chart on the Purchases tab, so the export
+     * and the screen can never disagree about who a company is paying.
      *
      * @return array<int, array<string, mixed>>
      */
     private function bySupplier(Builder $query): array
     {
-        $rows = $query
-            ->selectRaw('supplier_id, supplier_name, COUNT(*) AS purchases, SUM(amount) AS spend, MIN(purchase_date) AS first_at, MAX(purchase_date) AS last_at')
-            ->groupBy('supplier_id', 'supplier_name')
-            ->get();
-
-        $names = Supplier::whereIn('id', $rows->pluck('supplier_id')->filter()->unique())
-            ->pluck('name', 'id');
-
-        $merged = [];
-
-        foreach ($rows as $row) {
-            $name = $row->supplier_id
-                ? ($names[$row->supplier_id] ?? trim((string) $row->supplier_name))
-                : trim((string) $row->supplier_name);
-
-            $name = $name !== '' ? $name : 'Unspecified supplier';
-            $key  = mb_strtolower($name);
-
-            $merged[$key] ??= [
-                'name'        => $name,
-                'supplier_id' => $row->supplier_id,
-                'purchases'   => 0,
-                'spend'       => 0.0,
-                'first_at'    => (string) $row->first_at,
-                'last_at'     => (string) $row->last_at,
-            ];
-
-            $merged[$key]['purchases'] += (int) $row->purchases;
-            $merged[$key]['spend']     += (float) $row->spend;
-            $merged[$key]['first_at']  = min($merged[$key]['first_at'], (string) $row->first_at);
-            $merged[$key]['last_at']   = max($merged[$key]['last_at'], (string) $row->last_at);
-        }
-
-        $total = array_sum(array_column($merged, 'spend'));
-
-        return collect($merged)
-            ->sortByDesc('spend')
-            ->values()
-            ->map(function (array $row, int $i) use ($total) {
-                $row['rank']    = $i + 1;
-                $row['anchor']  = 'supplier-' . ($i + 1);
-                $row['share']   = $total > 0 ? ($row['spend'] / $total) * 100 : 0.0;
-                $row['average'] = $row['purchases'] > 0 ? $row['spend'] / $row['purchases'] : 0.0;
-                $row['color']   = $i < self::CHART_SLICES ? self::SERIES[$i] : self::OTHER_COLOR;
-
-                return $row;
-            })
-            ->all();
+        return app(PurchaseSupplierBreakdown::class)->summarize($query);
     }
 
     /**

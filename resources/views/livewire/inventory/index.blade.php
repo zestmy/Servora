@@ -250,6 +250,129 @@
         </div>
     </div>
 
+    {{-- ── Purchases by Supplier — interactive chart ───────────────────────
+         Screen counterpart to the "Purchases by Supplier" PDF: same grouping
+         (PurchaseSupplierBreakdown), same colours, but hoverable and — unlike
+         anything a PDF can offer — clickable. A bar for a linked supplier sets
+         supplierFilter, the same property the dropdown above already drives;
+         a hand-typed vendor has no id to filter by, so its bar sets the search
+         box instead. The "Other" bar folds two or more suppliers together and
+         carries neither, so clicking it does nothing — there is no one
+         supplier for it to narrow the table to. --}}
+    @if ($tab === 'purchases' && count($supplierChartData['labels']) > 0)
+        @once
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+        @endonce
+
+        <div class="card p-5 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-800">Purchases by Supplier</h2>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                        {{ $stats['rangeLabel'] }} · click a bar to filter the table below
+                    </p>
+                </div>
+                @if ($supplierFilter !== '')
+                    <button wire:click="$set('supplierFilter', '')" class="text-xs text-brand-600 hover:text-brand-700 font-medium whitespace-nowrap">
+                        Clear supplier filter ✕
+                    </button>
+                @endif
+            </div>
+
+            {{-- Keyed on the data (which already changes with every filter) plus
+                 the two properties a bar-click can set but that are not
+                 themselves part of the chart's own data shape — otherwise a
+                 click that sets supplierFilter to a value the chart's OWN data
+                 hash does not depend on would leave Alpine's stale closure
+                 pointing at the pre-click $wire state for the highlight below. --}}
+            <div class="relative"
+                 style="height: {{ max(160, count($supplierChartData['labels']) * 34 + 20) }}px"
+                 wire:key="supplier-chart-{{ md5(json_encode($supplierChartData)) }}-{{ $supplierFilter }}"
+                 x-data="{
+                    chartInstance: null,
+                    init() {
+                        // Livewire/Alpine can process this element's x-init more
+                        // than once during the same boot — reliably, on a cold
+                        // load, before any interaction — without an intervening
+                        // teardown. Chart.js refuses a second instance on a
+                        // canvas that already has one, so any survivor from an
+                        // earlier pass is destroyed first rather than trusting
+                        // init() to run exactly once.
+                        const already = Chart.getChart(this.$refs.canvas);
+                        if (already) { already.destroy(); }
+
+                        const data = @js($supplierChartData);
+                        const activeSupplierId = @js($supplierFilter !== '' ? (int) $supplierFilter : null);
+                        const ctx = this.$refs.canvas.getContext('2d');
+                        this.chartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    data: data.spend,
+                                    backgroundColor: data.colors,
+                                    borderRadius: 3,
+                                    borderWidth: data.supplierIds.map(id => activeSupplierId !== null && id === activeSupplierId ? 2 : 0),
+                                    borderColor: '#0f172a',
+                                    barThickness: 20,
+                                }],
+                            },
+                            options: {
+                                indexAxis: 'y',
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                onClick: (evt, elements) => {
+                                    if (!elements.length) return;
+                                    const i = elements[0].index;
+                                    const supplierId = data.supplierIds[i];
+                                    const name = data.names[i];
+                                    if (supplierId === null && name === null) return;
+                                    this.$wire.filterBySupplier(supplierId, name);
+                                },
+                                onHover: (evt, elements) => {
+                                    evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                                },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label(item) {
+                                                const i = item.dataIndex;
+                                                const share = data.shares[i];
+                                                const buys = data.purchases[i];
+                                                const amount = item.parsed.x.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                return [
+                                                    'RM ' + amount + '  (' + share + '% of spend)',
+                                                    buys + ' ' + (buys === 1 ? 'purchase' : 'purchases'),
+                                                ];
+                                            },
+                                        },
+                                    },
+                                },
+                                scales: {
+                                    x: {
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(0,0,0,0.05)' },
+                                        ticks: {
+                                            font: { size: 10 },
+                                            callback: v => 'RM ' + v.toLocaleString(),
+                                        },
+                                    },
+                                    y: {
+                                        grid: { display: false },
+                                        ticks: { font: { size: 10.5 } },
+                                    },
+                                },
+                            },
+                        });
+                    },
+                 }"
+                 x-init="init()">
+                <canvas x-ref="canvas"></canvas>
+            </div>
+        </div>
+    @endif
+
     {{-- Prep Items tab removed — now under Recipes --}}
 
     {{-- ── Stock Takes Tab ───────────────────────────────────────────────── --}}

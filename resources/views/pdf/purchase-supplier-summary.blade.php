@@ -82,7 +82,7 @@
             </td>
             <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #7c3aed; padding: 7px 10px;">
                 <div style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">Biggest supplier</div>
-                <div style="font-size: 10pt; font-weight: bold; color: #0f172a; line-height: 1.2;">{{ \Illuminate\Support\Str::limit($totals['topName'], 24) }}</div>
+                <div style="font-size: 10pt; font-weight: bold; color: #0f172a; line-height: 1.25;">{{ $totals['topName'] }}</div>
                 <div style="font-size: 7.5pt; color: #94a3b8;">{{ $money($totals['topSpend']) }} &middot; {{ $pct($totals['topShare']) }}</div>
             </td>
         </tr>
@@ -130,7 +130,7 @@
                                     <div style="width: 9px; height: 9px; background: {{ $s['color'] }};"></div>
                                 </td>
                                 <td style="vertical-align: top;">
-                                    <a href="#{{ $s['anchor'] }}" style="color: #334155; text-decoration: none;">{{ \Illuminate\Support\Str::limit($s['name'], 20) }}</a>
+                                    <a href="#{{ $s['anchor'] }}" style="color: #334155; text-decoration: none;">{{ $s['name'] }}</a>
                                     <div style="color: #94a3b8;">{{ $pct($s['share']) }}</div>
                                 </td>
                             </tr></table>
@@ -160,23 +160,33 @@
         {{-- ═══ Chart 2 — spend per supplier ═════════════════════════════ --}}
         <div class="section-header">Spend per supplier</div>
 
+        {{-- Column widths are percentages, not pixels — under dompdf's
+             table-layout: fixed, an absolute px width on a cell is silently
+             discarded during column sizing (its own reflower substitutes 0
+             for it) while a percentage width is read and honoured correctly.
+             A pixel width LOOKED like it was being applied — the columns are
+             not literally equal-width — because leftover space still gets
+             divided by content weight, but the Supplier column could never
+             actually reach the number that was written on it, which is why
+             every long name kept wrapping at the same place regardless of
+             how wide that number was set. --}}
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 4px;">
             <thead>
                 <tr>
-                    <th style="width: 26px; text-align: right; padding: 0 6px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">#</th>
-                    <th style="width: 152px; text-align: left; padding: 0 6px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Supplier</th>
+                    <th style="width: 3%; text-align: left; padding: 0 6px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">#</th>
+                    <th style="width: 30%; text-align: left; padding: 0 10px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Supplier</th>
                     <th style="text-align: left; padding: 0 6px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Share of spend</th>
-                    <th style="width: 34px; text-align: right; padding: 0 6px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Buys</th>
-                    <th style="width: 74px; text-align: right; padding: 0 0 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Spend</th>
+                    <th style="width: 8%; text-align: right; padding: 0 6px 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Buys</th>
+                    <th style="width: 15%; text-align: right; padding: 0 0 4px 0; font-size: 7pt; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Spend</th>
                 </tr>
             </thead>
             <tbody>
                 @php $widest = max(0.0001, collect($suppliers)->max('share')); @endphp
                 @foreach ($suppliers as $s)
                     <tr>
-                        <td style="text-align: right; padding: 2.5px 6px 2.5px 0; font-size: 8pt; color: #94a3b8; vertical-align: middle;">{{ $s['rank'] }}</td>
-                        <td style="padding: 2.5px 6px 2.5px 0; font-size: 8pt; color: #0f172a; vertical-align: middle;">
-                            <a href="#{{ $s['anchor'] }}" style="color: #0f172a; text-decoration: none;">{{ \Illuminate\Support\Str::limit($s['name'], 22) }}</a>
+                        <td style="text-align: left; padding: 2.5px 6px 2.5px 0; font-size: 8pt; color: #94a3b8; vertical-align: middle;">{{ $s['rank'] }}</td>
+                        <td style="padding: 2.5px 10px 2.5px 0; font-size: 8pt; color: #0f172a; vertical-align: middle;">
+                            <a href="#{{ $s['anchor'] }}" style="color: #0f172a; text-decoration: none;">{{ $s['name'] }}</a>
                         </td>
                         <td style="padding: 2.5px 6px 2.5px 0; vertical-align: middle;">
                             {{-- The bar is scaled against the LARGEST supplier, not

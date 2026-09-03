@@ -13,6 +13,7 @@ use App\Models\StaffMealRecord;
 use App\Models\StockTake;
 use App\Models\Supplier;
 use App\Models\WastageRecord;
+use App\Services\PurchaseSupplierBreakdown;
 use App\Traits\ScopesToActiveOutlet;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -599,6 +600,103 @@ class Index extends Component
     }
 
     /**
+     * How many suppliers the on-screen chart draws in their own colour before
+     * folding the rest into one "Other" bar. Nine bars is what still reads at
+     * a glance; the PDF export uses the same cutoff for its ribbon and legend.
+     */
+    private const CHART_SUPPLIERS = 8;
+
+    /**
+     * Spend per supplier, shaped for the Chart.js panel on the Purchases tab.
+     *
+     * The grouping — a linked Supplier and a hand-typed name for the same
+     * vendor merged into one row — is PurchaseSupplierBreakdown, the same
+     * class the PDF export uses, so a supplier's spend on screen and in the
+     * downloaded file can never drift apart.
+     *
+     * Every bar carries what a click on it needs: a linked supplier's id
+     * (for filterBySupplier() to set supplierFilter, the same property the
+     * dropdown above the table already drives) or, for a hand-typed vendor
+     * with no id, its name (filtered via the search box instead — there is
+     * no id to filter by). The "Other" bar folds together whatever falls past
+     * the ninth supplier and carries neither, so a click on it does nothing:
+     * it is not one supplier, so there is nothing for it to narrow the table
+     * to.
+     *
+     * @return array{labels: array<int,string>, spend: array<int,float>, shares: array<int,float>, purchases: array<int,int>, colors: array<int,string>, supplierIds: array<int,?int>, names: array<int,?string>, total: float}|null
+     */
+    private function supplierChartData(): array
+    {
+        $rows = app(PurchaseSupplierBreakdown::class)->summarize(clone $this->filtered());
+
+        if (empty($rows)) {
+            return [
+                'labels' => [], 'spend' => [], 'shares' => [], 'purchases' => [],
+                'colors' => [], 'supplierIds' => [], 'names' => [], 'total' => 0.0,
+            ];
+        }
+
+        $shown = array_slice($rows, 0, self::CHART_SUPPLIERS);
+        $rest  = array_slice($rows, self::CHART_SUPPLIERS);
+
+        $labels      = array_column($shown, 'name');
+        $spend       = array_column($shown, 'spend');
+        $shares      = array_column($shown, 'share');
+        $purchases   = array_column($shown, 'purchases');
+        $colors      = array_column($shown, 'color');
+        $supplierIds = array_column($shown, 'supplier_id');
+        $names       = array_column($shown, 'name');
+
+        if (! empty($rest)) {
+            $labels[]      = count($rest) === 1 ? $rest[0]['name'] : count($rest) . ' other suppliers';
+            $spend[]       = array_sum(array_column($rest, 'spend'));
+            $shares[]      = array_sum(array_column($rest, 'share'));
+            $purchases[]   = array_sum(array_column($rest, 'purchases'));
+            $colors[]      = PurchaseSupplierBreakdown::OTHER_COLOR;
+            // A single supplier past the cutoff is still one supplier — let a
+            // click on that bar filter to it. More than one is genuinely not
+            // any single supplier, so the bar carries nothing to click into.
+            $supplierIds[] = count($rest) === 1 ? $rest[0]['supplier_id'] : null;
+            $names[]       = count($rest) === 1 ? $rest[0]['name'] : null;
+        }
+
+        return [
+            'labels'      => $labels,
+            'spend'       => array_map(fn ($v) => round($v, 2), $spend),
+            'shares'      => array_map(fn ($v) => round($v, 1), $shares),
+            'purchases'   => $purchases,
+            'colors'      => $colors,
+            'supplierIds' => $supplierIds,
+            'names'       => $names,
+            'total'       => round(array_sum(array_column($rows, 'spend')), 2),
+        ];
+    }
+
+    /**
+     * Set from a click on the supplier chart.
+     *
+     * A linked supplier filters the same way the dropdown above the table
+     * does; a hand-typed vendor has no id to filter by, so its name goes
+     * through the search box instead — which already matches purchases on
+     * supplier_name. Both branches reset the page themselves: the updated*
+     * hooks only fire for a property Livewire's own client sync changed, not
+     * one an action method set directly, which is why setQuickRange() does
+     * the same thing for the date filters.
+     */
+    public function filterBySupplier(?int $supplierId, ?string $supplierName): void
+    {
+        if ($supplierId) {
+            $this->supplierFilter = (string) $supplierId;
+        } elseif ($supplierName) {
+            $this->search = $supplierName;
+        } else {
+            return;
+        }
+
+        $this->resetPage();
+    }
+
+    /**
      * Stock value split by category, from the most recent completed count.
      *
      * Only built on the Stock Takes tab. It loads every line of that count with
@@ -684,6 +782,7 @@ class Index extends Component
             'departmentValues'  => $this->departmentValues(),
             'consolidatedUrl'   => $this->tab === 'stock-takes' ? $this->consolidatedUrl() : null,
             'supplierSummaryUrl'=> $this->tab === 'purchases' ? $this->supplierSummaryUrl() : null,
+            'supplierChartData' => $this->tab === 'purchases' ? $this->supplierChartData() : null,
             'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,
