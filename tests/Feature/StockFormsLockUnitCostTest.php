@@ -7,6 +7,7 @@ use App\Livewire\Inventory\StockTakeForm;
 use App\Livewire\Inventory\TransferForm;
 use App\Livewire\Inventory\WastageForm;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\IngredientUomConversion;
 use App\Models\Outlet;
@@ -47,6 +48,7 @@ class StockFormsLockUnitCostTest extends TestCase
     private Outlet $other;
     private User $user;
     private Ingredient $dough;
+    private Department $department;
 
     protected function setUp(): void
     {
@@ -93,6 +95,8 @@ class StockFormsLockUnitCostTest extends TestCase
             'from_uom_id' => $batch->id, 'to_uom_id' => $piece->id, 'factor' => 10,
         ]);
 
+        $this->department = Department::create(['company_id' => $this->company->id, 'name' => 'Kitchen', 'is_active' => true]);
+
         $this->actingAs($this->user);
     }
 
@@ -113,6 +117,7 @@ class StockFormsLockUnitCostTest extends TestCase
     {
         Livewire::actingAs($this->user)->test(StockTakeForm::class)
             ->call('addIngredient', $this->dough->id)
+            ->set('department_id', $this->department->id)
             ->set('lines.0.actual_quantity', '4')
             ->set('lines.0.unit_cost', '999')      // what a crafted request sends
             ->call('save', 'save');
@@ -126,6 +131,7 @@ class StockFormsLockUnitCostTest extends TestCase
     {
         Livewire::actingAs($this->user)->test(StockTakeForm::class)
             ->call('addIngredient', $this->dough->id)
+            ->set('department_id', $this->department->id)
             ->set('lines.0.actual_quantity', '4')
             ->set('lines.0.unit_cost', '999')
             ->call('save', 'save');
@@ -137,6 +143,7 @@ class StockFormsLockUnitCostTest extends TestCase
     {
         Livewire::actingAs($this->user)->test(WastageForm::class)
             ->call('addIngredient', $this->dough->id)
+            ->set('department_id', $this->department->id)
             ->set('lines.0.quantity', '4')
             ->set('lines.0.unit_cost', '999')
             ->call('save');
@@ -185,6 +192,7 @@ class StockFormsLockUnitCostTest extends TestCase
 
         Livewire::actingAs($this->user)->test(StockTakeForm::class)
             ->call('addIngredient', $this->dough->id)
+            ->set('department_id', $this->department->id)
             ->set('lines.0.actual_quantity', '4')
             ->set('lines.0.uom_id', $spanner->id)
             ->set('lines.0.unit_cost', '999')

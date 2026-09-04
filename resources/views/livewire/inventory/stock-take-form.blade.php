@@ -121,11 +121,11 @@
                 </div>
 
                 <div>
-                    <x-input-label for="st_dept" value="Department {{ $method === 'summary' ? '*' : '' }}" />
+                    <x-input-label for="st_dept" value="Department *" />
                     <select id="st_dept" wire:model="department_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500"
                             {{ $isCompleted ? 'disabled' : '' }}>
-                        <option value="">— {{ $method === 'summary' ? 'Select Department' : 'All / No Department' }} —</option>
+                        <option value="">— Select Department —</option>
                         @foreach ($departments as $dept)
                             <option value="{{ $dept->id }}">{{ $dept->name }}</option>
                         @endforeach

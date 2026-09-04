@@ -29,6 +29,11 @@ class StockTakeConsolidator
     }
 
     /**
+     * Each item also carries 'byTake': quantity contributed by each source
+     * sheet, keyed by stock_take_id, in the same converted unit as the item's
+     * consolidated total — so a workbook can lay both side by side and a
+     * reader can check the sum by eye instead of trusting it blind.
+     *
      * @param  Collection<int, StockTake>  $stockTakes  counts to merge, lines loaded
      * @return array{
      *     groups: array<int, array{name: string, items: array<int, array<string, mixed>>, value: float}>,
@@ -77,12 +82,14 @@ class StockTakeConsolidator
                         'value'      => 0.0,
                         'sheets'     => 0,
                         'category'   => $this->categoryName($ingredient),
+                        'byTake'     => [],
                     ];
                 }
 
                 $items[$key]['quantity'] += $quantity;
                 $items[$key]['value']    += $value;
                 $items[$key]['sheets']++;
+                $items[$key]['byTake'][$take->id] = ($items[$key]['byTake'][$take->id] ?? 0.0) + $quantity;
             }
         }
 
@@ -112,6 +119,7 @@ class StockTakeConsolidator
             $item['unit_cost'] = $item['quantity'] > 0
                 ? round($item['value'] / $item['quantity'], 4)
                 : 0.0;
+            $item['byTake']    = array_map(fn ($qty) => round($qty, 4), $item['byTake']);
 
             unset($item['ingredient'], $item['uom']);
 

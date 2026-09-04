@@ -63,14 +63,15 @@
                 </div>
 
                 <div>
-                    <x-input-label for="w_dept" value="Department" />
+                    <x-input-label for="w_dept" value="Department *" />
                     <select id="w_dept" wire:model="department_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
-                        <option value="">— All / No Department —</option>
+                        <option value="">— Select Department —</option>
                         @foreach ($departments as $dept)
                             <option value="{{ $dept->id }}">{{ $dept->name }}</option>
                         @endforeach
                     </select>
+                    <x-input-error :messages="$errors->get('department_id')" class="mt-1" />
                 </div>
 
                 <div>

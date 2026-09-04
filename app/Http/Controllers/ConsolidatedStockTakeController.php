@@ -27,6 +27,23 @@ class ConsolidatedStockTakeController extends Controller
 
     public function __invoke(Request $request, StockTakeConsolidator $consolidator)
     {
+        [$report, $company, $scope, $excludedDrafts, $from, $to] = $this->load($request, $consolidator);
+
+        $pdf = Pdf::loadView('pdf.consolidated-stock-take', compact('report', 'company', 'scope', 'excludedDrafts'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download('Consolidated-Inventory-' . $from . '-to-' . $to . '.pdf');
+    }
+
+    /**
+     * The consolidated report, its company and scope labels, and the filename
+     * pieces — shared by the PDF and the workbook so the two can never drift
+     * into disagreeing about the same range.
+     *
+     * @return array{0: array, 1: ?Company, 2: array<string, string>, 3: int, 4: string, 5: string}
+     */
+    protected function load(Request $request, StockTakeConsolidator $consolidator): array
+    {
         $from = $this->date($request->query('from')) ?? now()->startOfMonth()->toDateString();
         $to   = $this->date($request->query('to'))   ?? now()->toDateString();
 
@@ -90,10 +107,7 @@ class ConsolidatedStockTakeController extends Controller
                     : 'All departments'),
         ];
 
-        $pdf = Pdf::loadView('pdf.consolidated-stock-take', compact('report', 'company', 'scope', 'excludedDrafts'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->download('Consolidated-Inventory-' . $from . '-to-' . $to . '.pdf');
+        return [$report, $company, $scope, $excludedDrafts, $from, $to];
     }
 
     /** A date we can use, or nothing — never an exception from a hand-typed URL. */

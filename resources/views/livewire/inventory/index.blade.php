@@ -23,11 +23,21 @@
                             <x-icon name="printer" size="h-4 w-4" />
                             Consolidated Inventory
                         </a>
+                        <a href="{{ $consolidatedExcelUrl }}" class="btn-secondary"
+                           title="Same inventory as a workbook, with each sheet's count broken out in its own column for checking.">
+                            <x-icon name="download" size="h-4 w-4" />
+                            Consolidate to Excel
+                        </a>
                     @else
                         <span class="btn-secondary opacity-50 cursor-not-allowed"
                               title="Nothing to file yet: the export covers completed counts, and every count in this range is still a draft.">
                             <x-icon name="printer" size="h-4 w-4" />
                             Consolidated Inventory
+                        </span>
+                        <span class="btn-secondary opacity-50 cursor-not-allowed"
+                              title="Nothing to file yet: the export covers completed counts, and every count in this range is still a draft.">
+                            <x-icon name="download" size="h-4 w-4" />
+                            Consolidate to Excel
                         </span>
                     @endif
                 @endif

@@ -74,7 +74,7 @@
                 </div>
 
                 <div>
-                    <x-input-label for="pc_supplier" value="Supplier" />
+                    <x-input-label for="pc_supplier" value="Supplier *" />
                     <select id="pc_supplier" wire:model.live="supplier_id"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="">— Select Supplier —</option>

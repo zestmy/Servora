@@ -30,7 +30,7 @@ class PurchaseCaptureForm extends Component
             'outlet_id'        => 'required|integer',
             'purchase_date'    => 'required|date',
             'department_id'    => 'required|exists:departments,id',
-            'supplier_id'      => 'nullable|string',
+            'supplier_id'      => 'required|string',
             'supplier_name'    => $this->supplier_id === 'other' ? 'required|string|max:255' : 'nullable|string|max:255',
             'amount'           => 'required|numeric|min:0',
             'reference_number' => 'nullable|string|max:100',
@@ -45,6 +45,7 @@ class PurchaseCaptureForm extends Component
             'department_id.required' => 'Department is required.',
             'amount.required'        => 'Enter the total purchase value.',
             'amount.min'             => 'Amount cannot be negative.',
+            'supplier_id.required'   => 'Select a supplier for this purchase.',
             'supplier_name.required' => 'Enter the supplier name.',
         ];
     }

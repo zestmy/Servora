@@ -43,7 +43,7 @@ class StockTakeForm extends Component
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string',
             'method'           => 'required|in:detailed,summary',
-            'department_id'    => $this->method === 'summary' ? 'required|exists:departments,id' : 'nullable|exists:departments,id',
+            'department_id'    => 'required|exists:departments,id',
         ];
 
         if ($this->method === 'summary') {
@@ -61,7 +61,7 @@ class StockTakeForm extends Component
     {
         return [
             'outlet_id.required'               => 'Select an outlet for this stock take.',
-            'department_id.required'           => 'Department is required for summary method.',
+            'department_id.required'           => 'Select a department for this stock take.',
             'summary_amount.required'          => 'Enter the total stock value.',
             'lines.required'                   => 'Add at least one ingredient.',
             'lines.min'                        => 'Add at least one ingredient.',

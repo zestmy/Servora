@@ -306,6 +306,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/stock-takes/{id}', StockTakeForm::class)->name('inventory.stock-takes.show')->middleware('can:inventory.stock_takes.record');
     Route::get('/inventory/stock-takes/{id}/count-sheet', StockTakeCountSheetController::class)->name('inventory.stock-takes.count-sheet')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes-consolidated', \App\Http\Controllers\ConsolidatedStockTakeController::class)->name('inventory.stock-takes.consolidated')->middleware('can:inventory.view');
+    Route::get('/inventory/stock-takes-consolidated.xlsx', \App\Http\Controllers\ConsolidatedStockTakeExcelController::class)->name('inventory.stock-takes.consolidated-excel')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/{id}/result', \App\Http\Controllers\StockTakeResultController::class)->name('inventory.stock-takes.result')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/{id}/result.xlsx', \App\Http\Controllers\StockTakeResultExcelController::class)->name('inventory.stock-takes.result-excel')->middleware('can:inventory.view');
     Route::get('/inventory/wastage/create', WastageForm::class)->name('inventory.wastage.create')->middleware('can:inventory.wastage.record');

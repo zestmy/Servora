@@ -17,7 +17,6 @@ class StaffMealForm extends Component
     use PicksRecordOutlet, LocksLineUnitCost;
 
     public ?int $recordId      = null;
-    public ?int $department_id = null;
 
     public string $meal_date        = '';
     public string $reference_number = '';
@@ -62,7 +61,6 @@ class StaffMealForm extends Component
 
         $this->recordId         = $record->id;
         $this->initOutlet($record->outlet_id);
-        $this->department_id    = $record->department_id;
         $this->meal_date        = $record->meal_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
@@ -250,7 +248,6 @@ class StaffMealForm extends Component
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
 
         $data = [
-            'department_id'    => $this->department_id ?: null,
             'meal_date'        => $this->meal_date,
             'reference_number' => $this->reference_number ?: null,
             'notes'            => $this->notes ?: null,
@@ -349,14 +346,13 @@ class StaffMealForm extends Component
         $totalCost          = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
         $pageTitle          = $this->recordId ? 'Edit Staff Meal Record' : 'New Staff Meal Entry';
         $availableTemplates = FormTemplate::ofType('staff_meal')->active()->ordered()->get();
-        $departments = \App\Models\Department::active()->ordered()->get();
 
         $outletOptions      = $this->outletOptions();
         $canChooseOutlet    = ! $this->recordId && $this->hasOutletChoice();
         $selectedOutletName = Outlet::find($this->outlet_id)?->name;
 
         return view('livewire.inventory.staff-meal-form', compact(
-            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments',
+            'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates',
             'outletOptions', 'canChooseOutlet', 'selectedOutletName'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }

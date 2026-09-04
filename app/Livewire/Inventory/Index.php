@@ -67,7 +67,8 @@ class Index extends Component
             'amount' => 'total_cost',
             'money'  => 'Staff meal cost',
             'search' => ['reference_number'],
-            'dept'   => true,
+            // Tagged to the outlet, not a department — the form doesn't ask for one.
+            'dept'   => false,
             'supplier' => false,
             'status' => false,
         ],
@@ -578,6 +579,18 @@ class Index extends Component
         ], fn ($v) => $v !== '' && $v !== null));
     }
 
+    /** Same range as consolidatedUrl(), as a workbook instead of a PDF. */
+    private function consolidatedExcelUrl(): string
+    {
+        return route('inventory.stock-takes.consolidated-excel', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
     /**
      * Purchases by supplier, for the rows the table is currently showing.
      *
@@ -781,6 +794,7 @@ class Index extends Component
             'stats'             => $this->stats(),
             'departmentValues'  => $this->departmentValues(),
             'consolidatedUrl'   => $this->tab === 'stock-takes' ? $this->consolidatedUrl() : null,
+            'consolidatedExcelUrl' => $this->tab === 'stock-takes' ? $this->consolidatedExcelUrl() : null,
             'supplierSummaryUrl'=> $this->tab === 'purchases' ? $this->supplierSummaryUrl() : null,
             'supplierChartData' => $this->tab === 'purchases' ? $this->supplierChartData() : null,
             'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,

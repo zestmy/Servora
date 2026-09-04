@@ -33,6 +33,7 @@ class WastageForm extends Component
     {
         return [
             'outlet_id'          => 'required|integer',
+            'department_id'      => 'required|exists:departments,id',
             'wastage_date'       => 'required|date',
             'reference_number'   => 'nullable|string|max:100',
             'notes'              => 'nullable|string',
@@ -44,10 +45,11 @@ class WastageForm extends Component
     protected function messages(): array
     {
         return [
-            'outlet_id.required'   => 'Select an outlet for this record.',
-            'lines.required'       => 'Add at least one item.',
-            'lines.min'            => 'Add at least one item.',
-            'lines.*.quantity.min' => 'Quantity must be greater than zero.',
+            'outlet_id.required'     => 'Select an outlet for this record.',
+            'department_id.required' => 'Select a department for this record.',
+            'lines.required'         => 'Add at least one item.',
+            'lines.min'              => 'Add at least one item.',
+            'lines.*.quantity.min'   => 'Quantity must be greater than zero.',
         ];
     }
 

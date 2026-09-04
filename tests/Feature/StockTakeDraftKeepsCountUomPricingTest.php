@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Inventory\StockTakeForm;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\FormTemplateLine;
 use App\Models\Ingredient;
@@ -40,6 +41,7 @@ class StockTakeDraftKeepsCountUomPricingTest extends TestCase
     private Outlet $outlet;
     private User $user;
     private Ingredient $dough;
+    private Department $department;
 
     protected function setUp(): void
     {
@@ -94,6 +96,8 @@ class StockTakeDraftKeepsCountUomPricingTest extends TestCase
             'factor'        => 10,
         ]);
 
+        $this->department = Department::create(['company_id' => $this->company->id, 'name' => 'Kitchen', 'is_active' => true]);
+
         $this->actingAs($this->user);
     }
 
@@ -135,6 +139,7 @@ class StockTakeDraftKeepsCountUomPricingTest extends TestCase
         $component = Livewire::actingAs($this->user)->test(StockTakeForm::class)
             ->set('selectedTemplateId', (string) $template->id)
             ->call('loadTemplate')
+            ->set('department_id', $this->department->id)
             ->set('lines.0.actual_quantity', '4');
 
         $before = round(floatval($component->get('lines')[0]['unit_cost']), 4);
@@ -163,6 +168,7 @@ class StockTakeDraftKeepsCountUomPricingTest extends TestCase
         $component = Livewire::actingAs($this->user)->test(StockTakeForm::class)
             ->set('selectedTemplateId', (string) $template->id)
             ->call('loadTemplate')
+            ->set('department_id', $this->department->id)
             ->set('lines.0.actual_quantity', '4')
             ->call('save', 'save');
 
@@ -181,6 +187,7 @@ class StockTakeDraftKeepsCountUomPricingTest extends TestCase
         $component = Livewire::actingAs($this->user)->test(StockTakeForm::class)
             ->set('selectedTemplateId', (string) $template->id)
             ->call('loadTemplate')
+            ->set('department_id', $this->department->id)
             ->set('lines.0.actual_quantity', '4')
             ->call('save', 'complete');
 
