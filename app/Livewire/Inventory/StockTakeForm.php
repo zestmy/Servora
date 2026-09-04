@@ -363,6 +363,25 @@ class StockTakeForm extends Component
         session()->flash('success', 'Stock take saved as draft.');
     }
 
+    /**
+     * Reopens a completed stock take for editing. Its own ability, separate from
+     * record and delete, so it can be granted independently of who can wipe a
+     * completed count outright. Redirects back into itself so mount() re-runs
+     * and lines re-price off live ingredient cost, exactly like any other draft.
+     */
+    public function reopen(): void
+    {
+        abort_unless(auth()->user()?->canDo('inventory.stock_takes.reopen'), 403);
+
+        $record = StockTake::findOrFail($this->recordId);
+        abort_unless($record->status === 'completed', 404);
+
+        $record->update(['status' => 'in_progress']);
+
+        session()->flash('success', 'Stock take reopened — make your changes and complete it again.');
+        $this->redirectRoute('inventory.stock-takes.show', ['id' => $this->recordId]);
+    }
+
     public function render()
     {
         $searchResults = collect();

@@ -156,7 +156,7 @@ class Wizard extends Component
                             'settings.po_approvers', 'settings.departments', 'settings.cpu', 'settings.kitchens',
                             'purchasing.approve', 'purchasing.request', 'purchasing.delete',
                             'sales.delete', 'hr.clock.delete', 'hr.claims.delete',
-                            'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                            'inventory.stock_takes.delete', 'inventory.stock_takes.reopen', 'inventory.wastage.delete', 'inventory.transfers.delete',
                             'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
                             'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
                             'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',

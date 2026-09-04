@@ -42,6 +42,13 @@
                 </button>
             @else
                 <span class="px-3 py-1.5 bg-success-100 text-success-700 text-xs font-semibold rounded-full">Completed</span>
+                @canDo('inventory.stock_takes.reopen')
+                    <button wire:click="reopen"
+                            wire:confirm="Reopen this stock take for editing? You'll need to complete it again when you're done."
+                            class="btn-secondary">
+                        Reopen for Editing
+                    </button>
+                @endcanDo
             @endif
         </div>
     </div>

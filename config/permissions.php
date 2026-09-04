@@ -297,6 +297,10 @@ return [
                     'name' => 'inventory.stock_takes.delete', 'label' => 'Stock takes — delete',
                     'title' => 'Inventory (Delete Stock Takes)', 'help' => 'Delete a completed stock take, reversing its effect on stock.',
                 ],
+                'stock_takes_reopen' => [
+                    'name' => 'inventory.stock_takes.reopen', 'label' => 'Stock takes — reopen',
+                    'title' => 'Inventory (Reopen Stock Takes)', 'help' => 'Reopen a completed stock take for editing, putting it back in progress.',
+                ],
                 'wastage_record' => [
                     'name' => 'inventory.wastage.record', 'label' => 'Wastage — record',
                     'title' => 'Inventory (Record Wastage)', 'help' => 'Record and amend wastage.',

@@ -66,7 +66,7 @@ class CompanyRegistrationService
                 'purchasing.approve', 'purchasing.request', 'purchasing.delete',
                 'sales.delete', 'hr.clock.delete', 'hr.clock.waive_lateness', 'hr.claims.delete',
                 // Phase 4b split inventory.delete per document type.
-                'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                'inventory.stock_takes.delete', 'inventory.stock_takes.reopen', 'inventory.wastage.delete', 'inventory.transfers.delete',
                 'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
                 'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
                 'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',
@@ -155,7 +155,7 @@ class CompanyRegistrationService
                 'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
                 'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
                 'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',
-                'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                'inventory.stock_takes.delete', 'inventory.stock_takes.reopen', 'inventory.wastage.delete', 'inventory.transfers.delete',
                 'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
             ]);
 

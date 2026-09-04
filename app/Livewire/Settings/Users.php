@@ -148,7 +148,7 @@ class Users extends Component
                                 'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
                                 'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
                                 'inventory.staff_meals.record', 'inventory.prep_items.record', 'inventory.purchases.record',
-                                'inventory.stock_takes.delete', 'inventory.wastage.delete', 'inventory.transfers.delete',
+                                'inventory.stock_takes.delete', 'inventory.stock_takes.reopen', 'inventory.wastage.delete', 'inventory.transfers.delete',
                                 'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete'],
         'Business Manager'   => ['users.manage', 'purchasing.approve', 'purchasing.request', 'purchasing.invoice'],
         'Operations Manager' => ['purchasing.request', 'hr.clock.waive_lateness'],
