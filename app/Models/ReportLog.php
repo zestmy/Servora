@@ -82,11 +82,12 @@ class ReportLog extends Model
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    public function markAsSent(): void
+    public function markAsSent(?string $note = null): void
     {
         $this->update([
             'delivery_status' => 'sent',
             'sent_at' => now(),
+            'error_message' => $note,
         ]);
     }
 

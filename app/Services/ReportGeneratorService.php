@@ -86,10 +86,23 @@ class ReportGeneratorService
         // before any generation so retries cost a few cheap queries, no AI calls.
         // It is sales-shaped (it asks whether takings have landed), so an HR
         // report must skip it or it would be held back every single run.
-        if (!$force && ! $this->skipsDataCompleteness($subscription->report_type)) {
-            $issue = $this->checkDataCompleteness($subscription->company_id, $subscription->outlet_id, $periodStart, $periodEnd);
+        //
+        // A subscription can cover several outlets (or "all"), and one bad
+        // outlet must not hold back the ones that do have data — only skip
+        // the whole send when nothing in scope is usable.
+        $outletIdsForGenerate = $subscription->outletIds();
+        $partialSkipNote = null;
 
-            if ($issue !== null) {
+        if (!$force && ! $this->skipsDataCompleteness($subscription->report_type)) {
+            $completeness = $this->checkDataCompleteness($subscription->company_id, $outletIdsForGenerate, $periodStart, $periodEnd);
+            $availableOutletIds = array_values(array_diff($completeness['checkedOutletIds'], $completeness['excludedOutletIds']));
+
+            if (empty($availableOutletIds)) {
+                $issue = empty($completeness['issues'])
+                    ? 'No active outlets found for this company.'
+                    : 'Data incomplete — ' . implode('; ', $completeness['issues'])
+                        . '. The report will send automatically once data is complete, or use Resend to send it as-is.';
+
                 // Reuse the existing skip log for this period so the 15-minute
                 // scheduler doesn't pile up duplicate entries all day.
                 $log = ReportLog::withoutGlobalScopes()
@@ -118,6 +131,13 @@ class ReportGeneratorService
 
                 return $log;
             }
+
+            if (!empty($completeness['excludedOutletIds'])) {
+                // Narrow the send to the outlets that actually have data
+                // instead of skipping the whole report.
+                $outletIdsForGenerate = $availableOutletIds;
+                $partialSkipNote = 'Sent without — ' . implode('; ', $completeness['issues']);
+            }
         }
 
         // Create the report log entry
@@ -143,9 +163,9 @@ class ReportGeneratorService
                 date: $reportDate,
                 includeAiInsights: $subscription->include_ai_insights,
                 // Empty for "all outlets"; a subset when the subscriber picked
-                // specific branches. outlet_id is only set when there is
-                // exactly one, so the two never contradict each other.
-                outletIds: $subscription->outletIds(),
+                // specific branches, or when the completeness check above
+                // narrowed "all" down to just the outlets with usable data.
+                outletIds: $outletIdsForGenerate,
             );
 
             // Update log with report data
@@ -179,7 +199,7 @@ class ReportGeneratorService
             }
 
             if ($allSuccess) {
-                $log->markAsSent();
+                $log->markAsSent($partialSkipNote);
                 // A manual resend of an old period shouldn't suppress today's
                 // scheduled send, so only stamp last_sent_at on scheduled runs.
                 if (!$force) {
@@ -450,33 +470,51 @@ class ReportGeneratorService
     }
 
     /**
-     * Check whether sales data for the report period is complete enough to send.
+     * Check whether sales data for the report period is complete enough to send,
+     * per outlet in scope.
      *
-     * Returns null when the data is fine, or a human-readable reason to skip:
+     * $outletIds mirrors ReportSubscription::outletIds() — empty means every
+     * active outlet, otherwise the exact subset to check — so this never
+     * disagrees with which outlets the report actually gets built for.
+     *
+     * An outlet lands in 'excludedOutletIds' when:
      * - a day in the period has neither a sales record nor a registered closure
      * - the whole period has zero revenue
-     * For "All Outlets" subscriptions every active outlet is checked.
+     * Excluding some outlets doesn't skip the others; the caller decides
+     * whether to narrow the send or skip entirely (e.g. when nothing is left).
+     *
+     * @param  array<int, int>  $outletIds
+     * @return array{checkedOutletIds: array<int,int>, excludedOutletIds: array<int,int>, issues: array<int,string>}
      */
-    public function checkDataCompleteness(int $companyId, ?int $outletId, Carbon $periodStart, Carbon $periodEnd): ?string
+    public function checkDataCompleteness(int $companyId, array $outletIds, Carbon $periodStart, Carbon $periodEnd): array
     {
         $outlets = Outlet::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
-            ->when($outletId, fn ($q) => $q->where('id', $outletId))
-            ->when(!$outletId, fn ($q) => $q->where('is_active', true)->excludingCentralKitchens())
+            ->when($outletIds !== [], fn ($q) => $q->whereIn('id', $outletIds))
+            ->when($outletIds === [], fn ($q) => $q->where('is_active', true)->excludingCentralKitchens())
             ->orderBy('name')
             ->get();
 
         if ($outlets->isEmpty()) {
-            return 'No active outlets found for this company.';
+            return [
+                'checkedOutletIds' => [],
+                'excludedOutletIds' => [],
+                'issues' => ['No active outlets found for this company.'],
+            ];
         }
 
         // Only judge days that have fully passed
         $end = $periodEnd->copy()->min(now()->subDay());
         if ($end->lt($periodStart)) {
-            return 'The report period has no completed days yet.';
+            return [
+                'checkedOutletIds' => $outlets->pluck('id')->all(),
+                'excludedOutletIds' => $outlets->pluck('id')->all(),
+                'issues' => ['The report period has no completed days yet.'],
+            ];
         }
 
         $issues = [];
+        $excludedOutletIds = [];
 
         foreach ($outlets as $outlet) {
             $revenueByDate = SalesRecord::withoutGlobalScope(CompanyScope::class)
@@ -516,21 +554,23 @@ class ReportGeneratorService
 
             if ($totalRevenue <= 0 && $closedDays === $totalDays) {
                 $issues[] = "{$outlet->name}: closed for the entire period (closure recorded)";
+                $excludedOutletIds[] = $outlet->id;
             } elseif ($totalRevenue <= 0) {
                 $issues[] = "{$outlet->name}: no sales recorded for this period";
+                $excludedOutletIds[] = $outlet->id;
             } elseif (!empty($missingDays)) {
                 $shown = array_slice($missingDays, 0, 5);
                 $more = count($missingDays) - count($shown);
                 $issues[] = "{$outlet->name}: no sales entry or closure for " . implode(', ', $shown) . ($more > 0 ? " (+{$more} more)" : '');
+                $excludedOutletIds[] = $outlet->id;
             }
         }
 
-        if (empty($issues)) {
-            return null;
-        }
-
-        return 'Data incomplete — ' . implode('; ', $issues)
-            . '. The report will send automatically once data is complete, or use Resend to send it as-is.';
+        return [
+            'checkedOutletIds' => $outlets->pluck('id')->all(),
+            'excludedOutletIds' => $excludedOutletIds,
+            'issues' => $issues,
+        ];
     }
 
     /**
