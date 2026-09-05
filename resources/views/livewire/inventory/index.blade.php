@@ -383,6 +383,115 @@
         </div>
     @endif
 
+    {{-- ── Stock Takes / Wastage by Department — interactive chart ──────────
+         Same pattern as Purchases by Supplier above: same palette
+         (PurchaseSupplierBreakdown::SERIES), hoverable, and clickable — a bar
+         sets departmentFilter, the same property the dropdown above already
+         drives. "No department" is its own clickable bar; the "Other" bar
+         folds two or more departments together and carries no id, so
+         clicking it does nothing. --}}
+    @if (in_array($tab, ['stock-takes', 'wastage']) && count($departmentChartData['labels']) > 0)
+        @once
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+        @endonce
+
+        <div class="card p-5 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-800">{{ $tabConfig['label'] }} by Department</h2>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                        {{ $stats['rangeLabel'] }} · click a bar to filter the table below
+                    </p>
+                </div>
+                @if ($departmentFilter !== '')
+                    <button wire:click="$set('departmentFilter', '')" class="text-xs text-brand-600 hover:text-brand-700 font-medium whitespace-nowrap">
+                        Clear department filter ✕
+                    </button>
+                @endif
+            </div>
+
+            {{-- Same keying rationale as the supplier chart above: the data hash
+                 plus the one property a bar-click can set outside that hash. --}}
+            <div class="relative"
+                 style="height: {{ max(160, count($departmentChartData['labels']) * 34 + 20) }}px"
+                 wire:key="department-chart-{{ md5(json_encode($departmentChartData)) }}-{{ $departmentFilter }}"
+                 x-data="{
+                    chartInstance: null,
+                    init() {
+                        const already = Chart.getChart(this.$refs.canvas);
+                        if (already) { already.destroy(); }
+
+                        const data = @js($departmentChartData);
+                        const activeDepartmentId = @js($departmentFilter !== '' ? $departmentFilter : null);
+                        const ctx = this.$refs.canvas.getContext('2d');
+                        this.chartInstance = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    data: data.values,
+                                    backgroundColor: data.colors,
+                                    borderRadius: 3,
+                                    borderWidth: data.departmentIds.map(id => activeDepartmentId !== null && String(id) === String(activeDepartmentId) ? 2 : 0),
+                                    borderColor: '#0f172a',
+                                    barThickness: 20,
+                                }],
+                            },
+                            options: {
+                                indexAxis: 'y',
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                onClick: (evt, elements) => {
+                                    if (!elements.length) return;
+                                    const i = elements[0].index;
+                                    const departmentId = data.departmentIds[i];
+                                    if (departmentId === null) return;
+                                    this.$wire.filterByDepartment(departmentId);
+                                },
+                                onHover: (evt, elements) => {
+                                    evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                                },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label(item) {
+                                                const i = item.dataIndex;
+                                                const share = data.shares[i];
+                                                const n = data.counts[i];
+                                                const amount = item.parsed.x.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                return [
+                                                    'RM ' + amount + '  (' + share + '% of total)',
+                                                    n + ' ' + data.noun + (n === 1 ? '' : 's'),
+                                                ];
+                                            },
+                                        },
+                                    },
+                                },
+                                scales: {
+                                    x: {
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(0,0,0,0.05)' },
+                                        ticks: {
+                                            font: { size: 10 },
+                                            callback: v => 'RM ' + v.toLocaleString(),
+                                        },
+                                    },
+                                    y: {
+                                        grid: { display: false },
+                                        ticks: { font: { size: 10.5 } },
+                                    },
+                                },
+                            },
+                        });
+                    },
+                 }"
+                 x-init="init()">
+                <canvas x-ref="canvas"></canvas>
+            </div>
+        </div>
+    @endif
+
     {{-- Prep Items tab removed — now under Recipes --}}
 
     {{-- ── Stock Takes Tab ───────────────────────────────────────────────── --}}

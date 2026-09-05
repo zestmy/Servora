@@ -710,6 +710,110 @@ class Index extends Component
     }
 
     /**
+     * How many departments the Stock Takes / Wastage chart draws in their own
+     * colour before folding the rest into one "Other" bar. Same cutoff and
+     * palette as the Purchases-by-Supplier chart, so the two read as one system.
+     */
+    private const CHART_DEPARTMENTS = 8;
+
+    /** What one row on the chart is worth calling, for its tooltip's second line. */
+    private function departmentChartNoun(): string
+    {
+        return match ($this->tab) {
+            'stock-takes' => 'stock take',
+            'wastage'     => 'wastage record',
+            default       => 'record',
+        };
+    }
+
+    /**
+     * Amount per department, shaped for the Chart.js panel on the Stock Takes
+     * and Wastage tabs — same pattern as supplierChartData(), grouped on
+     * department instead: hoverable, and clickable into the same
+     * departmentFilter the dropdown above the table already drives.
+     *
+     * "No department" is a real, clickable bar (the filter already supports
+     * that value as 'none'); the "Other" bar folds whatever falls past the
+     * cutoff and carries no id unless exactly one department is folded into
+     * it, so a click on a genuine multi-department "Other" bar does nothing.
+     *
+     * @return array{labels: array<int,string>, values: array<int,float>, shares: array<int,float>, counts: array<int,int>, colors: array<int,string>, departmentIds: array<int, int|string|null>, noun: string, total: float}
+     */
+    private function departmentChartData(): array
+    {
+        $config = $this->tabConfig();
+        $empty  = ['labels' => [], 'values' => [], 'shares' => [], 'counts' => [], 'colors' => [], 'departmentIds' => [], 'noun' => $this->departmentChartNoun(), 'total' => 0.0];
+
+        if (! $config['dept'] || ! $config['amount']) {
+            return $empty;
+        }
+
+        $rows = (clone $this->filtered())
+            ->selectRaw('department_id, COUNT(*) AS cnt, SUM(' . $config['amount'] . ') AS amount')
+            ->groupBy('department_id')
+            ->get()
+            ->filter(fn ($row) => (float) $row->amount > 0)
+            ->sortByDesc('amount')
+            ->values();
+
+        $total = (float) $rows->sum('amount');
+
+        if ($total <= 0) {
+            return $empty;
+        }
+
+        $names = Department::whereIn('id', $rows->pluck('department_id')->filter())->pluck('name', 'id');
+        $label = fn ($row) => $row->department_id ? ($names[$row->department_id] ?? '—') : 'No department';
+
+        $shown = $rows->take(self::CHART_DEPARTMENTS);
+        $rest  = $rows->slice(self::CHART_DEPARTMENTS);
+
+        $labels        = $shown->map($label)->values()->all();
+        $values        = $shown->map(fn ($row) => round((float) $row->amount, 2))->values()->all();
+        $shares        = $shown->map(fn ($row) => round(((float) $row->amount / $total) * 100, 1))->values()->all();
+        $counts        = $shown->map(fn ($row) => (int) $row->cnt)->values()->all();
+        $colors        = $shown->values()->map(fn ($row, $i) => PurchaseSupplierBreakdown::SERIES[$i] ?? PurchaseSupplierBreakdown::OTHER_COLOR)->all();
+        $departmentIds = $shown->map(fn ($row) => $row->department_id ?: 'none')->values()->all();
+
+        if ($rest->isNotEmpty()) {
+            $labels[]        = $rest->count() === 1 ? $label($rest->first()) : $rest->count() . ' other departments';
+            $values[]        = round((float) $rest->sum('amount'), 2);
+            $shares[]        = round(((float) $rest->sum('amount') / $total) * 100, 1);
+            $counts[]        = (int) $rest->sum('cnt');
+            $colors[]        = PurchaseSupplierBreakdown::OTHER_COLOR;
+            $departmentIds[] = $rest->count() === 1 ? ($rest->first()->department_id ?: 'none') : null;
+        }
+
+        return [
+            'labels'        => $labels,
+            'values'        => $values,
+            'shares'        => $shares,
+            'counts'        => $counts,
+            'colors'        => $colors,
+            'departmentIds' => $departmentIds,
+            'noun'          => $this->departmentChartNoun(),
+            'total'         => round($total, 2),
+        ];
+    }
+
+    /**
+     * Set from a click on the department chart. Mirrors filterBySupplier():
+     * a real department id, or the string 'none' for the "No department"
+     * bar, sets the same departmentFilter property the dropdown above the
+     * table already drives. A multi-department "Other" bar carries neither
+     * and calls this with null, which is a no-op.
+     */
+    public function filterByDepartment(int|string|null $departmentId): void
+    {
+        if ($departmentId === null) {
+            return;
+        }
+
+        $this->departmentFilter = (string) $departmentId;
+        $this->resetPage();
+    }
+
+    /**
      * Stock value split by category, from the most recent completed count.
      *
      * Only built on the Stock Takes tab. It loads every line of that count with
@@ -797,6 +901,7 @@ class Index extends Component
             'consolidatedExcelUrl' => $this->tab === 'stock-takes' ? $this->consolidatedExcelUrl() : null,
             'supplierSummaryUrl'=> $this->tab === 'purchases' ? $this->supplierSummaryUrl() : null,
             'supplierChartData' => $this->tab === 'purchases' ? $this->supplierChartData() : null,
+            'departmentChartData' => in_array($this->tab, ['stock-takes', 'wastage'], true) ? $this->departmentChartData() : null,
             'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,
