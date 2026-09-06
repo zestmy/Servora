@@ -671,6 +671,30 @@ class Index extends Component
         ], fn ($v) => $v !== '' && $v !== null));
     }
 
+    /** Every wasted item in range, merged into one loss report — the detail behind wastageSummaryUrl()'s department totals. */
+    private function wastageDetailUrl(): string
+    {
+        return route('inventory.wastage.detail', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Same range as wastageDetailUrl(), as a workbook instead of a PDF. */
+    private function wastageDetailExcelUrl(): string
+    {
+        return route('inventory.wastage.detail-excel', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
     /** Staff meals totalled by outlet, for the rows the table is currently showing. */
     private function staffMealSummaryUrl(): string
     {
@@ -1174,6 +1198,8 @@ class Index extends Component
             'transferChartData' => $this->tab === 'transfers' ? $this->transferOutletChartData() : null,
             'wastageSummaryUrl'      => $this->tab === 'wastage' ? $this->wastageSummaryUrl() : null,
             'wastageSummaryExcelUrl' => $this->tab === 'wastage' ? $this->wastageSummaryExcelUrl() : null,
+            'wastageDetailUrl'      => $this->tab === 'wastage' ? $this->wastageDetailUrl() : null,
+            'wastageDetailExcelUrl' => $this->tab === 'wastage' ? $this->wastageDetailExcelUrl() : null,
             'staffMealSummaryUrl'      => $this->tab === 'staff-meals' ? $this->staffMealSummaryUrl() : null,
             'staffMealSummaryExcelUrl' => $this->tab === 'staff-meals' ? $this->staffMealSummaryExcelUrl() : null,
             'transferSummaryUrl'      => $this->tab === 'transfers' ? $this->transferSummaryUrl() : null,

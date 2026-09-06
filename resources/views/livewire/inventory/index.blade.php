@@ -49,13 +49,25 @@
                      currently showing. Hidden on an empty range rather than
                      handing back a page of zeroes. --}}
                 @if ($wastageSummaryUrl && $records->total() > 0)
-                    <a href="{{ $wastageSummaryUrl }}" class="btn-secondary">
+                    <a href="{{ $wastageSummaryUrl }}" class="btn-secondary"
+                       title="Totalled by department — how much each department wasted.">
                         <x-icon name="printer" size="h-4 w-4" />
-                        Wastage Summary
+                        Summary
                     </a>
-                    <a href="{{ $wastageSummaryExcelUrl }}" class="btn-secondary">
+                    <a href="{{ $wastageSummaryExcelUrl }}" class="btn-secondary"
+                       title="Totalled by department — how much each department wasted.">
                         <x-icon name="download" size="h-4 w-4" />
-                        Download Excel
+                        Summary (Excel)
+                    </a>
+                    <a href="{{ $wastageDetailUrl }}" class="btn-secondary"
+                       title="Every item wasted, merged into one list — what got thrown out, and how much.">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Details
+                    </a>
+                    <a href="{{ $wastageDetailExcelUrl }}" class="btn-secondary"
+                       title="Every item wasted, merged into one list — what got thrown out, and how much.">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Details (Excel)
                     </a>
                 @endif
                 @canDo('inventory.wastage.record')

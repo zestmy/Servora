@@ -316,6 +316,8 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // /inventory/stock-takes-consolidated rather than /inventory/stock-takes/consolidated.
     Route::get('/inventory/wastage-summary', \App\Http\Controllers\WastageSummaryController::class)->name('inventory.wastage.summary')->middleware('can:inventory.view');
     Route::get('/inventory/wastage-summary.xlsx', \App\Http\Controllers\WastageSummaryExcelController::class)->name('inventory.wastage.summary-excel')->middleware('can:inventory.view');
+    Route::get('/inventory/wastage-details', \App\Http\Controllers\WastageDetailController::class)->name('inventory.wastage.detail')->middleware('can:inventory.view');
+    Route::get('/inventory/wastage-details.xlsx', \App\Http\Controllers\WastageDetailExcelController::class)->name('inventory.wastage.detail-excel')->middleware('can:inventory.view');
     Route::get('/inventory/wastage/{id}', WastageForm::class)->name('inventory.wastage.show')->middleware('can:inventory.wastage.record');
     Route::get('/inventory/staff-meals/create', StaffMealForm::class)->name('inventory.staff-meals.create')->middleware('can:inventory.staff_meals.record');
     Route::get('/inventory/staff-meals-summary', \App\Http\Controllers\StaffMealSummaryController::class)->name('inventory.staff-meals.summary')->middleware('can:inventory.view');
