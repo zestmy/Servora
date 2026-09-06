@@ -45,14 +45,47 @@
                     <a href="{{ route('inventory.stock-takes.create') }}" class="btn-primary">+ New Stock Take</a>
                 @endcanDo
             @elseif ($tab === 'wastage')
+                {{-- Wastage by department, over whatever the filters are
+                     currently showing. Hidden on an empty range rather than
+                     handing back a page of zeroes. --}}
+                @if ($wastageSummaryUrl && $records->total() > 0)
+                    <a href="{{ $wastageSummaryUrl }}" class="btn-secondary">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Wastage Summary
+                    </a>
+                    <a href="{{ $wastageSummaryExcelUrl }}" class="btn-secondary">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Download Excel
+                    </a>
+                @endif
                 @canDo('inventory.wastage.record')
                     <a href="{{ route('inventory.wastage.create') }}" class="btn-primary">+ Record Wastage</a>
                 @endcanDo
             @elseif ($tab === 'staff-meals')
+                @if ($staffMealSummaryUrl && $records->total() > 0)
+                    <a href="{{ $staffMealSummaryUrl }}" class="btn-secondary">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Staff Meal Summary
+                    </a>
+                    <a href="{{ $staffMealSummaryExcelUrl }}" class="btn-secondary">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Download Excel
+                    </a>
+                @endif
                 @canDo('inventory.staff_meals.record')
                     <a href="{{ route('inventory.staff-meals.create') }}" class="btn-primary">+ Record Staff Meal</a>
                 @endcanDo
             @elseif ($tab === 'transfers')
+                @if ($transferSummaryUrl && $records->total() > 0)
+                    <a href="{{ $transferSummaryUrl }}" class="btn-secondary">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Transfer Summary
+                    </a>
+                    <a href="{{ $transferSummaryExcelUrl }}" class="btn-secondary">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Download Excel
+                    </a>
+                @endif
                 @canDo('inventory.transfers.record')
                     {{-- btn-primary, not a hardcoded teal: the accent is a token
                          so that changing it is one edit in tailwind.config.js. --}}
@@ -66,6 +99,10 @@
                     <a href="{{ $supplierSummaryUrl }}" class="btn-secondary">
                         <x-icon name="printer" size="h-4 w-4" />
                         Purchases by Supplier
+                    </a>
+                    <a href="{{ $supplierSummaryExcelUrl }}" class="btn-secondary">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Download Excel
                     </a>
                 @endif
                 @canDo('inventory.purchases.record')
@@ -490,6 +527,14 @@
                 <canvas x-ref="canvas"></canvas>
             </div>
         </div>
+    @endif
+
+    @if ($tab === 'staff-meals')
+        <x-inventory.outlet-chart title="Staff Meals by Outlet" :chart-data="$outletChartData"
+                                   :outlet-filter="$outletFilter" wire-key="staff-outlet-chart" />
+    @elseif ($tab === 'transfers')
+        <x-inventory.outlet-chart title="Transfers by Outlet (sender)" :chart-data="$transferChartData"
+                                   :outlet-filter="$outletFilter" wire-key="transfer-outlet-chart" />
     @endif
 
     {{-- Prep Items tab removed — now under Recipes --}}

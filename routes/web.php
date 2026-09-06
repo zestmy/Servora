@@ -310,18 +310,29 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/stock-takes/{id}/result', \App\Http\Controllers\StockTakeResultController::class)->name('inventory.stock-takes.result')->middleware('can:inventory.view');
     Route::get('/inventory/stock-takes/{id}/result.xlsx', \App\Http\Controllers\StockTakeResultExcelController::class)->name('inventory.stock-takes.result-excel')->middleware('can:inventory.view');
     Route::get('/inventory/wastage/create', WastageForm::class)->name('inventory.wastage.create')->middleware('can:inventory.wastage.record');
+    // Hyphenated as a sibling of /inventory/wastage, not nested under it, so
+    // this can never collide with the /inventory/wastage/{id} route below —
+    // same reason the consolidated stock take export is
+    // /inventory/stock-takes-consolidated rather than /inventory/stock-takes/consolidated.
+    Route::get('/inventory/wastage-summary', \App\Http\Controllers\WastageSummaryController::class)->name('inventory.wastage.summary')->middleware('can:inventory.view');
+    Route::get('/inventory/wastage-summary.xlsx', \App\Http\Controllers\WastageSummaryExcelController::class)->name('inventory.wastage.summary-excel')->middleware('can:inventory.view');
     Route::get('/inventory/wastage/{id}', WastageForm::class)->name('inventory.wastage.show')->middleware('can:inventory.wastage.record');
     Route::get('/inventory/staff-meals/create', StaffMealForm::class)->name('inventory.staff-meals.create')->middleware('can:inventory.staff_meals.record');
+    Route::get('/inventory/staff-meals-summary', \App\Http\Controllers\StaffMealSummaryController::class)->name('inventory.staff-meals.summary')->middleware('can:inventory.view');
+    Route::get('/inventory/staff-meals-summary.xlsx', \App\Http\Controllers\StaffMealSummaryExcelController::class)->name('inventory.staff-meals.summary-excel')->middleware('can:inventory.view');
     Route::get('/inventory/staff-meals/{id}', StaffMealForm::class)->name('inventory.staff-meals.show')->middleware('can:inventory.staff_meals.record');
     Route::get('/inventory/prep-items/create', PrepItemForm::class)->name('inventory.prep-items.create')->middleware('can:inventory.prep_items.record');
     Route::get('/inventory/prep-items/{id}', PrepItemForm::class)->name('inventory.prep-items.show')->middleware('can:inventory.prep_items.record');
     Route::get('/inventory/transfers/create', TransferForm::class)->name('inventory.transfers.create')->middleware('can:inventory.transfers.record');
+    Route::get('/inventory/transfers-summary', \App\Http\Controllers\TransferSummaryController::class)->name('inventory.transfers.summary')->middleware('can:inventory.view');
+    Route::get('/inventory/transfers-summary.xlsx', \App\Http\Controllers\TransferSummaryExcelController::class)->name('inventory.transfers.summary-excel')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/purchases/create', PurchaseCaptureForm::class)->name('inventory.purchases.create')->middleware('can:inventory.purchases.record');
     // Above the {id} route on purpose: "supplier-summary" is a valid {id} as far
     // as the router is concerned, and registered the other way round this would
     // open the capture form on a record that does not exist.
     Route::get('/inventory/purchases/supplier-summary', \App\Http\Controllers\PurchaseSupplierSummaryController::class)->name('inventory.purchases.supplier-summary')->middleware('can:inventory.view');
+    Route::get('/inventory/purchases/supplier-summary.xlsx', \App\Http\Controllers\PurchaseSupplierSummaryExcelController::class)->name('inventory.purchases.supplier-summary-excel')->middleware('can:inventory.view');
     Route::get('/inventory/purchases/{id}', PurchaseCaptureForm::class)->name('inventory.purchases.show')->middleware('can:inventory.purchases.record');
     Route::get('/reports', \App\Livewire\Reports\Hub::class)->name('reports.hub')->middleware('can:reports.view');
     Route::get('/reports/cost-summary', ReportsIndex::class)->name('reports.index')->middleware('can:reports.view');

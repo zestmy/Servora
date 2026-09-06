@@ -54,6 +54,16 @@ class PurchaseSupplierSummaryController extends Controller
 
     public function __invoke(Request $request)
     {
+        $data = $this->load($request);
+
+        $pdf = Pdf::loadView('pdf.purchase-supplier-summary', $data)->setPaper('a4', 'portrait');
+
+        return $pdf->download('Purchases-by-Supplier-' . $data['scope']['from'] . '-to-' . $data['scope']['to'] . '.pdf');
+    }
+
+    /** @return array<string, mixed> everything pdf.purchase-supplier-summary (and the Excel export) need */
+    protected function load(Request $request): array
+    {
         $from = $this->date($request->query('from')) ?? now()->startOfMonth()->toDateString();
         $to   = $this->date($request->query('to'))   ?? now()->toDateString();
 
@@ -91,7 +101,7 @@ class PurchaseSupplierSummaryController extends Controller
             'search'     => $search,
         ];
 
-        $pdf = Pdf::loadView('pdf.purchase-supplier-summary', [
+        return [
             'company'    => $company,
             'scope'      => $scope,
             'totals'     => $totals,
@@ -99,9 +109,7 @@ class PurchaseSupplierSummaryController extends Controller
             'months'     => $months,
             'details'    => $details,
             'exportedBy' => Auth::user()->name,
-        ])->setPaper('a4', 'portrait');
-
-        return $pdf->download('Purchases-by-Supplier-' . $from . '-to-' . $to . '.pdf');
+        ];
     }
 
     /**

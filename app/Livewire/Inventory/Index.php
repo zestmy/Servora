@@ -612,6 +612,89 @@ class Index extends Component
         ], fn ($v) => $v !== '' && $v !== null));
     }
 
+    /** Same range as supplierSummaryUrl(), as a workbook instead of a PDF. */
+    private function supplierSummaryExcelUrl(): string
+    {
+        return route('inventory.purchases.supplier-summary-excel', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'supplier'   => $this->supplierFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Wastage totalled by department, for the rows the table is currently showing. */
+    private function wastageSummaryUrl(): string
+    {
+        return route('inventory.wastage.summary', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Same range as wastageSummaryUrl(), as a workbook instead of a PDF. */
+    private function wastageSummaryExcelUrl(): string
+    {
+        return route('inventory.wastage.summary-excel', array_filter([
+            'from'       => $this->dateFrom,
+            'to'         => $this->dateTo,
+            'outlet'     => $this->outletFilter,
+            'department' => $this->departmentFilter,
+            'search'     => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Staff meals totalled by outlet, for the rows the table is currently showing. */
+    private function staffMealSummaryUrl(): string
+    {
+        return route('inventory.staff-meals.summary', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Same range as staffMealSummaryUrl(), as a workbook instead of a PDF. */
+    private function staffMealSummaryExcelUrl(): string
+    {
+        return route('inventory.staff-meals.summary-excel', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Transfers totalled by sending outlet, for the rows the table is currently showing. */
+    private function transferSummaryUrl(): string
+    {
+        return route('inventory.transfers.summary', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'status' => $this->statusFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Same range as transferSummaryUrl(), as a workbook instead of a PDF. */
+    private function transferSummaryExcelUrl(): string
+    {
+        return route('inventory.transfers.summary-excel', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'status' => $this->statusFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
     /**
      * How many suppliers the on-screen chart draws in their own colour before
      * folding the rest into one "Other" bar. Nine bars is what still reads at
@@ -814,6 +897,168 @@ class Index extends Component
     }
 
     /**
+     * Staff meal cost per outlet, shaped for the Chart.js panel on the Staff
+     * Meals tab.
+     *
+     * Staff meals are tagged to the outlet, not a department (StaffMealForm
+     * doesn't even ask for one), so this groups on outlet_id where the Stock
+     * Takes/Wastage chart groups on department — same cutoff and palette,
+     * same click-to-filter shape, into outletFilter instead of
+     * departmentFilter since that is the property staff meals can actually
+     * be narrowed by.
+     *
+     * @return array{labels: array<int,string>, values: array<int,float>, shares: array<int,float>, counts: array<int,int>, colors: array<int,string>, outletIds: array<int, int|null>, noun: string, total: float}
+     */
+    private function outletChartData(): array
+    {
+        $empty = ['labels' => [], 'values' => [], 'shares' => [], 'counts' => [], 'colors' => [], 'outletIds' => [], 'noun' => 'staff meal', 'total' => 0.0];
+
+        if ($this->tab !== 'staff-meals') {
+            return $empty;
+        }
+
+        $rows = (clone $this->filtered())
+            ->selectRaw('outlet_id, COUNT(*) AS cnt, SUM(total_cost) AS amount')
+            ->groupBy('outlet_id')
+            ->get()
+            ->filter(fn ($row) => (float) $row->amount > 0)
+            ->sortByDesc('amount')
+            ->values();
+
+        $total = (float) $rows->sum('amount');
+
+        if ($total <= 0) {
+            return $empty;
+        }
+
+        $names = Outlet::withoutGlobalScope(\App\Scopes\CompanyScope::class)
+            ->whereIn('id', $rows->pluck('outlet_id')->filter())
+            ->pluck('name', 'id');
+
+        $shown = $rows->take(self::CHART_DEPARTMENTS);
+        $rest  = $rows->slice(self::CHART_DEPARTMENTS);
+
+        $labels    = $shown->map(fn ($row) => $names[$row->outlet_id] ?? '—')->values()->all();
+        $values    = $shown->map(fn ($row) => round((float) $row->amount, 2))->values()->all();
+        $shares    = $shown->map(fn ($row) => round(((float) $row->amount / $total) * 100, 1))->values()->all();
+        $counts    = $shown->map(fn ($row) => (int) $row->cnt)->values()->all();
+        $colors    = $shown->values()->map(fn ($row, $i) => PurchaseSupplierBreakdown::SERIES[$i] ?? PurchaseSupplierBreakdown::OTHER_COLOR)->all();
+        $outletIds = $shown->map(fn ($row) => (int) $row->outlet_id)->values()->all();
+
+        if ($rest->isNotEmpty()) {
+            $labels[]    = $rest->count() === 1 ? ($names[$rest->first()->outlet_id] ?? '—') : $rest->count() . ' other outlets';
+            $values[]    = round((float) $rest->sum('amount'), 2);
+            $shares[]    = round(((float) $rest->sum('amount') / $total) * 100, 1);
+            $counts[]    = (int) $rest->sum('cnt');
+            $colors[]    = PurchaseSupplierBreakdown::OTHER_COLOR;
+            $outletIds[] = $rest->count() === 1 ? (int) $rest->first()->outlet_id : null;
+        }
+
+        return [
+            'labels'    => $labels,
+            'values'    => $values,
+            'shares'    => $shares,
+            'counts'    => $counts,
+            'colors'    => $colors,
+            'outletIds' => $outletIds,
+            'noun'      => 'staff meal',
+            'total'     => round($total, 2),
+        ];
+    }
+
+    /**
+     * Transfer value per sending outlet, shaped for the Chart.js panel on
+     * the Transfers tab.
+     *
+     * A transfer carries no cost of its own (TABS marks 'amount' => null for
+     * this tab) — the value lives on its lines, so this sums quantity ×
+     * unit_cost per line first and groups the result by from_outlet_id, the
+     * same computation TransferSummaryController uses for the PDF/Excel
+     * export, so the chart and the file can never disagree about which
+     * outlet sent how much.
+     *
+     * @return array{labels: array<int,string>, values: array<int,float>, shares: array<int,float>, counts: array<int,int>, colors: array<int,string>, outletIds: array<int, int|null>, noun: string, total: float}
+     */
+    private function transferOutletChartData(): array
+    {
+        $empty = ['labels' => [], 'values' => [], 'shares' => [], 'counts' => [], 'colors' => [], 'outletIds' => [], 'noun' => 'transfer', 'total' => 0.0];
+
+        if ($this->tab !== 'transfers') {
+            return $empty;
+        }
+
+        $rows = (clone $this->filtered())
+            ->with('lines:id,outlet_transfer_id,quantity,unit_cost')
+            ->get(['id', 'from_outlet_id'])
+            ->groupBy('from_outlet_id')
+            ->map(fn ($group, $outletId) => [
+                'outlet_id' => (int) $outletId,
+                'count'     => $group->count(),
+                'amount'    => (float) $group->sum(fn ($t) => $t->lines->sum(fn ($l) => (float) $l->quantity * (float) $l->unit_cost)),
+            ])
+            ->filter(fn (array $row) => $row['amount'] > 0)
+            ->sortByDesc('amount')
+            ->values();
+
+        $total = (float) $rows->sum('amount');
+
+        if ($total <= 0) {
+            return $empty;
+        }
+
+        $names = Outlet::withoutGlobalScope(\App\Scopes\CompanyScope::class)
+            ->whereIn('id', $rows->pluck('outlet_id'))
+            ->pluck('name', 'id');
+
+        $shown = $rows->take(self::CHART_DEPARTMENTS);
+        $rest  = $rows->slice(self::CHART_DEPARTMENTS);
+
+        $labels    = $shown->map(fn (array $row) => $names[$row['outlet_id']] ?? '—')->values()->all();
+        $values    = $shown->map(fn (array $row) => round($row['amount'], 2))->values()->all();
+        $shares    = $shown->map(fn (array $row) => round(($row['amount'] / $total) * 100, 1))->values()->all();
+        $counts    = $shown->map(fn (array $row) => $row['count'])->values()->all();
+        $colors    = $shown->values()->map(fn ($row, $i) => PurchaseSupplierBreakdown::SERIES[$i] ?? PurchaseSupplierBreakdown::OTHER_COLOR)->all();
+        $outletIds = $shown->map(fn (array $row) => $row['outlet_id'])->values()->all();
+
+        if ($rest->isNotEmpty()) {
+            $labels[]    = $rest->count() === 1 ? ($names[$rest->first()['outlet_id']] ?? '—') : $rest->count() . ' other outlets';
+            $values[]    = round($rest->sum('amount'), 2);
+            $shares[]    = round(($rest->sum('amount') / $total) * 100, 1);
+            $counts[]    = $rest->sum('count');
+            $colors[]    = PurchaseSupplierBreakdown::OTHER_COLOR;
+            $outletIds[] = $rest->count() === 1 ? $rest->first()['outlet_id'] : null;
+        }
+
+        return [
+            'labels'    => $labels,
+            'values'    => $values,
+            'shares'    => $shares,
+            'counts'    => $counts,
+            'colors'    => $colors,
+            'outletIds' => $outletIds,
+            'noun'      => 'transfer',
+            'total'     => round($total, 2),
+        ];
+    }
+
+    /**
+     * Set from a click on the Staff Meals or Transfers outlet chart. Both
+     * group by an outlet and both are filterable by the same outletFilter
+     * property the dropdown above the table already drives, so one handler
+     * covers both charts. The "Other" bar's null id is a no-op, same as
+     * filterByDepartment().
+     */
+    public function filterByOutletChart(?int $outletId): void
+    {
+        if ($outletId === null) {
+            return;
+        }
+
+        $this->outletFilter = (string) $outletId;
+        $this->resetPage();
+    }
+
+    /**
      * Stock value split by category, from the most recent completed count.
      *
      * Only built on the Stock Takes tab. It loads every line of that count with
@@ -900,8 +1145,17 @@ class Index extends Component
             'consolidatedUrl'   => $this->tab === 'stock-takes' ? $this->consolidatedUrl() : null,
             'consolidatedExcelUrl' => $this->tab === 'stock-takes' ? $this->consolidatedExcelUrl() : null,
             'supplierSummaryUrl'=> $this->tab === 'purchases' ? $this->supplierSummaryUrl() : null,
+            'supplierSummaryExcelUrl' => $this->tab === 'purchases' ? $this->supplierSummaryExcelUrl() : null,
             'supplierChartData' => $this->tab === 'purchases' ? $this->supplierChartData() : null,
             'departmentChartData' => in_array($this->tab, ['stock-takes', 'wastage'], true) ? $this->departmentChartData() : null,
+            'outletChartData'   => $this->tab === 'staff-meals' ? $this->outletChartData() : null,
+            'transferChartData' => $this->tab === 'transfers' ? $this->transferOutletChartData() : null,
+            'wastageSummaryUrl'      => $this->tab === 'wastage' ? $this->wastageSummaryUrl() : null,
+            'wastageSummaryExcelUrl' => $this->tab === 'wastage' ? $this->wastageSummaryExcelUrl() : null,
+            'staffMealSummaryUrl'      => $this->tab === 'staff-meals' ? $this->staffMealSummaryUrl() : null,
+            'staffMealSummaryExcelUrl' => $this->tab === 'staff-meals' ? $this->staffMealSummaryExcelUrl() : null,
+            'transferSummaryUrl'      => $this->tab === 'transfers' ? $this->transferSummaryUrl() : null,
+            'transferSummaryExcelUrl' => $this->tab === 'transfers' ? $this->transferSummaryExcelUrl() : null,
             'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,

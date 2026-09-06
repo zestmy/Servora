@@ -126,6 +126,32 @@ class PurchaseSupplierSummaryExportTest extends TestCase
         $this->summary()->assertOk();
     }
 
+    public function test_the_summary_downloads_as_a_workbook(): void
+    {
+        $this->aMonthOfBuying();
+
+        $response = $this->get(route('inventory.purchases.supplier-summary-excel', [
+            'from' => '2026-08-01', 'to' => '2026-09-30',
+        ]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString(
+            'Purchases-by-Supplier-2026-08-01-to-2026-09-30.xlsx',
+            $response->headers->get('content-disposition')
+        );
+    }
+
+    public function test_the_button_offers_a_download_excel_option(): void
+    {
+        $this->purchase(['amount' => 100]);
+
+        $html = Livewire::actingAs($this->user)->test(StockManagement::class)
+            ->set('tab', 'purchases')->call('setQuickRange', 'all_time')->html();
+
+        $this->assertStringContainsString('supplier-summary.xlsx', $html);
+    }
+
     public function test_the_summary_route_does_not_swallow_the_capture_form(): void
     {
         // /inventory/purchases/supplier-summary and /inventory/purchases/{id}
