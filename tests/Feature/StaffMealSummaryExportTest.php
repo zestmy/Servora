@@ -101,6 +101,24 @@ class StaffMealSummaryExportTest extends TestCase
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
+    public function test_the_busiest_outlet_highlight_counts_a_meal_with_no_department(): void
+    {
+        // Regression: the "Most meals" highlight used to group by
+        // department_id, which staff meals never set (StaffMealForm removed
+        // the field — it's tagged to the outlet only) — so the card always
+        // read "—", the same failure shape as the Biggest supplier card
+        // grouping on a column linked purchases never fill in.
+        $this->meal($this->outlet1, 30);
+        $this->meal($this->outlet2, 15);
+
+        $highlight = Livewire::test(StockManagement::class)
+            ->set('tab', 'staff-meals')->call('setQuickRange', 'all_time')
+            ->viewData('highlight');
+
+        $this->assertSame('Busiest outlet', $highlight['label']);
+        $this->assertSame('Main', $highlight['value']);
+    }
+
     public function test_groups_are_ranked_by_outlet_and_biggest_cost_first(): void
     {
         $this->meal($this->outlet1, 30);

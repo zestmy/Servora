@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Inventory\Index as StockManagement;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Ingredient;
@@ -12,6 +13,7 @@ use App\Models\WastageRecord;
 use App\Models\WastageRecordLine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -87,6 +89,25 @@ class WastageSummaryExportTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'application/pdf');
         $this->assertStringContainsString('Wastage-Summary-2026-08-01-to-2026-08-31', $response->headers->get('content-disposition'));
+    }
+
+    public function test_the_most_wastage_highlight_still_groups_by_department(): void
+    {
+        // Wastage kept its required department field (unlike Staff Meals),
+        // so this highlight's department_id grouping stays correct — this
+        // just pins that down after splitting it out of the shared branch
+        // the "Busiest outlet" fix for staff-meals moved out of.
+        $hot = Department::create(['company_id' => $this->company->id, 'name' => 'Hot Kitchen']);
+        $bar = Department::create(['company_id' => $this->company->id, 'name' => 'Bar']);
+        $this->wastage($hot, 90);
+        $this->wastage($bar, 30);
+
+        $highlight = Livewire::test(StockManagement::class)
+            ->set('tab', 'wastage')->call('setQuickRange', 'all_time')
+            ->viewData('highlight');
+
+        $this->assertSame('Most wastage', $highlight['label']);
+        $this->assertSame('Hot Kitchen', $highlight['value']);
     }
 
     public function test_the_excel_downloads_and_totals_match_the_pdf_range(): void

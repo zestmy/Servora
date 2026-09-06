@@ -489,7 +489,7 @@ class Index extends Component
             ];
         }
 
-        if (in_array($this->tab, ['wastage', 'staff-meals'], true)) {
+        if ($this->tab === 'wastage') {
             $top = (clone $this->filtered())
                 ->selectRaw('department_id, SUM(total_cost) AS spend')
                 ->whereNotNull('department_id')
@@ -498,8 +498,29 @@ class Index extends Component
                 ->first();
 
             return [
-                'label' => $this->tab === 'wastage' ? 'Most wastage' : 'Most meals',
+                'label' => 'Most wastage',
                 'value' => $top ? (Department::find($top->department_id)?->name ?? '—') : '—',
+                'tone'  => 'muted',
+            ];
+        }
+
+        if ($this->tab === 'staff-meals') {
+            // Grouped by outlet, not department: staff meals are tagged to
+            // the outlet only (StaffMealForm doesn't ask for a department —
+            // dept => false in TABS above), so department_id is never set on
+            // a record the form creates. Grouping on it here, the way this
+            // card used to, meant the query always came back empty and the
+            // card always read "—" — the same failure shape as the Biggest
+            // supplier card grouping on a column linked purchases never fill in.
+            $top = (clone $this->filtered())
+                ->selectRaw('outlet_id, SUM(total_cost) AS spend')
+                ->groupBy('outlet_id')
+                ->orderByDesc('spend')
+                ->first();
+
+            return [
+                'label' => 'Busiest outlet',
+                'value' => $top ? (Outlet::withoutGlobalScope(\App\Scopes\CompanyScope::class)->find($top->outlet_id)?->name ?? '—') : '—',
                 'tone'  => 'muted',
             ];
         }
