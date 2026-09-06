@@ -248,7 +248,16 @@
        eyebrow, title, actions — with the title actually winning. */
     .page-head    { @apply flex flex-wrap items-start justify-between gap-3 mb-6; }
     .page-eyebrow { @apply text-xs font-medium uppercase tracking-wider text-gray-500; }
-    .page-actions { @apply flex items-center gap-2 flex-shrink-0; }
+    /* flex-wrap + max-w-full: a screen with three or four export buttons plus
+       a primary action (Stock Management's Wastage/Staff Meals/Transfers
+       tabs, now that each carries a Summary and a Details export in both
+       formats) overflowed the viewport on mobile instead of wrapping.
+       flex-wrap alone was not enough — once .page-head itself wraps, this
+       block is the lone item on its own line and, with nothing capping its
+       width, sizes to its content (every button in one unbroken row) rather
+       than to the space actually available, so its own wrap never triggers.
+       max-w-full is what forces that. */
+    .page-actions { @apply flex flex-wrap items-center gap-2 flex-shrink-0 max-w-full; }
 
     /* ── Toolbar ──────────────────────────────────────────────────────────
        The filter / control strip above a table. Lower elevation than a card
