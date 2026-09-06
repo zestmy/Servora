@@ -270,6 +270,37 @@ class PurchaseSupplierChartTest extends TestCase
         $this->assertSame(1, $component->viewData('records')->currentPage());
     }
 
+    // ── The "Biggest supplier" stat card ─────────────────────────────────
+
+    public function test_the_biggest_supplier_card_counts_a_linked_supplier(): void
+    {
+        // Regression: the card used to group on supplier_name alone, which is
+        // null for a linked purchase — so a screen where every purchase
+        // pointed at a real Supplier record showed nothing here at all, even
+        // though the chart right below it clearly had a tallest bar.
+        $meat = $this->supplier('Fresh Meats');
+        $this->purchase(['supplier_id' => $meat->id, 'amount' => 900]);
+
+        $highlight = $this->purchasesScreen()->viewData('highlight');
+
+        $this->assertSame('Biggest supplier', $highlight['label']);
+        $this->assertSame('Fresh Meats', $highlight['value']);
+    }
+
+    public function test_the_biggest_supplier_card_matches_the_charts_tallest_bar(): void
+    {
+        $meat = $this->supplier('Fresh Meats');
+        $veg  = $this->supplier('Green Grocer');
+        $this->purchase(['supplier_id' => $meat->id, 'amount' => 900]);
+        $this->purchase(['supplier_id' => $veg->id, 'amount' => 300]);
+
+        $screen    = $this->purchasesScreen();
+        $highlight = $screen->viewData('highlight');
+        $chart     = $screen->viewData('supplierChartData');
+
+        $this->assertSame($chart['labels'][0], $highlight['value']);
+    }
+
     // ── Consistency with the shared grouping service ────────────────────
 
     public function test_the_service_backing_the_chart_and_the_export_is_the_same(): void

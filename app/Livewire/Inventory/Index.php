@@ -474,16 +474,17 @@ class Index extends Component
         }
 
         if ($this->tab === 'purchases') {
-            $top = (clone $this->filtered())
-                ->selectRaw('supplier_name, SUM(amount) AS spend')
-                ->whereNotNull('supplier_name')
-                ->groupBy('supplier_name')
-                ->orderByDesc('spend')
-                ->first();
+            // Same grouping the chart and the PDF/Excel export use — a linked
+            // Supplier and a hand-typed name for the same vendor merged into
+            // one row. Grouping on supplier_name alone (the previous version
+            // of this card) missed every linked purchase, whose supplier_name
+            // column is null, and so showed nothing at all on a screen where
+            // every purchase pointed at a real Supplier record.
+            $top = app(PurchaseSupplierBreakdown::class)->summarize(clone $this->filtered())[0] ?? null;
 
             return [
                 'label' => 'Biggest supplier',
-                'value' => $top?->supplier_name ?? '—',
+                'value' => $top['name'] ?? '—',
                 'tone'  => 'muted',
             ];
         }
