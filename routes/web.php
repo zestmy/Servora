@@ -322,12 +322,16 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/staff-meals/create', StaffMealForm::class)->name('inventory.staff-meals.create')->middleware('can:inventory.staff_meals.record');
     Route::get('/inventory/staff-meals-summary', \App\Http\Controllers\StaffMealSummaryController::class)->name('inventory.staff-meals.summary')->middleware('can:inventory.view');
     Route::get('/inventory/staff-meals-summary.xlsx', \App\Http\Controllers\StaffMealSummaryExcelController::class)->name('inventory.staff-meals.summary-excel')->middleware('can:inventory.view');
+    Route::get('/inventory/staff-meals-details', \App\Http\Controllers\StaffMealDetailController::class)->name('inventory.staff-meals.detail')->middleware('can:inventory.view');
+    Route::get('/inventory/staff-meals-details.xlsx', \App\Http\Controllers\StaffMealDetailExcelController::class)->name('inventory.staff-meals.detail-excel')->middleware('can:inventory.view');
     Route::get('/inventory/staff-meals/{id}', StaffMealForm::class)->name('inventory.staff-meals.show')->middleware('can:inventory.staff_meals.record');
     Route::get('/inventory/prep-items/create', PrepItemForm::class)->name('inventory.prep-items.create')->middleware('can:inventory.prep_items.record');
     Route::get('/inventory/prep-items/{id}', PrepItemForm::class)->name('inventory.prep-items.show')->middleware('can:inventory.prep_items.record');
     Route::get('/inventory/transfers/create', TransferForm::class)->name('inventory.transfers.create')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/transfers-summary', \App\Http\Controllers\TransferSummaryController::class)->name('inventory.transfers.summary')->middleware('can:inventory.view');
     Route::get('/inventory/transfers-summary.xlsx', \App\Http\Controllers\TransferSummaryExcelController::class)->name('inventory.transfers.summary-excel')->middleware('can:inventory.view');
+    Route::get('/inventory/transfers-details', \App\Http\Controllers\TransferDetailController::class)->name('inventory.transfers.detail')->middleware('can:inventory.view');
+    Route::get('/inventory/transfers-details.xlsx', \App\Http\Controllers\TransferDetailExcelController::class)->name('inventory.transfers.detail-excel')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/purchases/create', PurchaseCaptureForm::class)->name('inventory.purchases.create')->middleware('can:inventory.purchases.record');
     // Above the {id} route on purpose: "supplier-summary" is a valid {id} as far

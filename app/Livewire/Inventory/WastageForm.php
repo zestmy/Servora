@@ -22,6 +22,10 @@ class WastageForm extends Component
     public string $wastage_date     = '';
     public string $reference_number = '';
     public string $notes            = '';
+    public string $method           = 'detailed'; // 'detailed' or 'summary'
+
+    // Summary method: total amount keyed in directly
+    public string $summary_amount   = '0';
 
     // Lines: [item_type, ingredient_id, recipe_id, item_name, is_prep,
     //         uom_id, uom_abbr, quantity, unit_cost, total_cost, reason]
@@ -31,15 +35,23 @@ class WastageForm extends Component
 
     protected function rules(): array
     {
-        return [
+        $rules = [
             'outlet_id'          => 'required|integer',
             'department_id'      => 'required|exists:departments,id',
             'wastage_date'       => 'required|date',
             'reference_number'   => 'nullable|string|max:100',
             'notes'              => 'nullable|string',
-            'lines'              => 'required|array|min:1',
-            'lines.*.quantity'   => 'required|numeric|min:0',
+            'method'             => 'required|in:detailed,summary',
         ];
+
+        if ($this->method === 'summary') {
+            $rules['summary_amount'] = 'required|numeric|min:0';
+        } else {
+            $rules['lines']            = 'required|array|min:1';
+            $rules['lines.*.quantity'] = 'required|numeric|min:0';
+        }
+
+        return $rules;
     }
 
     protected function messages(): array
@@ -47,6 +59,7 @@ class WastageForm extends Component
         return [
             'outlet_id.required'     => 'Select an outlet for this record.',
             'department_id.required' => 'Select a department for this record.',
+            'summary_amount.required' => 'Enter the total wastage value.',
             'lines.required'         => 'Add at least one item.',
             'lines.min'              => 'Add at least one item.',
             'lines.*.quantity.min'   => 'Quantity must be greater than zero.',
@@ -70,6 +83,8 @@ class WastageForm extends Component
         $this->wastage_date     = $record->wastage_date->toDateString();
         $this->reference_number = $record->reference_number ?? '';
         $this->notes            = $record->notes ?? '';
+        $this->method           = $record->method ?? 'detailed';
+        $this->summary_amount   = (string) floatval($record->total_cost);
 
         $this->lines = $record->lines->map(function ($l) {
             if ($l->recipe_id) {
@@ -281,13 +296,16 @@ class WastageForm extends Component
 
         $this->validate();
 
-        $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
+        $totalCost = $this->method === 'summary'
+            ? floatval($this->summary_amount)
+            : collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
 
         $data = [
             'department_id'    => $this->department_id ?: null,
             'wastage_date'     => $this->wastage_date,
             'reference_number' => $this->reference_number ?: null,
             'notes'            => $this->notes ?: null,
+            'method'           => $this->method,
             'total_cost'       => round($totalCost, 4),
         ];
 
@@ -315,19 +333,21 @@ class WastageForm extends Component
             : [];
 
         $record->lines()->delete();
-        foreach ($this->lines as $line) {
-            $qty      = floatval($line['quantity']);
-            $unitCost = $this->lockedLineCost($line);
+        if ($this->method === 'detailed') {
+            foreach ($this->lines as $line) {
+                $qty      = floatval($line['quantity']);
+                $unitCost = $this->lockedLineCost($line);
 
-            $record->lines()->create([
-                'ingredient_id' => $line['ingredient_id'] ?: null,
-                'recipe_id'     => $line['recipe_id'] ?: null,
-                'uom_id'        => $line['uom_id'],
-                'quantity'      => $qty,
-                'unit_cost'     => $unitCost,
-                'total_cost'    => round($qty * $unitCost, 4),
-                'reason'        => $line['reason'] ?: null,
-            ]);
+                $record->lines()->create([
+                    'ingredient_id' => $line['ingredient_id'] ?: null,
+                    'recipe_id'     => $line['recipe_id'] ?: null,
+                    'uom_id'        => $line['uom_id'],
+                    'quantity'      => $qty,
+                    'unit_cost'     => $unitCost,
+                    'total_cost'    => round($qty * $unitCost, 4),
+                    'reason'        => $line['reason'] ?: null,
+                ]);
+            }
         }
 
         // Log item add / remove / quantity changes on edits.

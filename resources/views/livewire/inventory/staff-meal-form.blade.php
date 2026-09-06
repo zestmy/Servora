@@ -44,6 +44,31 @@
             <div class="card p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-700">Staff Meal Details</h3>
 
+                {{-- Method toggle --}}
+                @if (! $recordId)
+                    <div>
+                        <x-input-label value="Method" />
+                        <div class="seg mt-1 w-fit">
+                            <button type="button" wire:click="$set('method', 'detailed')"
+                                    class="seg-item {{ $method === 'detailed' ? 'seg-item-on' : '' }}">
+                                Detailed Items
+                            </button>
+                            <button type="button" wire:click="$set('method', 'summary')"
+                                    class="seg-item {{ $method === 'summary' ? 'seg-item-on' : '' }}">
+                                Summary Amount
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-600">
+                            {{ $method === 'summary' ? 'Enter the total staff meal cost directly — quick entry when itemising isn\'t worth it.' : 'List each item served individually.' }}
+                        </p>
+                    </div>
+                @elseif ($method === 'summary')
+                    <div>
+                        <x-input-label value="Method" />
+                        <p class="mt-1 text-sm text-gray-600 font-medium">Summary Amount</p>
+                    </div>
+                @endif
+
                 @include('livewire.inventory.partials.outlet-field')
 
                 <div class="grid grid-cols-2 gap-4">
@@ -59,6 +84,17 @@
                     </div>
                 </div>
 
+                {{-- Summary amount field --}}
+                @if ($method === 'summary')
+                    <div>
+                        <x-input-label for="sm_amount" value="Total Staff Meal Cost (RM) *" />
+                        <x-text-input id="sm_amount" wire:model="summary_amount" type="number" step="0.01" min="0"
+                                      class="mt-1 block w-full text-lg font-semibold" placeholder="0.00" />
+                        <p class="mt-1 text-xs text-gray-600">Enter the total staff meal cost for this record.</p>
+                        <x-input-error :messages="$errors->get('summary_amount')" class="mt-1" />
+                    </div>
+                @endif
+
                 <div>
                     <x-input-label for="sm_notes" value="Notes" />
                     <textarea id="sm_notes" wire:model="notes" rows="2"
@@ -73,16 +109,29 @@
             <div class="card p-6 lg:sticky lg:top-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-4">Summary</h3>
                 <dl class="space-y-3 text-sm">
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">Items</dt>
-                        <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
-                    </div>
-                    <div class="flex justify-between border-t border-gray-100 pt-3">
-                        <dt class="font-semibold text-gray-600">Total Staff Meal Cost</dt>
-                        <dd class="font-bold text-lg text-purple-600 tabular-nums">
-                            RM {{ number_format($totalCost, 2) }}
-                        </dd>
-                    </div>
+                    @if ($method === 'summary')
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Method</dt>
+                            <dd class="font-medium text-brand-600">Summary</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-gray-100 pt-3">
+                            <dt class="font-semibold text-gray-600">Total Staff Meal Cost</dt>
+                            <dd class="font-bold text-lg text-purple-600 tabular-nums">
+                                RM {{ number_format(floatval($summary_amount), 2) }}
+                            </dd>
+                        </div>
+                    @else
+                        <div class="flex justify-between">
+                            <dt class="text-gray-500">Items</dt>
+                            <dd class="font-medium text-gray-800">{{ count($lines) }}</dd>
+                        </div>
+                        <div class="flex justify-between border-t border-gray-100 pt-3">
+                            <dt class="font-semibold text-gray-600">Total Staff Meal Cost</dt>
+                            <dd class="font-bold text-lg text-purple-600 tabular-nums">
+                                RM {{ number_format($totalCost, 2) }}
+                            </dd>
+                        </div>
+                    @endif
                 </dl>
                 <div class="mt-4 pt-4 border-t border-gray-100">
                     <p class="text-xs text-gray-600 leading-relaxed">
@@ -94,6 +143,7 @@
     </div>
 
     {{-- Items section --}}
+    @if ($method === 'detailed')
     <div class="mt-4 card">
 
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -272,6 +322,7 @@
         </div>
 
     </div>
+    @endif
 
     {{-- Recent activity (edit only) — bottom of form --}}
     <x-audit-timeline :type="\App\Models\StaffMealRecord::class" :id="$recordId" title="Staff Meal Activity" class="mt-4" />

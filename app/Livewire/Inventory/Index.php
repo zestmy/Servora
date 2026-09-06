@@ -717,6 +717,28 @@ class Index extends Component
         ], fn ($v) => $v !== '' && $v !== null));
     }
 
+    /** Every item served to staff in range, merged into one report — the detail behind staffMealSummaryUrl()'s outlet totals. */
+    private function staffMealDetailUrl(): string
+    {
+        return route('inventory.staff-meals.detail', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Same range as staffMealDetailUrl(), as a workbook instead of a PDF. */
+    private function staffMealDetailExcelUrl(): string
+    {
+        return route('inventory.staff-meals.detail-excel', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
     /** Transfers totalled by sending outlet, for the rows the table is currently showing. */
     private function transferSummaryUrl(): string
     {
@@ -733,6 +755,30 @@ class Index extends Component
     private function transferSummaryExcelUrl(): string
     {
         return route('inventory.transfers.summary-excel', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'status' => $this->statusFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Every item moved in range, merged into one report — the detail behind transferSummaryUrl()'s outlet totals. */
+    private function transferDetailUrl(): string
+    {
+        return route('inventory.transfers.detail', array_filter([
+            'from'   => $this->dateFrom,
+            'to'     => $this->dateTo,
+            'outlet' => $this->outletFilter,
+            'status' => $this->statusFilter,
+            'search' => $this->search,
+        ], fn ($v) => $v !== '' && $v !== null));
+    }
+
+    /** Same range as transferDetailUrl(), as a workbook instead of a PDF. */
+    private function transferDetailExcelUrl(): string
+    {
+        return route('inventory.transfers.detail-excel', array_filter([
             'from'   => $this->dateFrom,
             'to'     => $this->dateTo,
             'outlet' => $this->outletFilter,
@@ -1202,8 +1248,12 @@ class Index extends Component
             'wastageDetailExcelUrl' => $this->tab === 'wastage' ? $this->wastageDetailExcelUrl() : null,
             'staffMealSummaryUrl'      => $this->tab === 'staff-meals' ? $this->staffMealSummaryUrl() : null,
             'staffMealSummaryExcelUrl' => $this->tab === 'staff-meals' ? $this->staffMealSummaryExcelUrl() : null,
+            'staffMealDetailUrl'      => $this->tab === 'staff-meals' ? $this->staffMealDetailUrl() : null,
+            'staffMealDetailExcelUrl' => $this->tab === 'staff-meals' ? $this->staffMealDetailExcelUrl() : null,
             'transferSummaryUrl'      => $this->tab === 'transfers' ? $this->transferSummaryUrl() : null,
             'transferSummaryExcelUrl' => $this->tab === 'transfers' ? $this->transferSummaryExcelUrl() : null,
+            'transferDetailUrl'      => $this->tab === 'transfers' ? $this->transferDetailUrl() : null,
+            'transferDetailExcelUrl' => $this->tab === 'transfers' ? $this->transferDetailExcelUrl() : null,
             'completedInRange'  => $this->tab === 'stock-takes' ? $this->completedInRange() : 0,
             'highlight'         => $this->highlight(),
             'latestStockTake'   => $latestStockTake,

@@ -15,7 +15,7 @@ class WastageRecord extends Model
 
     protected $fillable = [
         'company_id', 'outlet_id', 'department_id', 'reference_number', 'wastage_date',
-        'total_cost', 'notes', 'created_by',
+        'total_cost', 'method', 'notes', 'created_by',
     ];
 
     protected $casts = [

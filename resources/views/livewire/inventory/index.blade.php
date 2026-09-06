@@ -75,13 +75,25 @@
                 @endcanDo
             @elseif ($tab === 'staff-meals')
                 @if ($staffMealSummaryUrl && $records->total() > 0)
-                    <a href="{{ $staffMealSummaryUrl }}" class="btn-secondary">
+                    <a href="{{ $staffMealSummaryUrl }}" class="btn-secondary"
+                       title="Totalled by outlet — how much each outlet spent feeding staff.">
                         <x-icon name="printer" size="h-4 w-4" />
-                        Staff Meal Summary
+                        Summary
                     </a>
-                    <a href="{{ $staffMealSummaryExcelUrl }}" class="btn-secondary">
+                    <a href="{{ $staffMealSummaryExcelUrl }}" class="btn-secondary"
+                       title="Totalled by outlet — how much each outlet spent feeding staff.">
                         <x-icon name="download" size="h-4 w-4" />
-                        Download Excel
+                        Summary (Excel)
+                    </a>
+                    <a href="{{ $staffMealDetailUrl }}" class="btn-secondary"
+                       title="Every item served, merged into one list — what was served, and how much.">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Details
+                    </a>
+                    <a href="{{ $staffMealDetailExcelUrl }}" class="btn-secondary"
+                       title="Every item served, merged into one list — what was served, and how much.">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Details (Excel)
                     </a>
                 @endif
                 @canDo('inventory.staff_meals.record')
@@ -89,13 +101,25 @@
                 @endcanDo
             @elseif ($tab === 'transfers')
                 @if ($transferSummaryUrl && $records->total() > 0)
-                    <a href="{{ $transferSummaryUrl }}" class="btn-secondary">
+                    <a href="{{ $transferSummaryUrl }}" class="btn-secondary"
+                       title="Totalled by sending outlet — how much value each outlet sent out.">
                         <x-icon name="printer" size="h-4 w-4" />
-                        Transfer Summary
+                        Summary
                     </a>
-                    <a href="{{ $transferSummaryExcelUrl }}" class="btn-secondary">
+                    <a href="{{ $transferSummaryExcelUrl }}" class="btn-secondary"
+                       title="Totalled by sending outlet — how much value each outlet sent out.">
                         <x-icon name="download" size="h-4 w-4" />
-                        Download Excel
+                        Summary (Excel)
+                    </a>
+                    <a href="{{ $transferDetailUrl }}" class="btn-secondary"
+                       title="Every item moved, merged into one list — what moved, and how much.">
+                        <x-icon name="printer" size="h-4 w-4" />
+                        Details
+                    </a>
+                    <a href="{{ $transferDetailExcelUrl }}" class="btn-secondary"
+                       title="Every item moved, merged into one list — what moved, and how much.">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Details (Excel)
                     </a>
                 @endif
                 @canDo('inventory.transfers.record')
