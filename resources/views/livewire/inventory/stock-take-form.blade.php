@@ -9,8 +9,11 @@
         </div>
     @endif
 
-    {{-- Top bar --}}
-    <div class="flex items-center gap-3 mb-6">
+    {{-- Top bar. flex-wrap on both this row and the button group below: up to
+         three buttons here (Print Count Sheet, Save Draft, Complete) is the
+         same shape as the Stock Management header that overflowed on mobile
+         — see .page-actions in resources/css/app.css for the same fix. --}}
+    <div class="flex items-center flex-wrap gap-3 mb-6">
         <a data-back href="{{ route('inventory.index') }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -22,7 +25,7 @@
                 / {{ $recordId ? 'Stock Take #' . $recordId : 'New Stock Take' }}
             </p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center flex-wrap gap-2 max-w-full">
             @if ($recordId)
                 <a href="{{ route('inventory.stock-takes.count-sheet', $recordId) }}"
                    target="_blank"

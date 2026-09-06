@@ -142,7 +142,7 @@
                     </p>
                 </div>
                 @if ($canAdjust)
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2 max-w-full">
                         <button wire:click="openAdjust" class="btn-secondary">Add adjustment</button>
                         <button wire:click="openBulk" class="btn-secondary">Add by days (all staff)</button>
                     </div>

@@ -578,6 +578,11 @@
     {{-- ── Stock Takes Tab ───────────────────────────────────────────────── --}}
     @if ($tab === 'stock-takes')
         <div class="card overflow-hidden">
+            {{-- overflow-x-auto: this table is wider than a phone screen, and
+                 without its own scroll container the columns past the fold
+                 were clipped by the card's overflow-hidden with no way to
+                 reach them, rather than reachable by a horizontal swipe. --}}
+            <div class="overflow-x-auto">
             <table class="table-surface min-w-full">
                 <thead>
                     <tr>
@@ -676,6 +681,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
 
             @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
@@ -688,6 +694,7 @@
     {{-- ── Purchases Tab ─────────────────────────────────────────────────── --}}
     @if ($tab === 'purchases')
         <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="table-surface min-w-full">
                 <thead>
                     <tr>
@@ -750,6 +757,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
 
             @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
@@ -762,6 +770,7 @@
     {{-- ── Staff Meals Tab ──────────────────────────────────────────────── --}}
     @if ($tab === 'staff-meals')
         <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="table-surface min-w-full">
                 <thead>
                     <tr>
@@ -836,6 +845,7 @@
                     </tfoot>
                 @endif
             </table>
+            </div>
 
             @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
@@ -848,6 +858,7 @@
     {{-- ── Transfers Tab ─────────────────────────────────────────────────── --}}
     @if ($tab === 'transfers')
         <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="table-surface min-w-full">
                 <thead>
                     <tr>
@@ -923,6 +934,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
 
             @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">
@@ -935,6 +947,7 @@
     {{-- ── Wastage Tab ───────────────────────────────────────────────────── --}}
     @if ($tab === 'wastage')
         <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="table-surface min-w-full">
                 <thead>
                     <tr>
@@ -1023,6 +1036,7 @@
                     </tfoot>
                 @endif
             </table>
+            </div>
 
             @if (method_exists($records, 'hasPages') && $records->hasPages())
                 <div class="px-4 py-3 border-t border-gray-100">

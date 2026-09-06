@@ -18,7 +18,7 @@
                 <h1 class="page-title mt-1">Roster Stations</h1>
             <p class="text-xs text-gray-500 mt-1">Configure work stations that employees can be assigned to in the duty roster.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 max-w-full">
             <a href="{{ route('hr.duty-roster') }}"
                class="btn-secondary">
                 Back to Roster
