@@ -199,6 +199,42 @@ class EmployeeListFilterRoundTripTest extends TestCase
         $this->assertStringContainsString('section=' . $this->kitchen->id, $html);
     }
 
+    /**
+     * REPORTED AS: back from an employee, the dropdowns say filtered but the
+     * list shows everybody. Filter changes never reached the URL, so the
+     * browser's Back reloaded a bare list while restoring the old dropdown
+     * values. The page now writes its filters into the address bar, and the
+     * controls opt out of the browser restoring them.
+     */
+    public function test_the_list_keeps_its_filters_in_the_address_bar(): void
+    {
+        $c = Livewire::actingAs($this->user)->test(Employees::class, ['outlet' => (string) $this->outlet->id])
+            ->set('sectionFilter', (string) $this->kitchen->id)
+            ->set('employmentStatusFilter', 'outsourcing');
+
+        $html = html_entity_decode($c->html());
+
+        $expected = route('hr.employees', [
+            'outlet' => (string) $this->outlet->id, 'section' => (string) $this->kitchen->id,
+            'employment' => 'outsourcing', 'status' => 'active',
+        ]);
+
+        // @js() JSON-encodes the URL (slashes and & escaped), so decode what
+        // was written rather than matching one particular escaping.
+        // Js::from() wraps a string in single quotes with the inside JSON-escaped.
+        $pattern = "/history\\.replaceState\\(history\\.state, '', '([^']*)'\\)/";
+        $this->assertMatchesRegularExpression($pattern, $html);
+        preg_match($pattern, $html, $m);
+
+        $this->assertSame($expected, json_decode('"' . $m[1] . '"'),
+            'The address bar must carry the filters the list is actually using.');
+
+        foreach (['outletFilter', 'sectionFilter', 'employmentStatusFilter', 'statusFilter'] as $prop) {
+            $this->assertMatchesRegularExpression('/wire:model\.live="' . $prop . '" autocomplete="off"/', $html,
+                "{$prop} must not let the browser restore a value the list is not using.");
+        }
+    }
+
     // ── 1. The filters survive the round trip ─────────────────────────────
 
     public function test_saving_an_employee_returns_to_the_filtered_list(): void

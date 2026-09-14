@@ -13,6 +13,16 @@
     ];
 @endphp
 
+    {{-- Keep the address bar in step with the filters. Changing a dropdown
+         never touched the URL, so the browser's Back (or a phone's swipe
+         back) from an employee reloaded a bare /hr/employees: the server
+         listed everybody while the browser restored the old dropdown values,
+         and the screen said "filtered" over an unfiltered list. The keyed
+         element re-runs on every filter change; history.state is passed back
+         untouched so Livewire's own entry survives. --}}
+    <div hidden wire:key="url-sync-{{ md5(json_encode($returnFilters)) }}"
+         x-data x-init="history.replaceState(history.state, '', @js(route('hr.employees', $returnFilters)))"></div>
+
     @once
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     @endonce
@@ -86,11 +96,11 @@
     <div class="card p-4 mb-4">
         <div class="flex flex-col sm:flex-row flex-wrap gap-3">
             <div class="flex-1 min-w-[180px]">
-                <input type="text" wire:model.live.debounce.300ms="search"
+                <input type="text" wire:model.live.debounce.300ms="search" autocomplete="off"
                        placeholder="Search name, staff ID, email, designation…"
                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500" />
             </div>
-            <select wire:model.live="outletFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+            <select wire:model.live="outletFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 @if ($canViewAll)
                     <option value="">All Outlets</option>
                 @endif
@@ -98,13 +108,13 @@
                     <option value="{{ $o->id }}">{{ $o->name }}</option>
                 @endforeach
             </select>
-            <select wire:model.live="sectionFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+            <select wire:model.live="sectionFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="">All Sections</option>
                 @foreach ($sections as $s)
                     <option value="{{ $s->id }}">{{ $s->name }}</option>
                 @endforeach
             </select>
-            <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+            <select wire:model.live="employmentStatusFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="">All Employment</option>
                 <option value="exclude_outsourcing">All Exclude Outsourcing</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
@@ -112,7 +122,7 @@
                 @endforeach
                 <option value="none">No Status</option>
             </select>
-            <select wire:model.live="statusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+            <select wire:model.live="statusFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="">All</option>
