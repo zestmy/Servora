@@ -279,12 +279,14 @@
 
             {{-- Passport and visa.
 
-                 ALWAYS SHOWN, not revealed by nationality. A field that hides
-                 itself hides whatever was already typed into it, and plenty of
-                 local staff hold a passport too. Both are optional, and a blank
-                 one is not reported as missing — only a date that is running
-                 out gets a reminder. --}}
-            <div class="rounded-surface border border-gray-200 p-4 space-y-3">
+                 Hidden when the nationality is Malaysian (matches "Malaysia" /
+                 "Malaysian", any case) — local staff need no work permit. Hidden,
+                 not cleared: x-show keeps the inputs in the form, so anything
+                 already on file is saved untouched. Both are optional, and a
+                 blank one is not reported as missing — only a date that is
+                 running out gets a reminder. --}}
+            <div x-data x-show="! /^malaysia/i.test(($wire.f_nationality || '').trim())" x-cloak
+                 class="rounded-surface border border-gray-200 p-4 space-y-3">
                 <div>
                     <h4 class="text-xs font-semibold text-gray-700">Passport &amp; Visa</h4>
                     <p class="text-[11px] text-gray-500">
@@ -688,9 +690,9 @@
                            placeholder="Company default"
                            class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                     <p class="mt-1 text-[11px] text-gray-500">
-                        This employee's contract day. Used to show what a block of time off comes to in days —
-                        7.5, 9 and 11-hour contracts are all different amounts of overtime. Blank follows the
-                        company default.
+                        This employee's contract day. Used as the divisor for the Hourly Rate of Pay (HRP) that
+                        overtime is priced at, and to show what a block of time off comes to in days. Blank follows
+                        the company default (Settings &gt; Pay Components &gt; Hours / day).
                     </p>
                     <x-input-error :messages="$errors->get('f_daily_working_hours')" class="mt-1" />
                 </div>
