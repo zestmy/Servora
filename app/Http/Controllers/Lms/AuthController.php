@@ -8,6 +8,7 @@ use App\Models\LmsUser;
 use App\Models\Outlet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -75,7 +76,11 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Your registration has been rejected. Please contact your manager.'])->withInput();
         }
 
-        if (! Auth::guard('lms')->attempt(['email' => $request->email, 'password' => $request->password], $request->boolean('remember'))) {
+        // company_id in the credentials: without it the guard matches the first
+        // account with this email in ANY company and checks the wrong password.
+        $credentials = ['company_id' => $company->id, 'email' => $request->email, 'password' => $request->password];
+
+        if (! Auth::guard('lms')->attempt($credentials, $request->boolean('remember'))) {
             return back()->withErrors(['email' => 'Invalid credentials.'])->withInput();
         }
 
@@ -113,7 +118,9 @@ class AuthController extends Controller
 
         $request->validate([
             'name'      => 'required|string|max:255',
-            'email'     => 'required|email|unique:lms_users,email',
+            // Unique per company only: each company runs its own portal, so the
+            // same person may hold an account in several of them.
+            'email'     => ['required', 'email', Rule::unique('lms_users', 'email')->where('company_id', $company->id)],
             'password'  => 'required|string|min:6|confirmed',
             'phone'     => 'nullable|string|max:50',
             'outlet_id' => 'nullable|exists:outlets,id',
