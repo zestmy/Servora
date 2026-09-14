@@ -185,14 +185,16 @@ class TimeOffBalance
      *
      * Their own figure if they have one, otherwise the company default —
      * a per-person copy of the same number is a second thing to keep in step.
+     *
+     * Resolved by CompensationSetting::hoursPerDay(), the same rule the Hourly
+     * Rate of Pay for overtime uses, so an hour of OT is priced and taken off
+     * against the same working day.
      */
     public function workingDayHours(Employee $employee): float
     {
-        if ($employee->daily_working_hours !== null) {
-            return (float) $employee->daily_working_hours;
-        }
-
-        return (float) CompensationSetting::forCompany($employee->company_id)->daily_working_hours ?: 8.0;
+        return CompensationSetting::forCompany($employee->company_id)->hoursPerDay(
+            $employee->daily_working_hours !== null ? (float) $employee->daily_working_hours : null,
+        );
     }
 
     /** "1.5 days" for a set of hours, using this employee's own working day. */

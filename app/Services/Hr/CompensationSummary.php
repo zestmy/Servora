@@ -486,7 +486,11 @@ class CompensationSummary
             $allowances = round($allowancesOnly->sum('amount'), 2);
             $deductions = round(abs($components->where('kind', 'deduction')->sum('amount')), 2);
 
-            $rate    = $settings->hourlyRate($employee->basic_salary !== null ? (float) $employee->basic_salary : null, $employee->pay_type);
+            $rate    = $settings->hourlyRate(
+                $employee->basic_salary !== null ? (float) $employee->basic_salary : null,
+                $employee->pay_type,
+                $employee->daily_working_hours !== null ? (float) $employee->daily_working_hours : null,
+            );
             $otRows  = $otHours[$employee->id] ?? collect();
             $otTotal = 0.0;
             $otByType = [];

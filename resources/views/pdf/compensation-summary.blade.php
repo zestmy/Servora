@@ -185,7 +185,7 @@
     Overtime priced at {{ (float) $summary['settings']->ot_normal_multiplier }}× normal,
     {{ (float) $summary['settings']->ot_rest_day_multiplier }}× rest day,
     {{ (float) $summary['settings']->ot_public_holiday_multiplier }}× public holiday;
-    hourly rate = salary ÷ {{ $summary['settings']->monthly_working_days }} ÷ {{ (float) $summary['settings']->daily_working_hours }}.
+    hourly rate = salary ÷ {{ $summary['settings']->monthly_working_days }} ÷ the employee's working day (default {{ (float) $summary['settings']->daily_working_hours }} h).
     Approved overtime claims only.
     @if ($showStatutory)
         <br>

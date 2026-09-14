@@ -58,6 +58,7 @@
             <div>
                 <label class="text-xs font-semibold text-gray-600">Hours / day</label>
                 <input type="number" step="0.25" min="1" max="24" wire:model="daily_hours" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
+                <p class="mt-1 text-[11px] text-gray-500">Default for HRP. An employee's own "Working day (hours)" overrides it.</p>
                 <x-input-error :messages="$errors->get('daily_hours')" class="mt-1" />
             </div>
             <div>

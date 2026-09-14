@@ -133,6 +133,7 @@ class BulkDayAdjustment
                 $employee->basic_salary !== null ? (float) $employee->basic_salary : null,
                 $employee->pay_type,
                 $divisor,
+                $employee->daily_working_hours !== null ? (float) $employee->daily_working_hours : null,
             );
 
             if ($dayRate === null) {

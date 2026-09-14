@@ -131,13 +131,13 @@ class CompensationSetting extends Model
      * Null when there is no salary on file — a deduction invented from nothing
      * is worse than no deduction.
      */
-    public function dailyRate(?float $basicSalary, ?string $payType, ?int $monthlyDivisor = null): ?float
+    public function dailyRate(?float $basicSalary, ?string $payType, ?int $monthlyDivisor = null, ?float $dailyHours = null): ?float
     {
         if ($basicSalary === null || $basicSalary <= 0) {
             return null;
         }
 
-        $hours   = (float) $this->daily_working_hours ?: 8.0;
+        $hours   = $this->hoursPerDay($dailyHours);
         $divisor = $monthlyDivisor ?: ((int) $this->monthly_working_days ?: 26);
 
         if ($divisor < 1) {
@@ -152,17 +152,21 @@ class CompensationSetting extends Model
     }
 
     /**
-     * Hourly rate for an employee, from their basic salary and pay type.
-     * Null when there is no salary on file — an OT figure invented from
-     * nothing is worse than no figure.
+     * Hourly rate of pay (HRP) for an employee, from their basic salary and
+     * pay type. Null when there is no salary on file — an OT figure invented
+     * from nothing is worse than no figure.
+     *
+     * $dailyHours is the employee's own working day (Employee form > "Working
+     * day (hours)"). A 7.5-hour contract divided by the company's 8 underpays
+     * every overtime hour, so the person's own day wins when it is set.
      */
-    public function hourlyRate(?float $basicSalary, ?string $payType): ?float
+    public function hourlyRate(?float $basicSalary, ?string $payType, ?float $dailyHours = null): ?float
     {
         if ($basicSalary === null || $basicSalary <= 0) {
             return null;
         }
 
-        $hours = (float) $this->daily_working_hours ?: 8.0;
+        $hours = $this->hoursPerDay($dailyHours);
         $days  = (int) $this->monthly_working_days ?: 26;
 
         return round(match ($payType) {
@@ -170,5 +174,15 @@ class CompensationSetting extends Model
             'daily'  => $basicSalary / $hours,
             default  => $basicSalary / $days / $hours,   // monthly
         }, 4);
+    }
+
+    /** The employee's own working day when set, else the company default, else 8. */
+    public function hoursPerDay(?float $employeeHours = null): float
+    {
+        if ($employeeHours !== null && $employeeHours > 0) {
+            return $employeeHours;
+        }
+
+        return (float) $this->daily_working_hours ?: 8.0;
     }
 }

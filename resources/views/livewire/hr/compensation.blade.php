@@ -115,7 +115,7 @@
                 OT priced at {{ (float) $settings->ot_normal_multiplier }}× normal,
                 {{ (float) $settings->ot_rest_day_multiplier }}× rest day,
                 {{ (float) $settings->ot_public_holiday_multiplier }}× public holiday
-                · hourly = salary ÷ {{ $settings->monthly_working_days }} ÷ {{ (float) $settings->daily_working_hours }}
+                · hourly = salary ÷ {{ $settings->monthly_working_days }} ÷ the employee's working day (default {{ (float) $settings->daily_working_hours }} h)
             </p>
         </div>
 
