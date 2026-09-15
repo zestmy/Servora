@@ -9,6 +9,7 @@ use App\Models\Ingredient;
 use App\Models\LabelPrint;
 use App\Models\Outlet;
 use App\Models\PoApprover;
+use App\Models\PurchaseCapture;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRecord;
 use App\Models\Recipe;
@@ -16,6 +17,7 @@ use App\Models\SalesRecord;
 use App\Models\StaffMealRecord;
 use App\Models\StockTake;
 use App\Models\Subscription;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\WastageRecord;
 use App\Services\CostSummaryService;
@@ -174,6 +176,28 @@ class Dashboard extends Component
         ];
     }
 
+    /**
+     * Purchases for the window and the one before it, from BOTH places a
+     * purchase is recorded: goods received against a PO (purchase_records)
+     * and purchases keyed in on Stock Management > Purchases
+     * (purchase_captures). Reading records alone showed next to nothing for
+     * a company that records its buying in Stock Management. The two never
+     * overlap — receiving a PO does not write a capture — and CostSummaryService
+     * adds them the same way, so the dashboard and the COGS report agree.
+     *
+     * @return array{value: float, prior: float}
+     */
+    private function purchasesMetric(): array
+    {
+        $received = $this->metric(PurchaseRecord::class, 'purchase_date', 'total_amount');
+        $captured = $this->metric(PurchaseCapture::class, 'purchase_date', 'amount');
+
+        return [
+            'value' => $received['value'] + $captured['value'],
+            'prior' => $received['prior'] + $captured['prior'],
+        ];
+    }
+
     /** An outlet-scoped COUNT with an optional extra constraint. */
     private function scopedCount(string $model, ?callable $modify = null): int
     {
@@ -269,7 +293,11 @@ class Dashboard extends Component
 
         $revenue   = $this->monthlySeries(SalesRecord::class,    'sale_date',     'total_revenue', $first, $to);
         $cogs      = $this->monthlySeries(SalesRecord::class,    'sale_date',     'total_cost',    $first, $to);
+        // Both purchase sources — see purchasesMetric().
         $purchases = $this->monthlySeries(PurchaseRecord::class, 'purchase_date', 'total_amount',  $first, $to);
+        foreach ($this->monthlySeries(PurchaseCapture::class, 'purchase_date', 'amount', $first, $to) as $key => $amount) {
+            $purchases[$key] = ($purchases[$key] ?? 0.0) + $amount;
+        }
 
         $rows = [];
         for ($i = 0; $i < $months; $i++) {
@@ -550,7 +578,7 @@ class Dashboard extends Component
 
         $revenue   = $this->metric(SalesRecord::class,      'sale_date',     'total_revenue');
         $cogs      = $this->metric(SalesRecord::class,      'sale_date',     'total_cost');
-        $purchases = $this->metric(PurchaseRecord::class,   'purchase_date', 'total_amount');
+        $purchases = $this->purchasesMetric();
         $wastage   = $this->metric(WastageRecord::class,    'wastage_date',  'total_cost');
         $meals     = $this->metric(StaffMealRecord::class,  'meal_date',     'total_cost');
 
@@ -641,7 +669,7 @@ class Dashboard extends Component
         $recentSubmittedPOs = $recentPosQ->orderBy('created_at')->limit(5)->get();
 
         $revenue   = $this->metric(SalesRecord::class,    'sale_date',     'total_revenue');
-        $purchases = $this->metric(PurchaseRecord::class, 'purchase_date', 'total_amount');
+        $purchases = $this->purchasesMetric();
         $wastage   = $this->metric(WastageRecord::class,  'wastage_date',  'total_cost');
 
         $trend = $this->buildTrend();
@@ -848,7 +876,7 @@ class Dashboard extends Component
         $pendingGRNs  = $this->scopedCount(GoodsReceivedNote::class, fn ($q) => $q->where('status', 'pending'));
         $todayDOs     = $this->scopedCount(DeliveryOrder::class, fn ($q) => $q->whereDate('delivery_date', today()));
 
-        $spend      = $this->metric(PurchaseRecord::class, 'purchase_date', 'total_amount');
+        $spend      = $this->purchasesMetric();
         $oldestWait = $this->oldestWaitDays(PurchaseOrder::class, fn ($q) => $q->where('status', 'submitted'));
 
         $staleDays = (int) config('costing.po_stale_days');
@@ -922,32 +950,51 @@ class Dashboard extends Component
      * Where the money went, by supplier, for the reporting window.
      *
      * A month spend figure with no composition behind it cannot be acted on.
-     * One grouped query with the names joined in — the alternative, loading
-     * records and grouping in PHP, is the pattern that made the recipe scan
-     * expensive.
+     * Two grouped queries, one per purchase source (see purchasesMetric()),
+     * merged here on the supplier's NAME: a Stock Management purchase may
+     * point at a Supplier row or carry a typed name, and "Fresh Meats" linked
+     * and "Fresh Meats" typed are one supplier — the same rule as
+     * PurchaseSupplierBreakdown. A typed name only exists on captures.
      */
     private function topSuppliers(int $limit = 5): array
     {
-        $query = PurchaseRecord::query()
-            ->selectRaw('supplier_id, SUM(total_amount) as total')
-            ->whereBetween('purchase_date', [
-                $this->window->start->toDateString(),
-                $this->window->end->toDateString(),
-            ])
+        $range = [$this->window->start->toDateString(), $this->window->end->toDateString()];
+
+        $received = PurchaseRecord::query()
+            ->selectRaw('supplier_id, NULL as supplier_name, SUM(total_amount) as total')
+            ->whereBetween('purchase_date', $range)
             ->whereNotNull('supplier_id')
-            ->groupBy('supplier_id')
-            ->orderByDesc('total')
-            ->limit($limit);
+            ->groupBy('supplier_id');
+        $this->scopeByOutletFilter($received, $this->outletFilter);
 
-        $this->scopeByOutletFilter($query, $this->outletFilter);
+        $captured = PurchaseCapture::query()
+            ->selectRaw('supplier_id, supplier_name, SUM(amount) as total')
+            ->whereBetween('purchase_date', $range)
+            ->groupBy('supplier_id', 'supplier_name');
+        $this->scopeByOutletFilter($captured, $this->outletFilter);
 
-        $rows = $query->with('supplier')->get();
-        $all  = (float) $rows->sum('total');
+        $rows  = $received->get()->concat($captured->get());
+        $names = Supplier::whereIn('id', $rows->pluck('supplier_id')->filter()->unique())->pluck('name', 'id');
 
-        return $rows->map(fn ($row) => [
-            'name'  => $row->supplier?->name ?? 'Unknown supplier',
-            'total' => (float) $row->total,
-            'share' => $all > 0 ? round(((float) $row->total / $all) * 100) : 0,
+        $merged = [];
+        foreach ($rows as $row) {
+            $name = $row->supplier_id
+                ? ($names[$row->supplier_id] ?? trim((string) $row->supplier_name))
+                : trim((string) $row->supplier_name);
+            $name = $name !== '' ? $name : 'Unknown supplier';
+
+            $key = mb_strtolower($name);
+            $merged[$key] ??= ['name' => $name, 'total' => 0.0];
+            $merged[$key]['total'] += (float) $row->total;
+        }
+
+        $top = collect($merged)->sortByDesc('total')->take($limit)->values();
+        $all = (float) $top->sum('total');
+
+        return $top->map(fn ($row) => [
+            'name'  => $row['name'],
+            'total' => $row['total'],
+            'share' => $all > 0 ? round(($row['total'] / $all) * 100) : 0,
         ])->all();
     }
 
@@ -959,7 +1006,7 @@ class Dashboard extends Component
 
         $revenue   = $this->metric(SalesRecord::class,     'sale_date',     'total_revenue');
         $cogs      = $this->metric(SalesRecord::class,     'sale_date',     'total_cost');
-        $purchases = $this->metric(PurchaseRecord::class,  'purchase_date', 'total_amount');
+        $purchases = $this->purchasesMetric();
         $wastage   = $this->metric(WastageRecord::class,   'wastage_date',  'total_cost');
         $meals     = $this->metric(StaffMealRecord::class, 'meal_date',     'total_cost');
 
