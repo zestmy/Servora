@@ -35,7 +35,9 @@
 
     $slides = ['glance' => $monthly ? 'Month at a glance' : 'Week at a glance'];
     if ($sp !== null) {
-        $slides['sales'] = 'Sales performance';
+        $slides['sales']    = 'Sales performance';
+        $slides['mtd']      = 'Month to date — sales, covers & average check';
+        $slides['forecast'] = 'Sales forecast — ' . $sp['forecast']['month_label'];
     }
     $slides += [
         'trend'       => 'Sales vs purchases',
@@ -63,7 +65,7 @@
     Charts are resized on every slide change — Chart.js measures a hidden
     canvas as zero wide.
 --}}
-<div x-data="{
+<div class="wip-review" x-data="{
         presenting: false,
         current: 0,
         total: {{ count($slides) }},
@@ -76,6 +78,7 @@
         stop() {
             this.presenting = false;
             if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
+            this.clearFit();
             this.refresh();
         },
         go(i) {
@@ -83,7 +86,32 @@
             this.refresh();
         },
         refresh() {
-            this.$nextTick(() => { if (window.Chart) { Object.values(Chart.instances).forEach(c => c.resize()); } });
+            this.$nextTick(() => {
+                if (window.Chart) { Object.values(Chart.instances).forEach(c => c.resize()); }
+                requestAnimationFrame(() => this.fit());
+            });
+        },
+        slides() {
+            return Array.from(this.$refs.deck.children).filter(el => el.tagName === 'SECTION');
+        },
+        clearFit() {
+            this.slides().forEach(s => { s.style.transform = ''; s.style.transformOrigin = ''; });
+        },
+        fit() {
+            if (! this.presenting) return;
+            const deck = this.$refs.deck;
+            const slide = this.slides().find(s => s.style.display !== 'none');
+            if (! slide) return;
+            slide.style.transform = '';
+            const cs = getComputedStyle(deck);
+            const availW = deck.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            const availH = deck.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            const w = Math.max(slide.scrollWidth, slide.offsetWidth);
+            const h = Math.max(slide.scrollHeight, slide.offsetHeight);
+            const scale = Math.min(1, availW / w, availH / h);
+            const shift = Math.max(0, (availW - w * scale) / 2);
+            slide.style.transformOrigin = 'top left';
+            slide.style.transform = 'translateX(' + shift + 'px) scale(' + scale + ')';
         },
         key(e) {
             if (! this.presenting) return;
@@ -94,11 +122,20 @@
      }"
      x-effect="total = {{ count($slides) }}; if (current > total - 1) { current = total - 1; }"
      x-on:keydown.window="key($event)"
-     x-on:fullscreenchange.document="if (! document.fullscreenElement && presenting) { presenting = false; refresh(); }">
+     x-on:resize.window.debounce.150ms="refresh()"
+     x-init="if (window.Livewire) { Livewire.hook('commit', ({ succeed }) => succeed(() => refresh())); }"
+     x-on:fullscreenchange.document="if (! document.fullscreenElement && presenting) { presenting = false; clearFit(); refresh(); }">
 
     @once
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     @endonce
+
+    {{-- Presenting, every slide is scaled to fit the screen (see fit()), so a
+         table must show its full width to be measured and shrunk with the
+         rest rather than scrolling inside a slide nobody can scroll. --}}
+    <style>
+        .wip-presenting .overflow-x-auto { overflow: visible !important; }
+    </style>
 
     {{-- Header --}}
     <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
@@ -166,10 +203,10 @@
     </div>
 
     <div x-ref="deck" wire:loading.class="opacity-60"
-         :class="presenting ? 'fixed inset-0 z-[100] bg-gray-50 flex flex-col p-6 sm:p-10 overflow-auto' : ''">
+         :class="presenting ? 'wip-presenting fixed inset-0 z-[100] bg-gray-50 flex flex-col px-6 pt-6 pb-20 sm:px-10 sm:pt-8 overflow-hidden' : ''">
 
         {{-- ── At a glance ─────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['glance'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['glance'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['glance'] + 1, 'title' => $slides['glance']])
 
             @if (! $report['has_data'])
@@ -182,7 +219,7 @@
                         @php
                             [$dText, $dClass] = $delta($k['change'], $k['up_is_good'], $k['format'] === 'pct');
                         @endphp
-                        <div class="stat rounded-surface border border-gray-100 p-4" wire:key="kpi-{{ $k['key'] }}">
+                        <div class="stat rounded-surface border border-gray-200 border-t-4 border-t-brand-600 bg-white shadow-e1 p-4" wire:key="kpi-{{ $k['key'] }}">
                             <p class="stat-label">{{ $k['label'] }}</p>
                             <p class="stat-value tabular-nums" :class="presenting && 'text-3xl'">{{ $fmt($k['current'], $k['format']) }}</p>
                             <p class="text-xs mt-1">
@@ -208,7 +245,7 @@
 
         {{-- ── Sales performance (weekly) ──────────────────────────────── --}}
         @if ($sp !== null)
-            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['sales'] }}" :class="presenting && 'flex-1 !mb-0'">
+            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['sales'] }}" :class="presenting && '!mb-0 shrink-0'">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['sales'] + 1, 'title' => $slides['sales'],
                     'hint' => 'by day and meal period — ' . $sp['current']['label'] . ' against ' . $sp['previous']['label'],
@@ -235,7 +272,7 @@
                                     @php $wk = $sp[$which]; @endphp
                                     @foreach ($wk['lines'] as $l)
                                         <tr wire:key="sp-{{ $which }}-{{ $l['key'] }}">
-                                            <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $l['label'] }}</td>
+                                            <td class="px-3 py-2 whitespace-nowrap wip-label">{{ $l['label'] }}</td>
                                             @foreach ($l['days'] as $v)
                                                 <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($v, 2) }}</td>
                                             @endforeach
@@ -243,7 +280,7 @@
                                             <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap italic text-gray-600">{{ $pct($l['share']) }}</td>
                                         </tr>
                                     @endforeach
-                                    <tr class="bg-gray-100 font-semibold text-gray-900" wire:key="sp-{{ $which }}-total">
+                                    <tr class="wip-total-row" wire:key="sp-{{ $which }}-total">
                                         <td class="px-3 py-2 whitespace-nowrap">
                                             {{ $wk['label'] }}
                                             <span class="block text-[11px] font-normal text-gray-500">{{ $wk['range'] }}</span>
@@ -256,7 +293,7 @@
                                     </tr>
                                 @endforeach
                                 <tr>
-                                    <td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">Var. RM</td>
+                                    <td class="px-3 py-2 whitespace-nowrap wip-label">Var. RM</td>
                                     @foreach ($varRows as $v)
                                         @php
                                             $up = $v['amount'] > 0.005;
@@ -269,7 +306,7 @@
                                     <td class="px-3 py-2"></td>
                                 </tr>
                                 <tr>
-                                    <td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">Var. %</td>
+                                    <td class="px-3 py-2 whitespace-nowrap wip-label">Var. %</td>
                                     @foreach ($varRows as $v)
                                         @php [$vt, $vc] = $delta($v['change'], true); @endphp
                                         <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $vc }}">{{ $vt }}</td>
@@ -281,7 +318,17 @@
                     </div>
                 @endif
 
-                <h3 class="mt-6 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Month to date — sales, covers &amp; average check</h3>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Meal period as keyed on each sales record (none = All Day).
+                </p>
+            </section>
+
+            {{-- ── Month to date (weekly) ──────────────────────────────────── --}}
+            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['mtd'] }}" :class="presenting && '!mb-0 shrink-0'">
+                @include('livewire.reports.management.partials.wip-slide-head', [
+                    'n' => $idx['mtd'] + 1, 'title' => $slides['mtd'],
+                    'hint' => 'to ' . $sp['current']['label'] . '\'s Sunday, against the same days of last month and last year',
+                ])
                 <div class="overflow-x-auto">
                     <table class="table-surface min-w-full text-sm">
                         <thead>
@@ -298,8 +345,8 @@
                         </thead>
                         <tbody>
                             @foreach ($sp['mtd'] as $m)
-                                <tr wire:key="mtd-{{ $m['key'] }}" class="{{ $m['key'] === 'this_month' ? 'font-semibold' : '' }}">
-                                    <td class="px-3 py-2 text-gray-800 whitespace-nowrap">{{ $m['label'] }}</td>
+                                <tr wire:key="mtd-{{ $m['key'] }}" class="{{ $m['key'] === 'this_month' ? 'wip-emph' : '' }}">
+                                    <td class="px-3 py-2 whitespace-nowrap wip-label">{{ $m['label'] }}</td>
                                     <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ $m['range'] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($m['sales'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($m['covers']) }}</td>
@@ -325,8 +372,7 @@
                     </table>
                 </div>
                 <p class="mt-2 text-[11px] text-gray-500">
-                    Meal period as keyed on each sales record (none = All Day). Covers are the pax recorded with sales. Each
-                    month-to-date comparison stops on the same day of its own month.
+                    Covers are the pax recorded with sales. Each month-to-date comparison stops on the same day of its own month.
                 </p>
 
                 @php
@@ -347,13 +393,21 @@
                         ['Needed per day to reach target', $fc['needed_daily'] === null ? '—' : number_format($fc['needed_daily'], 2), ''],
                     ];
                 @endphp
-                <h3 class="mt-6 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Sales forecast — {{ $fc['month_label'] }}</h3>
-                <div class="overflow-x-auto max-w-xl">
+            </section>
+
+            {{-- ── Sales forecast (weekly) ─────────────────────────────────── --}}
+            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['forecast'] }}" :class="presenting && '!mb-0 shrink-0'">
+                @include('livewire.reports.management.partials.wip-slide-head', [
+                    'n' => $idx['forecast'] + 1, 'title' => $slides['forecast'],
+                    'hint' => 'month-to-date daily average carried over the days left',
+                ])
+                <div class="overflow-x-auto max-w-2xl">
+
                     <table class="table-surface min-w-full text-sm">
                         <tbody>
                             @foreach ($forecastRows as [$label, $value, $class])
-                                <tr wire:key="forecast-{{ $loop->index }}">
-                                    <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $label }}</td>
+                                <tr wire:key="forecast-{{ $loop->index }}" class="{{ $label === 'Forecast monthly sales' ? 'wip-emph' : '' }}">
+                                    <td class="px-3 py-2 whitespace-nowrap wip-label uppercase tracking-wide text-xs">{{ $label }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap {{ $class }}">{{ $value }}</td>
                                 </tr>
                             @endforeach
@@ -373,10 +427,10 @@
         @endif
 
         {{-- ── Sales vs purchases trend ────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['trend'] + 1, 'title' => $slides['trend'], 'hint' => 'click a ' . $unit . ' to review it'])
 
-            <div class="relative h-72" :class="presenting && '!h-[50vh]'"
+            <div class="relative h-72" :class="presenting && '!h-[38vh]'"
                  wire:key="wip-trend-{{ md5(json_encode($report['charts']['trend'])) }}"
                  x-data="{
                     init() {
@@ -437,14 +491,14 @@
                         <tr>
                             <th class="px-3 py-2 text-left">{{ ucfirst($unit) }}</th>
                             @foreach ($report['periods'] as $p)
-                                <th class="px-3 py-2 text-right whitespace-nowrap {{ $loop->last ? 'text-brand-700' : '' }}">{{ $p['label'] }}</th>
+                                <th class="px-3 py-2 text-right whitespace-nowrap {{ $loop->last ? 'wip-current' : '' }}">{{ $p['label'] }}</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($trendRows as [$label, $key, $format, $pctKey])
                             <tr>
-                                <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
+                                <td class="px-3 py-2 whitespace-nowrap wip-label">
                                     {{ $label }}
                                     @if ($pctKey)
                                         <span class="block text-[11px] font-normal text-gray-500">RM · % of sales</span>
@@ -466,14 +520,14 @@
         </section>
 
         {{-- ── By department ───────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['departments'] + 1, 'title' => $slides['departments'], 'hint' => 'this ' . $unit . ', sales against purchases'])
 
             @if ($report['departments'] === [])
                 <p class="py-8 text-center text-sm text-gray-600">No department figures for these two {{ $unit }}s.</p>
             @else
                 <div class="relative" style="height: {{ max(180, count($report['departments']) * 56 + 40) }}px"
-                     :class="presenting && '!h-[40vh]'"
+                     :class="presenting && '!h-[32vh]'"
                      wire:key="wip-dept-{{ md5(json_encode($report['charts']['departments'])) }}"
                      x-data="{
                         init() {
@@ -558,7 +612,7 @@
         </section>
 
         {{-- ── Wastage ─────────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['wastage'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['wastage'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['wastage'] + 1, 'title' => $slides['wastage'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
@@ -596,7 +650,7 @@
         </section>
 
         {{-- ── Staff meals ─────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['staff_meals'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['staff_meals'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['staff_meals'] + 1, 'title' => $slides['staff_meals'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
@@ -634,7 +688,7 @@
         </section>
 
         {{-- ── Stock transfers ─────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['transfers'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['transfers'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['transfers'] + 1, 'title' => $slides['transfers'], 'hint' => 'in transit and received, at line cost'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
@@ -688,7 +742,7 @@
         </section>
 
         {{-- ── Overtime claims ─────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['overtime'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['overtime'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', [
                 'n' => $idx['overtime'] + 1, 'title' => $slides['overtime'],
                 'hint' => $canPay ? 'approved claims — cost at each person\'s hourly rate' : 'approved claims, in hours',
@@ -710,6 +764,10 @@
                 @endif
             </div>
 
+            {{-- Side by side on a wide screen: stacked under the chart, the two
+                 tables made this the tallest slide and it presented smallest. --}}
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-6">
+            <div class="min-w-0">
             @if ($report['overtime']['sections'] !== [])
                 @php $peakHours = max(0.01, collect($report['overtime']['sections'])->max(fn ($s) => $s['ot_hours']['current'])); @endphp
                 <h3 class="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">By section</h3>
@@ -753,6 +811,8 @@
                 </div>
                 <p class="mt-2 text-[11px] text-gray-500">Each claim counts under the employee's current section.</p>
             @endif
+            </div>
+            <div class="min-w-0">
 
             @php
                 $otRows = array_values(array_filter($report['outlets'], fn ($o) =>
@@ -797,11 +857,13 @@
                     </table>
                 </div>
             @endif
+            </div>
+            </div>
         </section>
 
         {{-- ── Labour cost (monthly, pay viewers only) ─────────────────── --}}
         @if ($labour !== null)
-            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['labour'] }}" :class="presenting && 'flex-1 !mb-0'">
+            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['labour'] }}" :class="presenting && '!mb-0 shrink-0'">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['labour'] + 1, 'title' => $slides['labour'],
                     'hint' => $labour['include_drafts'] ? 'from payroll, including draft runs' : 'from approved and paid payroll',
@@ -828,7 +890,7 @@
                             <tbody>
                                 @foreach ($labour['rows'] as $r)
                                     @php $lc = $delta($r['change'], false); @endphp
-                                    <tr wire:key="labour-{{ $r['key'] }}" class="{{ $r['key'] === 'employer_cost' ? 'font-semibold bg-gray-50' : '' }}">
+                                    <tr wire:key="labour-{{ $r['key'] }}" class="{{ $r['key'] === 'employer_cost' ? 'wip-emph' : '' }}">
                                         <td class="px-3 py-2 text-gray-800">{{ $r['label'] }}</td>
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($r['current'], 2) }}</td>
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap text-gray-600">{{ number_format($r['previous'], 2) }}</td>
@@ -902,7 +964,7 @@
         @endif
 
         {{-- ── By outlet ───────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['outlets'] }}" :class="presenting && 'flex-1 !mb-0'">
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['outlets'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['outlets'] + 1, 'title' => $slides['outlets']])
 
             @if ($report['outlets'] === [])
@@ -966,7 +1028,7 @@
         </section>
 
         {{-- Presenter bar --}}
-        <div x-show="presenting" x-cloak class="mt-4 flex items-center justify-between gap-3 text-sm text-gray-600">
+        <div x-show="presenting" x-cloak class="absolute inset-x-0 bottom-0 px-6 sm:px-10 py-3 flex items-center justify-between gap-3 text-sm text-gray-600 bg-gray-50 border-t border-gray-200">
             <span>{{ $cw['range'] }} · {{ $scopeLabel }}</span>
             <div class="flex items-center gap-2">
                 <button type="button" x-on:click="go(current - 1)" class="btn-secondary" :disabled="current === 0">‹ Prev</button>

@@ -179,6 +179,34 @@
        scroll sideways. */
     .table-scroll { @apply -mx-4 sm:mx-0 overflow-x-auto; }
 
+    /* ── WIP review ───────────────────────────────────────────────────────
+       Read off a projector across a meeting room, so its tables get the
+       treatment of the sheet that meeting already keeps: a solid brand
+       header, banded rows, a tinted label column and dark total rows. Present
+       mode then enlarges the text, and the deck scales each slide to fit the
+       screen (fit() in the view), so bigger type never means scrolling. */
+    .wip-review .table-surface thead th {
+        @apply bg-brand-800 text-white font-bold border-brand-900;
+    }
+    .wip-review .table-surface thead th.wip-current { @apply bg-brand-600; }
+    .wip-review .table-surface tbody tr:nth-child(even) { @apply bg-gray-50; }
+    .wip-review .table-surface tbody td:first-child { @apply font-semibold text-gray-900; }
+    .wip-review .wip-label { @apply bg-brand-50 text-brand-900 font-semibold; }
+    .wip-review .wip-emph td { @apply bg-brand-50 font-bold text-gray-900; }
+    .wip-review .wip-total-row td { @apply bg-brand-900 text-white font-bold; }
+    .wip-review .wip-total-row td .text-gray-500 { @apply text-brand-100; }
+
+    .wip-presenting .table-surface { @apply text-base; }
+    .wip-presenting .table-surface thead th { @apply text-sm py-3; }
+    .wip-presenting .table-surface td { @apply py-2.5; }
+    .wip-presenting .stat-label { @apply text-sm font-semibold text-gray-700; }
+    .wip-presenting .stat-value { @apply text-4xl font-bold; }
+    .wip-presenting .page-eyebrow { @apply text-sm; }
+    /* Plain declarations, not @apply: a selector naming text-xs cannot
+       @apply text-sm without Tailwind reporting a circular dependency. */
+    .wip-presenting .text-xs { font-size: 0.875rem; line-height: 1.25rem; }
+    .wip-presenting .text-\[11px\] { font-size: 0.75rem; line-height: 1rem; }
+
     /* ── Loading / empty / error ──────────────────────────────────────────
        The three states most screens in here are missing. */
     .skeleton {

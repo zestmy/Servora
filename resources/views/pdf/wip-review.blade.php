@@ -197,6 +197,7 @@
             </tbody>
         </table>
 
+        <div style="page-break-before: always;"></div>
         <div class="section-header">Month to date — sales, covers &amp; average check</div>
         <table class="items">
             <thead>
