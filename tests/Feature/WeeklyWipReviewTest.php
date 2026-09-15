@@ -146,7 +146,7 @@ class WeeklyWipReviewTest extends TestCase
         return collect($report['kpis'])->firstWhere('key', $key);
     }
 
-    private function dept(array $report, string $name): array
+    private function dept(array $report, string $name): ?array
     {
         return collect($report['departments'])->firstWhere('name', $name);
     }
@@ -232,6 +232,45 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertEquals(120, $this->dept($report, 'Bar')['purchases']['current']);
         $this->assertEquals(400, $this->dept($report, 'Kitchen')['purchases']['current']);
         $this->assertEquals(520, collect($report['outlets'])->firstWhere('name', 'KLCC')['purchases']['current']);
+    }
+
+    /**
+     * REPORTED AS: two departments on one sales category — the second showed
+     * no "% of dept sales". The category's sales went to the first department
+     * only, leaving the other with RM0 sales to divide by.
+     */
+    public function test_departments_sharing_a_sales_category_are_each_measured_against_its_sales(): void
+    {
+        $pastry = Department::create([
+            'company_id' => $this->company->id, 'name' => 'Pastry',
+            'sales_category_id' => $this->food->id, 'sort_order' => 3, 'is_active' => true,
+        ]);
+
+        $this->sale('2026-09-08', 1000, [[$this->food, 1000]]);
+        $this->purchase('2026-09-09', 200, $pastry);
+        WastageRecord::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'department_id' => $pastry->id, 'wastage_date' => '2026-09-10', 'total_cost' => 50,
+        ]);
+
+        $report = $this->report();
+
+        $pastryRow = $this->dept($report, 'Pastry');
+        $this->assertEquals(1000, $pastryRow['sales']['current'], 'The shared Food sales, not RM0.');
+        $this->assertEquals(20.0, $pastryRow['cost_pct']['current'], '200 of 1,000.');
+        $this->assertEquals(5.0, $pastryRow['wastage_pct']['current'], '50 of 1,000 — the missing figure.');
+        $this->assertSame(['Kitchen'], $pastryRow['shared_with']);
+
+        $kitchen = $this->dept($report, 'Kitchen');
+        $this->assertEquals(1000, $kitchen['sales']['current']);
+        $this->assertSame(['Pastry'], $kitchen['shared_with']);
+        $this->assertSame([], $this->dept($report, 'Unassigned')['shared_with'] ?? [], 'Unassigned shares with nobody.');
+
+        $this->assertEquals(1000, $this->kpi($report, 'sales')['current'], 'Total sales still count the sale once.');
+
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
+            ->assertSee('sales shared with Kitchen')
+            ->assertSee('5.0% of sales');
     }
 
     public function test_the_trend_buckets_each_record_into_its_week(): void

@@ -386,7 +386,7 @@
                         $w = $delta($d['wastage']['change'], false);
                     @endphp
                     <tr>
-                        <td style="font-weight: bold;">{{ $d['name'] }}</td>
+                        <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif</td>
                         <td class="right">{{ $num($d['sales']['current']) }}</td>
                         <td class="right" style="color: {{ $s[1] }}; font-size: 8pt;">{{ $s[0] }}</td>
                         <td class="right">{{ $num($d['purchases']['current']) }}</td>
@@ -402,7 +402,8 @@
         </table>
         <div style="{{ $note }}">
             Sales reach a department through its sales category. Sales no department claims, and purchases or wastage
-            keyed without a department, are shown as Unassigned.
+            keyed without a department, are shown as Unassigned. Departments sharing a sales category are each measured
+            against all of its sales, so department sales can add up to more than total sales.
         </div>
     @endif
 
@@ -496,7 +497,7 @@
                     @foreach ($wasteRows as $d)
                         @php $w = $delta($d['wastage']['change'], false); @endphp
                         <tr>
-                            <td style="font-weight: bold;">{{ $d['name'] }}</td>
+                            <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif</td>
                             <td class="right">{{ $num($d['wastage']['current']) }}</td>
                             <td class="right">{{ $num($d['wastage']['previous']) }}</td>
                             <td class="right" style="color: {{ $w[1] }}; font-size: 8pt;">{{ $w[0] }}</td>

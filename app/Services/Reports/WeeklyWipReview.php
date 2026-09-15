@@ -147,12 +147,19 @@ class WeeklyWipReview
             ->orderBy('sort_order')->orderBy('name')
             ->get(['id', 'name', 'sales_category_id']);
 
-        // First department per category wins, so a category two departments
-        // share is not counted twice.
-        $deptForCategory = [];
+        // EVERY department on a sales category is measured against that
+        // category's sales. Several departments often share one — a kitchen
+        // and a pastry section both selling "Food" — and giving the sales to
+        // only the first left the rest with RM0 sales, and so no purchase
+        // cost % or wastage % at all. A shared category's sales therefore sit
+        // on each of its departments, the row names who it shares them with,
+        // and department sales can add up to more than total sales — which is
+        // why no total is drawn under them. Total sales still count each sale
+        // once (it is read off the headers, not these rows).
+        $deptsForCategory = [];
         foreach ($departments as $d) {
-            if ($d->sales_category_id && ! isset($deptForCategory[$d->sales_category_id])) {
-                $deptForCategory[$d->sales_category_id] = $d->id;
+            if ($d->sales_category_id) {
+                $deptsForCategory[$d->sales_category_id][] = $d->id;
             }
         }
 
@@ -168,8 +175,9 @@ class WeeklyWipReview
 
         foreach ($categorySales as $row) {
             if (($w = $bucket($row->d)) === null) continue;
-            $key = $deptForCategory[$row->category_id] ?? self::UNASSIGNED;
-            $add($byDept, $key, 'sales', $w, (float) $row->amount);
+            foreach ($deptsForCategory[$row->category_id] ?? [self::UNASSIGNED] as $key) {
+                $add($byDept, $key, 'sales', $w, (float) $row->amount);
+            }
             $lineSales[$w] += (float) $row->amount;
         }
 
@@ -307,6 +315,13 @@ class WeeklyWipReview
         $deptNames = $departments->pluck('name', 'id')->all();
         $deptOrder = array_merge($departments->pluck('id')->all(), [self::UNASSIGNED]);
 
+        // Which other departments each one shares its sales category with.
+        $sharedWith = [];
+        foreach ($departments as $d) {
+            $peers = array_filter($deptsForCategory[$d->sales_category_id] ?? [], fn ($id) => $id !== $d->id);
+            $sharedWith[$d->id] = array_values(array_map(fn ($id) => $deptNames[$id], $peers));
+        }
+
         $departmentRows = [];
         foreach ($deptOrder as $key) {
             if (! isset($byDept[$key])) continue;
@@ -315,6 +330,7 @@ class WeeklyWipReview
                 $key === self::UNASSIGNED ? 'Unassigned' : ($deptNames[$key] ?? 'Unknown'),
                 $byDept[$key], $zero, $cur, $prev, ['sales', 'purchases', 'wastage'],
             );
+            $row['shared_with'] = $key === self::UNASSIGNED ? [] : ($sharedWith[$key] ?? []);
 
             if ($row['active']) {
                 $departmentRows[] = $row;

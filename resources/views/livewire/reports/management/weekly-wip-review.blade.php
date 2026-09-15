@@ -587,7 +587,12 @@
                                     $w = $delta($d['wastage']['change'], false);
                                 @endphp
                                 <tr wire:key="dept-{{ $loop->index }}-{{ $d['name'] }}">
-                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $d['name'] }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
+                                        {{ $d['name'] }}
+                                        @if (! empty($d['shared_with']))
+                                            <span class="block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
+                                        @endif
+                                    </td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['sales']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $s[1] }}">{{ $s[0] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['purchases']['current'], 2) }}</td>
@@ -606,7 +611,8 @@
                 </div>
                 <p class="mt-2 text-[11px] text-gray-500">
                     Sales reach a department through its sales category (Settings &gt; Departments). Sales no department claims, and
-                    purchases or wastage keyed without a department, are shown as Unassigned.
+                    purchases or wastage keyed without a department, are shown as Unassigned. Departments sharing a sales
+                    category are each measured against all of its sales, so department sales can add up to more than total sales.
                 </p>
             @endif
         </section>
@@ -636,7 +642,12 @@
                             @foreach ($wasteRows as $d)
                                 @php $w = $delta($d['wastage']['change'], false); @endphp
                                 <tr wire:key="waste-{{ $loop->index }}-{{ $d['name'] }}">
-                                    <td class="px-3 py-2 font-medium text-gray-800">{{ $d['name'] }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800">
+                                        {{ $d['name'] }}
+                                        @if (! empty($d['shared_with']))
+                                            <span class="block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
+                                        @endif
+                                    </td>
                                     <td class="px-3 py-2 text-right tabular-nums">{{ number_format($d['wastage']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums text-gray-600">{{ number_format($d['wastage']['previous'], 2) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold {{ $w[1] }}">{{ $w[0] }}</td>
