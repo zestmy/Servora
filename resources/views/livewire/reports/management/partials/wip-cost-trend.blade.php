@@ -1,5 +1,7 @@
 {{-- A cost's weekly trend: bars in RM, a line for its share of sales. Shared by
-     the Wastage and Staff meals slides, which ask the same question of it. --}}
+     the Wastage, Staff meals and Stock transfers slides. A chart whose `pct`
+     is null (transfers — moving stock is not a cost of sales) gets no line
+     and no right-hand axis. --}}
 <div class="relative h-64" :class="presenting && '!h-[45vh]'"
      wire:key="wip-{{ $key }}-{{ md5(json_encode($chart)) }}"
      x-data="{
@@ -13,8 +15,9 @@
                     labels: d.labels,
                     datasets: [
                         { type: 'bar', label: label, data: d.values, backgroundColor: d.color, borderRadius: 3, yAxisID: 'y', order: 2 },
+                    ].concat(d.pct ? [
                         { type: 'line', label: '% of sales', data: d.pct, borderColor: d.line, backgroundColor: d.line, yAxisID: 'pct', tension: 0.3, spanGaps: true, order: 1 },
-                    ],
+                    ] : []),
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
@@ -25,10 +28,10 @@
                             ? i.dataset.label + ': ' + (i.parsed.y === null ? '—' : i.parsed.y.toFixed(1) + '%')
                             : i.dataset.label + ': ' + rm(i.parsed.y) } },
                     },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString() } },
-                        pct: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } },
-                    },
+                    scales: Object.assign(
+                        { y: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString() } } },
+                        d.pct ? { pct: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } } } : {},
+                    ),
                 },
             });
         },

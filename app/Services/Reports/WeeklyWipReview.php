@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Department;
 use App\Models\Outlet;
+use App\Models\PurchaseCapture;
 use App\Models\PurchaseRecord;
 use App\Models\SalesRecord;
 use App\Models\StaffMealRecord;
@@ -16,7 +17,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * The figures behind the weekly WIP meeting: one reviewed week against the
  * week before, and a trend of the weeks leading up to it — sales against
- * purchases (overall, by department and by outlet), wastage and staff meals.
+ * purchases (overall, by department and by outlet), wastage, staff meals and
+ * stock transfers between outlets.
  *
  * WEEKS RUN MONDAY TO SUNDAY, labelled by ISO week number.
  *
@@ -72,7 +74,7 @@ class WeeklyWipReview
 
         $outlets = fn ($query, string $column = 'outlet_id') => $outletIds ? $query->whereIn($column, $outletIds) : $query;
 
-        $totals    = ['sales' => $zero, 'purchases' => $zero, 'wastage' => $zero, 'staff_meal' => $zero];
+        $totals    = ['sales' => $zero, 'purchases' => $zero, 'wastage' => $zero, 'staff_meal' => $zero, 'transfers' => $zero];
         $byDept    = [];
         $byOutlet  = [];
         $lineSales = $zero;
@@ -142,7 +144,19 @@ class WeeklyWipReview
             ->groupBy('purchase_date', 'outlet_id', 'department_id')
             ->get();
 
-        foreach ($purchases as $row) {
+        // PLUS the purchases keyed in by hand on Stock Management > Purchases,
+        // which live in purchase_captures and not in purchase_records — the
+        // latter only holds goods received against a PO. Reading records alone
+        // left most companies showing no purchases at all. Blended the same
+        // way CostSummaryService does, so this and the COGS report agree; the
+        // two never overlap, as receiving a PO does not write a capture.
+        $captures = $outlets(PurchaseCapture::withoutGlobalScopes()->where('company_id', $companyId)->whereNull('deleted_at'))
+            ->whereBetween('purchase_date', $range)
+            ->selectRaw('purchase_date as d, outlet_id, department_id, SUM(amount) as amount')
+            ->groupBy('purchase_date', 'outlet_id', 'department_id')
+            ->get();
+
+        foreach ($purchases->concat($captures) as $row) {
             if (($w = $bucket($row->d)) === null) continue;
             $totals['purchases'][$w] += (float) $row->amount;
             $add($byDept, $row->department_id ?: self::UNASSIGNED, 'purchases', $w, (float) $row->amount);
@@ -176,6 +190,40 @@ class WeeklyWipReview
             $add($byOutlet, (int) $row->outlet_id, 'staff_meal', $w, (float) $row->amount);
         }
 
+        // ── Stock transfers between outlets ───────────────────────────────
+        // Valued on their lines (quantity × unit cost) — a transfer carries no
+        // total of its own; the same computation as the Transfers tab. A draft
+        // has not moved anything and a cancelled one never will, so only
+        // in-transit and received transfers count. Company-wide a transfer
+        // nets to nothing, so each outlet sees what it sent and what it got.
+        $transfers = DB::table('outlet_transfer_lines as l')
+            ->join('outlet_transfers as t', 't.id', '=', 'l.outlet_transfer_id')
+            ->where('t.company_id', $companyId)
+            ->whereNull('t.deleted_at')
+            ->whereIn('t.status', ['in_transit', 'received'])
+            ->whereBetween('t.transfer_date', $range)
+            ->when($outletIds, fn ($q) => $q->where(fn ($w) => $w
+                ->whereIn('t.from_outlet_id', $outletIds)
+                ->orWhereIn('t.to_outlet_id', $outletIds)))
+            ->selectRaw('t.transfer_date as d, t.from_outlet_id, t.to_outlet_id, SUM(l.quantity * l.unit_cost) as amount')
+            ->groupBy('t.transfer_date', 't.from_outlet_id', 't.to_outlet_id')
+            ->get();
+
+        foreach ($transfers as $row) {
+            if (($w = $bucket($row->d)) === null) continue;
+            $amount = (float) $row->amount;
+            $totals['transfers'][$w] += $amount;
+
+            // Only the side inside the filter: with one outlet selected, the
+            // outlet at the other end of a transfer is not in this report.
+            if (! $outletIds || in_array((int) $row->from_outlet_id, $outletIds, true)) {
+                $add($byOutlet, (int) $row->from_outlet_id, 'transfers_out', $w, $amount);
+            }
+            if (! $outletIds || in_array((int) $row->to_outlet_id, $outletIds, true)) {
+                $add($byOutlet, (int) $row->to_outlet_id, 'transfers_in', $w, $amount);
+            }
+        }
+
         $totals = array_map(fn ($series) => array_map(fn ($v) => round($v, 2), $series), $totals);
 
         $costPct    = array_map(fn ($p, $s) => self::share($p, $s), $totals['purchases'], $totals['sales']);
@@ -205,14 +253,15 @@ class WeeklyWipReview
 
         $outletRows = [];
         foreach ($byOutlet as $id => $metrics) {
-            $row = $this->row($outletNames[$id] ?? 'Unknown outlet', $metrics, $zero, $cur, $prev, ['sales', 'purchases', 'wastage', 'staff_meal']);
+            $row = $this->row($outletNames[$id] ?? 'Unknown outlet', $metrics, $zero, $cur, $prev, ['sales', 'purchases', 'wastage', 'staff_meal', 'transfers_out', 'transfers_in']);
             if ($row['active']) {
                 $outletRows[] = $row;
             }
         }
         usort($outletRows, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
 
-        $kpi = fn (string $key, string $label, array $series, bool $upIsGood, string $format = 'money') => [
+        // $upIsGood null: a move that is neither good nor bad news (transfers).
+        $kpi = fn (string $key, string $label, array $series, ?bool $upIsGood, string $format = 'money') => [
             'key'        => $key,
             'label'      => $label,
             'current'    => $series[$cur],
@@ -229,6 +278,7 @@ class WeeklyWipReview
             'line'       => PurchaseSupplierBreakdown::SERIES[5],
             'wastage'    => PurchaseSupplierBreakdown::SERIES[3],
             'staff_meal' => PurchaseSupplierBreakdown::SERIES[4],
+            'transfers'  => PurchaseSupplierBreakdown::SERIES[1],
             'previous'   => PurchaseSupplierBreakdown::OTHER_COLOR,
         ];
 
@@ -237,7 +287,8 @@ class WeeklyWipReview
             'current'     => $weekList[$cur],
             'previous'    => $weekList[$prev],
             'has_data'    => array_sum($totals['sales']) + array_sum($totals['purchases'])
-                           + array_sum($totals['wastage']) + array_sum($totals['staff_meal']) > 0,
+                           + array_sum($totals['wastage']) + array_sum($totals['staff_meal'])
+                           + array_sum($totals['transfers']) > 0,
             'totals'      => $totals + ['cost_pct' => $costPct, 'wastage_pct' => $wastagePct, 'staff_meal_pct' => $mealPct],
             'kpis'        => [
                 $kpi('sales', 'Sales', $totals['sales'], true),
@@ -246,6 +297,7 @@ class WeeklyWipReview
                 $kpi('wastage', 'Wastage', $totals['wastage'], false),
                 $kpi('wastage_pct', 'Wastage % of sales', $wastagePct, false, 'pct'),
                 $kpi('staff_meal', 'Staff meals', $totals['staff_meal'], false),
+                $kpi('transfers', 'Stock transfers', $totals['transfers'], null),
             ],
             'departments' => $departmentRows,
             'outlets'     => $outletRows,
@@ -269,6 +321,11 @@ class WeeklyWipReview
                 'staff_meal' => [
                     'labels' => $labels, 'values' => $totals['staff_meal'], 'pct' => $mealPct,
                     'color' => $colors['staff_meal'], 'line' => $colors['line'],
+                ],
+                // No share-of-sales line: moving stock is not a cost of sales.
+                'transfers' => [
+                    'labels' => $labels, 'values' => $totals['transfers'], 'pct' => null,
+                    'color' => $colors['transfers'], 'line' => $colors['line'],
                 ],
             ],
         ];

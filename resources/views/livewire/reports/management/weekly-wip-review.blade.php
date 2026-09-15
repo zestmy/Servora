@@ -3,23 +3,25 @@
     $pct   = fn ($v) => $v === null ? '—' : number_format((float) $v, 1) . '%';
 
     // A change is coloured by whether it is good news, not by its sign: sales
-    // up is green, wastage up is red.
-    $delta = function ($change, bool $upIsGood, bool $points = false): array {
+    // up is green, wastage up is red. $upIsGood null is neither (transfers).
+    $delta = function ($change, ?bool $upIsGood, bool $points = false): array {
         if ($change === null) {
             return ['—', 'text-gray-500'];
         }
         if (abs($change) < 0.05) {
             return [$points ? '0.0 pts' : '0.0%', 'text-gray-600'];
         }
+        $text = ($change > 0 ? '▲ ' : '▼ ') . number_format(abs($change), 1) . ($points ? ' pts' : '%');
+
+        if ($upIsGood === null) {
+            return [$text, 'text-gray-700'];
+        }
         $good = $upIsGood ? $change > 0 : $change < 0;
 
-        return [
-            ($change > 0 ? '▲ ' : '▼ ') . number_format(abs($change), 1) . ($points ? ' pts' : '%'),
-            $good ? 'text-success-700' : 'text-danger-600',
-        ];
+        return [$text, $good ? 'text-success-700' : 'text-danger-600'];
     };
 
-    $slides = ['Week at a glance', 'Sales vs purchases', 'By department', 'Wastage', 'Staff meals', 'By outlet'];
+    $slides = ['Week at a glance', 'Sales vs purchases', 'By department', 'Wastage', 'Staff meals', 'Stock transfers', 'By outlet'];
     $cw = $report['current'];
     $pw = $report['previous'];
 @endphp
@@ -190,6 +192,7 @@
                         @foreach ([
                             ['Sales', 'sales', 'money'], ['Purchases', 'purchases', 'money'], ['Purchase cost %', 'cost_pct', 'pct'],
                             ['Wastage', 'wastage', 'money'], ['Staff meals', 'staff_meal', 'money'],
+                            ['Stock transfers', 'transfers', 'money'],
                         ] as [$label, $key, $format])
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $label }}</td>
@@ -368,9 +371,63 @@
             @endif
         </section>
 
-        {{-- ── 6. By outlet ────────────────────────────────────────────── --}}
+        {{-- ── 6. Stock transfers ──────────────────────────────────────── --}}
         <section class="card p-5 mb-6" x-show="! presenting || current === 5" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 6, 'title' => $slides[5]])
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 6, 'title' => $slides[5], 'hint' => 'in transit and received, at line cost'])
+
+            @include('livewire.reports.management.partials.wip-cost-trend', [
+                'chart' => $report['charts']['transfers'], 'key' => 'transfers', 'label' => 'Transfers',
+            ])
+
+            @php
+                $transferRows = array_values(array_filter($report['outlets'], fn ($o) =>
+                    $o['transfers_out']['current'] > 0 || $o['transfers_in']['current'] > 0
+                    || $o['transfers_out']['previous'] > 0 || $o['transfers_in']['previous'] > 0));
+            @endphp
+            @if ($transferRows !== [])
+                <div class="overflow-x-auto mt-5">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Outlet</th>
+                                <th class="px-3 py-2 text-right">Sent</th>
+                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">Received</th>
+                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">Net in / (out)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($transferRows as $o)
+                                @php
+                                    $out = $delta($o['transfers_out']['change'], null);
+                                    $in  = $delta($o['transfers_in']['change'], null);
+                                    $net = $o['transfers_in']['current'] - $o['transfers_out']['current'];
+                                @endphp
+                                <tr wire:key="transfer-{{ $loop->index }}-{{ $o['name'] }}">
+                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $o['name'] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_out']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $out[1] }}">{{ $out[0] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_in']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $in[1] }}">{{ $in[0] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">
+                                        {{ $net < 0 ? '(' . number_format(abs($net), 2) . ')' : number_format($net, 2) }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Drafts and cancelled transfers are left out. Across the whole company a transfer nets to zero — it moves cost
+                    between outlets rather than adding to it.
+                </p>
+            @endif
+        </section>
+
+        {{-- ── 7. By outlet ────────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === 6" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 7, 'title' => $slides[6]])
 
             @if ($report['outlets'] === [])
                 <p class="py-8 text-center text-sm text-gray-600">No outlet figures for these two weeks.</p>
@@ -387,6 +444,8 @@
                                 <th class="px-3 py-2 text-right">vs last wk</th>
                                 <th class="px-3 py-2 text-right">Wastage</th>
                                 <th class="px-3 py-2 text-right">Staff meals</th>
+                                <th class="px-3 py-2 text-right">Transfers in</th>
+                                <th class="px-3 py-2 text-right">Transfers out</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -404,6 +463,8 @@
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['wastage']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['staff_meal']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_in']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_out']['current'], 2) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

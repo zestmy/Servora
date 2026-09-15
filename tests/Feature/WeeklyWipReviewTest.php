@@ -5,7 +5,12 @@ namespace Tests\Feature;
 use App\Livewire\Reports\Management\WeeklyWipReview;
 use App\Models\Company;
 use App\Models\Department;
+use App\Models\Ingredient;
 use App\Models\Outlet;
+use App\Models\OutletTransfer;
+use App\Models\OutletTransferLine;
+use App\Models\PurchaseCapture;
+use App\Models\UnitOfMeasure;
 use App\Models\PurchaseRecord;
 use App\Models\SalesCategory;
 use App\Models\SalesRecord;
@@ -193,6 +198,29 @@ class WeeklyWipReviewTest extends TestCase
             'The company\'s own department order, Unassigned last.');
     }
 
+    /**
+     * REPORTED AS: purchases not shown. Stock Management > Purchases saves to
+     * purchase_captures; only goods received against a PO reach
+     * purchase_records, which was all this report read.
+     */
+    public function test_purchases_keyed_in_stock_management_are_counted(): void
+    {
+        PurchaseCapture::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'department_id' => $this->bar->id, 'supplier_name' => 'Drinks Co',
+            'purchase_date' => '2026-09-10', 'amount' => 120,
+        ]);
+        $this->purchase('2026-09-09', 400, $this->kitchen); // received against a PO
+
+        $report = $this->report();
+
+        $this->assertEquals(520, $this->kpi($report, 'purchases')['current'],
+            'Captured and PO-received purchases are added together, as the COGS report does.');
+        $this->assertEquals(120, $this->dept($report, 'Bar')['purchases']['current']);
+        $this->assertEquals(400, $this->dept($report, 'Kitchen')['purchases']['current']);
+        $this->assertEquals(520, collect($report['outlets'])->firstWhere('name', 'KLCC')['purchases']['current']);
+    }
+
     public function test_the_trend_buckets_each_record_into_its_week(): void
     {
         $this->seedTwoWeeks();
@@ -213,6 +241,80 @@ class WeeklyWipReviewTest extends TestCase
 
         $c->set('week', '2026-12-01');
         $this->assertSame('2026-09-14', $c->get('week'), 'No later than the current week.');
+    }
+
+    // ── Stock transfers ───────────────────────────────────────────────────
+
+    private ?UnitOfMeasure $kg = null;
+    private ?Ingredient $flour = null;
+
+    private function secondOutlet(): Outlet
+    {
+        $ioi = Outlet::create([
+            'company_id' => $this->company->id, 'name' => 'IOI', 'code' => 'IOI', 'is_active' => true,
+        ]);
+        $this->user->outlets()->sync([$this->outlet->id, $ioi->id]);
+
+        return $ioi;
+    }
+
+    private function transfer(Outlet $from, Outlet $to, string $date, string $status, float $qty, float $unitCost): void
+    {
+        $this->kg ??= UnitOfMeasure::create(['name' => 'Kilogram', 'abbreviation' => 'kg', 'type' => 'weight']);
+        $this->flour ??= Ingredient::create([
+            'company_id' => $this->company->id, 'name' => 'Flour',
+            'base_uom_id' => $this->kg->id, 'recipe_uom_id' => $this->kg->id,
+            'current_cost' => $unitCost, 'is_active' => true,
+        ]);
+
+        $transfer = OutletTransfer::unguarded(fn () => OutletTransfer::create([
+            'company_id' => $this->company->id, 'from_outlet_id' => $from->id, 'to_outlet_id' => $to->id,
+            'transfer_number' => 'TR-' . Str::random(8), 'status' => $status, 'transfer_date' => $date,
+        ]));
+
+        OutletTransferLine::unguarded(fn () => OutletTransferLine::create([
+            'outlet_transfer_id' => $transfer->id, 'ingredient_id' => $this->flour->id,
+            'quantity' => $qty, 'uom_id' => $this->kg->id, 'unit_cost' => $unitCost,
+        ]));
+    }
+
+    public function test_stock_transfers_are_valued_on_their_lines_and_split_by_outlet(): void
+    {
+        $ioi = $this->secondOutlet();
+
+        $this->transfer($this->outlet, $ioi, '2026-09-09', 'received', 3, 10);   // RM30
+        $this->transfer($this->outlet, $ioi, '2026-09-10', 'draft', 5, 10);      // nothing moved yet
+        $this->transfer($this->outlet, $ioi, '2026-09-11', 'cancelled', 5, 10);  // never will
+        $this->transfer($ioi, $this->outlet, '2026-09-02', 'in_transit', 2, 10); // last week, RM20
+
+        $report = $this->report();
+
+        $transfers = $this->kpi($report, 'transfers');
+        $this->assertEquals(30, $transfers['current'], 'Drafts and cancelled transfers do not count.');
+        $this->assertEquals(20, $transfers['previous']);
+        $this->assertEquals(50.0, $transfers['change']);
+        $this->assertNull($transfers['up_is_good'], 'Moving stock is neither good nor bad news.');
+
+        $klcc   = collect($report['outlets'])->firstWhere('name', 'KLCC');
+        $ioiRow = collect($report['outlets'])->firstWhere('name', 'IOI');
+
+        $this->assertEquals(30, $klcc['transfers_out']['current']);
+        $this->assertEquals(20, $klcc['transfers_in']['previous']);
+        $this->assertEquals(30, $ioiRow['transfers_in']['current']);
+        $this->assertEquals(0, $ioiRow['transfers_out']['current']);
+        $this->assertEquals([0, 0, 0, 0, 0, 0, 20, 30], $report['totals']['transfers']);
+    }
+
+    public function test_an_outlet_filter_shows_only_its_own_side_of_a_transfer(): void
+    {
+        $ioi = $this->secondOutlet();
+        $this->transfer($this->outlet, $ioi, '2026-09-09', 'received', 3, 10);
+
+        $report = $this->report(['outletFilter' => (string) $ioi->id]);
+
+        $this->assertEquals(30, $this->kpi($report, 'transfers')['current']);
+        $this->assertSame(['IOI'], array_column($report['outlets'], 'name'),
+            'The sending outlet is outside the filter, so it has no row.');
     }
 
     public function test_the_report_is_listed_in_the_hub_and_opens(): void
