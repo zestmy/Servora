@@ -193,8 +193,12 @@
     .wip-review .table-surface tbody td:first-child { @apply font-semibold text-gray-900; }
     .wip-review .wip-label { @apply bg-brand-50 text-brand-900 font-semibold; }
     .wip-review .wip-emph td { @apply bg-brand-50 font-bold text-gray-900; }
-    .wip-review .wip-total-row td { @apply bg-brand-900 text-white font-bold; }
-    .wip-review .wip-total-row td .text-gray-500 { @apply text-brand-100; }
+    /* Written as specifically as the first-column rule above — which it has
+       to beat: at lower specificity that rule turned the week label dark on
+       this dark row, leaving "Week 37" unreadable while the figures beside it
+       stayed white. */
+    .wip-review .table-surface tbody tr.wip-total-row td { @apply bg-brand-900 text-white font-bold; }
+    .wip-review .table-surface tbody tr.wip-total-row td .text-gray-500 { @apply text-brand-100; }
 
     .wip-presenting .table-surface { @apply text-base; }
     .wip-presenting .table-surface thead th { @apply text-sm py-3; }
