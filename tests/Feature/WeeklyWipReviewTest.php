@@ -477,6 +477,36 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertEquals(75.0, $fc['forecast_vs_target']);
     }
 
+    /** Both views offer the PDF, and the PDF breaks wastage down by department. */
+    public function test_weekly_and_monthly_both_download_a_pdf_with_wastage_by_department(): void
+    {
+        $this->seedTwoWeeks();
+
+        foreach (['week' => [], 'month' => ['mode' => 'month', 'month' => '2026-09']] as $mode => $set) {
+            $c = Livewire::actingAs($this->user)->test(WeeklyWipReview::class);
+            foreach ($set as $k => $v) {
+                $c->set($k, $v);
+            }
+
+            $c->assertSee('Download PDF')
+              ->assertSee(route('reports.weekly-wip-review.pdf', $mode === 'month'
+                  ? ['mode' => 'month', 'month' => '2026-09', 'months' => 3]
+                  : ['mode' => 'week', 'week' => '2026-09-07', 'weeks' => 8]));
+
+            $pdf = view('pdf.wip-review', [
+                'report' => $c->viewData('report'), 'company' => $this->company, 'scopeLabel' => 'KLCC',
+            ])->render();
+
+            $this->assertStringContainsString('Wastage by department', $pdf, "{$mode} PDF");
+            $this->assertStringContainsString('Kitchen', $pdf);
+        }
+
+        $this->actingAs($this->user)
+            ->get(route('reports.weekly-wip-review.pdf', ['mode' => 'month', 'month' => '2026-09', 'months' => 3]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
     public function test_sales_performance_is_weekly_only(): void
     {
         $this->assertNull($this->report(['mode' => 'month'])['sales_performance']);

@@ -476,6 +476,39 @@
         </tr>
     </table>
 
+    {{-- ═══ Wastage by department ════════════════════════════════════════ --}}
+    @php $wasteRows = array_values(array_filter($report['departments'], fn ($d) => $d['wastage']['current'] > 0 || $d['wastage']['previous'] > 0)); @endphp
+    @if ($wasteRows !== [])
+        <div style="page-break-inside: avoid;">
+            <div class="section-header">Wastage by department</div>
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th class="right">This {{ $unit }}</th>
+                        <th class="right">Last {{ $unit }}</th>
+                        <th class="right">Change</th>
+                        <th class="right">% of dept sales</th>
+                        <th class="right">Last {{ $unit }} %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($wasteRows as $d)
+                        @php $w = $delta($d['wastage']['change'], false); @endphp
+                        <tr>
+                            <td style="font-weight: bold;">{{ $d['name'] }}</td>
+                            <td class="right">{{ $num($d['wastage']['current']) }}</td>
+                            <td class="right">{{ $num($d['wastage']['previous']) }}</td>
+                            <td class="right" style="color: {{ $w[1] }}; font-size: 8pt;">{{ $w[0] }}</td>
+                            <td class="right">{{ $pct($d['wastage_pct']['current']) }}</td>
+                            <td class="right">{{ $pct($d['wastage_pct']['previous']) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
     {{-- ═══ Overtime claims ══════════════════════════════════════════════ --}}
     <div style="page-break-before: always;"></div>
     <div class="section-header">Overtime by section</div>

@@ -195,8 +195,8 @@
             @endif
 
             {{-- The whole report as one PDF, with exactly the choices above. --}}
-            <x-download-link :href="$pdfUrl" class="btn-secondary" title="Download the whole report as a PDF">
-                PDF
+            <x-download-link :href="$pdfUrl" class="btn-secondary" title="Download the whole {{ $monthly ? 'monthly' : 'weekly' }} report as a PDF">
+                Download PDF
             </x-download-link>
             <button type="button" x-on:click="start()" class="btn-primary">Present</button>
         </div>
