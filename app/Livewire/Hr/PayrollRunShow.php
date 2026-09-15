@@ -1085,6 +1085,33 @@ class PayrollRunShow extends Component
             $warnings[] = $poolMismatch;
         }
 
+        /*
+         * PCB SWITCHED OFF.
+         *
+         * Unlike EPF, SOCSO and EIS, PCB ships switched OFF for a company, and
+         * with it off every payslip simply has no PCB row — nothing on the run
+         * said why. Read from the rates the run was GENERATED under, because
+         * that is what these figures came from: switching PCB on afterwards
+         * changes nothing until the run is regenerated, and that is the case
+         * worth naming.
+         */
+        if ($statutoryLines->isNotEmpty() && ($run->rate_snapshot['pcb_enabled'] ?? null) === false) {
+            $warnings[] = \App\Models\StatutorySetting::forCompany($run->company_id)->pcb_enabled
+                ? 'PCB (income tax) was switched off when this run was generated and has been switched on since — regenerate the run to deduct it.'
+                : 'PCB (income tax) is switched off in Settings > Statutory Rates — no PCB is deducted from anyone on this run.';
+        }
+
+        // Company PCB on, but off on individual profiles. Named, for the same
+        // reason as the zero-hour warning above: the names are what gets fixed.
+        $pcbProfileOff = $statutoryLines->filter(fn ($l) => in_array(
+            \App\Services\Payroll\StatutoryCalculator::PCB_PROFILE_OFF_NOTE, $l->statutory_notes ?? [], true
+        ));
+        if ($pcbProfileOff->isNotEmpty()) {
+            $warnings[] = $pcbProfileOff->count() . ' employee(s) have PCB switched off on their own statutory profile, so none is deducted: '
+                . $pcbProfileOff->pluck('employee_name')->join(', ')
+                . '. Tick PCB on the employee record, then regenerate.';
+        }
+
         // Nothing on this run was computed from the rates, so the caveat about
         // them describes no figure anybody is looking at.
         if (! $run->rates_were_confirmed && $statutoryLines->isNotEmpty()) {

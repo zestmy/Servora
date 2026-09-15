@@ -22,10 +22,13 @@ use Carbon\Carbon;
  *  2. PCB uses the MTD formula from the Income Tax (Deduction from
  *     Remuneration) Rules — MTD = [(P − M) × R + B − (Z + X)] ÷ (n + 1) — fed
  *     with year-to-date remuneration, EPF and tax from COMMITTED payroll runs.
- *     It falls back to annualising the current month when there is no run
- *     history for the year, which is correct in January and an understatement
- *     mid-year for a company that has only just started running payroll here.
- *     That case is stated in the notes rather than left to be discovered.
+ *     With no committed run earlier in the year it estimates that history —
+ *     the months already worked this year (from January, or from the join
+ *     date) at this month's pay, with the PCB that pay would have attracted —
+ *     so the deduction is the steady monthly figure. It used to treat those
+ *     months as unpaid, which taxed only the rest of the year and deducted
+ *     nothing at all for most staff of a company that started payroll here
+ *     mid-year. The estimate is stated in the notes.
  *
  * Every figure this returns is labelled as an estimate in the UI for exactly
  * these reasons.
@@ -52,6 +55,13 @@ class StatutoryCalculator
 
     /** The same zeros, a different reason. See Employee::isIntern(). */
     public const INTERN_NOTE = 'Internship — no statutory contributions are made for this placement.';
+
+    /**
+     * PCB is on for the company but off on this person's statutory profile.
+     * A constant because the run screen reads it back off the line to name
+     * who is affected — a payslip with no PCB row otherwise gives no reason.
+     */
+    public const PCB_PROFILE_OFF_NOTE = 'PCB not deducted — switched off on this employee\'s statutory profile.';
 
     public const NONE = [
         'epf_employee' => 0.0, 'epf_employer' => 0.0,
@@ -179,16 +189,47 @@ class StatutoryCalculator
         if ($this->settings->pcb_enabled && $profile->pcb_enabled) {
             $ytd = $ytd ?: YearToDate::NONE;
 
-            $result['pcb']   = $this->pcb($taxablePay, $result['epf_employee'], $profile, $asOf, $ytd);
+            // Months of this year already worked that no committed run covers:
+            // estimate them rather than treating them as unpaid. See the class
+            // note — unpaid is what zeroed PCB for a company new to payroll.
+            // Only the GAP is estimated, so a company that started payroll here
+            // in August keeps its real August and has January–July filled in.
+            $monthsBefore    = $this->monthsEmployedBefore($employee, $asOf);
+            $estimatedMonths = max(0, $monthsBefore - $ytd['months']);
+            if ($estimatedMonths > 0) {
+                $estimate = $this->estimatedYearToDate(
+                    $taxablePay, $result['epf_employee'], $profile, $asOf, $estimatedMonths, $monthsBefore,
+                );
+                $ytd = [
+                    'gross'  => $ytd['gross'] + $estimate['gross'],
+                    'epf'    => $ytd['epf'] + $estimate['epf'],
+                    'pcb'    => $ytd['pcb'] + $estimate['pcb'],
+                    'zakat'  => $ytd['zakat'],
+                    'months' => $ytd['months'] + $estimatedMonths,
+                ];
+            }
+
+            ['mtd' => $result['pcb'], 'chargeable' => $chargeable] =
+                $this->pcb($taxablePay, $result['epf_employee'], $profile, $asOf, $ytd);
             $result['zakat'] = round(max(0.0, (float) $profile->monthly_zakat), 2);
 
             // Which of the two it used matters to whoever checks the figure, so
             // the note says rather than describing PCB generically.
-            $monthNumber = (int) $asOf->format('n');
-            if ($ytd['months'] === 0 && $monthNumber > 1) {
-                $notes[] = 'PCB assumes no earlier pay this year — no approved payroll run before '
-                    . $asOf->format('F') . '. It will be understated if this employee was paid earlier in ' . $asOf->format('Y') . '.';
+            if ($estimatedMonths > 0) {
+                $notes[] = 'PCB estimated as if paid the same for the ' . $estimatedMonths . ' earlier month(s) of '
+                    . $asOf->format('Y') . ' not covered by an approved payroll run. '
+                    . 'Pay from before this company ran payroll here is not on record, so this is an estimate.';
             }
+
+            // A zero PCB is a real answer below the tax threshold, but on a
+            // payslip it is indistinguishable from PCB never having run. Say
+            // which it is, with the figure that decided it.
+            if ($result['pcb'] <= 0 && $taxablePay > 0) {
+                $notes[] = 'No PCB this month — projected chargeable income of RM' . number_format($chargeable, 2)
+                    . ' for ' . $asOf->format('Y') . ' is covered by the tax bands, rebate, zakat and PCB already deducted.';
+            }
+        } elseif ($this->settings->pcb_enabled && ! $profile->pcb_enabled) {
+            $notes[] = self::PCB_PROFILE_OFF_NOTE;
         }
 
         /*
@@ -370,6 +411,7 @@ class StatutoryCalculator
      * and the month settles whatever the year still owes.
      *
      * @param  array{gross: float, epf: float, pcb: float, zakat: float, months: int}  $ytd
+     * @return array{mtd: float, chargeable: float}  the deduction, and the P it came from
      */
     private function pcb(
         float $taxablePay,
@@ -377,7 +419,7 @@ class StatutoryCalculator
         EmployeeStatutoryProfile $profile,
         Carbon $asOf,
         array $ytd,
-    ): float {
+    ): array {
         $n = YearToDate::remainingMonths($asOf);
 
         // P — the year's chargeable income as it currently looks.
@@ -388,6 +430,41 @@ class StatutoryCalculator
         // present and projected — are capped together rather than each month
         // being allowed the full cap.
         $annualEpf = $ytd['epf'] + $epfEmployee + ($epfEmployee * $n);
+        // (P − M) × R + B, from the same band table the annual calculation uses.
+        ['tax' => $tax, 'chargeable' => $p] = $this->annualTax($annualPay, $annualEpf, $profile);
+
+        if ($p <= 0) {
+            return ['mtd' => 0.0, 'chargeable' => 0.0];
+        }
+
+        // Z — zakat paid this year including this month. Not stored per line,
+        // so it is derived from the standing monthly figure and the months
+        // already committed.
+        $monthlyZakat = (float) $profile->monthly_zakat;
+        $z = $monthlyZakat * ($ytd['months'] + 1);
+
+        // X — MTD already deducted this year.
+        $x = $ytd['pcb'];
+
+        $mtd = ($tax - ($z + $x)) / ($n + 1);
+
+        // Never negative: MTD is a deduction, and an over-deduction earlier in
+        // the year is refunded on assessment, not paid back through payroll.
+        return ['mtd' => round(max(0.0, $mtd), 2), 'chargeable' => round($p, 2)];
+    }
+
+    /**
+     * (P − M) × R + B for a year's pay and EPF: the tax on the chargeable
+     * income, after the rebate. Negative is possible (a rebate larger than the
+     * tax) and is left for the caller, as the MTD formula expects.
+     *
+     * @return array{tax: float, chargeable: float}
+     */
+    private function annualTax(float $annualPay, float $annualEpf, EmployeeStatutoryProfile $profile): array
+    {
+        // EPF relief is an ANNUAL cap, so the year's contributions — past,
+        // present and projected — are capped together rather than each month
+        // being allowed the full cap.
         $epfRelief = min($annualEpf, (float) $this->settings->pcb_relief_epf_cap);
 
         $relief = (float) $this->settings->pcb_relief_individual
@@ -399,10 +476,9 @@ class StatutoryCalculator
         $p = max(0.0, $annualPay - $relief);
 
         if ($p <= 0) {
-            return 0.0;
+            return ['tax' => 0.0, 'chargeable' => 0.0];
         }
 
-        // M, R and B, read off the same band table the annual calculation uses.
         [$m, $r] = $this->bandFor($p);
         $b = $this->taxOn($m);
 
@@ -418,20 +494,59 @@ class StatutoryCalculator
             $b -= $rebate;
         }
 
-        // Z — zakat paid this year including this month. Not stored per line,
-        // so it is derived from the standing monthly figure and the months
-        // already committed.
-        $monthlyZakat = (float) $profile->monthly_zakat;
-        $z = $monthlyZakat * ($ytd['months'] + 1);
+        return ['tax' => ($p - $m) * $r + $b, 'chargeable' => $p];
+    }
 
-        // X — MTD already deducted this year.
-        $x = $ytd['pcb'];
+    /**
+     * Whole months of this year the employee worked BEFORE $asOf's month:
+     * from January, or from the month they joined if that was this year.
+     * Zero in January and for anyone who joined this month.
+     */
+    private function monthsEmployedBefore(Employee $employee, Carbon $asOf): int
+    {
+        $monthStart = $asOf->copy()->startOfMonth();
+        $from       = $asOf->copy()->startOfYear();
 
-        $mtd = (($p - $m) * $r + $b - ($z + $x)) / ($n + 1);
+        if ($employee->join_date && $employee->join_date->gt($from)) {
+            $from = $employee->join_date->copy()->startOfMonth();
+        }
 
-        // Never negative: MTD is a deduction, and an over-deduction earlier in
-        // the year is refunded on assessment, not paid back through payroll.
-        return round(max(0.0, $mtd), 2);
+        return $from->gte($monthStart) ? 0 : (int) round($from->diffInMonths($monthStart));
+    }
+
+    /**
+     * A stand-in for the history no committed run covers: $months earlier
+     * months at this month's pay, EPF and the matching share of the year's tax.
+     *
+     * The PCB is spread over every month employed this year ($monthsBefore, the
+     * real and estimated months together, plus this one and those left), so a
+     * month with no real history gets that same even share — the steady
+     * deduction — rather than dumping the earlier months' tax on the rest of
+     * the year, or skipping it. Real months that deducted too little still
+     * catch up, which is what the MTD formula is for.
+     *
+     * @return array{gross: float, epf: float, pcb: float, zakat: float, months: int}
+     */
+    private function estimatedYearToDate(
+        float $taxablePay,
+        float $epfEmployee,
+        EmployeeStatutoryProfile $profile,
+        Carbon $asOf,
+        int $months,
+        int $monthsBefore,
+    ): array {
+        $span = $monthsBefore + 1 + YearToDate::remainingMonths($asOf);
+
+        ['tax' => $tax] = $this->annualTax($taxablePay * $span, $epfEmployee * $span, $profile);
+        $zakat = (float) $profile->monthly_zakat * $span;
+
+        return [
+            'gross'  => $taxablePay * $months,
+            'epf'    => $epfEmployee * $months,
+            'pcb'    => round(max(0.0, $tax - $zakat) / $span * $months, 2),
+            'zakat'  => 0.0,
+            'months' => $months,
+        ];
     }
 
     /**
