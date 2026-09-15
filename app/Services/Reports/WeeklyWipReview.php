@@ -2,8 +2,13 @@
 
 namespace App\Services\Reports;
 
+use App\Models\CompensationSetting;
 use App\Models\Department;
+use App\Models\Employee;
+use App\Models\OvertimeClaim;
 use App\Models\Outlet;
+use App\Models\PayrollRun;
+use App\Models\PayrollRunLine;
 use App\Models\PurchaseCapture;
 use App\Models\PurchaseRecord;
 use App\Models\SalesRecord;
@@ -15,12 +20,20 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The figures behind the weekly WIP meeting: one reviewed week against the
- * week before, and a trend of the weeks leading up to it — sales against
- * purchases (overall, by department and by outlet), wastage, staff meals and
- * stock transfers between outlets.
+ * The figures behind the WIP meeting: one reviewed period against the one
+ * before, and a trend of the periods leading up to it — sales against
+ * purchases (overall, by department and by outlet), wastage, staff meals,
+ * stock transfers between outlets, overtime claims and, by month, labour cost
+ * from payroll.
  *
- * WEEKS RUN MONDAY TO SUNDAY, labelled by ISO week number.
+ * TWO GRANULARITIES. Weeks run Monday to Sunday, labelled by ISO week number.
+ * Months are calendar months. Labour cost is MONTHLY ONLY: payroll is run by
+ * the month, and spreading it across weeks would invent figures nobody paid.
+ *
+ * PAY IS GATED. The report itself only needs reports.view; overtime COST and
+ * labour cost are computed only when the caller says the viewer may see pay
+ * (hr.compensation, see Employee::canViewPay), and are absent from the result
+ * otherwise rather than merely hidden in the view.
  *
  * DEPARTMENTS AND SALES. A sale has no department of its own; its lines carry
  * a sales category, and a department points at the sales category it sells
@@ -29,52 +42,81 @@ use Illuminate\Support\Facades\DB;
  * with no lines — is reported as "Unassigned" rather than dropped, so the
  * department rows always add up to the sales total.
  *
- * Grouped by the raw date column and bucketed into weeks in PHP: YEARWEEK()
- * and DATE_FORMAT() are MySQL-only and would leave this untestable on SQLite.
+ * Grouped by the raw date column and bucketed in PHP: YEARWEEK() and
+ * DATE_FORMAT() are MySQL-only and would leave this untestable on SQLite.
  */
 class WeeklyWipReview
 {
-    public const WEEK_OPTIONS = [4, 8, 12];
+    public const WEEK  = 'week';
+    public const MONTH = 'month';
+
+    /** 2 is the smallest that still has a week before the reviewed one. */
+    public const WEEK_OPTIONS = [2, 4, 8, 12];
+
+    /** A 1-month trend still compares with the month before; only the trend is cut. */
+    public const MONTH_OPTIONS = [1, 2, 3, 6];
 
     private const UNASSIGNED = 'none';
 
     /**
      * @param  array<int, int>  $outletIds  empty = every outlet the company has
      */
-    public function build(int $companyId, array $outletIds, Carbon $week, int $weeks = 8): array
-    {
-        $weeks   = in_array($weeks, self::WEEK_OPTIONS, true) ? $weeks : 8;
-        $current = $week->copy()->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
-        $first   = $current->copy()->subWeeks($weeks - 1);
-        $range   = [$first->toDateString(), $current->copy()->addDays(6)->toDateString() . ' 23:59:59'];
+    public function build(
+        int $companyId,
+        array $outletIds,
+        Carbon $anchor,
+        int $count = 8,
+        string $granularity = self::WEEK,
+        bool $includeDraftPayroll = false,
+        bool $canViewPay = false,
+    ): array {
+        $monthly = $granularity === self::MONTH;
+        $options = $monthly ? self::MONTH_OPTIONS : self::WEEK_OPTIONS;
+        $count   = in_array($count, $options, true) ? $count : ($monthly ? 3 : 8);
 
-        $weekList = [];
-        for ($i = 0; $i < $weeks; $i++) {
-            $start = $first->copy()->addWeeks($i);
-            $end   = $start->copy()->addDays(6);
+        // Always at least two periods underneath, so the comparison exists
+        // even when the trend asked for is a single month.
+        $buckets = max($count, 2);
 
-            $weekList[] = [
+        $current = $monthly
+            ? $anchor->copy()->startOfMonth()->startOfDay()
+            : $anchor->copy()->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
+        $first = $monthly
+            ? $current->copy()->subMonthsNoOverflow($buckets - 1)
+            : $current->copy()->subWeeks($buckets - 1);
+
+        $periods = [];
+        for ($i = 0; $i < $buckets; $i++) {
+            $start = $monthly ? $first->copy()->addMonthsNoOverflow($i) : $first->copy()->addWeeks($i);
+            $end   = $monthly ? $start->copy()->endOfMonth() : $start->copy()->addDays(6);
+
+            $periods[] = [
                 'start' => $start->toDateString(),
                 'end'   => $end->toDateString(),
-                'label' => 'W' . $start->isoWeek() . ' · ' . $start->format('j M'),
-                'range' => $start->format('j M') . ' – ' . $end->format('j M Y'),
+                'label' => $monthly ? $start->format('M Y') : 'W' . $start->isoWeek() . ' · ' . $start->format('j M'),
+                'range' => $monthly ? $start->format('F Y') : $start->format('j M') . ' – ' . $end->format('j M Y'),
             ];
         }
 
-        $index = array_flip(array_column($weekList, 'start'));
-        $cur   = $weeks - 1;
-        $prev  = $weeks - 2;
-        $zero  = array_fill(0, $weeks, 0.0);
+        $range = [$periods[0]['start'], $periods[$buckets - 1]['end'] . ' 23:59:59'];
+        $index = array_flip(array_column($periods, 'start'));
+        $cur   = $buckets - 1;
+        $prev  = $buckets - 2;
+        $zero  = array_fill(0, $buckets, 0.0);
 
-        $bucket = function ($date) use ($index): ?int {
-            $key = Carbon::parse($date)->startOfWeek(CarbonInterface::MONDAY)->toDateString();
+        $bucket = function ($date) use ($index, $monthly): ?int {
+            $d   = Carbon::parse($date);
+            $key = ($monthly ? $d->startOfMonth() : $d->startOfWeek(CarbonInterface::MONDAY))->toDateString();
 
             return $index[$key] ?? null;
         };
 
         $outlets = fn ($query, string $column = 'outlet_id') => $outletIds ? $query->whereIn($column, $outletIds) : $query;
 
-        $totals    = ['sales' => $zero, 'purchases' => $zero, 'wastage' => $zero, 'staff_meal' => $zero, 'transfers' => $zero];
+        $totals = array_fill_keys([
+            'sales', 'purchases', 'wastage', 'staff_meal', 'transfers',
+            'ot_hours', 'ot_cost', 'ot_pending_hours', 'labour_cost',
+        ], $zero);
         $byDept    = [];
         $byOutlet  = [];
         $lineSales = $zero;
@@ -84,7 +126,7 @@ class WeeklyWipReview
             $target[$key][$metric][$w] += $amount;
         };
 
-        // ── Sales: header totals, for the week and the outlet ─────────────
+        // ── Sales: header totals, for the period and the outlet ───────────
         $sales = $outlets(SalesRecord::withoutGlobalScopes()->where('company_id', $companyId)->whereNull('deleted_at'))
             ->whereBetween('sale_date', $range)
             ->selectRaw('sale_date as d, outlet_id, SUM(total_revenue) as amount')
@@ -224,11 +266,38 @@ class WeeklyWipReview
             }
         }
 
+        // ── Overtime claims ───────────────────────────────────────────────
+        // APPROVED claims are the overtime the business has accepted; submitted
+        // ones are reported beside them as still awaiting a decision, never
+        // added in. Cost is an estimate at each person's hourly rate of pay —
+        // the same hourlyRate() × multiplier payroll uses — on the hours not
+        // already taken as time off. A claim settled as time off is hours
+        // worked but no cash, so it counts towards hours and not cost.
+        [$unpriced] = $this->overtime(
+            $companyId, $outlets, $range, $bucket, $zero, $canViewPay, $totals, $byOutlet, $add,
+        );
+
+        // ── Labour cost, from payroll (monthly, and only for pay viewers) ─
+        $labour = null;
+        if ($monthly && $canViewPay) {
+            $labour = $this->labour($companyId, $outletIds, $periods, $bucket, $zero, $includeDraftPayroll);
+
+            foreach ($labour['parts']['employer_cost'] as $w => $amount) {
+                $totals['labour_cost'][$w] += $amount;
+            }
+            foreach ($labour['by_outlet'] as $outletId => $series) {
+                foreach ($series as $w => $amount) {
+                    $add($byOutlet, $outletId, 'labour_cost', $w, $amount);
+                }
+            }
+        }
+
         $totals = array_map(fn ($series) => array_map(fn ($v) => round($v, 2), $series), $totals);
 
-        $costPct    = array_map(fn ($p, $s) => self::share($p, $s), $totals['purchases'], $totals['sales']);
-        $wastagePct = array_map(fn ($p, $s) => self::share($p, $s), $totals['wastage'], $totals['sales']);
-        $mealPct    = array_map(fn ($p, $s) => self::share($p, $s), $totals['staff_meal'], $totals['sales']);
+        $totals['cost_pct']       = array_map(fn ($p, $s) => self::share($p, $s), $totals['purchases'], $totals['sales']);
+        $totals['wastage_pct']    = array_map(fn ($p, $s) => self::share($p, $s), $totals['wastage'], $totals['sales']);
+        $totals['staff_meal_pct'] = array_map(fn ($p, $s) => self::share($p, $s), $totals['staff_meal'], $totals['sales']);
+        $totals['labour_pct']     = array_map(fn ($p, $s) => self::share($p, $s), $totals['labour_cost'], $totals['sales']);
 
         // ── Department rows, in the company's own department order ────────
         $deptNames = $departments->pluck('name', 'id')->all();
@@ -249,11 +318,19 @@ class WeeklyWipReview
         }
 
         // ── Outlet rows, by name ──────────────────────────────────────────
+        $outletKeys = ['sales', 'purchases', 'wastage', 'staff_meal', 'transfers_out', 'transfers_in', 'ot_hours'];
+        if ($canViewPay) {
+            $outletKeys[] = 'ot_cost';
+        }
+        if ($labour !== null) {
+            $outletKeys[] = 'labour_cost';
+        }
+
         $outletNames = Outlet::withoutGlobalScopes()->whereIn('id', array_keys($byOutlet))->pluck('name', 'id')->all();
 
         $outletRows = [];
         foreach ($byOutlet as $id => $metrics) {
-            $row = $this->row($outletNames[$id] ?? 'Unknown outlet', $metrics, $zero, $cur, $prev, ['sales', 'purchases', 'wastage', 'staff_meal', 'transfers_out', 'transfers_in']);
+            $row = $this->row($outletNames[$id] ?? 'Unknown outlet', $metrics, $zero, $cur, $prev, $outletKeys);
             if ($row['active']) {
                 $outletRows[] = $row;
             }
@@ -271,7 +348,29 @@ class WeeklyWipReview
             'format'     => $format,
         ];
 
-        $labels = array_column($weekList, 'label');
+        $kpis = [
+            $kpi('sales', 'Sales', $totals['sales'], true),
+            $kpi('purchases', 'Purchases', $totals['purchases'], false),
+            $kpi('cost_pct', 'Purchase cost % of sales', $totals['cost_pct'], false, 'pct'),
+            $kpi('wastage', 'Wastage', $totals['wastage'], false),
+            $kpi('wastage_pct', 'Wastage % of sales', $totals['wastage_pct'], false, 'pct'),
+            $kpi('staff_meal', 'Staff meals', $totals['staff_meal'], false),
+            $kpi('transfers', 'Stock transfers', $totals['transfers'], null),
+            $kpi('ot_hours', 'Overtime hours (approved)', $totals['ot_hours'], false, 'hours'),
+        ];
+        if ($canViewPay) {
+            $kpis[] = $kpi('ot_cost', 'Overtime cost (estimated)', $totals['ot_cost'], false);
+        }
+        if ($labour !== null) {
+            $kpis[] = $kpi('labour_cost', 'Labour cost', $totals['labour_cost'], false);
+            $kpis[] = $kpi('labour_pct', 'Labour cost % of sales', $totals['labour_pct'], false, 'pct');
+        }
+
+        // The trend shows only the periods asked for; the comparison above
+        // was taken from the full set.
+        $trim   = fn (array $series) => array_values(array_slice($series, -$count));
+        $shown  = $trim($periods);
+        $labels = array_column($shown, 'label');
         $colors = [
             'sales'      => PurchaseSupplierBreakdown::SERIES[0],
             'purchases'  => PurchaseSupplierBreakdown::SERIES[2],
@@ -279,32 +378,41 @@ class WeeklyWipReview
             'wastage'    => PurchaseSupplierBreakdown::SERIES[3],
             'staff_meal' => PurchaseSupplierBreakdown::SERIES[4],
             'transfers'  => PurchaseSupplierBreakdown::SERIES[1],
+            'overtime'   => PurchaseSupplierBreakdown::SERIES[6],
+            'labour'     => PurchaseSupplierBreakdown::SERIES[7],
             'previous'   => PurchaseSupplierBreakdown::OTHER_COLOR,
         ];
 
+        $costChart = fn (string $key, string $color, ?array $pct) => [
+            'labels' => $labels, 'values' => $trim($totals[$key]), 'pct' => $pct === null ? null : $trim($pct),
+            'color' => $color, 'line' => $colors['line'],
+            'bar_prefix' => 'RM ', 'bar_suffix' => '', 'line_label' => '% of sales', 'line_suffix' => '%',
+        ];
+
         return [
-            'weeks'       => $weekList,
-            'current'     => $weekList[$cur],
-            'previous'    => $weekList[$prev],
-            'has_data'    => array_sum($totals['sales']) + array_sum($totals['purchases'])
-                           + array_sum($totals['wastage']) + array_sum($totals['staff_meal'])
-                           + array_sum($totals['transfers']) > 0,
-            'totals'      => $totals + ['cost_pct' => $costPct, 'wastage_pct' => $wastagePct, 'staff_meal_pct' => $mealPct],
-            'kpis'        => [
-                $kpi('sales', 'Sales', $totals['sales'], true),
-                $kpi('purchases', 'Purchases', $totals['purchases'], false),
-                $kpi('cost_pct', 'Purchase cost % of sales', $costPct, false, 'pct'),
-                $kpi('wastage', 'Wastage', $totals['wastage'], false),
-                $kpi('wastage_pct', 'Wastage % of sales', $wastagePct, false, 'pct'),
-                $kpi('staff_meal', 'Staff meals', $totals['staff_meal'], false),
-                $kpi('transfers', 'Stock transfers', $totals['transfers'], null),
+            'granularity'  => $monthly ? self::MONTH : self::WEEK,
+            'count'        => $count,
+            'can_view_pay' => $canViewPay,
+            'periods'      => $shown,
+            'current'      => $periods[$cur],
+            'previous'     => $periods[$prev],
+            'has_data'     => array_sum(array_map('array_sum', array_intersect_key($totals, array_flip([
+                'sales', 'purchases', 'wastage', 'staff_meal', 'transfers', 'ot_hours', 'ot_pending_hours', 'labour_cost',
+            ])))) > 0,
+            'totals'       => array_map($trim, $totals),
+            'kpis'         => $kpis,
+            'departments'  => $departmentRows,
+            'outlets'      => $outletRows,
+            'overtime'     => [
+                'pending_hours' => ['current' => $totals['ot_pending_hours'][$cur], 'previous' => $totals['ot_pending_hours'][$prev]],
+                'unpriced'      => $unpriced[$cur],
             ],
-            'departments' => $departmentRows,
-            'outlets'     => $outletRows,
-            'charts'      => [
+            'labour'       => $labour === null ? null : $this->labourSummary($labour, $cur, $prev),
+            'charts'       => [
                 'trend' => [
-                    'labels' => $labels, 'starts' => array_column($weekList, 'start'),
-                    'sales' => $totals['sales'], 'purchases' => $totals['purchases'], 'cost_pct' => $costPct,
+                    'labels' => $labels, 'starts' => array_column($shown, 'start'),
+                    'sales' => $trim($totals['sales']), 'purchases' => $trim($totals['purchases']),
+                    'cost_pct' => $trim($totals['cost_pct']),
                     'colors' => $colors,
                 ],
                 'departments' => [
@@ -314,26 +422,215 @@ class WeeklyWipReview
                     'cost_pct'  => array_map(fn ($r) => $r['cost_pct']['current'], $departmentRows),
                     'colors'    => $colors,
                 ],
-                'wastage' => [
-                    'labels' => $labels, 'values' => $totals['wastage'], 'pct' => $wastagePct,
-                    'color' => $colors['wastage'], 'line' => $colors['line'],
-                ],
-                'staff_meal' => [
-                    'labels' => $labels, 'values' => $totals['staff_meal'], 'pct' => $mealPct,
-                    'color' => $colors['staff_meal'], 'line' => $colors['line'],
-                ],
+                'wastage'    => $costChart('wastage', $colors['wastage'], $totals['wastage_pct']),
+                'staff_meal' => $costChart('staff_meal', $colors['staff_meal'], $totals['staff_meal_pct']),
                 // No share-of-sales line: moving stock is not a cost of sales.
-                'transfers' => [
-                    'labels' => $labels, 'values' => $totals['transfers'], 'pct' => null,
-                    'color' => $colors['transfers'], 'line' => $colors['line'],
-                ],
+                'transfers'  => $costChart('transfers', $colors['transfers'], null),
+                // With pay: cost bars and an hours line. Without: hours alone.
+                'overtime'   => $canViewPay
+                    ? array_merge(
+                        $costChart('ot_cost', $colors['overtime'], null),
+                        ['pct' => $trim($totals['ot_hours']), 'line_label' => 'Hours', 'line_suffix' => ' h'],
+                    )
+                    : array_merge(
+                        $costChart('ot_hours', $colors['overtime'], null),
+                        ['bar_prefix' => '', 'bar_suffix' => ' h'],
+                    ),
+                'labour'     => $labour === null ? null : $costChart('labour_cost', $colors['labour'], $totals['labour_pct']),
             ],
         ];
     }
 
     /**
-     * One department or outlet: each metric this week against last, plus
-     * purchase cost % and wastage % of that row's own sales.
+     * Approved overtime hours and estimated cost into $totals and $byOutlet.
+     *
+     * @return array{0: array<int, int>}  approved claims per period that could not be costed
+     */
+    private function overtime(
+        int $companyId,
+        callable $outlets,
+        array $range,
+        callable $bucket,
+        array $zero,
+        bool $canViewPay,
+        array &$totals,
+        array &$byOutlet,
+        callable $add,
+    ): array {
+        $claims = $outlets(OvertimeClaim::withoutGlobalScopes()->where('company_id', $companyId)->whereNull('deleted_at'))
+            ->whereIn('status', ['submitted', 'approved'])
+            ->whereBetween('claim_date', $range)
+            ->get(['id', 'outlet_id', 'employee_id', 'claim_date', 'total_ot_hours', 'hours_taken_off', 'ot_type', 'status', 'settlement']);
+
+        $settings  = CompensationSetting::forCompany($companyId);
+        $employees = $canViewPay
+            ? Employee::withoutGlobalScopes()
+                ->whereIn('id', $claims->pluck('employee_id')->filter()->unique())
+                ->get(['id', 'basic_salary', 'pay_type', 'daily_working_hours'])
+                ->keyBy('id')
+            : collect();
+
+        $unpriced = array_map('intval', $zero);
+
+        foreach ($claims as $claim) {
+            if (($w = $bucket($claim->claim_date)) === null) continue;
+            $hours = (float) $claim->total_ot_hours;
+
+            if ($claim->status === 'submitted') {
+                $totals['ot_pending_hours'][$w] += $hours;
+                continue;
+            }
+
+            $totals['ot_hours'][$w] += $hours;
+            $add($byOutlet, (int) $claim->outlet_id, 'ot_hours', $w, $hours);
+
+            if (! $canViewPay || $claim->settlement === OvertimeClaim::SETTLE_TIME_OFF) continue;
+
+            $employee = $employees[$claim->employee_id] ?? null;
+            $rate = $employee ? $settings->hourlyRate(
+                $employee->basic_salary !== null ? (float) $employee->basic_salary : null,
+                $employee->pay_type,
+                $employee->daily_working_hours !== null ? (float) $employee->daily_working_hours : null,
+            ) : null;
+
+            if ($rate === null) {
+                $unpriced[$w]++;
+                continue;
+            }
+
+            $cost = max(0.0, $hours - (float) $claim->hours_taken_off) * $rate * $settings->multiplierFor((string) $claim->ot_type);
+            $totals['ot_cost'][$w] += $cost;
+            $add($byOutlet, (int) $claim->outlet_id, 'ot_cost', $w, $cost);
+        }
+
+        return [$unpriced];
+    }
+
+    /**
+     * Labour cost per month from payroll run lines.
+     *
+     * ONE LINE PER PERSON PER MONTH. A company can hold a company-wide run and
+     * an outlet run for the same month, and a regenerated draft beside the
+     * approved one; adding every line would pay the same person twice. The
+     * line kept is from the most settled run — paid, then approved, then draft
+     * — and the latest generated among equals.
+     *
+     * Lines carry no outlet id (they snapshot the outlet's NAME), so an outlet
+     * run's lines belong to its outlet, and a company-wide run's lines to each
+     * employee's current outlet.
+     */
+    private function labour(int $companyId, array $outletIds, array $periods, callable $bucket, array $zero, bool $includeDrafts): array
+    {
+        $monthRange = [$periods[0]['start'], $periods[count($periods) - 1]['end']];
+        $statuses   = $includeDrafts
+            ? [PayrollRun::DRAFT, PayrollRun::APPROVED, PayrollRun::PAID]
+            : [PayrollRun::APPROVED, PayrollRun::PAID];
+        $rank = [PayrollRun::PAID => 3, PayrollRun::APPROVED => 2, PayrollRun::DRAFT => 1];
+
+        $runs = PayrollRun::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereIn('status', $statuses)
+            ->whereBetween('period_month', $monthRange)
+            ->get(['id', 'outlet_id', 'period_month', 'status', 'generated_at'])
+            ->keyBy('id');
+
+        $draftsLeftOut = $includeDrafts ? 0 : PayrollRun::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('status', PayrollRun::DRAFT)
+            ->whereBetween('period_month', $monthRange)
+            ->when($outletIds, fn ($q) => $q->where(fn ($w) => $w->whereIn('outlet_id', $outletIds)->orWhereNull('outlet_id')))
+            ->count();
+
+        $parts = ['basic', 'allowances', 'ot_amount', 'service_charge', 'gross', 'statutory_employer', 'employer_cost'];
+
+        $lines = $runs->isEmpty() ? collect() : PayrollRunLine::withoutGlobalScopes()
+            ->whereIn('payroll_run_id', $runs->keys())
+            ->get(array_merge(['id', 'payroll_run_id', 'employee_id', 'employee_name'], $parts));
+
+        $outletOf = Employee::withoutGlobalScopes()
+            ->whereIn('id', $lines->pluck('employee_id')->filter()->unique())
+            ->pluck('outlet_id', 'id');
+
+        $chosen = [];
+        foreach ($lines as $line) {
+            $run = $runs[$line->payroll_run_id];
+            if (($w = $bucket($run->period_month)) === null) continue;
+
+            $outletId = $run->outlet_id ?? ($line->employee_id ? ($outletOf[$line->employee_id] ?? null) : null);
+            if ($outletIds && ! in_array((int) $outletId, $outletIds, true)) continue;
+
+            $who   = $line->employee_id ? 'e' . $line->employee_id : 'n' . mb_strtolower((string) $line->employee_name);
+            $key   = $w . '|' . $who;
+            $score = [$rank[$run->status] ?? 0, (string) $run->generated_at, (int) $run->id];
+
+            if (isset($chosen[$key]) && $chosen[$key]['score'] >= $score) continue;
+
+            $chosen[$key] = [
+                'score' => $score, 'w' => $w, 'outlet' => $outletId ? (int) $outletId : null,
+                'line' => $line, 'draft' => $run->status === PayrollRun::DRAFT,
+            ];
+        }
+
+        $sum       = array_fill_keys($parts, $zero);
+        $headcount = array_map('intval', $zero);
+        $byOutlet  = [];
+        $draftUsed = array_fill(0, count($zero), false);
+
+        foreach ($chosen as $c) {
+            foreach ($parts as $p) {
+                $sum[$p][$c['w']] += (float) $c['line']->{$p};
+            }
+            $headcount[$c['w']]++;
+            $draftUsed[$c['w']] = $draftUsed[$c['w']] || $c['draft'];
+
+            if ($c['outlet'] !== null) {
+                $byOutlet[$c['outlet']] ??= $zero;
+                $byOutlet[$c['outlet']][$c['w']] += (float) $c['line']->employer_cost;
+            }
+        }
+
+        return [
+            'parts'           => $sum,
+            'headcount'       => $headcount,
+            'by_outlet'       => $byOutlet,
+            'draft_used'      => $draftUsed,
+            'drafts_left_out' => $draftsLeftOut,
+            'include_drafts'  => $includeDrafts,
+        ];
+    }
+
+    /** The labour breakdown for the reviewed month against the one before. */
+    private function labourSummary(array $labour, int $cur, int $prev): array
+    {
+        $labels = [
+            'basic'              => 'Basic pay',
+            'allowances'         => 'Allowances',
+            'ot_amount'          => 'Overtime (paid)',
+            'service_charge'     => 'Service charge',
+            'gross'              => 'Gross pay',
+            'statutory_employer' => 'Employer statutory (EPF, SOCSO, EIS…)',
+            'employer_cost'      => 'Labour cost (employer cost)',
+        ];
+
+        $rows = [];
+        foreach ($labels as $key => $label) {
+            $now  = round($labour['parts'][$key][$cur], 2);
+            $then = round($labour['parts'][$key][$prev], 2);
+            $rows[] = ['key' => $key, 'label' => $label, 'current' => $now, 'previous' => $then, 'change' => self::change($now, $then)];
+        }
+
+        return [
+            'rows'            => $rows,
+            'headcount'       => ['current' => $labour['headcount'][$cur], 'previous' => $labour['headcount'][$prev]],
+            'draft_used'      => $labour['draft_used'][$cur] || $labour['draft_used'][$prev],
+            'drafts_left_out' => $labour['drafts_left_out'],
+            'include_drafts'  => $labour['include_drafts'],
+        ];
+    }
+
+    /**
+     * One department or outlet: each metric this period against last, plus
+     * purchase cost %, wastage % and labour % of that row's own sales.
      *
      * @param  array<string, array<int, float>>  $metrics
      * @param  array<int, string>  $keys
@@ -341,7 +638,7 @@ class WeeklyWipReview
     private function row(string $name, array $metrics, array $zero, int $cur, int $prev, array $keys): array
     {
         $row    = ['name' => $name, 'active' => false];
-        $series = [];
+        $series = ['sales' => $metrics['sales'] ?? $zero];
 
         foreach ($keys as $key) {
             $series[$key] = $metrics[$key] ?? $zero;
@@ -356,8 +653,8 @@ class WeeklyWipReview
             }
         }
 
-        foreach (['cost_pct' => 'purchases', 'wastage_pct' => 'wastage'] as $pctKey => $of) {
-            if (! isset($series[$of])) continue;
+        foreach (['cost_pct' => 'purchases', 'wastage_pct' => 'wastage', 'labour_pct' => 'labour_cost'] as $pctKey => $of) {
+            if (! in_array($of, $keys, true)) continue;
 
             $now  = self::share($series[$of][$cur], $series['sales'][$cur]);
             $then = self::share($series[$of][$prev], $series['sales'][$prev]);

@@ -1,6 +1,8 @@
 @php
     $money = fn ($v) => $v === null ? '—' : 'RM ' . number_format((float) $v, 2);
     $pct   = fn ($v) => $v === null ? '—' : number_format((float) $v, 1) . '%';
+    $hrs   = fn ($v) => $v === null ? '—' : number_format((float) $v, 1) . ' h';
+    $fmt   = fn ($v, string $format) => match ($format) { 'pct' => $pct($v), 'hours' => $hrs($v), default => $money($v) };
 
     // A change is coloured by whether it is good news, not by its sign: sales
     // up is green, wastage up is red. $upIsGood null is neither (transfers).
@@ -21,7 +23,29 @@
         return [$text, $good ? 'text-success-700' : 'text-danger-600'];
     };
 
-    $slides = ['Week at a glance', 'Sales vs purchases', 'By department', 'Wastage', 'Staff meals', 'Stock transfers', 'By outlet'];
+    $monthly = $report['granularity'] === 'month';
+    $unit    = $monthly ? 'month' : 'week';
+    $vsLast  = $monthly ? 'vs last mth' : 'vs last wk';
+    $canPay  = $report['can_view_pay'];
+    $labour  = $report['labour'];
+
+    // The deck is built from whichever sections this view has, so slide
+    // numbers and the presenter's count follow the mode and the viewer.
+    $slides = [
+        'glance'      => $monthly ? 'Month at a glance' : 'Week at a glance',
+        'trend'       => 'Sales vs purchases',
+        'departments' => 'By department',
+        'wastage'     => 'Wastage',
+        'staff_meals' => 'Staff meals',
+        'transfers'   => 'Stock transfers',
+        'overtime'    => 'Overtime claims',
+    ];
+    if ($labour !== null) {
+        $slides['labour'] = 'Labour cost';
+    }
+    $slides['outlets'] = 'By outlet';
+    $idx = array_flip(array_keys($slides));
+
     $cw = $report['current'];
     $pw = $report['previous'];
 @endphp
@@ -63,6 +87,7 @@
             if (e.key === 'Escape') { this.stop(); }
         },
      }"
+     x-effect="total = {{ count($slides) }}; if (current > total - 1) { current = total - 1; }"
      x-on:keydown.window="key($event)"
      x-on:fullscreenchange.document="if (! document.fullscreenElement && presenting) { presenting = false; refresh(); }">
 
@@ -74,23 +99,42 @@
     <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div class="min-w-0">
             <p class="page-eyebrow">Reports / Management</p>
-            <h1 class="page-title mt-1">Weekly WIP Review</h1>
+            <h1 class="page-title mt-1">{{ $monthly ? 'Monthly' : 'Weekly' }} WIP Review</h1>
             <p class="text-xs text-gray-600 mt-1">
                 {{ $cw['range'] }} vs {{ $pw['range'] }} · {{ $scopeLabel }}
             </p>
         </div>
 
         <div class="page-actions">
-            <div class="flex items-center gap-1">
-                <button type="button" wire:click="previousWeek" class="btn-secondary" title="Previous week">‹</button>
-                <input type="date" wire:model.live="week" class="input w-auto text-sm" aria-label="Week to review" />
-                <button type="button" wire:click="nextWeek" class="btn-secondary" title="Next week" @disabled($isLatestWeek)>›</button>
+            <div class="seg" role="group" aria-label="Review by">
+                <button type="button" wire:click="$set('mode', 'week')" class="seg-item {{ $monthly ? '' : 'seg-item-on' }}">Weekly</button>
+                <button type="button" wire:click="$set('mode', 'month')" class="seg-item {{ $monthly ? 'seg-item-on' : '' }}">Monthly</button>
             </div>
-            <select wire:model.live="weeks" class="input w-auto text-sm" aria-label="Weeks in trend">
-                @foreach ($weekOptions as $n)
-                    <option value="{{ $n }}">{{ $n }}-week trend</option>
-                @endforeach
-            </select>
+
+            <div class="flex items-center gap-1">
+                <button type="button" wire:click="previousPeriod" class="btn-secondary" title="Previous {{ $unit }}">‹</button>
+                @if ($monthly)
+                    <input type="month" wire:model.live="month" class="input w-auto text-sm" aria-label="Month to review" />
+                @else
+                    <input type="date" wire:model.live="week" class="input w-auto text-sm" aria-label="Week to review" />
+                @endif
+                <button type="button" wire:click="nextPeriod" class="btn-secondary" title="Next {{ $unit }}" @disabled($isLatest)>›</button>
+            </div>
+
+            @if ($monthly)
+                <select wire:model.live="months" class="input w-auto text-sm" aria-label="Months in trend">
+                    @foreach ($monthOptions as $n)
+                        <option value="{{ $n }}">{{ $n }}-month trend</option>
+                    @endforeach
+                </select>
+            @else
+                <select wire:model.live="weeks" class="input w-auto text-sm" aria-label="Weeks in trend">
+                    @foreach ($weekOptions as $n)
+                        <option value="{{ $n }}">{{ $n }}-week trend</option>
+                    @endforeach
+                </select>
+            @endif
+
             @if ($outlets->isNotEmpty())
                 <select wire:model.live="outletFilter" class="input w-auto text-sm" aria-label="Outlet">
                     <option value="">All outlets</option>
@@ -99,6 +143,15 @@
                     @endforeach
                 </select>
             @endif
+
+            @if ($monthly && $canPay)
+                <label class="inline-flex items-center gap-2 text-sm text-gray-700 min-h-[44px]">
+                    <input type="checkbox" wire:model.live="includeDraftPayroll"
+                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    Include draft payroll
+                </label>
+            @endif
+
             <button type="button" x-on:click="start()" class="btn-primary">Present</button>
         </div>
     </div>
@@ -106,39 +159,39 @@
     <div x-ref="deck" wire:loading.class="opacity-60"
          :class="presenting ? 'fixed inset-0 z-[100] bg-gray-50 flex flex-col p-6 sm:p-10 overflow-auto' : ''">
 
-        {{-- ── 1. Week at a glance ─────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 0" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 1, 'title' => $slides[0]])
+        {{-- ── At a glance ─────────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['glance'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['glance'] + 1, 'title' => $slides['glance']])
 
             @if (! $report['has_data'])
                 <div class="empty-state py-10 text-center text-sm text-gray-600">
-                    No sales, purchases, wastage or staff meals recorded for these weeks.
+                    Nothing recorded for these {{ $unit }}s — no sales, purchases, wastage, staff meals, transfers, overtime or payroll.
                 </div>
             @else
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     @foreach ($report['kpis'] as $k)
                         @php
-                            $isPct = $k['format'] === 'pct';
-                            [$dText, $dClass] = $delta($k['change'], $k['up_is_good'], $isPct);
+                            [$dText, $dClass] = $delta($k['change'], $k['up_is_good'], $k['format'] === 'pct');
                         @endphp
                         <div class="stat rounded-surface border border-gray-100 p-4" wire:key="kpi-{{ $k['key'] }}">
                             <p class="stat-label">{{ $k['label'] }}</p>
-                            <p class="stat-value tabular-nums" :class="presenting && 'text-3xl'">
-                                {{ $isPct ? $pct($k['current']) : $money($k['current']) }}
-                            </p>
+                            <p class="stat-value tabular-nums" :class="presenting && 'text-3xl'">{{ $fmt($k['current'], $k['format']) }}</p>
                             <p class="text-xs mt-1">
                                 <span class="font-semibold {{ $dClass }}">{{ $dText }}</span>
-                                <span class="text-gray-600">vs {{ $isPct ? $pct($k['previous']) : $money($k['previous']) }} last week</span>
+                                <span class="text-gray-600">vs {{ $fmt($k['previous'], $k['format']) }} last {{ $unit }}</span>
                             </p>
                         </div>
                     @endforeach
                 </div>
+                @unless ($canPay)
+                    <p class="mt-3 text-[11px] text-gray-500">Overtime cost and labour cost are shown only to users who can see pay.</p>
+                @endunless
             @endif
         </section>
 
-        {{-- ── 2. Sales vs purchases trend ─────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 1" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 2, 'title' => $slides[1], 'hint' => 'click a week to review it'])
+        {{-- ── Sales vs purchases trend ────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['trend'] + 1, 'title' => $slides['trend'], 'hint' => 'click a ' . $unit . ' to review it'])
 
             <div class="relative h-72" :class="presenting && '!h-[50vh]'"
                  wire:key="wip-trend-{{ md5(json_encode($report['charts']['trend'])) }}"
@@ -159,7 +212,7 @@
                             options: {
                                 responsive: true, maintainAspectRatio: false,
                                 interaction: { mode: 'index', intersect: false },
-                                onClick: (evt, els) => { if (els.length) { this.$wire.reviewWeek(d.starts[els[0].index]); } },
+                                onClick: (evt, els) => { if (els.length) { this.$wire.reviewPeriod(d.starts[els[0].index]); } },
                                 onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
                                 plugins: {
                                     legend: { position: 'bottom' },
@@ -178,27 +231,37 @@
                 <canvas x-ref="c"></canvas>
             </div>
 
+            @php
+                $trendRows = [
+                    ['Sales', 'sales', 'money'], ['Purchases', 'purchases', 'money'], ['Purchase cost %', 'cost_pct', 'pct'],
+                    ['Wastage', 'wastage', 'money'], ['Staff meals', 'staff_meal', 'money'],
+                    ['Stock transfers', 'transfers', 'money'], ['Overtime hours', 'ot_hours', 'hours'],
+                ];
+                if ($canPay) {
+                    $trendRows[] = ['Overtime cost', 'ot_cost', 'money'];
+                }
+                if ($labour !== null) {
+                    $trendRows[] = ['Labour cost', 'labour_cost', 'money'];
+                    $trendRows[] = ['Labour cost %', 'labour_pct', 'pct'];
+                }
+            @endphp
             <div class="overflow-x-auto mt-5">
                 <table class="table-surface min-w-full text-sm">
                     <thead>
                         <tr>
-                            <th class="px-3 py-2 text-left">Week</th>
-                            @foreach ($report['weeks'] as $w)
-                                <th class="px-3 py-2 text-right whitespace-nowrap {{ $loop->last ? 'text-brand-700' : '' }}">{{ $w['label'] }}</th>
+                            <th class="px-3 py-2 text-left">{{ ucfirst($unit) }}</th>
+                            @foreach ($report['periods'] as $p)
+                                <th class="px-3 py-2 text-right whitespace-nowrap {{ $loop->last ? 'text-brand-700' : '' }}">{{ $p['label'] }}</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ([
-                            ['Sales', 'sales', 'money'], ['Purchases', 'purchases', 'money'], ['Purchase cost %', 'cost_pct', 'pct'],
-                            ['Wastage', 'wastage', 'money'], ['Staff meals', 'staff_meal', 'money'],
-                            ['Stock transfers', 'transfers', 'money'],
-                        ] as [$label, $key, $format])
+                        @foreach ($trendRows as [$label, $key, $format])
                             <tr>
                                 <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $label }}</td>
                                 @foreach ($report['totals'][$key] as $v)
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap {{ $loop->last ? 'font-semibold text-gray-900' : 'text-gray-700' }}">
-                                        {{ $format === 'pct' ? $pct($v) : number_format((float) $v, 2) }}
+                                        @if ($format === 'pct') {{ $pct($v) }} @elseif ($format === 'hours') {{ number_format((float) $v, 1) }} @else {{ number_format((float) $v, 2) }} @endif
                                     </td>
                                 @endforeach
                             </tr>
@@ -208,12 +271,12 @@
             </div>
         </section>
 
-        {{-- ── 3. By department ────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 2" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 3, 'title' => $slides[2], 'hint' => 'this week, sales against purchases'])
+        {{-- ── By department ───────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['departments'] + 1, 'title' => $slides['departments'], 'hint' => 'this ' . $unit . ', sales against purchases'])
 
             @if ($report['departments'] === [])
-                <p class="py-8 text-center text-sm text-gray-600">No department figures for these two weeks.</p>
+                <p class="py-8 text-center text-sm text-gray-600">No department figures for these two {{ $unit }}s.</p>
             @else
                 <div class="relative" style="height: {{ max(180, count($report['departments']) * 56 + 40) }}px"
                      :class="presenting && '!h-[40vh]'"
@@ -258,13 +321,13 @@
                             <tr>
                                 <th class="px-3 py-2 text-left">Department</th>
                                 <th class="px-3 py-2 text-right">Sales</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Purchases</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Cost %</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Wastage</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -297,9 +360,9 @@
             @endif
         </section>
 
-        {{-- ── 4. Wastage ──────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 3" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 4, 'title' => $slides[3], 'hint' => 'cost, and as a share of sales'])
+        {{-- ── Wastage ─────────────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['wastage'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['wastage'] + 1, 'title' => $slides['wastage'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
                 'chart' => $report['charts']['wastage'], 'key' => 'wastage', 'label' => 'Wastage',
@@ -312,8 +375,8 @@
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Department</th>
-                                <th class="px-3 py-2 text-right">This week</th>
-                                <th class="px-3 py-2 text-right">Last week</th>
+                                <th class="px-3 py-2 text-right">This {{ $unit }}</th>
+                                <th class="px-3 py-2 text-right">Last {{ $unit }}</th>
                                 <th class="px-3 py-2 text-right">Change</th>
                                 <th class="px-3 py-2 text-right">% of dept sales</th>
                             </tr>
@@ -335,9 +398,9 @@
             @endif
         </section>
 
-        {{-- ── 5. Staff meals ──────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 4" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 5, 'title' => $slides[4], 'hint' => 'cost, and as a share of sales'])
+        {{-- ── Staff meals ─────────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['staff_meals'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['staff_meals'] + 1, 'title' => $slides['staff_meals'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
                 'chart' => $report['charts']['staff_meal'], 'key' => 'staff-meal', 'label' => 'Staff meals',
@@ -350,8 +413,8 @@
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Outlet</th>
-                                <th class="px-3 py-2 text-right">This week</th>
-                                <th class="px-3 py-2 text-right">Last week</th>
+                                <th class="px-3 py-2 text-right">This {{ $unit }}</th>
+                                <th class="px-3 py-2 text-right">Last {{ $unit }}</th>
                                 <th class="px-3 py-2 text-right">Change</th>
                             </tr>
                         </thead>
@@ -371,9 +434,9 @@
             @endif
         </section>
 
-        {{-- ── 6. Stock transfers ──────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 5" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 6, 'title' => $slides[5], 'hint' => 'in transit and received, at line cost'])
+        {{-- ── Stock transfers ─────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['transfers'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['transfers'] + 1, 'title' => $slides['transfers'], 'hint' => 'in transit and received, at line cost'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
                 'chart' => $report['charts']['transfers'], 'key' => 'transfers', 'label' => 'Transfers',
@@ -391,9 +454,9 @@
                             <tr>
                                 <th class="px-3 py-2 text-left">Outlet</th>
                                 <th class="px-3 py-2 text-right">Sent</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Received</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Net in / (out)</th>
                             </tr>
                         </thead>
@@ -425,12 +488,178 @@
             @endif
         </section>
 
-        {{-- ── 7. By outlet ────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === 6" :class="presenting && 'flex-1 !mb-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => 7, 'title' => $slides[6]])
+        {{-- ── Overtime claims ─────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['overtime'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', [
+                'n' => $idx['overtime'] + 1, 'title' => $slides['overtime'],
+                'hint' => $canPay ? 'approved claims — cost at each person\'s hourly rate' : 'approved claims, in hours',
+            ])
+
+            @include('livewire.reports.management.partials.wip-cost-trend', [
+                'chart' => $report['charts']['overtime'], 'key' => 'overtime', 'label' => $canPay ? 'Overtime cost' : 'Overtime hours',
+            ])
+
+            <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-600">
+                <span>{{ $hrs($report['overtime']['pending_hours']['current']) }} still awaiting approval this {{ $unit }} — not counted above.</span>
+                @if ($canPay && $report['overtime']['unpriced'] > 0)
+                    <span class="text-warning-700">{{ $report['overtime']['unpriced'] }} approved claim(s) could not be costed: no salary on record.</span>
+                @endif
+                @if ($canPay)
+                    <span>Hours settled as time off count as hours but cost nothing.</span>
+                @else
+                    <span>Overtime cost is shown only to users who can see pay.</span>
+                @endif
+            </div>
+
+            @php
+                $otRows = array_values(array_filter($report['outlets'], fn ($o) =>
+                    $o['ot_hours']['current'] > 0 || $o['ot_hours']['previous'] > 0
+                    || ($canPay && ($o['ot_cost']['current'] > 0 || $o['ot_cost']['previous'] > 0))));
+            @endphp
+            @if ($otRows !== [])
+                <div class="overflow-x-auto mt-5">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Outlet</th>
+                                <th class="px-3 py-2 text-right">Hours</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                @if ($canPay)
+                                    <th class="px-3 py-2 text-right">Cost</th>
+                                    <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                @endif
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($otRows as $o)
+                                @php
+                                    $h = $delta($o['ot_hours']['change'], false);
+                                    $c = $canPay ? $delta($o['ot_cost']['change'], false) : null;
+                                @endphp
+                                <tr wire:key="ot-{{ $loop->index }}-{{ $o['name'] }}">
+                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $o['name'] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_hours']['current'], 1) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $h[1] }}">{{ $h[0] }}</td>
+                                    @if ($canPay)
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_cost']['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
+
+        {{-- ── Labour cost (monthly, pay viewers only) ─────────────────── --}}
+        @if ($labour !== null)
+            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['labour'] }}" :class="presenting && 'flex-1 !mb-0'">
+                @include('livewire.reports.management.partials.wip-slide-head', [
+                    'n' => $idx['labour'] + 1, 'title' => $slides['labour'],
+                    'hint' => $labour['include_drafts'] ? 'from payroll, including draft runs' : 'from approved and paid payroll',
+                ])
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div>
+                        @include('livewire.reports.management.partials.wip-cost-trend', [
+                            'chart' => $report['charts']['labour'], 'key' => 'labour', 'label' => 'Labour cost',
+                        ])
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        @php $labourPct = collect($report['kpis'])->firstWhere('key', 'labour_pct'); @endphp
+                        <table class="table-surface min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">{{ $cw['range'] }}</th>
+                                    <th class="px-3 py-2 text-right">This month</th>
+                                    <th class="px-3 py-2 text-right">Last month</th>
+                                    <th class="px-3 py-2 text-right">Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($labour['rows'] as $r)
+                                    @php $lc = $delta($r['change'], false); @endphp
+                                    <tr wire:key="labour-{{ $r['key'] }}" class="{{ $r['key'] === 'employer_cost' ? 'font-semibold bg-gray-50' : '' }}">
+                                        <td class="px-3 py-2 text-gray-800">{{ $r['label'] }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($r['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap text-gray-600">{{ number_format($r['previous'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $lc[1] }}">{{ $lc[0] }}</td>
+                                    </tr>
+                                @endforeach
+                                <tr>
+                                    <td class="px-3 py-2 text-gray-800">Headcount paid</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">{{ $labour['headcount']['current'] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums text-gray-600">{{ $labour['headcount']['previous'] }}</td>
+                                    <td class="px-3 py-2"></td>
+                                </tr>
+                                @if ($labourPct)
+                                    @php $lp = $delta($labourPct['change'], false, true); @endphp
+                                    <tr>
+                                        <td class="px-3 py-2 text-gray-800">Labour cost % of sales</td>
+                                        <td class="px-3 py-2 text-right tabular-nums">{{ $pct($labourPct['current']) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums text-gray-600">{{ $pct($labourPct['previous']) }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold {{ $lp[1] }}">{{ $lp[0] }}</td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @php $labourRows = array_values(array_filter($report['outlets'], fn ($o) => $o['labour_cost']['current'] > 0 || $o['labour_cost']['previous'] > 0)); @endphp
+                @if ($labourRows !== [])
+                    <div class="overflow-x-auto mt-5">
+                        <table class="table-surface min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Outlet</th>
+                                    <th class="px-3 py-2 text-right">Labour cost</th>
+                                    <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                    <th class="px-3 py-2 text-right">Sales</th>
+                                    <th class="px-3 py-2 text-right">Labour %</th>
+                                    <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($labourRows as $o)
+                                    @php
+                                        $lc = $delta($o['labour_cost']['change'], false);
+                                        $lp = $delta($o['labour_pct']['change'], false, true);
+                                    @endphp
+                                    <tr wire:key="labour-outlet-{{ $loop->index }}-{{ $o['name'] }}">
+                                        <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $o['name'] }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['labour_cost']['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $lc[1] }}">{{ $lc[0] }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['sales']['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($o['labour_pct']['current']) }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $lp[1] }}">{{ $lp[0] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Each employee is counted once a month, from their most settled run (paid, then approved, then draft).
+                    A company-wide run is split by each employee's current outlet.
+                    @if (! $labour['include_drafts'] && $labour['drafts_left_out'] > 0)
+                        {{ $labour['drafts_left_out'] }} draft run(s) in these months are not included — tick "Include draft payroll" to add them.
+                    @elseif ($labour['draft_used'])
+                        Includes figures from draft runs, which can still change.
+                    @endif
+                </p>
+            </section>
+        @endif
+
+        {{-- ── By outlet ───────────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['outlets'] }}" :class="presenting && 'flex-1 !mb-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['outlets'] + 1, 'title' => $slides['outlets']])
 
             @if ($report['outlets'] === [])
-                <p class="py-8 text-center text-sm text-gray-600">No outlet figures for these two weeks.</p>
+                <p class="py-8 text-center text-sm text-gray-600">No outlet figures for these two {{ $unit }}s.</p>
             @else
                 <div class="overflow-x-auto">
                     <table class="table-surface min-w-full text-sm">
@@ -438,14 +667,19 @@
                             <tr>
                                 <th class="px-3 py-2 text-left">Outlet</th>
                                 <th class="px-3 py-2 text-right">Sales</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Purchases</th>
                                 <th class="px-3 py-2 text-right">Cost %</th>
-                                <th class="px-3 py-2 text-right">vs last wk</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Wastage</th>
                                 <th class="px-3 py-2 text-right">Staff meals</th>
                                 <th class="px-3 py-2 text-right">Transfers in</th>
                                 <th class="px-3 py-2 text-right">Transfers out</th>
+                                <th class="px-3 py-2 text-right">OT hours</th>
+                                @if ($labour !== null)
+                                    <th class="px-3 py-2 text-right">Labour cost</th>
+                                    <th class="px-3 py-2 text-right">Labour %</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -465,6 +699,11 @@
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['staff_meal']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_in']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_out']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_hours']['current'], 1) }}</td>
+                                    @if ($labour !== null)
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['labour_cost']['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($o['labour_pct']['current']) }}</td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>

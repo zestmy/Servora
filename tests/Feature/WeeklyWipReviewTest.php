@@ -156,7 +156,7 @@ class WeeklyWipReviewTest extends TestCase
 
         $this->assertSame('2026-09-07', $report['current']['start']);
         $this->assertSame('2026-08-31', $report['previous']['start']);
-        $this->assertCount(8, $report['weeks']);
+        $this->assertCount(8, $report['periods']);
     }
 
     public function test_the_headline_figures_compare_the_week_with_the_one_before(): void
@@ -226,9 +226,25 @@ class WeeklyWipReviewTest extends TestCase
         $this->seedTwoWeeks();
         $report = $this->report(['weeks' => '4']);
 
-        $this->assertCount(4, $report['weeks']);
+        $this->assertCount(4, $report['periods']);
         $this->assertEquals([0, 0, 1000, 1500], $report['totals']['sales']);
         $this->assertEquals([null, null, 30.0, 30.0], $report['totals']['cost_pct']);
+    }
+
+    public function test_a_two_week_trend_is_just_the_week_and_the_one_before(): void
+    {
+        $this->seedTwoWeeks();
+        $report = $this->report(['weeks' => '2']);
+
+        $this->assertSame(['2026-08-31', '2026-09-07'], array_column($report['periods'], 'start'));
+        $this->assertEquals([1000, 1500], $report['totals']['sales']);
+        $this->assertEquals(50.0, $this->kpi($report, 'sales')['change'],
+            'The comparison is unchanged by the shorter trend.');
+    }
+
+    public function test_an_unoffered_trend_length_falls_back_to_eight_weeks(): void
+    {
+        $this->assertCount(8, $this->report(['weeks' => '3'])['periods']);
     }
 
     public function test_clicking_a_week_reviews_it_and_the_future_is_out_of_reach(): void
@@ -236,7 +252,7 @@ class WeeklyWipReviewTest extends TestCase
         $this->seedTwoWeeks();
 
         $c = Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
-            ->call('reviewWeek', '2026-09-03');
+            ->call('reviewPeriod', '2026-09-03');
         $this->assertSame('2026-08-31', $c->get('week'), 'Any day snaps to its Monday.');
 
         $c->set('week', '2026-12-01');
@@ -320,7 +336,7 @@ class WeeklyWipReviewTest extends TestCase
     public function test_the_report_is_listed_in_the_hub_and_opens(): void
     {
         $this->actingAs($this->user)->get(route('reports.hub'))
-            ->assertOk()->assertSee('Weekly WIP Review');
+            ->assertOk()->assertSee('WIP Review (Weekly / Monthly)');
 
         $this->actingAs($this->user)->get(route('reports.weekly-wip-review'))
             ->assertOk()->assertSee('Present');
