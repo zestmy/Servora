@@ -4,15 +4,16 @@ namespace App\Livewire\Reports\Management;
 
 use App\Models\Employee;
 use App\Services\Reports\WeeklyWipReview as WipReviewReport;
+use App\Services\Reports\WipReviewParameters as Params;
 use App\Traits\ScopesToActiveOutlet;
 use Carbon\Carbon;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 /**
  * WIP meeting review — one week (or month) against the one before, as a
- * scrolling report or a full-screen slide deck (see the view).
+ * scrolling report, a full-screen slide deck (see the view) or a PDF of the
+ * whole thing (WipReviewPdfController, fed the same choices).
  *
  * Opens on the last COMPLETE week or month: the meeting reviews the period
  * just closed, and one still in progress would read as a collapse in sales
@@ -44,61 +45,55 @@ class WeeklyWipReview extends Component
 
     public function mount(): void
     {
-        $this->week  = $this->lastCompleteWeek()->toDateString();
-        $this->month = $this->lastCompleteMonth()->format('Y-m');
+        $this->week  = Params::lastCompleteWeek()->toDateString();
+        $this->month = Params::lastCompleteMonth()->format('Y-m');
     }
 
     public function updatedMode(): void
     {
-        if (! in_array($this->mode, [WipReviewReport::WEEK, WipReviewReport::MONTH], true)) {
-            $this->mode = WipReviewReport::WEEK;
-        }
+        $this->mode = Params::mode($this->mode);
     }
 
     public function updatedWeek(): void
     {
-        $this->week = $this->normaliseWeek($this->week)->toDateString();
+        $this->week = Params::week($this->week)->toDateString();
     }
 
     public function updatedMonth(): void
     {
-        $this->month = $this->normaliseMonth($this->month)->format('Y-m');
+        $this->month = Params::month($this->month)->format('Y-m');
     }
 
     public function updatedWeeks(): void
     {
-        if (! in_array((int) $this->weeks, WipReviewReport::WEEK_OPTIONS, true)) {
-            $this->weeks = 8;
-        }
+        $this->weeks = Params::weeks($this->weeks);
     }
 
     public function updatedMonths(): void
     {
-        if (! in_array((int) $this->months, WipReviewReport::MONTH_OPTIONS, true)) {
-            $this->months = 3;
-        }
+        $this->months = Params::months($this->months);
     }
 
     public function previousPeriod(): void
     {
         $this->isMonthly()
-            ? $this->month = $this->normaliseMonth($this->month)->subMonthNoOverflow()->format('Y-m')
-            : $this->week  = $this->normaliseWeek($this->week)->subWeek()->toDateString();
+            ? $this->month = Params::month($this->month)->subMonthNoOverflow()->format('Y-m')
+            : $this->week  = Params::week($this->week)->subWeek()->toDateString();
     }
 
     public function nextPeriod(): void
     {
         $this->isMonthly()
-            ? $this->month = $this->normaliseMonth($this->month)->addMonthNoOverflow()->format('Y-m')
-            : $this->week  = $this->normaliseWeek($this->week)->addWeek()->toDateString();
+            ? $this->month = Params::month(Params::month($this->month)->addMonthNoOverflow()->toDateString())->format('Y-m')
+            : $this->week  = Params::week(Params::week($this->week)->addWeek()->toDateString())->toDateString();
     }
 
     /** Trend bars are clickable: review that period instead. */
     public function reviewPeriod(string $start): void
     {
         $this->isMonthly()
-            ? $this->month = $this->normaliseMonth($start)->format('Y-m')
-            : $this->week  = $this->normaliseWeek($start)->toDateString();
+            ? $this->month = Params::month($start)->format('Y-m')
+            : $this->week  = Params::week($start)->toDateString();
     }
 
     private function isMonthly(): bool
@@ -106,43 +101,9 @@ class WeeklyWipReview extends Component
         return $this->mode === WipReviewReport::MONTH;
     }
 
-    /** Any date → the Monday of its week, never later than the current week. */
-    private function normaliseWeek(string $date): Carbon
+    private function anchor(): Carbon
     {
-        try {
-            $monday = Carbon::parse($date)->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
-        } catch (\Throwable) {
-            return $this->lastCompleteWeek();
-        }
-
-        $latest = now()->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
-
-        return $monday->gt($latest) ? $latest : $monday;
-    }
-
-    /** 'Y-m' or any date → the 1st of its month, never later than this month. */
-    private function normaliseMonth(string $value): Carbon
-    {
-        try {
-            $first = (preg_match('/^\d{4}-\d{2}$/', $value) ? Carbon::createFromFormat('!Y-m', $value) : Carbon::parse($value))
-                ->startOfMonth()->startOfDay();
-        } catch (\Throwable) {
-            return $this->lastCompleteMonth();
-        }
-
-        $latest = now()->startOfMonth()->startOfDay();
-
-        return $first->gt($latest) ? $latest : $first;
-    }
-
-    private function lastCompleteWeek(): Carbon
-    {
-        return now()->startOfWeek(CarbonInterface::MONDAY)->subWeek()->startOfDay();
-    }
-
-    private function lastCompleteMonth(): Carbon
-    {
-        return now()->startOfMonth()->subMonthNoOverflow()->startOfDay();
+        return $this->isMonthly() ? Params::month($this->month) : Params::week($this->week);
     }
 
     public function render()
@@ -151,31 +112,39 @@ class WeeklyWipReview extends Component
         $outletIds = $selected !== null ? [$selected] : $this->availableOutletIds();
         $outlets   = $this->filterableOutlets();
         $monthly   = $this->isMonthly();
-        $anchor    = $monthly ? $this->normaliseMonth($this->month) : $this->normaliseWeek($this->week);
+        $anchor    = $this->anchor();
+        $count     = $monthly ? Params::months($this->months) : Params::weeks($this->weeks);
+        $mode      = Params::mode($this->mode);
 
         $report = app(WipReviewReport::class)->build(
             (int) Auth::user()->company_id,
             $outletIds,
             $anchor,
-            (int) ($monthly ? $this->months : $this->weeks),
-            $monthly ? WipReviewReport::MONTH : WipReviewReport::WEEK,
+            $count,
+            $mode,
             $this->includeDraftPayroll,
             Employee::canViewPay(Auth::user()),
         );
-
-        $latest = $monthly
-            ? now()->startOfMonth()->startOfDay()
-            : now()->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
 
         return view('livewire.reports.management.weekly-wip-review', [
             'report'       => $report,
             'outlets'      => $outlets,
             'weekOptions'  => WipReviewReport::WEEK_OPTIONS,
             'monthOptions' => WipReviewReport::MONTH_OPTIONS,
-            'isLatest'     => $anchor->gte($latest),
+            'isLatest'     => $anchor->gte(Params::latest($mode)),
             'scopeLabel'   => $selected !== null
                 ? ($outlets->firstWhere('id', $selected)?->name ?? 'One outlet')
                 : 'All outlets',
+            // Exactly the choices above, for the PDF of the same report.
+            'pdfUrl'       => route('reports.weekly-wip-review.pdf', array_filter([
+                'mode'   => $mode,
+                'week'   => $monthly ? null : $anchor->toDateString(),
+                'month'  => $monthly ? $anchor->format('Y-m') : null,
+                'weeks'  => $monthly ? null : $count,
+                'months' => $monthly ? $count : null,
+                'outlet' => $selected,
+                'drafts' => $monthly && $this->includeDraftPayroll ? 1 : null,
+            ], fn ($v) => $v !== null)),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'WIP Review']);
     }
 }

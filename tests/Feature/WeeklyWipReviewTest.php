@@ -15,6 +15,7 @@ use App\Models\PurchaseRecord;
 use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use App\Models\SalesRecordLine;
+use App\Models\SalesTarget;
 use App\Models\StaffMealRecord;
 use App\Models\User;
 use App\Models\WastageRecord;
@@ -140,7 +141,7 @@ class WeeklyWipReviewTest extends TestCase
         return $c->viewData('report');
     }
 
-    private function kpi(array $report, string $key): array
+    private function kpi(array $report, string $key): ?array
     {
         return collect($report['kpis'])->firstWhere('key', $key);
     }
@@ -170,10 +171,22 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertEquals(50.0, $sales['change']);
 
         $this->assertEquals(450, $this->kpi($report, 'purchases')['current']);
-        $this->assertEquals(30.0, $this->kpi($report, 'cost_pct')['current'], '450 of 1,500.');
-        $this->assertEquals(0.0, $this->kpi($report, 'cost_pct')['change'], '30% against 300 of 1,000.');
+        $purchases = $this->kpi($report, 'purchases');
+        $this->assertEquals(30.0, $purchases['share']['current'], '450 of 1,500, carried on the purchases tile.');
+        $this->assertEquals(0.0, $purchases['share']['change'], '30% against 300 of 1,000.');
+        $this->assertNull($this->kpi($report, 'cost_pct'), 'No separate percentage tile any more.');
+        $this->assertNull($this->kpi($report, 'sales')['share'], 'Sales is not a share of itself.');
         $this->assertEquals(20, $this->kpi($report, 'wastage')['current']);
         $this->assertEquals(30, $this->kpi($report, 'staff_meal')['current']);
+
+        // Every cost carries its share of sales beside it.
+        $this->assertEquals(1.3, $this->kpi($report, 'wastage')['share']['current'], '20 of 1,500.');
+        $this->assertEquals(2.0, $this->kpi($report, 'staff_meal')['share']['current'], '30 of 1,500.');
+        $klcc = collect($report['outlets'])->firstWhere('name', 'KLCC');
+        $this->assertEquals(2.0, $klcc['staff_meal_pct']['current']);
+        $this->assertEquals(1.3, $klcc['wastage_pct']['current']);
+        $this->assertSame([null, null, 0.0, 2.0], array_slice($report['totals']['staff_meal_pct'], -4),
+            'No sales is "—", not 0%; a week with sales and no staff meals is a real 0%.');
     }
 
     public function test_sales_reach_departments_through_their_sales_category(): void
@@ -331,6 +344,142 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertEquals(30, $this->kpi($report, 'transfers')['current']);
         $this->assertSame(['IOI'], array_column($report['outlets'], 'name'),
             'The sending outlet is outside the filter, so it has no row.');
+    }
+
+    // ── Sales performance (weekly) ────────────────────────────────────────
+
+    private function mealSale(string $date, string $period, float $amount, int $pax): void
+    {
+        SalesRecord::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'sale_date' => $date, 'meal_period' => $period, 'pax' => $pax,
+            'total_revenue' => $amount, 'total_cost' => 0,
+        ]);
+    }
+
+    public function test_sales_performance_lays_out_both_weeks_by_day_and_meal_period(): void
+    {
+        $this->mealSale('2026-09-07', 'breakfast', 540, 10);    // Mon, week 37
+        $this->mealSale('2026-09-07', 'lunch', 1818.25, 30);    // Mon
+        $this->mealSale('2026-09-08', 'lunch', 1785.55, 20);    // Tue
+        $this->mealSale('2026-08-31', 'breakfast', 989.55, 12); // Mon, week 36
+        $this->mealSale('2026-08-31', 'lunch', 4507.50, 40);
+
+        $sp = $this->report()['sales_performance'];
+
+        $this->assertSame('Week 37', $sp['current']['label']);
+        $this->assertSame('Week 36', $sp['previous']['label']);
+        $this->assertSame(['Breakfast', 'Lunch'], array_column($sp['current']['lines'], 'label'),
+            'Only meal periods that traded, in the offered order.');
+
+        $lunch = $sp['current']['lines'][1];
+        $this->assertEquals(1818.25, $lunch['days'][1]);
+        $this->assertEquals(1785.55, $lunch['days'][2]);
+        $this->assertEquals(0, $lunch['days'][7]);
+        $this->assertEquals(3603.80, $lunch['total']);
+        $this->assertEquals(87.0, $lunch['share'], '3,603.80 of the week\'s 4,143.80.');
+
+        $this->assertEquals(2358.25, $sp['current']['days'][1]);
+        $this->assertEquals(4143.80, $sp['current']['total']);
+        $this->assertEquals(5497.05, $sp['previous']['total']);
+
+        $monday = $sp['variance']['days'][0];
+        $this->assertEquals(-3138.80, $monday['amount']);
+        $this->assertEquals(-57.1, $monday['change']);
+        $this->assertEquals(-1353.25, $sp['variance']['total']['amount']);
+        $this->assertEquals(-24.6, $sp['variance']['total']['change']);
+    }
+
+    public function test_month_to_date_compares_sales_covers_and_average_check(): void
+    {
+        $this->mealSale('2026-09-07', 'lunch', 4000, 50);   // 1st–13th Sep 2026
+        $this->mealSale('2026-09-14', 'lunch', 999, 9);     // after the reviewed week
+        $this->mealSale('2026-08-05', 'lunch', 5000, 50);   // 1st–13th Aug
+        $this->mealSale('2026-08-20', 'lunch', 999, 9);     // later in August
+        $this->mealSale('2025-09-03', 'dinner', 3000, 40);  // 1st–13th Sep 2025
+
+        $mtd = collect($this->report()['sales_performance']['mtd'])->keyBy('key');
+
+        $this->assertSame('1st – 13th September 2026', $mtd['this_month']['range']);
+        $this->assertEquals(4000, $mtd['this_month']['sales']);
+        $this->assertSame(50, $mtd['this_month']['covers']);
+        $this->assertEquals(80.0, $mtd['this_month']['avg_check']);
+
+        $this->assertSame('1st – 13th August 2026', $mtd['last_month']['range']);
+        $this->assertEquals(5000, $mtd['last_month']['sales'], 'Only the same days of August.');
+        $this->assertEquals(100.0, $mtd['last_month']['avg_check']);
+        $this->assertEquals(-20.0, $mtd['last_month']['sales_change']);
+        $this->assertEquals(0.0, $mtd['last_month']['covers_change']);
+        $this->assertEquals(-1000, $mtd['last_month']['variance']);
+
+        $this->assertEquals(3000, $mtd['last_year']['sales']);
+        $this->assertEquals(75.0, $mtd['last_year']['avg_check']);
+        $this->assertEquals(33.3, $mtd['last_year']['sales_change']);
+        $this->assertEquals(25.0, $mtd['last_year']['covers_change']);
+        $this->assertEquals(1000, $mtd['last_year']['variance']);
+
+        // On screen, and in the PDF.
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
+            ->assertSee('Sales performance')->assertSee('MTD same month last year');
+
+        $pdf = view('pdf.wip-review', [
+            'report' => $this->report(), 'company' => $this->company, 'scopeLabel' => 'KLCC',
+        ])->render();
+        $this->assertStringContainsString('Sales performance', $pdf);
+        $this->assertStringContainsString('1st – 13th August 2026', $pdf);
+    }
+
+    /** The figures from the meeting's own sheet: RM114,038.55 by the 13th against RM300,000. */
+    public function test_the_sales_forecast_carries_the_daily_average_over_the_days_left(): void
+    {
+        $this->mealSale('2026-09-05', 'lunch', 114038.55, 1869);
+        SalesTarget::create([
+            'company_id' => $this->company->id, 'outlet_id' => null,
+            'period' => '2026-09', 'type' => 'monthly', 'target_revenue' => 300000,
+        ]);
+
+        $fc = $this->report()['sales_performance']['forecast'];
+
+        $this->assertSame('September 2026', $fc['month_label']);
+        $this->assertSame(30, $fc['days_in_month']);
+        $this->assertSame(13, $fc['mtd_days']);
+        $this->assertSame(17, $fc['days_left']);
+        $this->assertEquals(300000, $fc['target']);
+        $this->assertSame('company', $fc['target_source']);
+        $this->assertEquals(-185961.45, $fc['balance']);
+        $this->assertEquals(8772.20, $fc['avg_daily']);
+        $this->assertEquals(149127.33, $fc['remaining']);
+        $this->assertEquals(263165.88, $fc['forecast']);
+        $this->assertEquals(87.7, $fc['forecast_vs_target']);
+        $this->assertEquals(10938.91, $fc['needed_daily'], '185,961.45 over the 17 days left.');
+
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
+            ->assertSee('Sales forecast — September 2026')
+            ->assertSee('(185,961.45)')
+            ->assertSee('263,165.88');
+    }
+
+    public function test_an_outlet_target_is_preferred_and_a_missing_target_is_said(): void
+    {
+        $this->mealSale('2026-09-05', 'lunch', 13000, 100);
+
+        $none = $this->report()['sales_performance']['forecast'];
+        $this->assertNull($none['target']);
+        $this->assertNull($none['balance']);
+        $this->assertEquals(30000, $none['forecast'], 'The forecast stands without a target: 1,000 a day for 30 days.');
+
+        SalesTarget::create(['company_id' => $this->company->id, 'outlet_id' => null, 'period' => '2026-09', 'type' => 'monthly', 'target_revenue' => 300000]);
+        SalesTarget::create(['company_id' => $this->company->id, 'outlet_id' => $this->outlet->id, 'period' => '2026-09', 'type' => 'monthly', 'target_revenue' => 40000]);
+
+        $fc = $this->report()['sales_performance']['forecast'];
+        $this->assertEquals(40000, $fc['target'], 'With one outlet in view, its own target.');
+        $this->assertSame('outlet', $fc['target_source']);
+        $this->assertEquals(75.0, $fc['forecast_vs_target']);
+    }
+
+    public function test_sales_performance_is_weekly_only(): void
+    {
+        $this->assertNull($this->report(['mode' => 'month'])['sales_performance']);
     }
 
     public function test_the_report_is_listed_in_the_hub_and_opens(): void

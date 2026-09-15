@@ -376,6 +376,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/reports/yield-analysis', \App\Livewire\Reports\Kitchen\YieldAnalysis::class)->name('reports.yield-analysis')->middleware('can:reports.view');
 
     Route::get('/reports/weekly-wip-review', \App\Livewire\Reports\Management\WeeklyWipReview::class)->name('reports.weekly-wip-review')->middleware('can:reports.view');
+    Route::get('/reports/weekly-wip-review/pdf', \App\Http\Controllers\WipReviewPdfController::class)->name('reports.weekly-wip-review.pdf')->middleware('can:reports.view');
     // No settings.view gate: the index is a list of links, every tile carries
     // the permission its own destination requires, and each of those routes
     // keeps its own middleware. Gating the whole page instead hid a module's

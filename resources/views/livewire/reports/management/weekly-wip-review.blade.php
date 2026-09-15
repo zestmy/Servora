@@ -31,8 +31,13 @@
 
     // The deck is built from whichever sections this view has, so slide
     // numbers and the presenter's count follow the mode and the viewer.
-    $slides = [
-        'glance'      => $monthly ? 'Month at a glance' : 'Week at a glance',
+    $sp = $report['sales_performance'];
+
+    $slides = ['glance' => $monthly ? 'Month at a glance' : 'Week at a glance'];
+    if ($sp !== null) {
+        $slides['sales'] = 'Sales performance';
+    }
+    $slides += [
         'trend'       => 'Sales vs purchases',
         'departments' => 'By department',
         'wastage'     => 'Wastage',
@@ -152,6 +157,10 @@
                 </label>
             @endif
 
+            {{-- The whole report as one PDF, with exactly the choices above. --}}
+            <x-download-link :href="$pdfUrl" class="btn-secondary" title="Download the whole report as a PDF">
+                PDF
+            </x-download-link>
             <button type="button" x-on:click="start()" class="btn-primary">Present</button>
         </div>
     </div>
@@ -180,6 +189,14 @@
                                 <span class="font-semibold {{ $dClass }}">{{ $dText }}</span>
                                 <span class="text-gray-600">vs {{ $fmt($k['previous'], $k['format']) }} last {{ $unit }}</span>
                             </p>
+                            @if ($k['share'] !== null)
+                                @php [$sText, $sClass] = $delta($k['share']['change'], $k['up_is_good'], true); @endphp
+                                <p class="text-xs mt-1 pt-1 border-t border-gray-100">
+                                    <span class="font-semibold text-gray-900 tabular-nums">{{ $pct($k['share']['current']) }}</span>
+                                    <span class="text-gray-600">of sales</span>
+                                    <span class="font-semibold {{ $sClass }}">{{ $sText }}</span>
+                                </p>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -188,6 +205,172 @@
                 @endunless
             @endif
         </section>
+
+        {{-- ── Sales performance (weekly) ──────────────────────────────── --}}
+        @if ($sp !== null)
+            <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['sales'] }}" :class="presenting && 'flex-1 !mb-0'">
+                @include('livewire.reports.management.partials.wip-slide-head', [
+                    'n' => $idx['sales'] + 1, 'title' => $slides['sales'],
+                    'hint' => 'by day and meal period — ' . $sp['current']['label'] . ' against ' . $sp['previous']['label'],
+                ])
+
+                @if ($sp['current']['total'] <= 0 && $sp['previous']['total'] <= 0)
+                    <p class="py-8 text-center text-sm text-gray-600">No sales recorded for these two weeks.</p>
+                @else
+                    @php $varRows = array_merge($sp['variance']['days'], [$sp['variance']['total']]); @endphp
+                    <div class="overflow-x-auto">
+                        <table class="table-surface min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Day</th>
+                                    @foreach ($sp['day_names'] as $dn)
+                                        <th class="px-3 py-2 text-right">{{ $dn }}</th>
+                                    @endforeach
+                                    <th class="px-3 py-2 text-right">Total</th>
+                                    <th class="px-3 py-2 text-right">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (['current', 'previous'] as $which)
+                                    @php $wk = $sp[$which]; @endphp
+                                    @foreach ($wk['lines'] as $l)
+                                        <tr wire:key="sp-{{ $which }}-{{ $l['key'] }}">
+                                            <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $l['label'] }}</td>
+                                            @foreach ($l['days'] as $v)
+                                                <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($v, 2) }}</td>
+                                            @endforeach
+                                            <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">{{ number_format($l['total'], 2) }}</td>
+                                            <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap italic text-gray-600">{{ $pct($l['share']) }}</td>
+                                        </tr>
+                                    @endforeach
+                                    <tr class="bg-gray-100 font-semibold text-gray-900" wire:key="sp-{{ $which }}-total">
+                                        <td class="px-3 py-2 whitespace-nowrap">
+                                            {{ $wk['label'] }}
+                                            <span class="block text-[11px] font-normal text-gray-500">{{ $wk['range'] }}</span>
+                                        </td>
+                                        @foreach ($wk['days'] as $v)
+                                            <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($v, 2) }}</td>
+                                        @endforeach
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($wk['total'], 2) }}</td>
+                                        <td class="px-3 py-2"></td>
+                                    </tr>
+                                @endforeach
+                                <tr>
+                                    <td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">Var. RM</td>
+                                    @foreach ($varRows as $v)
+                                        @php
+                                            $up = $v['amount'] > 0.005;
+                                            $down = $v['amount'] < -0.005;
+                                        @endphp
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold {{ $up ? 'text-success-700' : ($down ? 'text-danger-600' : 'text-gray-600') }}">
+                                            {{ $up ? '▲ ' : ($down ? '▼ ' : '') }}{{ number_format(abs($v['amount']), 2) }}
+                                        </td>
+                                    @endforeach
+                                    <td class="px-3 py-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">Var. %</td>
+                                    @foreach ($varRows as $v)
+                                        @php [$vt, $vc] = $delta($v['change'], true); @endphp
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $vc }}">{{ $vt }}</td>
+                                    @endforeach
+                                    <td class="px-3 py-2"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+
+                <h3 class="mt-6 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Month to date — sales, covers &amp; average check</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Period</th>
+                                <th class="px-3 py-2 text-left">Dates</th>
+                                <th class="px-3 py-2 text-right">Sales</th>
+                                <th class="px-3 py-2 text-right">Covers</th>
+                                <th class="px-3 py-2 text-right">Avg check</th>
+                                <th class="px-3 py-2 text-right">Sales vs this month</th>
+                                <th class="px-3 py-2 text-right">Covers vs this month</th>
+                                <th class="px-3 py-2 text-right">Variance (RM)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($sp['mtd'] as $m)
+                                <tr wire:key="mtd-{{ $m['key'] }}" class="{{ $m['key'] === 'this_month' ? 'font-semibold' : '' }}">
+                                    <td class="px-3 py-2 text-gray-800 whitespace-nowrap">{{ $m['label'] }}</td>
+                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ $m['range'] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($m['sales'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($m['covers']) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $m['avg_check'] === null ? '—' : number_format($m['avg_check'], 2) }}</td>
+                                    @if ($m['key'] === 'this_month')
+                                        <td class="px-3 py-2"></td><td class="px-3 py-2"></td><td class="px-3 py-2"></td>
+                                    @else
+                                        @php
+                                            [$st, $sc] = $delta($m['sales_change'], true);
+                                            [$ct, $cc] = $delta($m['covers_change'], true);
+                                            $up = $m['variance'] > 0.005;
+                                            $down = $m['variance'] < -0.005;
+                                        @endphp
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $sc }}">{{ $st }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $cc }}">{{ $ct }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold {{ $up ? 'text-success-700' : ($down ? 'text-danger-600' : 'text-gray-600') }}">
+                                            {{ $up ? '▲ ' : ($down ? '▼ ' : '') }}{{ number_format(abs($m['variance']), 2) }}
+                                        </td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Meal period as keyed on each sales record (none = All Day). Covers are the pax recorded with sales. Each
+                    month-to-date comparison stops on the same day of its own month.
+                </p>
+
+                @php
+                    $fc = $sp['forecast'];
+                    $paren = fn ($v) => $v === null ? '—' : ($v < 0 ? '(' . number_format(abs($v), 2) . ')' : number_format($v, 2));
+                    $forecastRows = [
+                        ['Days in month', number_format($fc['days_in_month']), ''],
+                        ['Month to date (days)', number_format($fc['mtd_days']), ''],
+                        ['No. of days left', number_format($fc['days_left']), ''],
+                        ['Monthly target', $fc['target'] === null ? 'Not set' : number_format($fc['target'], 2), $fc['target'] === null ? 'text-gray-500' : ''],
+                        ['Month-to-date sales', number_format($fc['mtd_sales'], 2), ''],
+                        ['Balance to reach target', $paren($fc['balance']), $fc['balance'] !== null && $fc['balance'] < 0 ? 'text-danger-600' : ''],
+                        ['Forecast avg daily sales', number_format($fc['avg_daily'], 2), ''],
+                        ['Forecast sales for remaining days', number_format($fc['remaining'], 2), ''],
+                        ['Forecast monthly sales', number_format($fc['forecast'], 2), 'font-bold text-gray-900'],
+                        ['Forecast vs target', $pct($fc['forecast_vs_target']),
+                            $fc['forecast_vs_target'] === null ? '' : ($fc['forecast_vs_target'] >= 100 ? 'text-success-700 font-semibold' : 'text-danger-600 font-semibold')],
+                        ['Needed per day to reach target', $fc['needed_daily'] === null ? '—' : number_format($fc['needed_daily'], 2), ''],
+                    ];
+                @endphp
+                <h3 class="mt-6 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Sales forecast — {{ $fc['month_label'] }}</h3>
+                <div class="overflow-x-auto max-w-xl">
+                    <table class="table-surface min-w-full text-sm">
+                        <tbody>
+                            @foreach ($forecastRows as [$label, $value, $class])
+                                <tr wire:key="forecast-{{ $loop->index }}">
+                                    <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{{ $label }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap {{ $class }}">{{ $value }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Forecast = month-to-date sales plus the month-to-date daily average over the days left.
+                    @switch($fc['target_source'])
+                        @case('outlet') Target is this outlet's, from Settings &gt; Sales Targets. @break
+                        @case('company') Target is the company-wide one from Settings &gt; Sales Targets. @break
+                        @case('outlets') Target adds up {{ $fc['target_count'] }} outlet target(s) — no company-wide target is set. @break
+                        @default No sales target is set for {{ $fc['month_label'] }} — add one in Settings &gt; Sales Targets.
+                    @endswitch
+                </p>
+            </section>
+        @endif
 
         {{-- ── Sales vs purchases trend ────────────────────────────────── --}}
         <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && 'flex-1 !mb-0'">
@@ -232,17 +415,20 @@
             </div>
 
             @php
+                // [label, total key, format, % of sales key shown under the amount]
                 $trendRows = [
-                    ['Sales', 'sales', 'money'], ['Purchases', 'purchases', 'money'], ['Purchase cost %', 'cost_pct', 'pct'],
-                    ['Wastage', 'wastage', 'money'], ['Staff meals', 'staff_meal', 'money'],
-                    ['Stock transfers', 'transfers', 'money'], ['Overtime hours', 'ot_hours', 'hours'],
+                    ['Sales', 'sales', 'money', null],
+                    ['Purchases', 'purchases', 'money', 'cost_pct'],
+                    ['Wastage', 'wastage', 'money', 'wastage_pct'],
+                    ['Staff meals', 'staff_meal', 'money', 'staff_meal_pct'],
+                    ['Stock transfers', 'transfers', 'money', null],
+                    ['Overtime hours', 'ot_hours', 'hours', null],
                 ];
                 if ($canPay) {
-                    $trendRows[] = ['Overtime cost', 'ot_cost', 'money'];
+                    $trendRows[] = ['Overtime cost', 'ot_cost', 'money', 'ot_cost_pct'];
                 }
                 if ($labour !== null) {
-                    $trendRows[] = ['Labour cost', 'labour_cost', 'money'];
-                    $trendRows[] = ['Labour cost %', 'labour_pct', 'pct'];
+                    $trendRows[] = ['Labour cost', 'labour_cost', 'money', 'labour_pct'];
                 }
             @endphp
             <div class="overflow-x-auto mt-5">
@@ -256,12 +442,20 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($trendRows as [$label, $key, $format])
+                        @foreach ($trendRows as [$label, $key, $format, $pctKey])
                             <tr>
-                                <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $label }}</td>
-                                @foreach ($report['totals'][$key] as $v)
+                                <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
+                                    {{ $label }}
+                                    @if ($pctKey)
+                                        <span class="block text-[11px] font-normal text-gray-500">RM · % of sales</span>
+                                    @endif
+                                </td>
+                                @foreach ($report['totals'][$key] as $i => $v)
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap {{ $loop->last ? 'font-semibold text-gray-900' : 'text-gray-700' }}">
-                                        @if ($format === 'pct') {{ $pct($v) }} @elseif ($format === 'hours') {{ number_format((float) $v, 1) }} @else {{ number_format((float) $v, 2) }} @endif
+                                        @if ($format === 'hours') {{ number_format((float) $v, 1) }} @else {{ number_format((float) $v, 2) }} @endif
+                                        @if ($pctKey)
+                                            <span class="block text-[11px] font-normal text-gray-500">{{ $pct($report['totals'][$pctKey][$i]) }}</span>
+                                        @endif
                                     </td>
                                 @endforeach
                             </tr>
@@ -346,7 +540,10 @@
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $p[1] }}">{{ $p[0] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($d['cost_pct']['current']) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['wastage']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                                        {{ number_format($d['wastage']['current'], 2) }}
+                                        <span class="block text-[11px] text-gray-500">{{ $pct($d['wastage_pct']['current']) }} of sales</span>
+                                    </td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $w[1] }}">{{ $w[0] }}</td>
                                 </tr>
                             @endforeach
@@ -416,6 +613,7 @@
                                 <th class="px-3 py-2 text-right">This {{ $unit }}</th>
                                 <th class="px-3 py-2 text-right">Last {{ $unit }}</th>
                                 <th class="px-3 py-2 text-right">Change</th>
+                                <th class="px-3 py-2 text-right">% of outlet sales</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -426,6 +624,7 @@
                                     <td class="px-3 py-2 text-right tabular-nums">{{ number_format($o['staff_meal']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums text-gray-600">{{ number_format($o['staff_meal']['previous'], 2) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold {{ $m[1] }}">{{ $m[0] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">{{ $pct($o['staff_meal_pct']['current']) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -511,13 +710,58 @@
                 @endif
             </div>
 
+            @if ($report['overtime']['sections'] !== [])
+                @php $peakHours = max(0.01, collect($report['overtime']['sections'])->max(fn ($s) => $s['ot_hours']['current'])); @endphp
+                <h3 class="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">By section</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Section</th>
+                                <th class="px-3 py-2 text-left w-1/3">Hours this {{ $unit }}</th>
+                                <th class="px-3 py-2 text-right">Hours</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                @if ($canPay)
+                                    <th class="px-3 py-2 text-right">Cost</th>
+                                    <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                @endif
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($report['overtime']['sections'] as $s)
+                                @php
+                                    $h = $delta($s['ot_hours']['change'], false);
+                                    $c = $canPay ? $delta($s['ot_cost']['change'], false) : null;
+                                @endphp
+                                <tr wire:key="ot-section-{{ $loop->index }}-{{ $s['name'] }}">
+                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $s['name'] }}</td>
+                                    <td class="px-3 py-2">
+                                        <div class="h-2 rounded-full bg-gray-100 min-w-[80px]">
+                                            <div class="h-2 rounded-full" style="width: {{ round($s['ot_hours']['current'] / $peakHours * 100, 1) }}%; background: {{ $report['charts']['overtime']['color'] }};"></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($s['ot_hours']['current'], 1) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $h[1] }}">{{ $h[0] }}</td>
+                                    @if ($canPay)
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($s['ot_cost']['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">Each claim counts under the employee's current section.</p>
+            @endif
+
             @php
                 $otRows = array_values(array_filter($report['outlets'], fn ($o) =>
                     $o['ot_hours']['current'] > 0 || $o['ot_hours']['previous'] > 0
                     || ($canPay && ($o['ot_cost']['current'] > 0 || $o['ot_cost']['previous'] > 0))));
             @endphp
             @if ($otRows !== [])
-                <div class="overflow-x-auto mt-5">
+                <h3 class="mt-5 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">By outlet</h3>
+                <div class="overflow-x-auto">
                     <table class="table-surface min-w-full text-sm">
                         <thead>
                             <tr>
@@ -541,7 +785,10 @@
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_hours']['current'], 1) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $h[1] }}">{{ $h[0] }}</td>
                                     @if ($canPay)
-                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_cost']['current'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                                            {{ number_format($o['ot_cost']['current'], 2) }}
+                                            <span class="block text-[11px] text-gray-500">{{ $pct($o['ot_cost_pct']['current']) }} of sales</span>
+                                        </td>
                                         <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
                                     @endif
                                 </tr>
@@ -568,7 +815,7 @@
                     </div>
 
                     <div class="overflow-x-auto">
-                        @php $labourPct = collect($report['kpis'])->firstWhere('key', 'labour_pct'); @endphp
+                        @php $labourPct = collect($report['kpis'])->firstWhere('key', 'labour_cost')['share'] ?? null; @endphp
                         <table class="table-surface min-w-full text-sm">
                             <thead>
                                 <tr>
@@ -695,8 +942,14 @@
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['purchases']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($o['cost_pct']['current']) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['wastage']['current'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['staff_meal']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                                        {{ number_format($o['wastage']['current'], 2) }}
+                                        <span class="block text-[11px] text-gray-500">{{ $pct($o['wastage_pct']['current']) }}</span>
+                                    </td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                                        {{ number_format($o['staff_meal']['current'], 2) }}
+                                        <span class="block text-[11px] text-gray-500">{{ $pct($o['staff_meal_pct']['current']) }}</span>
+                                    </td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_in']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_out']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_hours']['current'], 1) }}</td>

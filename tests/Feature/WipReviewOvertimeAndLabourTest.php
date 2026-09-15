@@ -10,6 +10,7 @@ use App\Models\OvertimeClaim;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunLine;
 use App\Models\SalesRecord;
+use App\Models\Section;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,11 +89,11 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
-    private function claim(string $date, float $hours, string $status = 'approved', string $settlement = OvertimeClaim::SETTLE_PAYROLL): void
+    private function claim(string $date, float $hours, string $status = 'approved', string $settlement = OvertimeClaim::SETTLE_PAYROLL, ?Employee $employee = null): void
     {
         OvertimeClaim::create([
             'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
-            'employee_id' => $this->aisyah->id, 'submitted_by' => $this->user->id,
+            'employee_id' => ($employee ?? $this->aisyah)->id, 'submitted_by' => $this->user->id,
             'claim_date' => $date, 'ot_time_start' => '18:00', 'ot_time_end' => '22:00',
             'total_ot_hours' => $hours, 'hours_taken_off' => 0, 'ot_type' => 'normal_day',
             'reason' => 'Stocktake', 'status' => $status, 'settlement' => $settlement,
@@ -181,10 +182,96 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         $this->assertEquals(4, $this->kpi($weekly, 'ot_hours')['current'], 'Hours are not pay.');
         $this->assertNull($this->kpi($weekly, 'ot_cost'));
         $this->assertArrayNotHasKey('ot_cost', collect($weekly['outlets'])->firstWhere('name', 'KLCC'));
+        $this->assertArrayNotHasKey('ot_cost', $weekly['overtime']['sections'][0], 'Nor by section.');
 
         $monthly = $this->report(['mode' => 'month']);
         $this->assertNull($monthly['labour'], 'Labour cost is computed for pay viewers only.');
         $this->assertNull($this->kpi($monthly, 'labour_cost'));
+    }
+
+    public function test_overtime_is_broken_down_by_section(): void
+    {
+        $this->canSeePay();
+
+        $kitchen = Section::create(['company_id' => $this->company->id, 'name' => 'Kitchen', 'sort_order' => 1, 'is_active' => true]);
+        $this->aisyah->update(['section_id' => $kitchen->id]);
+
+        $this->claim('2026-09-09', 4);                                                             // Aisyah, Kitchen: RM75
+        $this->claim('2026-09-10', 2, 'approved', OvertimeClaim::SETTLE_PAYROLL, $this->bala);      // Bala, no section
+        $this->claim('2026-09-03', 1);                                                             // last week, Kitchen
+
+        $sections = $this->report()['overtime']['sections'];
+
+        $this->assertSame(['Kitchen', 'No section'], array_column($sections, 'name'),
+            'Company section order, staff without a section last.');
+
+        $this->assertEquals(4, $sections[0]['ot_hours']['current']);
+        $this->assertEquals(1, $sections[0]['ot_hours']['previous']);
+        $this->assertEquals(75, $sections[0]['ot_cost']['current']);
+
+        // RM2,000 ÷ 26 ÷ 8 = RM9.6154 an hour × 1.5 × 2 hours.
+        $this->assertEquals(2, $sections[1]['ot_hours']['current']);
+        $this->assertEqualsWithDelta(28.85, $sections[1]['ot_cost']['current'], 0.01);
+    }
+
+    // ── The PDF ───────────────────────────────────────────────────────────
+
+    public function test_the_whole_review_downloads_as_a_pdf(): void
+    {
+        $this->canSeePay();
+        $this->claim('2026-08-05', 4);
+        $this->payrollRun('2026-08-01', PayrollRun::APPROVED, $this->outlet, [[$this->aisyah, 3000]]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.weekly-wip-review.pdf', [
+            'mode' => 'month', 'month' => '2026-08', 'months' => 3, 'drafts' => 1,
+        ]));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
+        $this->assertStringContainsString('Monthly-WIP-Review-2026-08-01', (string) $response->headers->get('content-disposition'));
+    }
+
+    public function test_a_hand_edited_pdf_url_is_normalised_like_the_screen(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('reports.weekly-wip-review.pdf', [
+            'week' => '2027-01-20', 'weeks' => 5,
+        ]));
+
+        $response->assertOk();
+        $this->assertStringContainsString('Weekly-WIP-Review-2026-09-14', (string) $response->headers->get('content-disposition'),
+            'A future week is clamped to the current one.');
+    }
+
+    public function test_the_pdf_carries_every_section_and_no_pay_without_access(): void
+    {
+        $this->claim('2026-08-05', 4);
+        $this->payrollRun('2026-08-01', PayrollRun::APPROVED, $this->outlet, [[$this->aisyah, 3000]]);
+
+        $render = fn (bool $pay) => view('pdf.wip-review', [
+            'report' => app(\App\Services\Reports\WeeklyWipReview::class)->build(
+                $this->company->id, [$this->outlet->id], Carbon::parse('2026-08-01'), 3, 'month', false, $pay,
+            ),
+            'company' => $this->company, 'scopeLabel' => 'KLCC',
+        ])->render();
+
+        $withPay = $render(true);
+        foreach (['Sales vs purchases', 'By department', 'Staff meals', 'Stock transfers',
+                  'Overtime by section', 'Overtime by outlet', 'Labour cost', 'By outlet'] as $heading) {
+            $this->assertStringContainsString($heading, $withPay);
+        }
+
+        $withoutPay = $render(false);
+        $this->assertStringNotContainsString('Labour cost', $withoutPay);
+        $this->assertStringNotContainsString('OT cost', $withoutPay);
+        $this->assertStringNotContainsString('3,000.00', $withoutPay, 'No payroll figure reaches the file.');
+    }
+
+    public function test_the_page_links_to_the_pdf_of_what_it_shows(): void
+    {
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
+            ->set('mode', 'month')
+            ->set('months', '6')
+            ->assertSee(route('reports.weekly-wip-review.pdf', ['mode' => 'month', 'month' => '2026-08', 'months' => 6]));
     }
 
     // ── Monthly mode ──────────────────────────────────────────────────────
@@ -246,7 +333,8 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         $labour = $this->kpi($report, 'labour_cost');
         $this->assertEquals(3000, $labour['current'], 'The draft run is left out.');
         $this->assertEquals(2500, $labour['previous']);
-        $this->assertEquals(30.0, $this->kpi($report, 'labour_pct')['current']);
+        $this->assertEquals(30.0, $this->kpi($report, 'labour_cost')['share']['current'], 'On the labour cost tile.');
+        $this->assertNull($this->kpi($report, 'labour_pct'), 'No separate percentage tile any more.');
 
         $this->assertSame(1, $report['labour']['drafts_left_out']);
         $this->assertSame(1, $report['labour']['headcount']['current']);

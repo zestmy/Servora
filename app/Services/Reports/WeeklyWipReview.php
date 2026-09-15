@@ -12,6 +12,8 @@ use App\Models\PayrollRunLine;
 use App\Models\PurchaseCapture;
 use App\Models\PurchaseRecord;
 use App\Models\SalesRecord;
+use App\Models\SalesTarget;
+use App\Models\Section;
 use App\Models\StaffMealRecord;
 use App\Models\WastageRecord;
 use App\Services\PurchaseSupplierBreakdown;
@@ -273,8 +275,9 @@ class WeeklyWipReview
         // the same hourlyRate() × multiplier payroll uses — on the hours not
         // already taken as time off. A claim settled as time off is hours
         // worked but no cash, so it counts towards hours and not cost.
+        $bySection  = [];
         [$unpriced] = $this->overtime(
-            $companyId, $outlets, $range, $bucket, $zero, $canViewPay, $totals, $byOutlet, $add,
+            $companyId, $outlets, $range, $bucket, $zero, $canViewPay, $totals, $byOutlet, $bySection, $add,
         );
 
         // ── Labour cost, from payroll (monthly, and only for pay viewers) ─
@@ -298,6 +301,7 @@ class WeeklyWipReview
         $totals['wastage_pct']    = array_map(fn ($p, $s) => self::share($p, $s), $totals['wastage'], $totals['sales']);
         $totals['staff_meal_pct'] = array_map(fn ($p, $s) => self::share($p, $s), $totals['staff_meal'], $totals['sales']);
         $totals['labour_pct']     = array_map(fn ($p, $s) => self::share($p, $s), $totals['labour_cost'], $totals['sales']);
+        $totals['ot_cost_pct']    = array_map(fn ($p, $s) => self::share($p, $s), $totals['ot_cost'], $totals['sales']);
 
         // ── Department rows, in the company's own department order ────────
         $deptNames = $departments->pluck('name', 'id')->all();
@@ -338,7 +342,10 @@ class WeeklyWipReview
         usort($outletRows, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
 
         // $upIsGood null: a move that is neither good nor bad news (transfers).
-        $kpi = fn (string $key, string $label, array $series, ?bool $upIsGood, string $format = 'money') => [
+        // $ofSales: the figure as a % of sales, carried ON the tile beside the
+        // amount rather than as a tile of its own — "RM 820 wastage" means
+        // little until it sits next to "2.1% of sales".
+        $kpi = fn (string $key, string $label, array $series, ?bool $upIsGood, string $format = 'money', ?array $ofSales = null) => [
             'key'        => $key,
             'label'      => $label,
             'current'    => $series[$cur],
@@ -346,24 +353,26 @@ class WeeklyWipReview
             'change'     => $format === 'pct' ? self::points($series[$cur], $series[$prev]) : self::change((float) $series[$cur], (float) $series[$prev]),
             'up_is_good' => $upIsGood,
             'format'     => $format,
+            'share'      => $ofSales === null ? null : [
+                'current'  => $ofSales[$cur],
+                'previous' => $ofSales[$prev],
+                'change'   => self::points($ofSales[$cur], $ofSales[$prev]),
+            ],
         ];
 
         $kpis = [
             $kpi('sales', 'Sales', $totals['sales'], true),
-            $kpi('purchases', 'Purchases', $totals['purchases'], false),
-            $kpi('cost_pct', 'Purchase cost % of sales', $totals['cost_pct'], false, 'pct'),
-            $kpi('wastage', 'Wastage', $totals['wastage'], false),
-            $kpi('wastage_pct', 'Wastage % of sales', $totals['wastage_pct'], false, 'pct'),
-            $kpi('staff_meal', 'Staff meals', $totals['staff_meal'], false),
+            $kpi('purchases', 'Purchases', $totals['purchases'], false, 'money', $totals['cost_pct']),
+            $kpi('wastage', 'Wastage', $totals['wastage'], false, 'money', $totals['wastage_pct']),
+            $kpi('staff_meal', 'Staff meals', $totals['staff_meal'], false, 'money', $totals['staff_meal_pct']),
             $kpi('transfers', 'Stock transfers', $totals['transfers'], null),
             $kpi('ot_hours', 'Overtime hours (approved)', $totals['ot_hours'], false, 'hours'),
         ];
         if ($canViewPay) {
-            $kpis[] = $kpi('ot_cost', 'Overtime cost (estimated)', $totals['ot_cost'], false);
+            $kpis[] = $kpi('ot_cost', 'Overtime cost (estimated)', $totals['ot_cost'], false, 'money', $totals['ot_cost_pct']);
         }
         if ($labour !== null) {
-            $kpis[] = $kpi('labour_cost', 'Labour cost', $totals['labour_cost'], false);
-            $kpis[] = $kpi('labour_pct', 'Labour cost % of sales', $totals['labour_pct'], false, 'pct');
+            $kpis[] = $kpi('labour_cost', 'Labour cost', $totals['labour_cost'], false, 'money', $totals['labour_pct']);
         }
 
         // The trend shows only the periods asked for; the comparison above
@@ -406,8 +415,10 @@ class WeeklyWipReview
             'overtime'     => [
                 'pending_hours' => ['current' => $totals['ot_pending_hours'][$cur], 'previous' => $totals['ot_pending_hours'][$prev]],
                 'unpriced'      => $unpriced[$cur],
+                'sections'      => $this->sectionRows($companyId, $bySection, $zero, $cur, $prev, $canViewPay),
             ],
             'labour'       => $labour === null ? null : $this->labourSummary($labour, $cur, $prev),
+            'sales_performance' => $monthly ? null : $this->salesPerformance($companyId, $outletIds, $periods[$cur]['start']),
             'charts'       => [
                 'trend' => [
                     'labels' => $labels, 'starts' => array_column($shown, 'start'),
@@ -442,7 +453,13 @@ class WeeklyWipReview
     }
 
     /**
-     * Approved overtime hours and estimated cost into $totals and $byOutlet.
+     * Approved overtime hours and estimated cost into $totals, $byOutlet and
+     * $bySection.
+     *
+     * By SECTION as well as outlet because an outlet's overtime is usually
+     * one team's: "KLCC did 60 hours" becomes "the kitchen did 52 of them".
+     * The section is the employee's CURRENT one — claims do not record it —
+     * so somebody moved from the floor to the kitchen brings their history.
      *
      * @return array{0: array<int, int>}  approved claims per period that could not be costed
      */
@@ -455,6 +472,7 @@ class WeeklyWipReview
         bool $canViewPay,
         array &$totals,
         array &$byOutlet,
+        array &$bySection,
         callable $add,
     ): array {
         $claims = $outlets(OvertimeClaim::withoutGlobalScopes()->where('company_id', $companyId)->whereNull('deleted_at'))
@@ -462,13 +480,13 @@ class WeeklyWipReview
             ->whereBetween('claim_date', $range)
             ->get(['id', 'outlet_id', 'employee_id', 'claim_date', 'total_ot_hours', 'hours_taken_off', 'ot_type', 'status', 'settlement']);
 
-        $settings  = CompensationSetting::forCompany($companyId);
-        $employees = $canViewPay
-            ? Employee::withoutGlobalScopes()
-                ->whereIn('id', $claims->pluck('employee_id')->filter()->unique())
-                ->get(['id', 'basic_salary', 'pay_type', 'daily_working_hours'])
-                ->keyBy('id')
-            : collect();
+        $settings = CompensationSetting::forCompany($companyId);
+
+        // Salary fields are only read for somebody who may see them.
+        $employees = Employee::withoutGlobalScopes()
+            ->whereIn('id', $claims->pluck('employee_id')->filter()->unique())
+            ->get(array_merge(['id', 'section_id'], $canViewPay ? ['basic_salary', 'pay_type', 'daily_working_hours'] : []))
+            ->keyBy('id');
 
         $unpriced = array_map('intval', $zero);
 
@@ -481,12 +499,15 @@ class WeeklyWipReview
                 continue;
             }
 
+            $employee   = $employees[$claim->employee_id] ?? null;
+            $sectionKey = $employee?->section_id ?: self::UNASSIGNED;
+
             $totals['ot_hours'][$w] += $hours;
             $add($byOutlet, (int) $claim->outlet_id, 'ot_hours', $w, $hours);
+            $add($bySection, $sectionKey, 'ot_hours', $w, $hours);
 
             if (! $canViewPay || $claim->settlement === OvertimeClaim::SETTLE_TIME_OFF) continue;
 
-            $employee = $employees[$claim->employee_id] ?? null;
             $rate = $employee ? $settings->hourlyRate(
                 $employee->basic_salary !== null ? (float) $employee->basic_salary : null,
                 $employee->pay_type,
@@ -501,9 +522,44 @@ class WeeklyWipReview
             $cost = max(0.0, $hours - (float) $claim->hours_taken_off) * $rate * $settings->multiplierFor((string) $claim->ot_type);
             $totals['ot_cost'][$w] += $cost;
             $add($byOutlet, (int) $claim->outlet_id, 'ot_cost', $w, $cost);
+            $add($bySection, $sectionKey, 'ot_cost', $w, $cost);
         }
 
         return [$unpriced];
+    }
+
+    /**
+     * Overtime per section, in the company's own section order, with staff
+     * who have no section last.
+     *
+     * @param  array<int|string, array<string, array<int, float>>>  $bySection
+     */
+    private function sectionRows(int $companyId, array $bySection, array $zero, int $cur, int $prev, bool $canViewPay): array
+    {
+        if ($bySection === []) {
+            return [];
+        }
+
+        $sections = Section::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name']);
+
+        $names = $sections->pluck('name', 'id')->all();
+        $order = array_merge($sections->pluck('id')->all(), [self::UNASSIGNED]);
+        $keys  = $canViewPay ? ['ot_hours', 'ot_cost'] : ['ot_hours'];
+
+        $rows = [];
+        foreach ($order as $key) {
+            if (! isset($bySection[$key])) continue;
+
+            $row = $this->row($key === self::UNASSIGNED ? 'No section' : ($names[$key] ?? 'Unknown section'), $bySection[$key], $zero, $cur, $prev, $keys);
+            if ($row['active']) {
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
     }
 
     /**
@@ -599,6 +655,185 @@ class WeeklyWipReview
         ];
     }
 
+    /**
+     * The weekly sales-performance sheet: sales by day of week and meal period
+     * for the reviewed week and the one before, with the variance per day, and
+     * month-to-date sales, covers and average check against last month and the
+     * same month last year.
+     *
+     * Meal period is the one each sales record is keyed under; a record with
+     * none (or one no longer offered) is All Day. Covers are the records' pax.
+     *
+     * Month to date runs from the 1st to the reviewed week's Sunday, and each
+     * comparison stops on the same day of ITS month, clamped to that month's
+     * length — 1st–13th September against 1st–13th August, not all of August.
+     */
+    private function salesPerformance(int $companyId, array $outletIds, string $weekStart): array
+    {
+        $options  = SalesRecord::mealPeriodOptions();
+        $current  = Carbon::parse($weekStart)->startOfDay();
+        $previous = $current->copy()->subWeek();
+        $weekEnd  = $current->copy()->addDays(6);
+
+        $sales = fn () => SalesRecord::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereNull('deleted_at')
+            ->when($outletIds, fn ($q) => $q->whereIn('outlet_id', $outletIds));
+
+        $rows = $sales()
+            ->whereBetween('sale_date', [$previous->toDateString(), $weekEnd->toDateString() . ' 23:59:59'])
+            ->selectRaw('sale_date as d, meal_period, SUM(total_revenue) as amount')
+            ->groupBy('sale_date', 'meal_period')
+            ->get();
+
+        $grid = ['current' => [], 'previous' => []];
+        foreach ($rows as $row) {
+            $date   = Carbon::parse($row->d);
+            $which  = $date->gte($current) ? 'current' : 'previous';
+            $period = $row->meal_period !== null && isset($options[$row->meal_period]) ? $row->meal_period : 'all_day';
+            $dow    = $date->isoWeekday();
+
+            $grid[$which][$period][$dow] = ($grid[$which][$period][$dow] ?? 0.0) + (float) $row->amount;
+        }
+
+        // Only the meal periods either week actually traded, in the offered order.
+        $periods = array_values(array_filter(
+            array_keys($options),
+            fn ($p) => isset($grid['current'][$p]) || isset($grid['previous'][$p]),
+        ));
+
+        $week = function (string $which, Carbon $start) use ($grid, $periods, $options): array {
+            $days  = array_fill(1, 7, 0.0);
+            $lines = [];
+
+            foreach ($periods as $p) {
+                $values = [];
+                for ($d = 1; $d <= 7; $d++) {
+                    $values[$d] = round($grid[$which][$p][$d] ?? 0.0, 2);
+                    $days[$d]  += $values[$d];
+                }
+                $lines[] = ['key' => $p, 'label' => $options[$p], 'days' => $values, 'total' => round(array_sum($values), 2)];
+            }
+
+            $total = round(array_sum($days), 2);
+            foreach ($lines as &$line) {
+                $line['share'] = self::share($line['total'], $total);
+            }
+            unset($line);
+
+            return [
+                'label' => 'Week ' . $start->isoWeek(),
+                'range' => $start->format('j M') . ' – ' . $start->copy()->addDays(6)->format('j M Y'),
+                'lines' => $lines,
+                'days'  => array_map(fn ($v) => round($v, 2), $days),
+                'total' => $total,
+            ];
+        };
+
+        $thisWeek = $week('current', $current);
+        $lastWeek = $week('previous', $previous);
+
+        $variance = fn (float $now, float $then) => ['amount' => round($now - $then, 2), 'change' => self::change($now, $then)];
+
+        // ── Month to date ─────────────────────────────────────────────────
+        $mtdStart = $weekEnd->copy()->startOfMonth();
+        $day      = $weekEnd->day;
+        $sameDays = fn (Carbon $monthStart) => [$monthStart, $monthStart->copy()->day(min($day, $monthStart->daysInMonth))];
+
+        $windows = [
+            'this_month' => ['MTD this month', [$mtdStart, $weekEnd->copy()]],
+            'last_month' => ['MTD last month', $sameDays($mtdStart->copy()->subMonthNoOverflow())],
+            'last_year'  => ['MTD same month last year', $sameDays($mtdStart->copy()->subYearNoOverflow())],
+        ];
+
+        $mtd = [];
+        foreach ($windows as $key => [$label, [$from, $to]]) {
+            $sum = $sales()
+                ->whereBetween('sale_date', [$from->toDateString(), $to->toDateString() . ' 23:59:59'])
+                ->selectRaw('SUM(total_revenue) as sales, SUM(pax) as covers')
+                ->first();
+
+            $amount = round((float) ($sum->sales ?? 0), 2);
+            $covers = (int) ($sum->covers ?? 0);
+
+            $mtd[$key] = [
+                'key'       => $key,
+                'label'     => $label,
+                'range'     => $from->format('jS') . ' – ' . $to->format('jS F Y'),
+                'sales'     => $amount,
+                'covers'    => $covers,
+                'avg_check' => $covers > 0 ? round($amount / $covers, 2) : null,
+            ];
+        }
+
+        // Each comparison row reads as "this month against that one".
+        foreach (['last_month', 'last_year'] as $key) {
+            $mtd[$key]['sales_change']  = self::change($mtd['this_month']['sales'], $mtd[$key]['sales']);
+            $mtd[$key]['covers_change'] = self::change((float) $mtd['this_month']['covers'], (float) $mtd[$key]['covers']);
+            $mtd[$key]['variance']      = round($mtd['this_month']['sales'] - $mtd[$key]['sales'], 2);
+        }
+
+        // ── Sales forecast for the month the reviewed week ends in ─────────
+        // Straight-line: the month-to-date daily average carried over the days
+        // left. The target is Settings > Sales Targets for that month — the
+        // outlet's own when one outlet is in view, the company-wide one when
+        // several are, and the outlets' targets added up when there is no
+        // company-wide figure. A single outlet with no target of its own falls
+        // back to the company's, and says so.
+        $daysInMonth = $weekEnd->daysInMonth;
+        $daysLeft    = $daysInMonth - $day;
+        $mtdSales    = $mtd['this_month']['sales'];
+        $avgDaily    = $day > 0 ? $mtdSales / $day : 0.0;
+        $remaining   = $avgDaily * $daysLeft;
+
+        $targets = SalesTarget::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('period', $weekEnd->format('Y-m'))
+            ->where('type', 'monthly')
+            ->get(['outlet_id', 'target_revenue']);
+
+        $companyTarget = $targets->first(fn ($t) => $t->outlet_id === null);
+        $outletTargets = $targets
+            ->filter(fn ($t) => $t->outlet_id !== null)
+            ->filter(fn ($t) => ! $outletIds || in_array((int) $t->outlet_id, $outletIds, true));
+
+        [$target, $targetSource] = match (true) {
+            count($outletIds) === 1 && $outletTargets->isNotEmpty() => [(float) $outletTargets->first()->target_revenue, 'outlet'],
+            $companyTarget !== null                                  => [(float) $companyTarget->target_revenue, 'company'],
+            $outletTargets->isNotEmpty()                             => [(float) $outletTargets->sum('target_revenue'), 'outlets'],
+            default                                                  => [null, null],
+        };
+
+        $forecast = [
+            'month_label'        => $weekEnd->format('F Y'),
+            'days_in_month'      => $daysInMonth,
+            'mtd_days'           => $day,
+            'days_left'          => $daysLeft,
+            'mtd_sales'          => $mtdSales,
+            'target'             => $target,
+            'target_source'      => $targetSource,
+            'target_count'       => $targetSource === 'outlets' ? $outletTargets->count() : null,
+            'balance'            => $target === null ? null : round($mtdSales - $target, 2),
+            'avg_daily'          => round($avgDaily, 2),
+            'remaining'          => round($remaining, 2),
+            'forecast'           => round($mtdSales + $remaining, 2),
+            'forecast_vs_target' => $target ? round(($mtdSales + $remaining) / $target * 100, 1) : null,
+            'needed_daily'       => $target !== null && $daysLeft > 0 ? round(max(0.0, $target - $mtdSales) / $daysLeft, 2) : null,
+        ];
+
+        return [
+            'day_names' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            'current'   => $thisWeek,
+            'previous'  => $lastWeek,
+            'variance'  => [
+                'days'  => array_map(fn ($d) => $variance($thisWeek['days'][$d], $lastWeek['days'][$d]), range(1, 7)),
+                'total' => $variance($thisWeek['total'], $lastWeek['total']),
+            ],
+            'mtd'       => array_values($mtd),
+            'forecast'  => $forecast,
+        ];
+    }
+
     /** The labour breakdown for the reviewed month against the one before. */
     private function labourSummary(array $labour, int $cur, int $prev): array
     {
@@ -653,7 +888,13 @@ class WeeklyWipReview
             }
         }
 
-        foreach (['cost_pct' => 'purchases', 'wastage_pct' => 'wastage', 'labour_pct' => 'labour_cost'] as $pctKey => $of) {
+        foreach ([
+            'cost_pct'       => 'purchases',
+            'wastage_pct'    => 'wastage',
+            'staff_meal_pct' => 'staff_meal',
+            'ot_cost_pct'    => 'ot_cost',
+            'labour_pct'     => 'labour_cost',
+        ] as $pctKey => $of) {
             if (! in_array($of, $keys, true)) continue;
 
             $now  = self::share($series[$of][$cur], $series['sales'][$cur]);
