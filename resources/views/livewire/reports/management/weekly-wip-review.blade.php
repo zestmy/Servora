@@ -521,12 +521,18 @@
 
         {{-- ── By department ───────────────────────────────────────────── --}}
         <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && '!mb-0 shrink-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['departments'] + 1, 'title' => $slides['departments'], 'hint' => 'this ' . $unit . ', sales against purchases'])
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['departments'] + 1, 'title' => $slides['departments'], 'hint' => 'this ' . $unit . ', as % of each department\'s own sales'])
 
             @if ($report['departments'] === [])
                 <p class="py-8 text-center text-sm text-gray-600">No department figures for these two {{ $unit }}s.</p>
             @else
-                <div class="relative" style="height: {{ max(180, count($report['departments']) * 56 + 40) }}px"
+                {{-- Two charts, each on its own scale: wastage runs at 1–2% and
+                     purchase cost at 30–50%, so on one axis the wastage bars
+                     were slivers nobody could read. --}}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Purchase cost % of sales</h3>
+                <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['labels']) * 48 + 60) }}px"
                      :class="presenting && '!h-[32vh]'"
                      wire:key="wip-dept-{{ md5(json_encode($report['charts']['departments'])) }}"
                      x-data="{
@@ -539,8 +545,8 @@
                                 data: {
                                     labels: d.labels,
                                     datasets: [
-                                        { label: 'Sales', data: d.sales, backgroundColor: d.colors.sales, borderRadius: 3 },
-                                        { label: 'Purchases', data: d.purchases, backgroundColor: d.colors.purchases, borderRadius: 3 },
+                                        { label: 'This ' + d.unit, data: d.cost_pct, backgroundColor: d.colors.purchases, borderRadius: 3 },
+                                        { label: 'Last ' + d.unit, data: d.cost_pct_prev, backgroundColor: d.colors.previous, borderRadius: 3 },
                                     ],
                                 },
                                 options: {
@@ -548,19 +554,61 @@
                                     plugins: {
                                         legend: { position: 'bottom' },
                                         tooltip: { callbacks: {
-                                            label: i => i.dataset.label + ': ' + rm(i.parsed.x),
+                                            label: i => i.dataset.label + ': ' + (i.parsed.x === null ? '—' : i.parsed.x.toFixed(1) + '%'),
                                             afterBody: items => {
-                                                const p = d.cost_pct[items[0].dataIndex];
-                                                return p === null ? 'Purchase cost %: —' : 'Purchase cost %: ' + p.toFixed(1) + '%';
+                                                const k = items[0].dataIndex;
+                                                return ['Purchases: ' + rm(d.purchases[k]), 'Sales: ' + rm(d.sales[k])];
                                             },
                                         } },
                                     },
-                                    scales: { x: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString() } }, y: { grid: { display: false } } },
+                                    scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } },
                                 },
                             });
                         },
                      }">
                     <canvas x-ref="c"></canvas>
+                </div>
+
+                    </div>
+                    <div>
+                        <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Wastage % of sales</h3>
+                        <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['labels']) * 48 + 60) }}px"
+                             :class="presenting && '!h-[32vh]'"
+                             wire:key="wip-dept-waste-{{ md5(json_encode($report['charts']['departments'])) }}"
+                             x-data="{
+                                init() {
+                                    const old = Chart.getChart(this.$refs.c); if (old) { old.destroy(); }
+                                    const d = @js($report['charts']['departments']);
+                                    const rm = v => 'RM ' + Number(v).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                    new Chart(this.$refs.c, {
+                                        type: 'bar',
+                                        data: {
+                                            labels: d.labels,
+                                            datasets: [
+                                                { label: 'This ' + d.unit, data: d.wastage_pct, backgroundColor: d.colors.wastage, borderRadius: 3 },
+                                                { label: 'Last ' + d.unit, data: d.wastage_pct_prev, backgroundColor: d.colors.previous, borderRadius: 3 },
+                                            ],
+                                        },
+                                        options: {
+                                            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                                            plugins: {
+                                                legend: { position: 'bottom' },
+                                                tooltip: { callbacks: {
+                                                    label: i => i.dataset.label + ': ' + (i.parsed.x === null ? '—' : i.parsed.x.toFixed(1) + '%'),
+                                                    afterBody: items => {
+                                                        const k = items[0].dataIndex;
+                                                        return ['Wastage: ' + rm(d.wastage[k]), 'Sales: ' + rm(d.sales[k])];
+                                                    },
+                                                } },
+                                            },
+                                            scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } },
+                                        },
+                                    });
+                                },
+                             }">
+                            <canvas x-ref="c"></canvas>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto mt-5">
@@ -610,6 +658,9 @@
                     </table>
                 </div>
                 <p class="mt-2 text-[11px] text-gray-500">
+                    @if ($report['charts']['departments']['left_out'] !== [])
+                        Not charted, having no sales to measure against: {{ implode(', ', $report['charts']['departments']['left_out']) }}.
+                    @endif
                     Sales reach a department through its sales category (Settings &gt; Departments). Sales no department claims, and
                     purchases or wastage keyed without a department, are shown as Unassigned. Departments sharing a sales
                     category are each measured against all of its sales, so department sales can add up to more than total sales.

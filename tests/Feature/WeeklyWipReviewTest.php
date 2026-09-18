@@ -209,6 +209,15 @@ class WeeklyWipReviewTest extends TestCase
 
         $this->assertSame(['Kitchen', 'Bar', 'Unassigned'], array_column($report['departments'], 'name'),
             'The company\'s own department order, Unassigned last.');
+
+        // The chart is in percentages of each department's own sales.
+        $chart = $report['charts']['departments'];
+        $this->assertSame(['Kitchen', 'Bar'], $chart['labels'], 'Only departments with sales to measure against.');
+        $this->assertEquals([40.0, 0.0], $chart['cost_pct'], '400 of Kitchen\'s 1,000; nothing bought for the bar.');
+        $this->assertSame([37.5, null], $chart['cost_pct_prev'], '300 of 800 last week; the bar sold nothing then.');
+        $this->assertEquals([2.0, 0.0], $chart['wastage_pct']);
+        $this->assertSame([0.0, null], $chart['wastage_pct_prev'], 'Nothing wasted last week; the bar sold nothing then.');
+        $this->assertSame(['Unassigned'], $chart['left_out'], 'No sales this week, so no percentage to draw.');
     }
 
     /**

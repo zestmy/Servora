@@ -442,13 +442,7 @@ class WeeklyWipReview
                     'cost_pct' => $trim($totals['cost_pct']),
                     'colors' => $colors,
                 ],
-                'departments' => [
-                    'labels'    => array_column($departmentRows, 'name'),
-                    'sales'     => array_map(fn ($r) => $r['sales']['current'], $departmentRows),
-                    'purchases' => array_map(fn ($r) => $r['purchases']['current'], $departmentRows),
-                    'cost_pct'  => array_map(fn ($r) => $r['cost_pct']['current'], $departmentRows),
-                    'colors'    => $colors,
-                ],
+                'departments' => $this->departmentChart($departmentRows, $colors, $monthly ? 'month' : 'week'),
                 'wastage'    => $costChart('wastage', $colors['wastage'], $totals['wastage_pct']),
                 'staff_meal' => $costChart('staff_meal', $colors['staff_meal'], $totals['staff_meal_pct']),
                 // No share-of-sales line: moving stock is not a cost of sales.
@@ -919,6 +913,44 @@ class WeeklyWipReview
         }
 
         return $row;
+    }
+
+    /**
+     * The department chart, in PERCENTAGES of each department's own sales:
+     * purchase cost % this period and last, and wastage % this period.
+     *
+     * RM bars read badly here: departments sharing a sales category each carry
+     * that category's full sales, so their sales bars dwarf everything and the
+     * purchases beside them are slivers. A percentage is what the meeting
+     * compares across departments anyway. The RM amounts ride along for the
+     * tooltip. A department with no sales has no percentage to draw, so it is
+     * left off the chart and named instead.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function departmentChart(array $rows, array $colors, string $unit): array
+    {
+        $charted = array_values(array_filter(
+            $rows,
+            fn ($r) => $r['cost_pct']['current'] !== null || $r['wastage_pct']['current'] !== null,
+        ));
+
+        return [
+            'unit'          => $unit,
+            'labels'        => array_column($charted, 'name'),
+            'cost_pct'      => array_map(fn ($r) => $r['cost_pct']['current'], $charted),
+            'cost_pct_prev' => array_map(fn ($r) => $r['cost_pct']['previous'], $charted),
+            'wastage_pct'   => array_map(fn ($r) => $r['wastage_pct']['current'], $charted),
+            'wastage_pct_prev' => array_map(fn ($r) => $r['wastage_pct']['previous'], $charted),
+            'sales'         => array_map(fn ($r) => $r['sales']['current'], $charted),
+            'purchases'     => array_map(fn ($r) => $r['purchases']['current'], $charted),
+            'wastage'       => array_map(fn ($r) => $r['wastage']['current'], $charted),
+            'left_out'      => array_values(array_map(
+                fn ($r) => $r['name'],
+                array_filter($rows, fn ($r) => $r['cost_pct']['current'] === null && $r['wastage_pct']['current'] === null),
+            )),
+            'colors'        => $colors,
+        ];
     }
 
     /** Percentage change, or null when there is nothing to compare against. */
