@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Generates the PWA icons: an indigo rounded square with a white luggage-tag
+ * Generates the PWA icons: a brand-blue rounded square with a white luggage-tag
  * glyph, matching the app's header colour and the tag icon used in the
  * Servora sidebar.
  *
@@ -32,13 +32,13 @@ function makeIcon(int $size, string $path, bool $maskable = false): void
     imagealphablending($img, true);
     imagesavealpha($img, true);
 
-    $indigo = imagecolorallocate($img, 79, 70, 229);   // indigo-600
+    $brand  = imagecolorallocate($img, 37, 99, 235);   // brand-600, matching the manifest's theme_color
     $white  = imagecolorallocate($img, 255, 255, 255);
 
     // Maskable icons get cropped to a circle by the OS, so the background
     // must bleed to the edges and the glyph must sit inside the safe zone.
     $radius = $maskable ? 0 : (int) round($size * 0.22);
-    roundedRect($img, 0, 0, $size - 1, $size - 1, $radius, $indigo);
+    roundedRect($img, 0, 0, $size - 1, $size - 1, $radius, $brand);
 
     // Tag body: a square rotated 45° with one corner cut, drawn as a polygon.
     $s     = $maskable ? $size * 0.52 : $size * 0.62;   // smaller for safe zone
@@ -65,7 +65,7 @@ function makeIcon(int $size, string $path, bool $maskable = false): void
         (int) round($cy - $half + $notch * 0.85),
         $hole,
         $hole,
-        $indigo
+        $brand
     );
 
     imagepng($img, $path);

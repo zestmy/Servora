@@ -1326,7 +1326,7 @@ function paintProgress(count) {
     wrap.querySelectorAll('[data-slot]').forEach((slot, index) => {
         const filled = index < count;
         slot.style.backgroundColor = filled
-            ? (index < needed ? '#0d5f61' : '#6ee7b7')
+            ? (index < needed ? '#1d4ed8' : '#6ee7b7')
             : '#e5e7eb';
     });
 

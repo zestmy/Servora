@@ -65,12 +65,12 @@
             {{-- The currency sits small beside the figure rather than inside it:
                  "RM 150,231.90" at headline size wraps in a quarter-width card,
                  and a total broken over two lines reads as two numbers. --}}
-            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #0b7677; padding: 7px 10px;">
+            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #2563eb; padding: 7px 10px;">
                 <div style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">Total spend</div>
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a; white-space: nowrap;"><span style="font-size: 8pt; color: #64748b;">RM</span> {{ number_format($totals['spend'], 2) }}</div>
                 <div style="font-size: 7.5pt; color: #94a3b8;">{{ $money($totals['perDay']) }} per day</div>
             </td>
-            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #43bdb8; padding: 7px 10px;">
+            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #60a5fa; padding: 7px 10px;">
                 <div style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">Purchases</div>
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a; white-space: nowrap;">{{ number_format($totals['purchases']) }}</div>
                 <div style="font-size: 7.5pt; color: #94a3b8;">{{ $money($totals['average']) }} average</div>
@@ -225,7 +225,7 @@
                         {{-- vertical-align: bottom is what makes a column chart out
                              of table cells: the bar grows up from the axis. --}}
                         <td style="width: {{ round(100 / $slots, 3) }}%; height: 84px; vertical-align: bottom; padding: 0 5px;">
-                            <div style="height: {{ max(1, round(($m['height'] / 100) * 78)) }}px; background: #0b7677;"></div>
+                            <div style="height: {{ max(1, round(($m['height'] / 100) * 78)) }}px; background: #2563eb;"></div>
                         </td>
                     @endforeach
                     @for ($i = 0; $i < $fillers; $i++)
@@ -319,7 +319,7 @@
                                 {{ number_format($s['purchases']) }} {{ \Illuminate\Support\Str::plural('purchase', $s['purchases']) }}
                                 &middot; {{ $money($s['spend']) }}
                                 &middot; {{ $pct($s['share']) }} of spend
-                                &middot; <a href="#summary" style="color: #0b7677; text-decoration: none;">&uarr; summary</a>
+                                &middot; <a href="#summary" style="color: #2563eb; text-decoration: none;">&uarr; summary</a>
                             </td>
                         </tr></table>
                     </div>

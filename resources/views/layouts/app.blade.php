@@ -10,7 +10,7 @@
 
     {{-- PWA: installable on mobile, offline fallback, no-cache for auth routes --}}
     <link rel="manifest" href="{{ asset('manifest.json') }}">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#0b1f3b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Servora">
@@ -28,7 +28,7 @@
         /* ── Page transition: top progress bar ──────────────────────────── */
         #nav-progress {
             position: fixed; top: 0; left: 0; height: 3px; z-index: 9999;
-            background: linear-gradient(90deg, #22a19d, #43bdb8);
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
             width: 0; opacity: 0;
             transition: none;
             pointer-events: none;

@@ -6,13 +6,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ isset($title) ? $title . ' | Servora' : 'Servora' }}</title>
-    <meta name="description" content="{{ $description ?? 'Servora is AI-powered restaurant operations software for F&B: AI reads your supplier invoices and reviews your numbers weekly, alongside recipe costing, purchasing, inventory and staff training.' }}">
+    <meta name="description" content="{{ $description ?? 'Servora is AI-powered F&B operations software: AI reads your supplier invoices and reviews your numbers weekly, alongside recipe costing, purchasing, inventory and staff training.' }}">
 
     {{-- Social cards. Previously absent, so every shared link rendered bare. --}}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Servora">
     <meta property="og:title" content="{{ $title ?? 'Servora' }}">
-    <meta property="og:description" content="{{ $description ?? 'AI-powered restaurant operations: costing, purchasing, inventory and training in one place.' }}">
+    <meta property="og:description" content="{{ $description ?? 'AI-powered F&B operations: costing, purchasing, inventory and training in one place.' }}">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:image" content="{{ asset('images/servora-logo-black.png') }}">
     <meta name="twitter:card" content="summary_large_image">

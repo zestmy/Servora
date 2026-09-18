@@ -172,7 +172,7 @@
                 </td>
                 <td style="font-size: 8pt;">
                     @forelse (\App\Models\CalendarEvent::onDate($calendarEvents, $claim->claim_date, $employee->outlet_id) as $ev)
-                        <span style="color: {{ $ev->category === 'holiday' ? '#b91c1c' : '#104d4f' }};">{{ $ev->title }}</span>@if (! $loop->last)<br>@endif
+                        <span style="color: {{ $ev->category === 'holiday' ? '#b91c1c' : '#1e40af' }};">{{ $ev->title }}</span>@if (! $loop->last)<br>@endif
                     @empty
                         <span style="color: #bbb;">—</span>
                     @endforelse
@@ -189,7 +189,7 @@
                     } }}
                 </td>
                 @if (($hoursBySettlement['time_off'] ?? 0) > 0)
-                    <td style="font-size: 8pt; {{ $claim->settlement === 'time_off' ? 'color: #104d4f; font-weight: 600;' : 'color: #666;' }}">
+                    <td style="font-size: 8pt; {{ $claim->settlement === 'time_off' ? 'color: #1e40af; font-weight: 600;' : 'color: #666;' }}">
                         {{ $claim->settlement === 'time_off' ? 'Time Off' : 'Payroll' }}
                     </td>
                 @endif

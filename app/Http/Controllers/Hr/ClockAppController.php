@@ -52,7 +52,7 @@ class ClockAppController extends Controller
             'display'     => 'standalone',
             'orientation' => 'portrait',
             'background_color' => '#f9fafb',
-            'theme_color'      => '#0b7677',
+            'theme_color'      => '#2563eb',
             /*
              * The Staff Portal's own icon, for every company.
              *
@@ -114,7 +114,7 @@ class ClockAppController extends Controller
             // one device in the building that is never held in a hand.
             'orientation' => 'landscape',
             'background_color' => '#0b1220',
-            'theme_color'      => '#0b7677',
+            'theme_color'      => '#2563eb',
             // The same tile as the Staff Portal, and deliberately so — see the
             // note on that manifest for why it is not the tenant's logo. The
             // two apps sit on different devices (a phone, a counter tablet)

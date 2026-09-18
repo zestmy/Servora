@@ -436,8 +436,8 @@
        2. It only covered the classes somebody remembered to list. Any new
           nav markup reaching for an unlisted grey silently stayed dark.
 
-       3. It hardcoded brand hex (#0b7677, #eefbf9, #0d5f61), which the
-          alias in tailwind.config.js cannot reach.
+       3. It hardcoded brand hex, which the alias in tailwind.config.js
+          cannot reach — so every accent move had to be made twice.
 
        Tokens instead. The markup names a role — surface, muted text, active
        fill — and each theme supplies the value, so a colour is decided once

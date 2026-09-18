@@ -54,7 +54,7 @@
 
         .btn {
             border: 0;
-            background: #0b7677;
+            background: #2563eb;
             color: #fff;
             padding: 8px 16px;
             border-radius: 8px;
@@ -64,8 +64,8 @@
             display: inline-block;
         }
 
-        .btn-ghost { background: #fff; color: #0b7677; border: 1px solid #aeeae4; }
-        .btn-ghost.on { background: #0b7677; color: #fff; }
+        .btn-ghost { background: #fff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .btn-ghost.on { background: #2563eb; color: #fff; }
 
         .sheet { margin: 0 auto; }
 

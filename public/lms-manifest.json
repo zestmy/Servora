@@ -5,12 +5,12 @@
     "start_url": "/lms/",
     "display": "standalone",
     "orientation": "portrait",
-    "background_color": "#111827",
-    "theme_color": "#111827",
+    "background_color": "#0b1f3b",
+    "theme_color": "#0b1f3b",
     "icons": [
         {
             "src": "/favicon.png",
-            "sizes": "300x300",
+            "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
         },

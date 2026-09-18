@@ -1,17 +1,17 @@
 {
     "name": "Servora",
     "short_name": "Servora",
-    "description": "Smart restaurant operations — inventory, recipes, procurement, sales.",
+    "description": "AI-powered F&B operations — inventory, recipes, procurement, sales.",
     "start_url": "/dashboard",
     "scope": "/",
     "display": "standalone",
     "orientation": "any",
-    "background_color": "#111827",
-    "theme_color": "#111827",
+    "background_color": "#0b1f3b",
+    "theme_color": "#0b1f3b",
     "icons": [
         {
             "src": "/favicon.png",
-            "sizes": "300x300",
+            "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
         },

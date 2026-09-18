@@ -252,7 +252,7 @@
                                 @for ($i = 0; $i < $maxCaptures; $i++)
                                     <span data-slot class="h-1.5 flex-1 rounded-full transition-colors duration-200"
                                           style="background-color: {{ $i < $captures->count()
-                                              ? ($i < $needed ? '#0d5f61' : '#6ee7b7')
+                                              ? ($i < $needed ? '#1d4ed8' : '#6ee7b7')
                                               : '#e5e7eb' }};"></span>
                                 @endfor
                             </div>

@@ -21,7 +21,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {{-- Matches the header fill exactly. brand-600 left a visible seam between
          the OS status bar and the header on Android. --}}
-    <meta name="theme-color" content="#0d5f61">
+    <meta name="theme-color" content="#1d4ed8">
     {{-- Full-screen when saved to a home screen, which is how this is meant
          to be used day to day. --}}
     <meta name="mobile-web-app-capable" content="yes">
