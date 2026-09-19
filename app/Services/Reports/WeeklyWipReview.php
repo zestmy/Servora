@@ -17,6 +17,7 @@ use App\Models\SalesTarget;
 use App\Models\Section;
 use App\Models\StaffMealRecord;
 use App\Models\WastageRecord;
+use App\Services\CostSummaryService;
 use App\Services\PurchaseSupplierBreakdown;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -449,6 +450,12 @@ class WeeklyWipReview
             ],
             'labour'       => $labour === null ? null : $this->labourSummary($labour, $cur, $prev),
             'sales_performance' => $monthly ? null : $this->salesPerformance($companyId, $outletIds, $periods[$cur]['start']),
+            // CostSummaryService reads the company off the signed-in user and
+            // leans on the models' company scope, so it only runs when that is
+            // the company under review — never company-less, never cross-company.
+            'cost_summary'      => $monthly && (int) (auth()->user()?->company_id) === $companyId
+                ? $this->costSummary($outletIds, $shown, $periods[$cur], $periods[$prev])
+                : null,
             'charts'       => [
                 'trend' => [
                     'labels' => $labels, 'starts' => array_column($shown, 'start'),
@@ -902,6 +909,75 @@ class WeeklyWipReview
         }
 
         return ['rows' => $rows, 'total' => $line('Total', $sales[$cur], $sales[$prev])];
+    }
+
+    /**
+     * Cost of goods — opening stock + purchases + transfers in − transfers out
+     * − closing stock — for every month in the trend, and by sales category
+     * for the reviewed month. From the same service as the Cost Summary report,
+     * so the slide and the report cannot disagree.
+     *
+     * That service costs one outlet or the whole company: with one outlet in
+     * view it is that outlet; otherwise company-wide.
+     */
+    private function costSummary(array $outletIds, array $shown, array $current, array $previous): array
+    {
+        $outletId = count($outletIds) === 1 ? (int) $outletIds[0] : null;
+        $service  = new CostSummaryService();
+
+        $byMonth = [];
+        foreach (array_unique(array_merge(array_column($shown, 'start'), [$previous['start']])) as $start) {
+            $byMonth[$start] = $service->generate(substr($start, 0, 7), $outletId);
+        }
+        $now    = $byMonth[$current['start']];
+        $before = $byMonth[$previous['start']];
+
+        // The month-by-month chart. A month without both stock takes is really
+        // purchases only, so it is flagged rather than passed off as COGS.
+        $trend = ['labels' => [], 'starts' => [], 'cogs_pct' => [], 'cogs' => [], 'revenue' => [], 'purchases' => [], 'complete' => []];
+        foreach ($shown as $p) {
+            $m = $byMonth[$p['start']];
+            $trend['labels'][]    = $p['label'];
+            $trend['starts'][]    = $p['start'];
+            $trend['cogs_pct'][]  = $m['totals']['revenue'] > 0 ? (float) $m['totals']['cost_pct'] : null;
+            $trend['cogs'][]      = (float) $m['totals']['cogs'];
+            $trend['revenue'][]   = (float) $m['totals']['revenue'];
+            $trend['purchases'][] = (float) $m['totals']['purchases'];
+            $trend['complete'][]  = $m['has_opening_stock'] && $m['has_closing_stock'];
+        }
+
+        $priorPct = collect($before['categories'])->pluck('cost_pct', 'name');
+        $priorHas = collect($before['categories'])->mapWithKeys(fn ($c) => [$c['name'] => $c['revenue'] > 0 || $c['cogs'] != 0]);
+
+        $rows = [];
+        foreach ($now['categories'] as $c) {
+            // A category with no revenue and no cost in the month is an empty row.
+            if ($c['revenue'] <= 0 && abs($c['cogs']) < 0.005 && abs($c['opening_stock']) < 0.005 && abs($c['closing_stock']) < 0.005) {
+                continue;
+            }
+            $was = ($priorHas[$c['name']] ?? false) ? (float) $priorPct[$c['name']] : null;
+            $rows[] = $c + [
+                'cost_pct_prev' => $was,
+                'cost_pct_change' => $was === null ? null : round((float) $c['cost_pct'] - $was, 1),
+            ];
+        }
+
+        $t = $now['totals'];
+        $wasTotal = $before['totals']['revenue'] > 0 ? (float) $before['totals']['cost_pct'] : null;
+
+        return [
+            'month_label'     => $current['range'],
+            'previous_label'  => $previous['range'],
+            'company_wide'    => $outletId === null,
+            'has_opening'     => $now['has_opening_stock'],
+            'has_closing'     => $now['has_closing_stock'],
+            'rows'            => $rows,
+            'trend'           => $trend,
+            'total'           => $t + [
+                'cost_pct_prev'   => $wasTotal,
+                'cost_pct_change' => $wasTotal === null ? null : round((float) $t['cost_pct'] - $wasTotal, 1),
+            ],
+        ];
     }
 
     /** The labour breakdown for the reviewed month against the one before. */

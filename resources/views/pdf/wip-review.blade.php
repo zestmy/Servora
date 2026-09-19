@@ -321,6 +321,94 @@
         </div>
     @endif
 
+    {{-- ═══ Cost of goods % (monthly) — in place of Purchase cost % ═══════ --}}
+    @php $cs = $report['cost_summary'] ?? null; @endphp
+    @if ($cs !== null)
+        @php
+            $ct = $cs['trend'];
+            $cogsPeak = max(0.01, ...array_map(fn ($v) => (float) $v, $ct['cogs_pct']));
+        @endphp
+        <div style="page-break-inside: avoid;">
+            <div class="section-header">Cost of goods %</div>
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <thead>
+                    <tr>
+                        <th style="width: 13%; text-align: left; {{ $th }}">Month</th>
+                        <th style="text-align: left; {{ $th }}">
+                            <span style="color: {{ $colors['purchases'] }};">■</span> Cost of goods % of sales
+                            &nbsp; <span style="color: {{ $colors['previous'] }};">■</span> no stock take at one end (purchases only)
+                        </th>
+                        <th style="width: 13%; text-align: right; {{ $th }}">Sales</th>
+                        <th style="width: 13%; text-align: right; {{ $th }}">Cost of goods</th>
+                        <th style="width: 9%; text-align: right; {{ $th }}">Cost %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($ct['labels'] as $i => $label)
+                        <tr>
+                            <td style="font-size: 8pt; padding: 2px 6px 2px 0; {{ $loop->last ? 'font-weight: bold;' : '' }}">{{ $label }}</td>
+                            <td style="padding: 2px 6px 2px 0;">
+                                {!! $bar((float) $ct['cogs_pct'][$i], $cogsPeak, $ct['complete'][$i] ? $colors['purchases'] : $colors['previous'], 12) !!}
+                            </td>
+                            <td style="text-align: right; font-size: 8pt; padding: 2px 6px 2px 0;">{{ $num($ct['revenue'][$i]) }}</td>
+                            <td style="text-align: right; font-size: 8pt; padding: 2px 6px 2px 0;">{{ $num($ct['cogs'][$i]) }}</td>
+                            <td style="text-align: right; font-size: 8pt; padding: 2px 0;">{{ $pct($ct['cogs_pct'][$i]) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+            @if ($cs['rows'] !== [])
+                @php $csTransfers = collect($cs['rows'])->contains(fn ($r) => abs($r['transfer_in']) > 0.005 || abs($r['transfer_out']) > 0.005); @endphp
+                <table class="items" style="margin-top: 8px;">
+                    <thead>
+                        <tr>
+                            <th>{{ $cs['month_label'] }}</th>
+                            <th class="right">Revenue</th>
+                            <th class="right">Opening stock</th>
+                            <th class="right">+ Purchases</th>
+                            @if ($csTransfers)<th class="right">± Transfers</th>@endif
+                            <th class="right">− Closing stock</th>
+                            <th class="right">= Cost of goods</th>
+                            <th class="right">Cost %</th>
+                            <th class="right">{{ $vsLast }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (array_merge($cs['rows'], [$cs['total'] + ['name' => 'Total']]) as $r)
+                            @php
+                                $b = $loop->last ? 'font-weight: bold; border-top: 1px solid #1f2937;' : '';
+                                [$vt, $vc] = $delta($r['cost_pct_change'], false, true);
+                                $net = $r['transfer_in'] - $r['transfer_out'];
+                            @endphp
+                            <tr>
+                                <td style="font-weight: bold; {{ $b }}">{{ $r['name'] }}@if (($r['basis'] ?? null) === 'total_sales')<div style="font-size: 7pt; font-weight: normal; color: #64748b;">measured against total sales</div>@endif</td>
+                                <td class="right" style="{{ $b }}">{{ $num($r['revenue']) }}</td>
+                                <td class="right" style="{{ $b }}">{{ $num($r['opening_stock']) }}</td>
+                                <td class="right" style="{{ $b }}">{{ $num($r['purchases']) }}</td>
+                                @if ($csTransfers)<td class="right" style="{{ $b }}">{{ $net < 0 ? '(' . $num(abs($net)) . ')' : $num($net) }}</td>@endif
+                                <td class="right" style="{{ $b }}">{{ $num($r['closing_stock']) }}</td>
+                                <td class="right" style="font-weight: bold; {{ $b }}">{{ $num($r['cogs']) }}</td>
+                                <td class="right" style="font-weight: bold; {{ $b }}">{{ $r['revenue'] > 0 ? $pct($r['cost_pct']) : '—' }}</td>
+                                <td class="right" style="color: {{ $vc }}; font-size: 8pt; {{ $b }}">{{ $vt }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+            <div style="{{ $note }}">
+                Cost of goods = opening stock + purchases{{ $csTransfers ?? false ? ' ± transfers' : '' }} − closing stock, as on Reports &gt; Cost Summary.
+                @if (! $cs['has_opening'] && ! $cs['has_closing'])
+                    No completed stock take for {{ $cs['previous_label'] }} or {{ $cs['month_label'] }} — both count as 0, so {{ $cs['month_label'] }} is purchases only.
+                @elseif (! $cs['has_opening'])
+                    No completed stock take for {{ $cs['previous_label'] }} — opening stock counts as 0.
+                @elseif (! $cs['has_closing'])
+                    No completed stock take for {{ $cs['month_label'] }} yet — closing stock counts as 0.
+                @endif
+                {{ $cs['company_wide'] ? 'Company-wide.' : '' }}
+            </div>
+        </div>
+    @else
     {{-- ═══ Purchase cost % ══════════════════════════════════════════════ --}}
     <div style="page-break-inside: avoid;">
         <div class="section-header">Purchase cost %</div>
@@ -352,6 +440,7 @@
             </tbody>
         </table>
     </div>
+    @endif
 
     @php
         // [label, total key, format, % of sales key shown under the amount]

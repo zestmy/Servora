@@ -102,6 +102,64 @@ class DepartmentTotalSalesCostingTest extends TestCase
         $this->assertEquals(30.0, $summary['totals']['cost_pct']);
     }
 
+    public function test_the_monthly_wip_review_shows_cost_of_goods_from_stock_takes(): void
+    {
+        // Opening stock (July's count) and closing stock (August's), per department.
+        foreach ([
+            [$this->kitchen, '2026-07-31', 200], [$this->kitchen, '2026-08-31', 250],
+            [$this->consumable, '2026-07-31', 50], [$this->consumable, '2026-08-31', 20],
+        ] as [$dept, $date, $value]) {
+            \App\Models\StockTake::create([
+                'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id, 'department_id' => $dept->id,
+                'status' => 'completed', 'method' => 'summary', 'stock_take_date' => $date, 'total_stock_cost' => $value,
+            ]);
+        }
+
+        $report = app(\App\Services\Reports\WeeklyWipReview::class)->build(
+            $this->company->id, [$this->outlet->id], \Carbon\Carbon::parse('2026-08-01'), 3, 'month', true, false,
+        );
+        $cs = $report['cost_summary'];
+        $rows = collect($cs['rows'])->keyBy('name');
+
+        $food = $rows['Food'];
+        $this->assertEquals(200, $food['opening_stock']);
+        $this->assertEquals(300, $food['purchases']);
+        $this->assertEquals(250, $food['closing_stock']);
+        $this->assertEquals(250, $food['cogs'], '200 + 300 − 250.');
+        $this->assertEquals(25.0, $food['cost_pct'], '250 of 1,000 food sales.');
+
+        $this->assertEquals(0, $rows['Beverage']['cogs'], 'Sold, with no department buying for it — still listed.');
+
+        $consumable = $rows['Consumable · total sales'];
+        $this->assertEquals(180, $consumable['cogs'], '50 + 150 − 20.');
+        $this->assertEquals(12.0, $consumable['cost_pct'], '180 of all 1,500 in sales.');
+
+        $this->assertEquals(430, $cs['total']['cogs']);
+        $this->assertEquals(1500, $cs['total']['revenue']);
+        $this->assertEquals(28.7, $cs['total']['cost_pct']);
+        $this->assertTrue($cs['has_opening']);
+        $this->assertTrue($cs['has_closing']);
+        $this->assertFalse($cs['company_wide']);
+
+        // The month trend: August has a count at both ends; July has no June count.
+        $this->assertSame(['Jun 2026', 'Jul 2026', 'Aug 2026'], $cs['trend']['labels']);
+        $this->assertSame([false, false, true], $cs['trend']['complete']);
+        $this->assertEquals(28.7, $cs['trend']['cogs_pct'][2]);
+        $this->assertNull($cs['trend']['cogs_pct'][0], 'No sales in June — no percentage.');
+
+        // Never built for a company other than the signed-in user's.
+        $other = Company::create(['name' => 'Other Co', 'slug' => 'other-' . uniqid(), 'currency' => 'MYR', 'is_active' => true]);
+        $this->assertNull(app(\App\Services\Reports\WeeklyWipReview::class)->build(
+            $other->id, [], \Carbon\Carbon::parse('2026-08-01'), 3, 'month', true, false,
+        )['cost_summary']);
+
+        // Weekly has no stock takes to work from.
+        $weekly = app(\App\Services\Reports\WeeklyWipReview::class)->build(
+            $this->company->id, [$this->outlet->id], \Carbon\Carbon::parse('2026-08-10'), 4, 'week', false, false,
+        );
+        $this->assertNull($weekly['cost_summary']);
+    }
+
     public function test_the_settings_screen_saves_and_reloads_total_sales(): void
     {
         $dept = Department::create(['company_id' => $this->company->id, 'name' => 'Packaging', 'sales_category_id' => $this->food->id, 'is_active' => true]);

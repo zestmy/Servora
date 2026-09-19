@@ -247,6 +247,10 @@ class CostSummaryService
             'period'             => $period,
             'outlet_id'          => $outletId,
             'is_custom_range'    => $isCustomRange,
+            // Whether a completed stock take was found at each end. Without one
+            // that side counts as zero, and COGS is just purchases — worth saying.
+            'has_opening_stock'  => $openingByDept->isNotEmpty(),
+            'has_closing_stock'  => $closingByDept->isNotEmpty(),
         ];
     }
 

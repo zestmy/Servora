@@ -246,6 +246,7 @@ class WipReviewOvertimeAndLabourTest extends TestCase
     {
         $this->claim('2026-08-05', 4);
         $this->payrollRun('2026-08-01', PayrollRun::APPROVED, $this->outlet, [[$this->aisyah, 3000]]);
+        $this->actingAs($this->user);  // the PDF controller always runs signed in
 
         $render = fn (bool $pay) => view('pdf.wip-review', [
             'report' => app(\App\Services\Reports\WeeklyWipReview::class)->build(
@@ -255,7 +256,7 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         ])->render();
 
         $withPay = $render(true);
-        foreach (['Purchase cost %', 'Purchases by department', 'Staff meals', 'Stock transfers',
+        foreach (['Cost of goods %', 'Purchases by department', 'Staff meals', 'Stock transfers',
                   'Overtime by section', 'Overtime by outlet', 'Labour cost', 'By outlet'] as $heading) {
             $this->assertStringContainsString($heading, $withPay);
         }

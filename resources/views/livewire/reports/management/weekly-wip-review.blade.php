@@ -42,8 +42,12 @@
         $slides['mtd']      = 'Month to date — sales, covers & average check';
         $slides['forecast'] = 'Sales forecast — ' . $sp['forecast']['month_label'];
     }
+    // Monthly, the purchase-cost slide becomes cost of goods — opening stock +
+    // purchases − closing stock — which month-end stock takes make possible.
+    // Weekly there are no stock takes, so purchases are the honest measure.
+    $cs = $report['cost_summary'] ?? null;
+    $slides['trend'] = $cs !== null ? 'Cost of goods %' : 'Purchase cost %';
     $slides += [
-        'trend'       => 'Purchase cost %',
         'departments'  => 'Purchases by department',
         'wastage'      => 'Wastage',
         'dept_wastage' => 'Wastage by department',
@@ -505,6 +509,7 @@
             </section>
         @endif
 
+        @if ($cs === null)
         {{-- ── Purchase cost % trend ───────────────────────────────────── --}}
         <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-trend-{{ $idx['trend'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['trend'] + 1, 'title' => $slides['trend'], 'hint' => 'click a ' . $unit . ' to review it'])
@@ -604,6 +609,140 @@
                 </table>
             </div>
         </section>
+        @endif
+
+        {{-- ── Cost of goods % (monthly — replaces Purchase cost %) ────── --}}
+        @if ($cs !== null)
+            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-cogs-{{ $idx['trend'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
+                @include('livewire.reports.management.partials.wip-slide-head', [
+                    'n' => $idx['trend'] + 1, 'title' => $slides['trend'],
+                    'hint' => 'opening stock + purchases − closing stock, as % of sales · click a month to review it',
+                ])
+
+                {{-- Cost of goods % by month. A month missing a stock take at either
+                     end is really purchases only: drawn grey and labelled, not
+                     passed off as a true COGS figure. --}}
+                <div class="relative h-64" :class="presenting && '!h-[24vh]'"
+                     wire:key="wip-cogs-{{ md5(json_encode($cs['trend'])) }}"
+                     x-data="{
+                        init() {
+                            const old = Chart.getChart(this.$refs.c); if (old) { old.destroy(); }
+                            const d = @js($cs['trend']);
+                            const colors = @js($report['charts']['trend']['colors']);
+                            const rm = v => 'RM ' + Number(v).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            new Chart(this.$refs.c, {
+                                type: 'bar',
+                                data: {
+                                    labels: d.labels,
+                                    datasets: [{
+                                        label: 'Cost of goods % of sales', data: d.cogs_pct, borderRadius: 3,
+                                        backgroundColor: d.complete.map(ok => ok ? colors.purchases : colors.previous),
+                                    }],
+                                },
+                                options: {
+                                    responsive: true, maintainAspectRatio: false,
+                                    onClick: (evt, els) => { if (els.length) { this.$wire.reviewPeriod(d.starts[els[0].index]); } },
+                                    onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: { callbacks: {
+                                            label: i => 'Cost of goods: ' + (i.parsed.y === null ? '—' : i.parsed.y.toFixed(1) + '% of sales'),
+                                            afterLabel: i => [
+                                                'COGS: ' + rm(d.cogs[i.dataIndex]),
+                                                'Sales: ' + rm(d.revenue[i.dataIndex]),
+                                                'Purchases: ' + rm(d.purchases[i.dataIndex]),
+                                            ].concat(d.complete[i.dataIndex] ? [] : ['No stock take at one end — purchases only']),
+                                        } },
+                                    },
+                                    scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } },
+                                },
+                            });
+                        },
+                     }">
+                    <canvas x-ref="c"></canvas>
+                </div>
+                @if (in_array(false, $cs['trend']['complete'], true))
+                    <p class="mt-1 text-xs text-gray-600">
+                        <span class="inline-block h-2.5 w-2.5 rounded-full align-middle" style="background: {{ $report['charts']['trend']['colors']['previous'] }}"></span>
+                        Grey: a month without a completed stock take at one end — purchases only.
+                    </p>
+                @endif
+
+                <h3 class="mt-5 mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">By category — {{ $cs['month_label'] }}</h3>
+
+                @if ($cs['rows'] === [])
+                    <p class="py-8 text-center text-sm text-gray-600">No sales or costs by category for {{ $cs['month_label'] }}.</p>
+                @else
+                    @php
+                        // A transfers column only when something moved (outlet view only).
+                        $csTransfers = collect($cs['rows'])->contains(fn ($r) => abs($r['transfer_in']) > 0.005 || abs($r['transfer_out']) > 0.005);
+                    @endphp
+                    <div class="overflow-x-auto">
+                        <table class="table-surface min-w-full text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Category</th>
+                                    <th class="px-3 py-2 text-right">Revenue</th>
+                                    <th class="px-3 py-2 text-right">Opening stock</th>
+                                    <th class="px-3 py-2 text-right">+ Purchases</th>
+                                    @if ($csTransfers)
+                                        <th class="px-3 py-2 text-right">± Transfers</th>
+                                    @endif
+                                    <th class="px-3 py-2 text-right">− Closing stock</th>
+                                    <th class="px-3 py-2 text-right wip-current">= Cost of goods</th>
+                                    <th class="px-3 py-2 text-right">Cost %</th>
+                                    <th class="px-3 py-2 text-right">vs last mth</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (array_merge($cs['rows'], [$cs['total'] + ['name' => 'Total']]) as $r)
+                                    @php
+                                        $isTotal = $loop->last;
+                                        [$ct, $cc] = $delta($r['cost_pct_change'], false, true);
+                                        $net = $r['transfer_in'] - $r['transfer_out'];
+                                    @endphp
+                                    <tr wire:key="cs-{{ $loop->index }}" class="{{ $isTotal ? 'wip-emph' : '' }}">
+                                        <td class="px-3 py-2 wip-label">
+                                            {{ $r['name'] }}
+                                            @if (($r['basis'] ?? null) === 'total_sales')
+                                                <span class="block text-[11px] font-normal text-gray-500">measured against total sales</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($r['revenue'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($r['opening_stock'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($r['purchases'], 2) }}</td>
+                                        @if ($csTransfers)
+                                            <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $net < 0 ? '(' . number_format(abs($net), 2) . ')' : number_format($net, 2) }}</td>
+                                        @endif
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($r['closing_stock'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">{{ number_format($r['cogs'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">{{ $r['revenue'] > 0 ? $pct($r['cost_pct']) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap"><span class="{{ $cc }}">{{ $ct }}</span></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+
+                {{-- Missing stock takes change what COGS means — shown when presenting too. --}}
+                @if (! $cs['has_opening'] || ! $cs['has_closing'])
+                    <p class="mt-2 text-xs text-warning-700">
+                        @if (! $cs['has_opening'] && ! $cs['has_closing'])
+                            No completed stock take for {{ $cs['previous_label'] }} or {{ $cs['month_label'] }} — opening and closing stock count as 0, so cost of goods is purchases only.
+                        @elseif (! $cs['has_opening'])
+                            No completed stock take for {{ $cs['previous_label'] }} — opening stock counts as 0.
+                        @else
+                            No completed stock take for {{ $cs['month_label'] }} yet — closing stock counts as 0.
+                        @endif
+                    </p>
+                @endif
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
+                    Same figures as Reports &gt; Cost Summary. Opening stock is the previous month's completed stock take, closing stock this month's.
+                    {{ $cs['company_wide'] ? 'Company-wide — pick one outlet to include its transfers.' : '' }}
+                </p>
+            </section>
+        @endif
 
         {{-- ── Purchases by department ─────────────────────────────────── --}}
         <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-departments-{{ $idx['departments'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && '!mb-0 shrink-0'">
