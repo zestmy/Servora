@@ -40,7 +40,7 @@
         $slides['forecast'] = 'Sales forecast — ' . $sp['forecast']['month_label'];
     }
     $slides += [
-        'trend'       => 'Sales vs purchases',
+        'trend'       => 'Purchase cost %',
         'departments' => 'By department',
         'wastage'     => 'Wastage',
         'staff_meals' => 'Staff meals',
@@ -426,7 +426,7 @@
             </section>
         @endif
 
-        {{-- ── Sales vs purchases trend ────────────────────────────────── --}}
+        {{-- ── Purchase cost % trend ───────────────────────────────────── --}}
         <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['trend'] + 1, 'title' => $slides['trend'], 'hint' => 'click a ' . $unit . ' to review it'])
 

@@ -255,7 +255,7 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         ])->render();
 
         $withPay = $render(true);
-        foreach (['Sales vs purchases', 'By department', 'Staff meals', 'Stock transfers',
+        foreach (['Purchase cost %', 'By department', 'Staff meals', 'Stock transfers',
                   'Overtime by section', 'Overtime by outlet', 'Labour cost', 'By outlet'] as $heading) {
             $this->assertStringContainsString($heading, $withPay);
         }

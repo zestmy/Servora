@@ -278,9 +278,9 @@
         </div>
     @endif
 
-    {{-- ═══ Sales vs purchases ═══════════════════════════════════════════ --}}
+    {{-- ═══ Purchase cost % ══════════════════════════════════════════════ --}}
     <div style="page-break-inside: avoid;">
-        <div class="section-header">Sales vs purchases</div>
+        <div class="section-header">Purchase cost %</div>
         @php $peak = max(0.01, ...array_map('floatval', $report['totals']['cost_pct'])); @endphp
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
