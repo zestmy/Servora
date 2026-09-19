@@ -58,17 +58,17 @@
     {{-- ═══ Stat cards ═══════════════════════════════════════════════════ --}}
     <table style="width: 100%; border-collapse: separate; border-spacing: 5px 0; margin-bottom: 5px;">
         <tr>
-            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #2563eb; padding: 7px 10px;">
+            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #0962ef; padding: 7px 10px;">
                 <div style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">Total {{ strtolower($valueLabel) }}</div>
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a; white-space: nowrap;"><span style="font-size: 8pt; color: #64748b;">RM</span> {{ $money($totals['value']) }}</div>
                 <div style="font-size: 7.5pt; color: #94a3b8;">RM {{ $money($totals['perDay']) }} per day</div>
             </td>
-            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #60a5fa; padding: 7px 10px;">
+            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #458bf9; padding: 7px 10px;">
                 <div style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">{{ ucfirst(\Illuminate\Support\Str::plural($noun, 2)) }}</div>
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a; white-space: nowrap;">{{ number_format($totals['count']) }}</div>
                 <div style="font-size: 7.5pt; color: #94a3b8;">RM {{ $money($totals['average']) }} average</div>
             </td>
-            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #1d4ed8; padding: 7px 10px;">
+            <td style="width: 25%; border: 1px solid #e5e7eb; border-top: 2.5px solid #0752c7; padding: 7px 10px;">
                 <div style="font-size: 7pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">{{ $groupLabel }}s</div>
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a; white-space: nowrap;">{{ number_format($totals['groups']) }}</div>
             </td>
@@ -171,7 +171,7 @@
                                 {{ number_format($g['count']) }} {{ \Illuminate\Support\Str::plural($noun, $g['count']) }}
                                 &middot; RM {{ $money($g['value']) }}
                                 &middot; {{ $pct($g['share']) }} of {{ strtolower($valueLabel) }}
-                                &middot; <a href="#summary" style="color: #2563eb; text-decoration: none;">&uarr; summary</a>
+                                &middot; <a href="#summary" style="color: #0962ef; text-decoration: none;">&uarr; summary</a>
                             </td>
                         </tr></table>
                     </div>

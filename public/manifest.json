@@ -1,7 +1,7 @@
 {
     "name": "Servora",
     "short_name": "Servora",
-    "description": "AI-powered F&B operations — inventory, recipes, procurement, sales.",
+    "description": "Smart restaurant operations — inventory, recipes, procurement, sales.",
     "start_url": "/dashboard",
     "scope": "/",
     "display": "standalone",
@@ -11,7 +11,7 @@
     "icons": [
         {
             "src": "/favicon.png",
-            "sizes": "512x512",
+            "sizes": "300x300",
             "type": "image/png",
             "purpose": "any"
         },

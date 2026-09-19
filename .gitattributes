@@ -2,10 +2,6 @@
 # cmd.exe misparses parenthesized blocks under LF endings
 *.cmd text eol=crlf
 
-# Fonts are binary; never let text=auto guess at them.
-*.ttf binary
-*.otf binary
-
 *.blade.php diff=html
 *.css diff=css
 *.html diff=html

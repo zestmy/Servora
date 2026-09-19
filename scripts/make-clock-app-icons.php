@@ -34,7 +34,7 @@ function makeIcon(int $size, string $path, bool $maskable = false): void
     imagealphablending($img, true);
     imagesavealpha($img, true);
 
-    $brand = imagecolorallocate($img, 29, 78, 216);     // brand-700, the header fill
+    $brand = imagecolorallocate($img, 7, 82, 199);      // brand-700, the header fill
     $white = imagecolorallocate($img, 255, 255, 255);
 
     // Maskable icons get cropped to the OS's own shape, so the background

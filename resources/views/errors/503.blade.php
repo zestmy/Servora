@@ -36,7 +36,7 @@
         .gear {
             width: 40px; height: 40px;
             margin: 0 auto 1rem;
-            color: #2563eb;
+            color: #0962ef;
             animation: spin 6s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }

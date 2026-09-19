@@ -367,7 +367,7 @@
             .lms-overlay:hover .lms-play-icon, .lms-overlay.show-icon .lms-play-icon { opacity: 1; }
             .lms-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(255,255,255,0.2); z-index: 11; cursor: pointer; }
             .lms-progress:hover { height: 6px; }
-            .lms-progress-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.3s linear; }
+            .lms-progress-fill { height: 100%; background: #1f73f7; width: 0%; transition: width 0.3s linear; }
             .lms-fs-btn {
                 position: absolute; bottom: 12px; right: 12px; z-index: 12;
                 background: rgba(0,0,0,0.5); border: none; color: #fff;

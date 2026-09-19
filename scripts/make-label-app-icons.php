@@ -32,7 +32,7 @@ function makeIcon(int $size, string $path, bool $maskable = false): void
     imagealphablending($img, true);
     imagesavealpha($img, true);
 
-    $brand  = imagecolorallocate($img, 37, 99, 235);   // brand-600, matching the manifest's theme_color
+    $brand  = imagecolorallocate($img, 9, 98, 239);    // brand-600, matching the manifest's theme_color
     $white  = imagecolorallocate($img, 255, 255, 255);
 
     // Maskable icons get cropped to a circle by the OS, so the background

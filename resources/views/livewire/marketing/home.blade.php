@@ -36,7 +36,7 @@
 
                 <div class="lg:col-span-7">
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-                        AI-powered F&B operations
+                        AI-powered restaurant operations
                     </p>
 
                     <h1 class="display-1 mt-4 text-gray-950">

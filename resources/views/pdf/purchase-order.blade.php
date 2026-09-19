@@ -110,7 +110,7 @@
                                 $baseUomAbbr = $line->ingredient->baseUom?->abbreviation ?? '';
                             @endphp
                             @if ($packSize > 1 && $baseUomAbbr)
-                                <span style="font-size: 9px; color: #2563eb;">({{ rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.') }} {{ strtoupper($baseUomAbbr) }}/PACK)</span>
+                                <span style="font-size: 9px; color: #0962ef;">({{ rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.') }} {{ strtoupper($baseUomAbbr) }}/PACK)</span>
                             @endif
                         @endif
                     </td>

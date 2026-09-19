@@ -25,8 +25,9 @@ import typography from '@tailwindcss/typography';
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-// Primary Blue. brand-600 is #2563EB exactly — the corporate identity's one
-// accent colour — and the rest of the scale is built around it.
+// Primary Blue. brand-600 is #0962EF exactly — the blue of the logo artwork,
+// and the identity's one accent colour. The rest of the scale is built around
+// it: hue held at 217, lightness stepped, so every step is the same blue.
 //
 // It replaced a deep teal when the identity did. The teal was chosen for not
 // colliding with the semantic hues this app leans on (green "healthy margin",
@@ -37,22 +38,23 @@ import typography from '@tailwindcss/typography';
 // brand steps, not from `info`.
 //
 // Contrast, white text on a filled button (WCAG AA needs 4.5:1 for body):
-//   brand-600  5.17:1  ✓ default fill
-//   brand-700  6.70:1  ✓ hover / active fill
-//   brand-500  3.68:1  ✗ large text only, never a body-size filled button
-// On the gray-900 sidebar, brand-400 sits at 6.98:1 ✓
+//   brand-600  5.24:1  ✓ default fill
+//   brand-700  6.91:1  ✓ hover / active fill
+//   brand-500  4.33:1  ✗ close, but short of AA — large text only, never a
+//                        body-size filled button
+// On the gray-900 sidebar, brand-400 sits at 5.33:1 ✓
 const brand = {
-    50:  '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6',
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8a',
-    950: '#172554',
+    50:  '#edf4ff',
+    100: '#d9e8fe',
+    200: '#b7d2fe',
+    300: '#85b3fc',
+    400: '#458bf9',
+    500: '#1f73f7',
+    600: '#0962ef',
+    700: '#0752c7',
+    800: '#0843a0',
+    900: '#0a387f',
+    950: '#072453',
 };
 
 // Deep Navy, the identity's second colour: the ground the logo is reversed
@@ -62,7 +64,7 @@ const brand = {
 // mean separating "dark surface" from "darkest text" across hundreds of files,
 // which is its own change. This scale is the destination: use it for new dark
 // chrome, and migrate a surface when you are already in the file. White on
-// navy-900 is 16.49:1, and brand-400 on it is 6.49:1.
+// navy-900 is 16.49:1, and brand-400 on it is 4.96:1.
 const navy = {
     50:  '#f2f6fb',
     100: '#e3ebf5',
@@ -209,7 +211,7 @@ export default {
                 'e2': '0 2px 8px -2px rgb(11 31 59 / 0.08), 0 1px 2px 0 rgb(11 31 59 / 0.04)',
                 'e3': '0 8px 24px -6px rgb(11 31 59 / 0.10), 0 2px 6px -2px rgb(11 31 59 / 0.05)',
                 'e4': '0 20px 48px -12px rgb(11 31 59 / 0.16), 0 4px 12px -4px rgb(11 31 59 / 0.06)',
-                'brand': '0 8px 24px -8px rgb(37 99 235 / 0.45)',
+                'brand': '0 8px 24px -8px rgb(9 98 239 / 0.45)',
                 // Filled controls. box-shadow is one property, so the inner
                 // highlight has to ship in the SAME token as the drop shadow —
                 // two utilities would just overwrite each other.

@@ -28,7 +28,7 @@
         /* ── Page transition: top progress bar ──────────────────────────── */
         #nav-progress {
             position: fixed; top: 0; left: 0; height: 3px; z-index: 9999;
-            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            background: linear-gradient(90deg, #1f73f7, #458bf9);
             width: 0; opacity: 0;
             transition: none;
             pointer-events: none;

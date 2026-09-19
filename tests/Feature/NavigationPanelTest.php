@@ -287,7 +287,7 @@ class NavigationPanelTest extends TestCase
             'light item'         => ['light item text',     '#374151', $white,   4.5],
             'light muted'        => ['light group header',  '#4b5563', $white,   4.5],
             'light caption'      => ['light section caption', '#4b5563', $white, 4.5],
-            'brand active pill'  => ['white on brand-600',  $white,    '#2563eb', 4.5],
+            'brand active pill'  => ['white on brand-600',  $white,    '#0962ef', 4.5],
             'kitchen active pill' => ['white on workspace-600', $white, '#7c3aed', 4.5],
         ];
     }
