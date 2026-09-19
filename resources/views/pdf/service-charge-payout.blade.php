@@ -40,6 +40,14 @@
         // Everything after gross is a deduction, so a slip that shows none
         // still has to explain why the net equals the gross.
         $hasDeductions = $row['dedAmt'] > 0 || $row['lateAmt'] > 0 || $row['specialAmt'] > 0;
+
+        // Their part of what the pool handed back: the lift from the base
+        // rate to the final one, on their own points. Split out of the gross
+        // rather than added to it, so the lines still sum to the same net.
+        $basePerPoint = (float) ($serviceCharge['basePerPoint'] ?? $serviceCharge['perPoint']);
+        $uplift       = ($serviceCharge['redistribute'] ?? false)
+            ? $row['points'] * ((float) $serviceCharge['perPoint'] - $basePerPoint)
+            : 0.0;
     @endphp
     <div class="slip">
         <div class="slip-head">
@@ -59,13 +67,30 @@
         </div>
 
         <table class="lines">
-            <tr>
-                <td class="desc">
-                    Service points
-                    <span class="sub">{{ number_format($row['points'], 2) }} × RM {{ number_format($serviceCharge['perPoint']) }} per point</span>
-                </td>
-                <td class="r">{{ number_format($row['gross'], 2) }}</td>
-            </tr>
+            @if ($uplift > 0)
+                <tr>
+                    <td class="desc">
+                        Service points
+                        <span class="sub">{{ number_format($row['points'], 2) }} × RM {{ number_format($basePerPoint) }} per point</span>
+                    </td>
+                    <td class="r">{{ number_format($row['points'] * $basePerPoint, 2) }}</td>
+                </tr>
+                <tr>
+                    <td class="desc">
+                        Redistributed deductions
+                        <span class="sub">{{ number_format($row['points'], 2) }} × RM {{ number_format((float) $serviceCharge['perPoint'] - $basePerPoint) }} per point, from deductions returned to the pool</span>
+                    </td>
+                    <td class="r">{{ number_format($uplift, 2) }}</td>
+                </tr>
+            @else
+                <tr>
+                    <td class="desc">
+                        Service points
+                        <span class="sub">{{ number_format($row['points'], 2) }} × RM {{ number_format($serviceCharge['perPoint']) }} per point</span>
+                    </td>
+                    <td class="r">{{ number_format($row['gross'], 2) }}</td>
+                </tr>
+            @endif
 
             @if ($row['dedAmt'] > 0)
                 <tr>
@@ -131,6 +156,11 @@
             @if ($serviceCharge['fundPoints'] > 0)
                 That total includes {{ number_format($serviceCharge['fundPoints'], 2) }} points allocated to
                 {{ collect($serviceCharge['funds'])->pluck('name')->join(', ', ' and ') }}.
+            @endif
+            @if (($serviceCharge['redistribute'] ?? false) && ($serviceCharge['redistributed'] ?? 0) > 0)
+                RM {{ number_format($serviceCharge['redistributed'], 2) }} deducted from staff this period was
+                returned to the pool, lifting each point from RM {{ number_format($basePerPoint) }}
+                to RM {{ number_format($serviceCharge['perPoint']) }}.
             @endif
             @if (($serviceCharge['minDays'] ?? 0) > 0)
                 {{-- Says what the divisor was narrowed by, on the document the

@@ -252,4 +252,42 @@ class ServiceChargeRedistributeDeductionsTest extends TestCase
         $this->assertEquals(1071, $r['perPoint']);
         $this->assertEquals(1000, $r['basePerPoint']);
     }
+
+    private function slips(array $r): string
+    {
+        return view('pdf.service-charge-payout', [
+            'rows' => collect($r['rows'])->filter(fn ($row) => $row['points'] > 0)->values(),
+            'serviceCharge' => $r, 'from' => $this->from, 'to' => $this->to,
+            'brandName' => 'Redistribute Co', 'logoBase64' => null, 'outletName' => 'KLCC',
+            'lateRate' => 0.0, 'exportedBy' => 'Tester',
+        ])->render();
+    }
+
+    public function test_each_slip_shows_its_share_of_what_was_redistributed(): void
+    {
+        $this->mc($this->staff('A'), 2);
+        $this->staff('B', points: 2);
+        $this->pool(3000, redistribute: true, mcPct: 10);
+
+        // 3000 over 2.8 kept points: base 1000, final 1071.
+        $html = $this->slips($this->read());
+
+        $this->assertStringContainsString('Redistributed deductions', $html);
+        $this->assertStringContainsString('2.00 × RM 1,000 per point', $html);
+        $this->assertStringContainsString('2.00 × RM 71 per point', $html);
+        $this->assertStringContainsString('142.00', $html, "B's 2 points x RM71.");
+        $this->assertStringContainsString('lifting each point from RM 1,000', $html);
+    }
+
+    public function test_a_pool_keeping_its_deductions_prints_the_slip_as_before(): void
+    {
+        $this->mc($this->staff('A'), 2);
+        $this->staff('B');
+        $this->pool(2000, redistribute: false, mcPct: 10);
+
+        $html = $this->slips($this->read());
+
+        $this->assertStringNotContainsString('Redistributed deductions', $html);
+        $this->assertStringContainsString('1.00 × RM 1,000 per point', $html);
+    }
 }
