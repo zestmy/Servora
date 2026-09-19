@@ -9,6 +9,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-09-20 — **WIP review Purchases by department slide: bigger table text when presenting** (same short-table size as Staff meals / Wastage by department). Checked with five departments under long real names (e.g. PASTRY & BAKERY KITCHEN): ~35px and unshrunk at 1080p (was ~27px), ~21.5px at 720p after a 7% fit (was ~18px). **No migration.**
 - 2026-09-20 — **WIP review Wastage by department slide: bigger table text when presenting** (same short-table size as Staff meals): ~35px at 1080p (was ~27px), ~23px at 720p (was ~18px). Fits unshrunk up to about 6 departments at 1080p; more shrink to fit. **No migration.**
 - 2026-09-20 — **WIP review Staff meals slide: bigger table text when presenting** (the short-table size the category and month-to-date tables use): ~35px at 1080p (was ~27px), ~23px at 720p (was ~18px), fitting without shrinking for a couple of outlets; more outlets shrink to fit as before. **No migration.**
 - 2026-09-20 — **WIP review: empty rows hidden on the Purchase cost % table, bigger forecast slide.** The trend table under the Purchase cost % chart (and the PDF's) drops any figure that is zero in every period shown — transfers, overtime, labour — Sales always stays. The Sales forecast slide, a long two-column list, now sizes its text by screen height when presenting: ~33px at 1080p (was ~22–24px) and ~21px at 720p (was ~16px), labels at full size. WIP suite green (33). **No migration.**
