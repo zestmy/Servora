@@ -626,7 +626,7 @@
                                  out loud because the alternative is a tick that
                                  looks broken: the control is .live, the table does
                                  not move, and nothing on screen explains the gap. --}}
-                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []))
+                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []) || count($scPendingSpecial ?? []))
                                 <span class="px-2.5 py-1 rounded-full bg-warning-50 text-warning-800 font-medium"
                                       title="A calculated period keeps its figures until it is recalculated.">
                                     @php
@@ -641,6 +641,10 @@
                                         if (count($scPendingLate ?? [])) {
                                             $pendingBits[] = count($scPendingLate) . ' late '
                                                 . \Illuminate\Support\Str::plural('entry', count($scPendingLate));
+                                        }
+                                        if (count($scPendingSpecial ?? [])) {
+                                            $pendingBits[] = count($scPendingSpecial) . ' special '
+                                                . \Illuminate\Support\Str::plural('deduction', count($scPendingSpecial));
                                         }
                                         if ($scPendingRedistribute ?? false) {
                                             $pendingBits[] = 'redistribution';
@@ -865,13 +869,16 @@
                                             <span class="text-[11px] text-gray-500">excluded</span>
                                         @else
                                             <input type="number" step="0.01" min="0"
-                                                   wire:model="scSpecial.{{ $scRow['employee']->id }}.amount"
+                                                   wire:model.blur="scSpecial.{{ $scRow['employee']->id }}.amount"
                                                    placeholder="0.00"
                                                    class="w-24 text-xs text-right rounded border-gray-300 tabular-nums" />
                                             <input type="text" maxlength="120"
-                                                   wire:model="scSpecial.{{ $scRow['employee']->id }}.note"
+                                                   wire:model.blur="scSpecial.{{ $scRow['employee']->id }}.note"
                                                    placeholder="reason"
                                                    class="mt-1 w-32 text-[11px] rounded border-gray-200 text-gray-600" />
+                                            @if (in_array($scRow['employee']->id, $scPendingSpecial ?? [], true))
+                                                <span class="block text-[10px] font-medium text-warning-700 mt-0.5">not applied</span>
+                                            @endif
                                             @error('scSpecial.' . $scRow['employee']->id . '.amount')
                                                 <p class="text-[10px] text-danger-500 mt-0.5">{{ $message }}</p>
                                             @enderror

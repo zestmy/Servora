@@ -228,4 +228,45 @@ class ServiceChargeManualLatenessTest extends TestCase
         $panel->set("scManualLate.{$a->id}", '045')
             ->assertDontSee('Not applied yet');
     }
+
+    public function test_a_special_deduction_edit_on_a_calculated_pool_says_it_is_not_applied_yet(): void
+    {
+        $a = $this->staff('A');
+        $this->staff('B');
+
+        $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->outlet->id]);
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo(['hr.attendance', 'hr.attendance.record', 'hr.attendance.service_charge', 'hr.compensation']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $panel = Livewire::actingAs($user)
+            ->test(AttendanceRecords::class)
+            ->set('outletFilter', (string) $this->outlet->id)
+            ->set('periodMode', 'range')
+            ->set('rangeFrom', $this->from->toDateString())
+            ->set('rangeTo', $this->to->toDateString())
+            ->set('showServiceCharge', true)
+            ->set('scAmount', '2000')
+            ->set("scSpecial.{$a->id}.amount", '50')
+            ->set("scSpecial.{$a->id}.note", 'Till short')
+            ->call('saveServiceCharge')
+            ->assertHasNoErrors()
+            ->assertDontSee('Not applied yet');
+
+        // The note alone is a change: it is printed on the slip.
+        $panel->set("scSpecial.{$a->id}.note", 'Till short 12 Jul')
+            ->assertSee('Not applied yet: 1 special deduction');
+
+        // Back as calculated, with the amount typed differently: nothing pending.
+        $panel->set("scSpecial.{$a->id}.note", ' Till short ')
+            ->set("scSpecial.{$a->id}.amount", '50.00')
+            ->assertDontSee('Not applied yet');
+
+        // Several kinds at once read as a list.
+        $panel->set("scSpecial.{$a->id}.amount", '80')
+            ->set("scManualLate.{$a->id}", '10')
+            ->assertSee('Not applied yet: 1 late entry and 1 special deduction');
+    }
 }

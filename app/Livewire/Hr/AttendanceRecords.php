@@ -1143,6 +1143,30 @@ class AttendanceRecords extends Component
             }
         }
 
+        // Special deductions, the same way — amount AND note, because the note
+        // is kept with the calculation and printed on the slip. Normalised
+        // as saveServiceCharge() stores them: a zero amount is no entry, and
+        // its note goes with it.
+        $scSpecials = fn ($entries) => collect($entries ?? [])
+            ->filter(fn ($d) => (float) ($d['amount'] ?? 0) > 0)
+            ->mapWithKeys(fn ($d, $empId) => [(int) $empId => [
+                round((float) $d['amount'], 2),
+                trim((string) ($d['note'] ?? '')),
+            ]])
+            ->all();
+
+        $scPendingSpecial = [];
+        if ($scRow?->isFrozen()) {
+            $typed = $scSpecials($this->scSpecial);
+            $saved = $scSpecials($scRow->special_deductions);
+
+            foreach (array_unique(array_merge(array_keys($typed), array_keys($saved))) as $empId) {
+                if (($typed[$empId] ?? null) !== ($saved[$empId] ?? null)) {
+                    $scPendingSpecial[] = (int) $empId;
+                }
+            }
+        }
+
         $scPendingRedistribute = $scRow?->isFrozen()
             && $this->scRedistribute !== $scRow->redistributesDeductions();
 
@@ -1209,7 +1233,7 @@ class AttendanceRecords extends Component
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
-            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate',
+            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }
