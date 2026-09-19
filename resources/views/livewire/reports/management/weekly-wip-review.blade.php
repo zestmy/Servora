@@ -400,7 +400,6 @@
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Period</th>
-                                <th class="px-3 py-2 text-left">Dates</th>
                                 <th class="px-3 py-2 text-right">Sales</th>
                                 <th class="px-3 py-2 text-right">Covers</th>
                                 <th class="px-3 py-2 text-right">Avg check</th>
@@ -412,8 +411,12 @@
                         <tbody>
                             @foreach ($sp['mtd'] as $m)
                                 <tr wire:key="mtd-{{ $m['key'] }}" class="{{ $m['key'] === 'this_month' ? 'wip-emph' : '' }}">
-                                    <td class="px-3 py-2 whitespace-nowrap wip-label">{{ $m['label'] }}</td>
-                                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ $m['range'] }}</td>
+                                    {{-- Dates under the period, not a column of their own: the
+                                         widest column on the slide, it made everything else smaller. --}}
+                                    <td class="px-3 py-2 whitespace-nowrap wip-label">
+                                        {{ $m['label'] }}
+                                        <span class="block text-xs font-normal text-gray-600">{{ $m['range'] }}</span>
+                                    </td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($m['sales'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($m['covers']) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $m['avg_check'] === null ? '—' : number_format($m['avg_check'], 2) }}</td>
