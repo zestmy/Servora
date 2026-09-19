@@ -440,10 +440,11 @@
                         new Chart(this.$refs.c, {
                             data: {
                                 labels: d.labels,
+                                {{-- Only the ratio is charted: the RM amounts are in the table
+                                     below, and next to sales the purchase bars were too short to
+                                     compare week to week. The tooltip still carries both. --}}
                                 datasets: [
-                                    { type: 'bar', label: 'Sales', data: d.sales, backgroundColor: d.colors.sales, borderRadius: 3, yAxisID: 'y', order: 2 },
-                                    { type: 'bar', label: 'Purchases', data: d.purchases, backgroundColor: d.colors.purchases, borderRadius: 3, yAxisID: 'y', order: 2 },
-                                    { type: 'line', label: 'Purchase cost %', data: d.cost_pct, borderColor: d.colors.line, backgroundColor: d.colors.line, yAxisID: 'pct', tension: 0.3, spanGaps: true, order: 1 },
+                                    { type: 'bar', label: 'Purchase cost % of sales', data: d.cost_pct, backgroundColor: d.colors.purchases, borderRadius: 3 },
                                 ],
                             },
                             options: {
@@ -452,14 +453,14 @@
                                 onClick: (evt, els) => { if (els.length) { this.$wire.reviewPeriod(d.starts[els[0].index]); } },
                                 onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
                                 plugins: {
-                                    legend: { position: 'bottom' },
-                                    tooltip: { callbacks: { label: i => i.dataset.yAxisID === 'pct'
-                                        ? i.dataset.label + ': ' + (i.parsed.y === null ? '—' : i.parsed.y.toFixed(1) + '%')
-                                        : i.dataset.label + ': ' + rm(i.parsed.y) } },
+                                    legend: { display: false },
+                                    tooltip: { callbacks: {
+                                        label: i => 'Purchase cost: ' + (i.parsed.y === null ? '—' : i.parsed.y.toFixed(1) + '% of sales'),
+                                        afterLabel: i => ['Sales: ' + rm(d.sales[i.dataIndex]), 'Purchases: ' + rm(d.purchases[i.dataIndex])],
+                                    } },
                                 },
                                 scales: {
-                                    y: { beginAtZero: true, ticks: { callback: v => 'RM ' + Number(v).toLocaleString() } },
-                                    pct: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } },
+                                    y: { beginAtZero: true, ticks: { callback: v => v + '%' } },
                                 },
                             },
                         });

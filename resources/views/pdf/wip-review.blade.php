@@ -281,13 +281,13 @@
     {{-- ═══ Sales vs purchases ═══════════════════════════════════════════ --}}
     <div style="page-break-inside: avoid;">
         <div class="section-header">Sales vs purchases</div>
-        @php $peak = max(0.01, max($report['totals']['sales']), max($report['totals']['purchases'])); @endphp
+        @php $peak = max(0.01, ...array_map('floatval', $report['totals']['cost_pct'])); @endphp
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
                 <tr>
                     <th style="width: 13%; text-align: left; {{ $th }}">{{ ucfirst($unit) }}</th>
                     <th style="text-align: left; {{ $th }}">
-                        <span style="color: {{ $colors['sales'] }};">■</span> Sales &nbsp; <span style="color: {{ $colors['purchases'] }};">■</span> Purchases
+                        <span style="color: {{ $colors['purchases'] }};">■</span> Purchase cost % of sales
                     </th>
                     <th style="width: 13%; text-align: right; {{ $th }}">Sales</th>
                     <th style="width: 13%; text-align: right; {{ $th }}">Purchases</th>
@@ -299,9 +299,7 @@
                     <tr>
                         <td style="font-size: 8pt; padding: 2px 6px 2px 0; {{ $loop->last ? 'font-weight: bold;' : '' }}">{{ $p['label'] }}</td>
                         <td style="padding: 2px 6px 2px 0;">
-                            {!! $bar($report['totals']['sales'][$i], $peak, $colors['sales']) !!}
-                            <div style="height: 1px;"></div>
-                            {!! $bar($report['totals']['purchases'][$i], $peak, $colors['purchases']) !!}
+                            {!! $bar((float) $report['totals']['cost_pct'][$i], $peak, $colors['purchases'], 12) !!}
                         </td>
                         <td style="text-align: right; font-size: 8pt; padding: 2px 6px 2px 0;">{{ $num($report['totals']['sales'][$i]) }}</td>
                         <td style="text-align: right; font-size: 8pt; padding: 2px 6px 2px 0;">{{ $num($report['totals']['purchases'][$i]) }}</td>
