@@ -626,7 +626,7 @@
                                  out loud because the alternative is a tick that
                                  looks broken: the control is .live, the table does
                                  not move, and nothing on screen explains the gap. --}}
-                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false))
+                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []))
                                 <span class="px-2.5 py-1 rounded-full bg-warning-50 text-warning-800 font-medium"
                                       title="A calculated period keeps its figures until it is recalculated.">
                                     @php
@@ -638,11 +638,15 @@
                                         if ($scPendingMinDays ?? false) {
                                             $pendingBits[] = 'the minimum';
                                         }
+                                        if (count($scPendingLate ?? [])) {
+                                            $pendingBits[] = count($scPendingLate) . ' late '
+                                                . \Illuminate\Support\Str::plural('entry', count($scPendingLate));
+                                        }
                                         if ($scPendingRedistribute ?? false) {
                                             $pendingBits[] = 'redistribution';
                                         }
                                     @endphp
-                                    Not applied yet: {{ implode(' and ', $pendingBits) }} —
+                                    Not applied yet: {{ collect($pendingBits)->join(', ', ' and ') }} —
                                     press Save &amp; Calculate to re-price this period.
                                 </span>
                             @endif
@@ -806,12 +810,15 @@
                                                  other. Saved with the pool by Save & Calculate. --}}
                                             <td class="px-2 py-1.5 text-center">
                                                 <input type="number" step="1" min="0"
-                                                       wire:model="scManualLate.{{ $scRow['employee']->id }}"
+                                                       wire:model.blur="scManualLate.{{ $scRow['employee']->id }}"
                                                        placeholder="0"
                                                        title="Late minutes to add by hand for this period, charged at the clock's per-minute rate with no per-shift cap"
                                                        class="w-16 text-xs text-center rounded border-gray-300 tabular-nums" />
                                                 @if ($clockedMins > 0)
                                                     <span class="block text-[10px] text-danger-600 mt-0.5">+ {{ $clockedMins }} clocked</span>
+                                                @endif
+                                                @if (in_array($scRow['employee']->id, $scPendingLate ?? [], true))
+                                                    <span class="block text-[10px] font-medium text-warning-700 mt-0.5">not applied</span>
                                                 @endif
                                                 @error('scManualLate.' . $scRow['employee']->id)
                                                     <p class="text-[10px] text-danger-500 mt-0.5">{{ $message }}</p>

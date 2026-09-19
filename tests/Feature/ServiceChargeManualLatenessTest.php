@@ -194,4 +194,38 @@ class ServiceChargeManualLatenessTest extends TestCase
             ->call('saveServiceCharge')
             ->assertHasErrors("scManualLate.{$a->id}");
     }
+
+    public function test_an_edit_on_a_calculated_pool_says_it_is_not_applied_yet(): void
+    {
+        $a = $this->staff('A');
+        $this->staff('B');
+
+        $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->outlet->id]);
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo(['hr.attendance', 'hr.attendance.record', 'hr.attendance.service_charge', 'hr.compensation']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $panel = Livewire::actingAs($user)
+            ->test(AttendanceRecords::class)
+            ->set('outletFilter', (string) $this->outlet->id)
+            ->set('periodMode', 'range')
+            ->set('rangeFrom', $this->from->toDateString())
+            ->set('rangeTo', $this->to->toDateString())
+            ->set('showServiceCharge', true)
+            ->set('scAmount', '2000')
+            ->set("scManualLate.{$a->id}", '45')
+            ->call('saveServiceCharge')
+            ->assertHasNoErrors()
+            ->assertDontSee('Not applied yet');
+
+        $panel->set("scManualLate.{$a->id}", '30')
+            ->assertSee('Not applied yet: 1 late entry')
+            ->assertSee('not applied');
+
+        // Back to what was calculated: nothing pending. "045" is still 45.
+        $panel->set("scManualLate.{$a->id}", '045')
+            ->assertDontSee('Not applied yet');
+    }
 }

@@ -1121,6 +1121,28 @@ class AttendanceRecords extends Component
             && max(0, (int) $this->scMinWorkingDays) !== $scRow->minWorkingDays();
 
         // And so does the redistribution tick.
+        // Hand-entered lateness, per person: whoever's box no longer matches
+        // what the pool was saved and calculated with. Both sides normalised
+        // the way saveServiceCharge() stores them, so a blank box and a
+        // missing entry agree, and "045" is not a change from 45.
+        $scLateMinutes = fn ($entries) => collect($entries ?? [])
+            ->map(fn ($m) => (int) $m)
+            ->filter(fn ($m) => $m > 0)
+            ->mapWithKeys(fn ($m, $empId) => [(int) $empId => $m])
+            ->all();
+
+        $scPendingLate = [];
+        if ($scRow?->isFrozen()) {
+            $typed = $scLateMinutes($this->scManualLate);
+            $saved = $scLateMinutes($scRow->manual_late_minutes);
+
+            foreach (array_unique(array_merge(array_keys($typed), array_keys($saved))) as $empId) {
+                if (($typed[$empId] ?? 0) !== ($saved[$empId] ?? 0)) {
+                    $scPendingLate[] = (int) $empId;
+                }
+            }
+        }
+
         $scPendingRedistribute = $scRow?->isFrozen()
             && $this->scRedistribute !== $scRow->redistributesDeductions();
 
@@ -1187,7 +1209,7 @@ class AttendanceRecords extends Component
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
-            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute',
+            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }
