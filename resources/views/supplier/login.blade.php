@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Supplier Login — Servora</title>
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased">
     <nav class="bg-white border-b border-gray-100">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="/"><img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8"></a>
+                <a href="/"><img src="{{ brand_asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8"></a>
                 <a href="{{ route('supplier.register') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition">Register as Supplier</a>
             </div>
         </div>

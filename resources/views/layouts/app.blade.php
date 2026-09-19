@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? 'Dashboard' }} | {{ config('app.name', 'Servora') }}</title>
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
 
     {{-- PWA: installable on mobile, offline fallback, no-cache for auth routes --}}
     <link rel="manifest" href="{{ asset('manifest.json') }}">
@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Servora">
-    <link rel="apple-touch-icon" href="{{ asset('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ brand_asset('favicon.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -132,8 +132,8 @@
                state-key="nav"
                :groups="$navGroups"
                :admin-groups="$navAdmin"
-               logo="/images/servora-logo-white.png"
-               logo-dark="/images/servora-logo-black.png">
+               logo="{{ brand_asset('images/servora-logo-white.png') }}"
+               logo-dark="{{ brand_asset('images/servora-logo-black.png') }}">
 
         {{-- Top CTAs --}}
         <x-slot:top>
@@ -216,8 +216,8 @@
                     aria-controls="nav-primary">
                 <x-icon name="bars" size="h-6 w-6" stroke="2" />
             </button>
-            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7" x-show="navTheme === 'dark'">
-            <img src="/images/servora-logo-black.png" alt="Servora" class="h-7" x-show="navTheme === 'light'" x-cloak>
+            <img src="{{ brand_asset('images/servora-logo-white.png') }}" alt="Servora" class="h-7" x-show="navTheme === 'dark'">
+            <img src="{{ brand_asset('images/servora-logo-black.png') }}" alt="Servora" class="h-7" x-show="navTheme === 'light'" x-cloak>
             @if (! empty($title))
                 <span class="nav-muted ml-auto truncate text-sm max-w-[50%]">{{ $title }}</span>
             @endif
@@ -343,7 +343,7 @@
 <div id="pwa-install-banner"
      style="display:none;"
      class="fixed bottom-3 inset-x-3 z-[120] md:hidden flex items-center gap-3 px-3 py-2.5 bg-gray-900 text-white rounded-xl shadow-lg border border-gray-700">
-    <img src="{{ asset('favicon.png') }}" alt="" class="h-8 w-8 rounded-lg">
+    <img src="{{ brand_asset('favicon.png') }}" alt="" class="h-8 w-8 rounded-lg">
     <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold">Install Servora</p>
         <p class="text-[11px] text-gray-300 leading-tight">Add to home screen for quick access.</p>
