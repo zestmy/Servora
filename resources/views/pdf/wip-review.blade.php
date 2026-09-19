@@ -401,21 +401,26 @@
         </tbody>
     </table>
 
-    {{-- ═══ By department ════════════════════════════════════════════════ --}}
+    {{-- ═══ Purchases by department ══════════════════════════════════════ --}}
+    {{-- Purchases and wastage by department are separate sections, as on the
+         slides: one table carrying both ran to ten columns. --}}
     <div style="page-break-before: always;"></div>
-    <div class="section-header">By department</div>
+    <div class="section-header">Purchases by department</div>
     @if ($report['departments'] === [])
         <div style="{{ $note }}">No department figures for these two {{ $unit }}s.</div>
     @else
+        @php $costPeak = max(0.01, ...array_map(fn ($d) => max((float) $d['cost_pct']['current'], (float) $d['cost_pct']['previous']), $report['departments'])); @endphp
         <table class="items">
             <thead>
                 <tr>
                     <th>Department</th>
+                    <th style="width: 22%;">
+                        <span style="color: {{ $colors['purchases'] }};">■</span> % this {{ $unit }}
+                        &nbsp; <span style="color: {{ $colors['previous'] }};">■</span> Last
+                    </th>
                     <th class="right">Sales</th><th class="right">{{ $vsLast }}</th>
                     <th class="right">Purchases</th><th class="right">{{ $vsLast }}</th>
                     <th class="right">Cost %</th><th class="right">{{ $vsLast }}</th>
-                    <th class="right">Wastage</th><th class="right">{{ $vsLast }}</th>
-                    <th class="right">Wastage %</th>
                 </tr>
             </thead>
             <tbody>
@@ -424,27 +429,29 @@
                         $s = $delta($d['sales']['change'], true);
                         $p = $delta($d['purchases']['change'], false);
                         $c = $delta($d['cost_pct']['change'], false, true);
-                        $w = $delta($d['wastage']['change'], false);
                     @endphp
                     <tr>
                         <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif</td>
+                        <td>
+                            {!! $bar((float) $d['cost_pct']['current'], $costPeak, $colors['purchases']) !!}
+                            <div style="height: 1px;"></div>
+                            {!! $bar((float) $d['cost_pct']['previous'], $costPeak, $colors['previous'], 4) !!}
+                        </td>
                         <td class="right">{{ $num($d['sales']['current']) }}</td>
                         <td class="right" style="color: {{ $s[1] }}; font-size: 8pt;">{{ $s[0] }}</td>
                         <td class="right">{{ $num($d['purchases']['current']) }}</td>
                         <td class="right" style="color: {{ $p[1] }}; font-size: 8pt;">{{ $p[0] }}</td>
-                        <td class="right">{{ $pct($d['cost_pct']['current']) }}</td>
+                        <td class="right" style="font-weight: bold;">{{ $pct($d['cost_pct']['current']) }}</td>
                         <td class="right" style="color: {{ $c[1] }}; font-size: 8pt;">{{ $c[0] }}</td>
-                        <td class="right">{{ $num($d['wastage']['current']) }}</td>
-                        <td class="right" style="color: {{ $w[1] }}; font-size: 8pt;">{{ $w[0] }}</td>
-                        <td class="right">{{ $pct($d['wastage_pct']['current']) }}</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
         <div style="{{ $note }}">
-            Sales reach a department through its sales category. Sales no department claims, and purchases or wastage
-            keyed without a department, are shown as Unassigned. Departments sharing a sales category are each measured
-            against all of its sales, so department sales can add up to more than total sales.
+            Bars are purchase cost as % of each department's own sales. Sales reach a department through its sales
+            category. Sales no department claims, and purchases keyed without a department, are shown as Unassigned.
+            Departments sharing a sales category are each measured against all of its sales, so department sales can
+            add up to more than total sales.
         </div>
     @endif
 
@@ -521,12 +528,17 @@
     {{-- ═══ Wastage by department ════════════════════════════════════════ --}}
     @php $wasteRows = array_values(array_filter($report['departments'], fn ($d) => $d['wastage']['current'] > 0 || $d['wastage']['previous'] > 0)); @endphp
     @if ($wasteRows !== [])
+        @php $wastePeak = max(0.01, ...array_map(fn ($d) => max((float) $d['wastage_pct']['current'], (float) $d['wastage_pct']['previous']), $wasteRows)); @endphp
         <div style="page-break-inside: avoid;">
             <div class="section-header">Wastage by department</div>
             <table class="items">
                 <thead>
                     <tr>
                         <th>Department</th>
+                        <th style="width: 22%;">
+                            <span style="color: {{ $colors['wastage'] }};">■</span> % this {{ $unit }}
+                            &nbsp; <span style="color: {{ $colors['previous'] }};">■</span> Last
+                        </th>
                         <th class="right">This {{ $unit }}</th>
                         <th class="right">Last {{ $unit }}</th>
                         <th class="right">Change</th>
@@ -539,6 +551,11 @@
                         @php $w = $delta($d['wastage']['change'], false); @endphp
                         <tr>
                             <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif</td>
+                            <td>
+                                {!! $bar((float) $d['wastage_pct']['current'], $wastePeak, $colors['wastage']) !!}
+                                <div style="height: 1px;"></div>
+                                {!! $bar((float) $d['wastage_pct']['previous'], $wastePeak, $colors['previous'], 4) !!}
+                            </td>
                             <td class="right">{{ $num($d['wastage']['current']) }}</td>
                             <td class="right">{{ $num($d['wastage']['previous']) }}</td>
                             <td class="right" style="color: {{ $w[1] }}; font-size: 8pt;">{{ $w[0] }}</td>
@@ -548,6 +565,7 @@
                     @endforeach
                 </tbody>
             </table>
+            <div style="{{ $note }}">Bars are wastage as % of each department's own sales.</div>
         </div>
     @endif
 

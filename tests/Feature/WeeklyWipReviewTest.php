@@ -263,6 +263,8 @@ class WeeklyWipReviewTest extends TestCase
         ])->render();
         $this->assertStringContainsString('Weekly sales by category', $pdf);
         $this->assertStringContainsString('Retail', $pdf);
+        $this->assertStringContainsString('Purchases by department', $pdf);
+        $this->assertStringContainsString('Wastage by department', $pdf);
     }
 
     public function test_purchases_keyed_in_stock_management_are_counted(): void
