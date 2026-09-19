@@ -306,7 +306,7 @@
 
                 ['icon' => 'chart',      'title' => 'Reports and analytics',          'span' => 'lg:col-span-3', 'tone' => 'photo',
                  'photo' => 'images/marketing/reports-pnl', 'alt' => 'An income statement showing revenue, cost of goods and gross profit',
-                 'desc' => 'Monthly cost summaries, COGS, labour cost and exports your accountant will accept without rework.'],
+                 'desc' => 'The weekly WIP review as a slide deck for the meeting, monthly cost summaries, COGS, labour cost, and exports your accountant takes without rework.'],
 
                 ['icon' => 'clock',      'title' => 'People and attendance',          'span' => 'lg:col-span-3', 'tone' => 'plain',
                  'desc' => 'Employees, attendance, duty roster and overtime claims with approval routing.'],

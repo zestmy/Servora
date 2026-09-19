@@ -187,7 +187,7 @@
                 ['Can I change plans later?', 'Yes. Upgrade or downgrade at any time. Changes take effect immediately and billing is prorated.'],
                 ['What payment methods do you accept?', 'FPX online banking, credit and debit cards, and e-wallets, through our payment partner CHIP-IN.'],
                 ['Is my data secure?', 'Data is encrypted, backed up daily, and every company is fully isolated from every other company on the platform.'],
-                ['Can I export my data?', 'Yes. Every module supports CSV export. The data is yours and you can take it out at any time.'],
+                ['Can I export my data?', 'Yes. Every module exports to CSV, and the reports and inventory screens export to Excel and PDF as well. The data is yours and you can take it out at any time.'],
                 ['What happens when my trial ends?', 'You keep read access to everything. Creating and editing is paused until you subscribe, and your data is preserved for 30 days.'],
                 ['Do you offer custom plans?', 'For larger groups with specific requirements, get in touch and we will put together a plan that fits.'],
             ];
