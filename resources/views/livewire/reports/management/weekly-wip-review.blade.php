@@ -755,7 +755,7 @@
                 @endif
 
                 <div class="overflow-x-auto mt-5">
-                    <table class="table-surface min-w-full text-sm">
+                    <table class="table-surface wip-big min-w-full text-sm">
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Department</th>
