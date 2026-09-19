@@ -35,7 +35,10 @@
 
     $slides = ['glance' => $monthly ? 'Month at a glance' : 'Week at a glance'];
     if ($sp !== null) {
-        $slides['sales']    = 'Sales performance';
+        $slides['sales'] = 'Sales performance';
+    }
+    $slides['categories'] = ($monthly ? 'Monthly' : 'Weekly') . ' sales by category';
+    if ($sp !== null) {
         $slides['mtd']      = 'Month to date — sales, covers & average check';
         $slides['forecast'] = 'Sales forecast — ' . $sp['forecast']['month_label'];
     }
@@ -323,6 +326,63 @@
                 </p>
             </section>
 
+        @endif
+
+        {{-- ── Sales by category ───────────────────────────────────────── --}}
+        @php $cat = $report['categories']; @endphp
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['categories'] }}" :class="presenting && '!mb-0 shrink-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', [
+                'n' => $idx['categories'] + 1, 'title' => $slides['categories'],
+                'hint' => $cw['label'] . ' against ' . $pw['label'],
+            ])
+
+            @if ($cat['rows'] === [])
+                <p class="py-8 text-center text-sm text-gray-600">No sales categories set up yet — add them in Settings.</p>
+            @else
+                <div class="overflow-x-auto max-w-3xl">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Category</th>
+                                <th class="px-3 py-2 text-right whitespace-nowrap wip-current">{{ $cw['label'] }}</th>
+                                <th class="px-3 py-2 text-right whitespace-nowrap">{{ $pw['label'] }}</th>
+                                <th class="px-3 py-2 text-right">Variance (RM)</th>
+                                <th class="px-3 py-2 text-right">Var. %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (array_merge($cat['rows'], [$cat['total']]) as $r)
+                                @php
+                                    $isTotal = $loop->last;
+                                    $up = $r['variance'] > 0.005;
+                                    $down = $r['variance'] < -0.005;
+                                    [$vt, $vc] = $delta($r['change'], true);
+                                    $amt = fn ($v) => abs($v) < 0.005 ? '–' : number_format($v, 2);
+                                @endphp
+                                {{-- The total is emphasised, not the dark total row: the
+                                     variance keeps its red/green there, which would not
+                                     read on navy. Colours sit on spans so the row's own
+                                     text colour does not override them. --}}
+                                <tr wire:key="cat-{{ $loop->index }}" class="{{ $isTotal ? 'wip-emph' : '' }}">
+                                    <td class="px-3 py-2 whitespace-nowrap wip-label uppercase tracking-wide text-xs">{{ $r['name'] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $amt($r['current']) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $amt($r['previous']) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">
+                                        <span class="{{ $up ? 'text-success-700' : ($down ? 'text-danger-600' : 'text-gray-600') }}">{{ $up || $down ? ($up ? '▲ ' : '▼ ') . number_format(abs($r['variance']), 2) : 'NIL' }}</span>
+                                    </td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap"><span class="{{ $vc }}">{{ $vt }}</span></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    Sales category as keyed on each sales line. Uncategorised is revenue recorded as a total with no lines behind it.
+                </p>
+            @endif
+        </section>
+
+        @if ($sp !== null)
             {{-- ── Month to date (weekly) ──────────────────────────────────── --}}
             <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['mtd'] }}" :class="presenting && '!mb-0 shrink-0'">
                 @include('livewire.reports.management.partials.wip-slide-head', [

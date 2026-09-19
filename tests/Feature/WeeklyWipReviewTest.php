@@ -225,6 +225,46 @@ class WeeklyWipReviewTest extends TestCase
      * purchase_captures; only goods received against a PO reach
      * purchase_records, which was all this report read.
      */
+    public function test_sales_by_category_compares_the_week_with_the_one_before(): void
+    {
+        $this->seedTwoWeeks();
+        SalesCategory::create(['company_id' => $this->company->id, 'name' => 'Retail', 'is_active' => true]);
+        SalesCategory::create(['company_id' => $this->company->id, 'name' => 'Old menu', 'is_active' => false]);
+        $report = $this->report();
+
+        $rows = collect($report['categories']['rows'])->keyBy('name');
+
+        $this->assertEquals(1000, $rows['Food']['current']);
+        $this->assertEquals(800, $rows['Food']['previous']);
+        $this->assertEquals(200, $rows['Food']['variance']);
+        $this->assertEquals(25.0, $rows['Food']['change']);
+        $this->assertEquals(500, $rows['Beverage']['current']);
+        $this->assertEquals(0, $rows['Retail']['current'], 'An active category that sold nothing is still listed.');
+        $this->assertEquals(0, $rows['Retail']['variance']);
+        $this->assertFalse($rows->has('Old menu'), 'An inactive category with no sales is left out.');
+        $this->assertEquals(200, $rows['Uncategorised']['previous'], 'A sales total with no lines behind it.');
+
+        $total = $report['categories']['total'];
+        $this->assertEquals(1500, $total['current']);
+        $this->assertEquals(1000, $total['previous']);
+        $this->assertEquals(500, $total['variance']);
+        $this->assertEquals($total['current'], collect($report['categories']['rows'])->sum('current'), 'Rows add up to total sales.');
+        $this->assertEquals($total['previous'], collect($report['categories']['rows'])->sum('previous'));
+
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
+            ->assertSee('Weekly sales by category')
+            ->assertSee('Uncategorised');
+
+        $pdf = view('pdf.wip-review', [
+            'report' => app(\App\Services\Reports\WeeklyWipReview::class)->build(
+                $this->company->id, [$this->outlet->id], Carbon::parse('2026-09-07'), 8, 'week',
+            ),
+            'company' => $this->company, 'scopeLabel' => 'KLCC',
+        ])->render();
+        $this->assertStringContainsString('Weekly sales by category', $pdf);
+        $this->assertStringContainsString('Retail', $pdf);
+    }
+
     public function test_purchases_keyed_in_stock_management_are_counted(): void
     {
         PurchaseCapture::create([

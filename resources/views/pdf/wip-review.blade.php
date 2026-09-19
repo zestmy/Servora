@@ -196,7 +196,50 @@
                 </tr>
             </tbody>
         </table>
+    @endif
 
+    {{-- ═══ Sales by category ════════════════════════════════════════════ --}}
+    @php $cat = $report['categories']; @endphp
+    @if ($cat['rows'] !== [])
+        <div style="page-break-before: always;"></div>
+        <div class="section-header">{{ $monthly ? 'Monthly' : 'Weekly' }} sales by category</div>
+        <table class="items">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th class="right">{{ $cw['label'] }}</th>
+                    <th class="right">{{ $pw['label'] }}</th>
+                    <th class="right">Variance (RM)</th>
+                    <th class="right">Var. %</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (array_merge($cat['rows'], [$cat['total']]) as $r)
+                    @php
+                        $bold = $loop->last ? 'font-weight: bold; border-top: 1px solid #1f2937;' : '';
+                        $up = $r['variance'] > 0.005;
+                        $down = $r['variance'] < -0.005;
+                        [$vt, $vc] = $delta($r['change'], true);
+                        $amt = fn ($v) => abs($v) < 0.005 ? '–' : number_format($v, 2);
+                    @endphp
+                    <tr>
+                        <td style="font-weight: bold; text-transform: uppercase; {{ $bold }}">{{ $r['name'] }}</td>
+                        <td class="right" style="{{ $bold }}">{{ $amt($r['current']) }}</td>
+                        <td class="right" style="{{ $bold }}">{{ $amt($r['previous']) }}</td>
+                        <td class="right" style="font-weight: bold; color: {{ $up ? '#15803d' : ($down ? '#dc2626' : '#64748b') }}; {{ $bold }}">
+                            {{ $up || $down ? ($up ? '▲ ' : '▼ ') . number_format(abs($r['variance']), 2) : 'NIL' }}
+                        </td>
+                        <td class="right" style="font-weight: bold; color: {{ $vc }}; {{ $bold }}">{{ $vt }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        <div style="{{ $note }}">
+            Sales category as keyed on each sales line. Uncategorised is revenue recorded as a total with no lines behind it.
+        </div>
+    @endif
+
+    @if ($report['sales_performance'] !== null)
         <div style="page-break-before: always;"></div>
         <div class="section-header">Month to date — sales, covers &amp; average check</div>
         <table class="items">

@@ -11,6 +11,7 @@ use App\Models\PayrollRun;
 use App\Models\PayrollRunLine;
 use App\Models\PurchaseCapture;
 use App\Models\PurchaseRecord;
+use App\Models\SalesCategory;
 use App\Models\SalesRecord;
 use App\Models\SalesTarget;
 use App\Models\Section;
@@ -119,8 +120,9 @@ class WeeklyWipReview
             'sales', 'purchases', 'wastage', 'staff_meal', 'transfers',
             'ot_hours', 'ot_cost', 'ot_pending_hours', 'labour_cost',
         ], $zero);
-        $byDept    = [];
-        $byOutlet  = [];
+        $byDept     = [];
+        $byOutlet   = [];
+        $byCategory = [];
         $lineSales = $zero;
 
         $add = function (array &$target, $key, string $metric, int $w, float $amount) use ($zero): void {
@@ -178,6 +180,7 @@ class WeeklyWipReview
             foreach ($deptsForCategory[$row->category_id] ?? [self::UNASSIGNED] as $key) {
                 $add($byDept, $key, 'sales', $w, (float) $row->amount);
             }
+            $add($byCategory, $row->category_id ?: self::UNASSIGNED, 'sales', $w, (float) $row->amount);
             $lineSales[$w] += (float) $row->amount;
         }
 
@@ -186,6 +189,7 @@ class WeeklyWipReview
             $gap = $amount - $lineSales[$w];
             if ($gap > 0.005) {
                 $add($byDept, self::UNASSIGNED, 'sales', $w, $gap);
+                $add($byCategory, self::UNASSIGNED, 'sales', $w, $gap);
             }
         }
 
@@ -427,6 +431,7 @@ class WeeklyWipReview
             'totals'       => array_map($trim, $totals),
             'kpis'         => $kpis,
             'departments'  => $departmentRows,
+            'categories'   => $this->categoryRows($companyId, $byCategory, $totals['sales'], $cur, $prev),
             'outlets'      => $outletRows,
             'overtime'     => [
                 'pending_hours' => ['current' => $totals['ot_pending_hours'][$cur], 'previous' => $totals['ot_pending_hours'][$prev]],
@@ -842,6 +847,51 @@ class WeeklyWipReview
             'mtd'       => array_values($mtd),
             'forecast'  => $forecast,
         ];
+    }
+
+    /**
+     * Sales by sales category for the reviewed period against the one before.
+     *
+     * Every active category is listed, in the company's own order, even with
+     * no sales in either period — a category that sold nothing is worth seeing
+     * on the sheet. An inactive or deleted one appears only if it still sold.
+     * Header revenue with no lines behind it is Uncategorised, so the rows add
+     * up to total sales.
+     */
+    private function categoryRows(int $companyId, array $byCategory, array $sales, int $cur, int $prev): array
+    {
+        $categories = SalesCategory::withoutGlobalScopes()->withTrashed()
+            ->where('company_id', $companyId)
+            ->where(fn ($q) => $q->where(fn ($q) => $q->where('is_active', true)->whereNull('deleted_at'))
+                ->orWhereIn('id', array_filter(array_keys($byCategory), 'is_int')))
+            ->ordered()
+            ->get(['id', 'name']);
+
+        $line = function (string $name, float $current, float $previous): array {
+            $current  = round($current, 2);
+            $previous = round($previous, 2);
+
+            return [
+                'name'     => $name,
+                'current'  => $current,
+                'previous' => $previous,
+                'variance' => round($current - $previous, 2),
+                'change'   => self::change($current, $previous),
+            ];
+        };
+
+        $rows = [];
+        foreach ($categories as $c) {
+            $s = $byCategory[$c->id]['sales'] ?? null;
+            $rows[] = $line($c->name, $s[$cur] ?? 0.0, $s[$prev] ?? 0.0);
+        }
+
+        $none = $byCategory[self::UNASSIGNED]['sales'] ?? null;
+        if ($none !== null && (abs($none[$cur]) > 0.005 || abs($none[$prev]) > 0.005)) {
+            $rows[] = $line('Uncategorised', $none[$cur], $none[$prev]);
+        }
+
+        return ['rows' => $rows, 'total' => $line('Total', $sales[$cur], $sales[$prev])];
     }
 
     /** The labour breakdown for the reviewed month against the one before. */
