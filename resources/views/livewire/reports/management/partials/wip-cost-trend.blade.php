@@ -4,7 +4,7 @@
      line_suffix) so the same partial draws RM bars with a % of sales line,
      or overtime cost with an hours line. A null `pct` draws no line and no
      right-hand axis. --}}
-<div class="relative h-64" :class="presenting && '!h-[34vh]'"
+<div class="relative h-64 wip-chart-34"
      wire:key="wip-{{ $key }}-{{ md5(json_encode($chart)) }}"
      x-data="{
         init() {

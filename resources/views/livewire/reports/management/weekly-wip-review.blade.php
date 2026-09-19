@@ -76,11 +76,49 @@
 <div class="wip-review" x-data="{
         presenting: false,
         current: 0,
-        total: {{ count($slides) }},
+        // No server-rendered values in this x-data: it must be identical on every
+        // render, or a Livewire update (the slide count differs by mode) makes
+        // Alpine set the component up a second time and the buttons bind to
+        // the stale copy. The count is read off the page instead.
+        total: 0,
+        // Everything presenting changes is set HERE, directly on the elements —
+        // the deck's classes, which slide shows, the counter and the buttons —
+        // not through Alpine bindings on those elements. After a Livewire
+        // update (switching Weekly/Monthly, a filter) those bindings were seen
+        // to go dead: presenting was true but the deck lost its classes, and
+        // every slide showed at once, unstyled. This component's own state and
+        // listeners live on the root, which Livewire never replaces.
+        deckClasses: 'wip-presenting fixed inset-0 z-[100] bg-gray-50 flex flex-col px-6 pt-6 pb-20 sm:px-10 sm:pt-8 overflow-hidden',
+        deck() {
+            return this.$root.querySelector('[data-wip-deck]');
+        },
+        show() {
+            const deck = this.deck();
+            this.deckClasses.split(' ').forEach(c => deck.classList.toggle(c, this.presenting));
+            this.slides().forEach((s, i) => { s.style.display = (! this.presenting || i === this.current) ? '' : 'none'; });
+            const bar = this.$root.querySelector('[data-wip-bar]');
+            if (bar) {
+                bar.querySelector('[data-wip-counter]').textContent = (this.current + 1) + ' / ' + this.total;
+                bar.querySelector('[data-wip-go=prev]').disabled = this.current === 0;
+                bar.querySelector('[data-wip-go=next]').disabled = this.current >= this.total - 1;
+            }
+        },
+        nav(e) {
+            const b = e.target.closest('[data-wip-go]');
+            if (! b) return;
+            const to = b.dataset.wipGo;
+            if (to === 'prev') { this.go(this.current - 1); }
+            if (to === 'next') { this.go(this.current + 1); }
+            if (to === 'exit') { this.stop(); }
+            if (to === 'start') { this.start(); }
+        },
         start() {
             this.current = 0;
             this.presenting = true;
-            if (this.$refs.deck.requestFullscreen) { this.$refs.deck.requestFullscreen().catch(() => {}); }
+            const deck = this.deck();
+            this.total = this.slides().length;
+            this.show();
+            if (deck.requestFullscreen) { deck.requestFullscreen().catch(() => {}); }
             this.refresh();
         },
         stop() {
@@ -99,6 +137,7 @@
                 // the page after every update rather than trusting the first render.
                 this.total = this.slides().length;
                 if (this.current > this.total - 1) { this.current = Math.max(0, this.total - 1); }
+                this.show();
                 // Axis labels and legends scale with the screen when presenting;
                 // Chart.js's 12px default is unreadable on a projector.
                 if (window.Chart) {
@@ -109,14 +148,14 @@
             });
         },
         slides() {
-            return Array.from(this.$refs.deck.children).filter(el => el.tagName === 'SECTION');
+            return Array.from(this.deck().children).filter(el => el.tagName === 'SECTION');
         },
         clearFit() {
             this.slides().forEach(s => { s.style.transform = ''; s.style.transformOrigin = ''; });
         },
         fit() {
             if (! this.presenting) return;
-            const deck = this.$refs.deck;
+            const deck = this.deck();
             const slide = this.slides().find(s => s.style.display !== 'none');
             if (! slide) return;
             slide.style.transform = '';
@@ -138,8 +177,9 @@
         },
      }"
      x-on:keydown.window="key($event)"
+     x-on:click="nav($event)"
      x-on:resize.window.debounce.150ms="refresh()"
-     x-init="if (window.Livewire) { Livewire.hook('commit', ({ succeed }) => succeed(() => refresh())); }"
+     x-init="total = slides().length; if (window.Livewire) { Livewire.hook('commit', ({ succeed }) => succeed(() => refresh())); }"
      x-on:fullscreenchange.document="if (! document.fullscreenElement && presenting) { presenting = false; clearFit(); refresh(); }">
 
     @once
@@ -214,15 +254,14 @@
             <x-download-link :href="$pdfUrl" class="btn-secondary" title="Download the whole {{ $monthly ? 'monthly' : 'weekly' }} report as a PDF">
                 Download PDF
             </x-download-link>
-            <button type="button" x-on:click="start()" class="btn-primary">Present</button>
+            <button type="button" data-wip-go="start" class="btn-primary">Present</button>
         </div>
     </div>
 
-    <div x-ref="deck" wire:loading.class="opacity-60"
-         :class="presenting ? 'wip-presenting fixed inset-0 z-[100] bg-gray-50 flex flex-col px-6 pt-6 pb-20 sm:px-10 sm:pt-8 overflow-hidden' : ''">
+    <div x-ref="deck" data-wip-deck wire:loading.class="opacity-60">
 
         {{-- ── At a glance ─────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-glance-{{ $idx['glance'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['glance'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-glance-{{ $idx['glance'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['glance'] + 1, 'title' => $slides['glance']])
 
             @if (! $report['has_data'])
@@ -230,14 +269,14 @@
                     Nothing recorded for these {{ $unit }}s — no sales, purchases, wastage, staff meals, transfers, overtime or payroll.
                 </div>
             @else
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" :class="presenting && '!grid-cols-4'">
+                <div class="wip-kpis grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     @foreach ($report['kpis'] as $k)
                         @php
                             [$dText, $dClass] = $delta($k['change'], $k['up_is_good'], $k['format'] === 'pct');
                         @endphp
                         <div class="stat rounded-surface border border-gray-200 border-t-4 border-t-brand-600 bg-white shadow-e1 p-4" wire:key="kpi-{{ $k['key'] }}">
                             <p class="stat-label">{{ $k['label'] }}</p>
-                            <p class="stat-value tabular-nums" :class="presenting && 'text-3xl'">{{ $fmt($k['current'], $k['format']) }}</p>
+                            <p class="stat-value tabular-nums">{{ $fmt($k['current'], $k['format']) }}</p>
                             <p class="text-xs mt-1">
                                 <span class="font-semibold {{ $dClass }}">{{ $dText }}</span>
                                 <span class="text-gray-600">vs {{ $fmt($k['previous'], $k['format']) }} last {{ $unit }}</span>
@@ -268,7 +307,7 @@
 
         {{-- ── Sales performance (weekly) ──────────────────────────────── --}}
         @if ($sp !== null)
-            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-sales-{{ $idx['sales'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['sales'] }}" :class="presenting && '!mb-0 shrink-0'">
+            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-sales-{{ $idx['sales'] }}-{{ count($slides) }}">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['sales'] + 1, 'title' => $slides['sales'],
                     'hint' => 'by day and meal period — ' . $sp['current']['label'] . ' against ' . $sp['previous']['label'],
@@ -350,7 +389,7 @@
 
         {{-- ── Sales by category ───────────────────────────────────────── --}}
         @php $cat = $report['categories']; @endphp
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-categories-{{ $idx['categories'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['categories'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-categories-{{ $idx['categories'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', [
                 'n' => $idx['categories'] + 1, 'title' => $slides['categories'],
                 'hint' => $cw['label'] . ' against ' . $pw['label'],
@@ -404,7 +443,7 @@
 
         @if ($sp !== null)
             {{-- ── Month to date (weekly) ──────────────────────────────────── --}}
-            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-mtd-{{ $idx['mtd'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['mtd'] }}" :class="presenting && '!mb-0 shrink-0'">
+            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-mtd-{{ $idx['mtd'] }}-{{ count($slides) }}">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['mtd'] + 1, 'title' => $slides['mtd'],
                     'hint' => 'to ' . $sp['current']['label'] . '\'s Sunday, against the same days of last month and last year',
@@ -479,7 +518,7 @@
             </section>
 
             {{-- ── Sales forecast (weekly) ─────────────────────────────────── --}}
-            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-forecast-{{ $idx['forecast'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['forecast'] }}" :class="presenting && '!mb-0 shrink-0'">
+            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-forecast-{{ $idx['forecast'] }}-{{ count($slides) }}">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['forecast'] + 1, 'title' => $slides['forecast'],
                     'hint' => 'month-to-date daily average carried over the days left',
@@ -511,10 +550,10 @@
 
         @if ($cs === null)
         {{-- ── Purchase cost % trend ───────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-trend-{{ $idx['trend'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-trend-{{ $idx['trend'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['trend'] + 1, 'title' => $slides['trend'], 'hint' => 'click a ' . $unit . ' to review it'])
 
-            <div class="relative h-72" :class="presenting && '!h-[40vh]'"
+            <div class="relative h-72 wip-chart-40"
                  wire:key="wip-trend-{{ md5(json_encode($report['charts']['trend'])) }}"
                  x-data="{
                     init() {
@@ -613,7 +652,7 @@
 
         {{-- ── Cost of goods % (monthly — replaces Purchase cost %) ────── --}}
         @if ($cs !== null)
-            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-cogs-{{ $idx['trend'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
+            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-cogs-{{ $idx['trend'] }}-{{ count($slides) }}">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['trend'] + 1, 'title' => $slides['trend'],
                     'hint' => 'opening stock + purchases − closing stock, as % of sales · click a month to review it',
@@ -622,7 +661,7 @@
                 {{-- Cost of goods % by month. A month missing a stock take at either
                      end is really purchases only: drawn grey and labelled, not
                      passed off as a true COGS figure. --}}
-                <div class="relative h-64" :class="presenting && '!h-[24vh]'"
+                <div class="relative h-64 wip-chart-24"
                      wire:key="wip-cogs-{{ md5(json_encode($cs['trend'])) }}"
                      x-data="{
                         init() {
@@ -678,7 +717,7 @@
                         $csTransfers = collect($cs['rows'])->contains(fn ($r) => abs($r['transfer_in']) > 0.005 || abs($r['transfer_out']) > 0.005);
                     @endphp
                     <div class="overflow-x-auto">
-                        <table class="table-surface min-w-full text-sm">
+                        <table class="table-surface wip-big min-w-full text-sm">
                             <thead>
                                 <tr>
                                     <th class="px-3 py-2 text-left">Category</th>
@@ -745,7 +784,7 @@
         @endif
 
         {{-- ── Purchases by department ─────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-departments-{{ $idx['departments'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-departments-{{ $idx['departments'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['departments'] + 1, 'title' => $slides['departments'], 'hint' => 'this ' . $unit . ', as % of each department\'s own sales'])
 
             @if ($report['departments'] === [])
@@ -758,8 +797,7 @@
                     <p class="py-4 text-sm text-gray-600">No department purchases to chart for these two {{ $unit }}s.</p>
                 @else
                 <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Purchase cost % of sales</h3>
-                <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['cost']['labels']) * 48 + 60) }}px"
-                     :class="presenting && '!h-[30vh]'"
+                <div class="relative wip-chart-30" style="height: {{ max(180, count($report['charts']['departments']['cost']['labels']) * 48 + 60) }}px"
                      wire:key="wip-dept-{{ md5(json_encode($report['charts']['departments'])) }}"
                      x-data="{
                         init() {
@@ -850,7 +888,7 @@
         </section>
 
         {{-- ── Wastage ─────────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-wastage-{{ $idx['wastage'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['wastage'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-wastage-{{ $idx['wastage'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['wastage'] + 1, 'title' => $slides['wastage'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
@@ -859,7 +897,7 @@
         </section>
 
         {{-- ── Wastage by department ───────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-dept_wastage-{{ $idx['dept_wastage'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['dept_wastage'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-dept_wastage-{{ $idx['dept_wastage'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['dept_wastage'] + 1, 'title' => $slides['dept_wastage'], 'hint' => 'this ' . $unit . ', as % of each department\'s own sales'])
 
             @php $wasteRows = array_values(array_filter($report['departments'], fn ($d) => $d['wastage']['current'] > 0 || $d['wastage']['previous'] > 0)); @endphp
@@ -868,8 +906,7 @@
             @else
                 @if ($report['charts']['departments']['waste']['labels'] !== [])
                 <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Wastage % of sales</h3>
-                        <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['waste']['labels']) * 48 + 60) }}px"
-                             :class="presenting && '!h-[30vh]'"
+                        <div class="relative wip-chart-30" style="height: {{ max(180, count($report['charts']['departments']['waste']['labels']) * 48 + 60) }}px"
                              wire:key="wip-dept-waste-{{ md5(json_encode($report['charts']['departments'])) }}"
                              x-data="{
                                 init() {
@@ -943,7 +980,7 @@
         </section>
 
         {{-- ── Staff meals ─────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-staff_meals-{{ $idx['staff_meals'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['staff_meals'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-staff_meals-{{ $idx['staff_meals'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['staff_meals'] + 1, 'title' => $slides['staff_meals'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
@@ -981,7 +1018,7 @@
         </section>
 
         {{-- ── Stock transfers ─────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-transfers-{{ $idx['transfers'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['transfers'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-transfers-{{ $idx['transfers'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['transfers'] + 1, 'title' => $slides['transfers'], 'hint' => 'in transit and received, at line cost'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
@@ -1035,7 +1072,7 @@
         </section>
 
         {{-- ── Overtime claims ─────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-overtime-{{ $idx['overtime'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['overtime'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-overtime-{{ $idx['overtime'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', [
                 'n' => $idx['overtime'] + 1, 'title' => $slides['overtime'],
                 'hint' => $canPay ? 'approved claims — cost at each person\'s hourly rate' : 'approved claims, in hours',
@@ -1156,7 +1193,7 @@
 
         {{-- ── Labour cost (monthly, pay viewers only) ─────────────────── --}}
         @if ($labour !== null)
-            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-labour-{{ $idx['labour'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['labour'] }}" :class="presenting && '!mb-0 shrink-0'">
+            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-labour-{{ $idx['labour'] }}-{{ count($slides) }}">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['labour'] + 1, 'title' => $slides['labour'],
                     'hint' => $labour['include_drafts'] ? 'from payroll, including draft runs' : 'from approved and paid payroll',
@@ -1257,7 +1294,7 @@
         @endif
 
         {{-- ── By outlet ───────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-outlets-{{ $idx['outlets'] }}-{{ count($slides) }}" x-show="! presenting || current === {{ $idx['outlets'] }}" :class="presenting && '!mb-0 shrink-0'">
+        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-outlets-{{ $idx['outlets'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['outlets'] + 1, 'title' => $slides['outlets']])
 
             @if ($report['outlets'] === [])
@@ -1350,13 +1387,15 @@
         </section>
 
         {{-- Presenter bar --}}
-        <div x-show="presenting" x-cloak class="absolute inset-x-0 bottom-0 px-6 sm:px-10 py-3 flex items-center justify-between gap-3 text-sm text-gray-600 bg-gray-50 border-t border-gray-200">
+        {{-- Shown by .wip-presenting (CSS); its buttons are handled by the
+             root's click listener and its counter set by show(). --}}
+        <div data-wip-bar class="wip-bar absolute inset-x-0 bottom-0 px-6 sm:px-10 py-3 items-center justify-between gap-3 text-sm text-gray-600 bg-gray-50 border-t border-gray-200">
             <span>{{ $cw['range'] }} · {{ $scopeLabel }}</span>
             <div class="flex items-center gap-2">
-                <button type="button" x-on:click="go(current - 1)" class="btn-secondary" :disabled="current === 0">‹ Prev</button>
-                <span class="tabular-nums w-14 text-center" x-text="(current + 1) + ' / ' + total"></span>
-                <button type="button" x-on:click="go(current + 1)" class="btn-secondary" :disabled="current === total - 1">Next ›</button>
-                <button type="button" x-on:click="stop()" class="btn-ghost">Exit</button>
+                <button type="button" data-wip-go="prev" class="btn-secondary">‹ Prev</button>
+                <span data-wip-counter class="tabular-nums w-14 text-center"></span>
+                <button type="button" data-wip-go="next" class="btn-secondary">Next ›</button>
+                <button type="button" data-wip-go="exit" class="btn-ghost">Exit</button>
             </div>
         </div>
     </div>

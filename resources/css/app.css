@@ -206,6 +206,20 @@
        Cells pad in em so columns stay tight as the type grows; the change
        columns and sub-labels (12px and 11px on the page) come up to a size
        that still reads, and footnotes and page-only detail are dropped. */
+    /* Everything that changes when presenting hangs off .wip-presenting on the
+       deck — not off an Alpine binding on each slide, which a slide replaced by
+       Livewire could lose (see show() in the WIP review). */
+    .wip-presenting > section.card { margin-bottom: 0; flex-shrink: 0; }
+    .wip-bar { display: none; }
+    .wip-presenting .wip-bar { display: flex; }
+    .wip-slide-count { display: none; }
+    .wip-presenting .wip-slide-count { display: inline; }
+    .wip-presenting .wip-slide-title { font-size: 2.25rem; line-height: 2.5rem; }
+    .wip-presenting .wip-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .wip-presenting .wip-chart-24 { height: 24vh; }
+    .wip-presenting .wip-chart-30 { height: 30vh !important; }
+    .wip-presenting .wip-chart-34 { height: 34vh; }
+    .wip-presenting .wip-chart-40 { height: 40vh; }
     .wip-presenting .table-surface { font-size: clamp(15px, 1.4vw, 30px); }
     /* Short tables (a handful of rows) have the room to go bigger still. */
     .wip-presenting .table-surface.wip-big { font-size: clamp(18px, 1.8vw, 38px); }
