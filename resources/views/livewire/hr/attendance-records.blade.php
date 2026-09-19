@@ -463,8 +463,12 @@
             {{-- Pool + deduction settings --}}
             <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-end gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Service Charge Collected (RM)</label>
-                    <input type="number" step="0.01" min="0" wire:model="scAmount" placeholder="e.g. 12000.00"
+                    <label class="block text-xs text-gray-500 mb-1">Service Charge Collected (RM)
+                        @if (in_array('amount', $scPendingSettings ?? [], true))
+                            <span class="font-medium text-warning-700">· not applied</span>
+                        @endif
+                    </label>
+                    <input type="number" step="0.01" min="0" wire:model.blur="scAmount" placeholder="e.g. 12000.00"
                            class="w-40 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scAmount') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
@@ -472,21 +476,33 @@
                     {{-- The hint lives in the label, not under the box. This row is
                          items-end, so a helper line below one field pushes that
                          field's input up and breaks the row's alignment. --}}
-                    <label class="block text-xs text-gray-500 mb-1">Company retention % <span class="text-gray-400">(held back)</span></label>
-                    <input type="number" step="0.01" min="0" max="100" wire:model="scRetention"
+                    <label class="block text-xs text-gray-500 mb-1">Company retention % <span class="text-gray-400">(held back)</span>
+                        @if (in_array('retention', $scPendingSettings ?? [], true))
+                            <span class="font-medium text-warning-700">· not applied</span>
+                        @endif
+                    </label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model.blur="scRetention"
                            title="Held back before the pool is shared"
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scRetention') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">MC deduction % / day</label>
-                    <input type="number" step="0.01" min="0" max="100" wire:model="scMcPercent"
+                    <label class="block text-xs text-gray-500 mb-1">MC deduction % / day
+                        @if (in_array('mc', $scPendingSettings ?? [], true))
+                            <span class="font-medium text-warning-700">· not applied</span>
+                        @endif
+                    </label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model.blur="scMcPercent"
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scMcPercent') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Absent deduction % / day</label>
-                    <input type="number" step="0.01" min="0" max="100" wire:model="scAbsPercent"
+                    <label class="block text-xs text-gray-500 mb-1">Absent deduction % / day
+                        @if (in_array('abs', $scPendingSettings ?? [], true))
+                            <span class="font-medium text-warning-700">· not applied</span>
+                        @endif
+                    </label>
+                    <input type="number" step="0.01" min="0" max="100" wire:model.blur="scAbsPercent"
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scAbsPercent') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
@@ -494,9 +510,13 @@
                     {{-- The hint is in the label and the title, not on a line
                          below: this row is items-end, so a helper under one
                          field lifts that field's input out of alignment. --}}
-                    <label class="block text-xs text-gray-500 mb-1">Min working days <span class="text-gray-400">(0 = none)</span></label>
+                    <label class="block text-xs text-gray-500 mb-1">Min working days <span class="text-gray-400">(0 = none)</span>
+                        @if ($scPendingMinDays ?? false)
+                            <span class="font-medium text-warning-700">· not applied</span>
+                        @endif
+                    </label>
                     <input type="number" step="1" min="0" max="{{ \App\Livewire\Hr\AttendanceRecords::MAX_DAYS }}"
-                           wire:model="scMinWorkingDays"
+                           wire:model.blur="scMinWorkingDays"
                            title="Days someone must have worked in this period to share the pool. Paid leave counts; unrecorded (UNR) days, days off, absences and unpaid leave do not — which is what keeps a joiner or a leaver from taking a full share of a month they were barely in."
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scMinWorkingDays') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
@@ -505,9 +525,12 @@
                      aligned on items-end. --}}
                 <label class="flex items-center gap-2 h-[38px] text-xs text-gray-700 cursor-pointer select-none"
                        title="MC, absence, lateness and special deductions go back into the pool and are shared by everyone in it, so they raise the final RM per point. Unticked, what is deducted stays with the company.">
-                    <input type="checkbox" wire:model="scRedistribute"
+                    <input type="checkbox" wire:model.live="scRedistribute"
                            class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                     Redistribute deductions to pool
+                    @if ($scPendingRedistribute ?? false)
+                        <span class="font-medium text-warning-700">· not applied</span>
+                    @endif
                 </label>
                 <button wire:click="saveServiceCharge"
                         class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
@@ -626,11 +649,18 @@
                                  out loud because the alternative is a tick that
                                  looks broken: the control is .live, the table does
                                  not move, and nothing on screen explains the gap. --}}
-                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []) || count($scPendingSpecial ?? []) || ($scPendingFunds ?? false))
+                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []) || count($scPendingSpecial ?? []) || ($scPendingFunds ?? false) || count($scPendingSettings ?? []))
                                 <span class="px-2.5 py-1 rounded-full bg-warning-50 text-warning-800 font-medium"
                                       title="A calculated period keeps its figures until it is recalculated.">
                                     @php
                                         $pendingBits = [];
+                                        $settingNames = [
+                                            'amount' => 'the amount collected', 'retention' => 'the retention %',
+                                            'mc' => 'the MC %', 'abs' => 'the absent %',
+                                        ];
+                                        foreach ($scPendingSettings ?? [] as $key) {
+                                            $pendingBits[] = $settingNames[$key];
+                                        }
                                         if (count($scPendingExclusions ?? [])) {
                                             $pendingBits[] = count($scPendingExclusions) . ' service point '
                                                 . \Illuminate\Support\Str::plural('tick', count($scPendingExclusions));

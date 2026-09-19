@@ -306,4 +306,40 @@ class ServiceChargeManualLatenessTest extends TestCase
 
         $panel->call('removeServiceChargeFund', 0)->assertSee('Not applied yet: the allocations');
     }
+
+    public function test_a_pool_setting_edit_on_a_calculated_pool_says_it_is_not_applied_yet(): void
+    {
+        $this->staff('A');
+
+        $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->outlet->id]);
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo(['hr.attendance', 'hr.attendance.record', 'hr.attendance.service_charge', 'hr.compensation']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $panel = Livewire::actingAs($user)
+            ->test(AttendanceRecords::class)
+            ->set('outletFilter', (string) $this->outlet->id)
+            ->set('periodMode', 'range')
+            ->set('rangeFrom', $this->from->toDateString())
+            ->set('rangeTo', $this->to->toDateString())
+            ->set('showServiceCharge', true)
+            ->set('scAmount', '2000')
+            ->set('scMcPercent', '5')
+            ->call('saveServiceCharge')
+            ->assertHasNoErrors()
+            ->assertDontSee('Not applied yet');
+
+        $panel->set('scAmount', '2500')
+            ->set('scMcPercent', '6')
+            ->assertSee('Not applied yet: the amount collected and the MC %');
+
+        // Same numbers written differently are not a change.
+        $panel->set('scAmount', '2000.00')->set('scMcPercent', '5.0')
+            ->assertDontSee('Not applied yet');
+
+        // Nor is a figure that is not a number the same as the saved one.
+        $panel->set('scRetention', '')->assertSee('Not applied yet: the retention %');
+    }
 }

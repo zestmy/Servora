@@ -1180,6 +1180,23 @@ class AttendanceRecords extends Component
         $scPendingFunds = $scRow?->isFrozen()
             && $scFundList($this->scFunds) !== $scFundList($scRow->funds());
 
+        // The pool's own figures. Compared as numbers to 2dp, as they are
+        // stored, so "5" and "5.00" agree; something that is not a number at
+        // all is a change, since Save & Calculate will refuse it anyway.
+        $scPendingSettings = [];
+        if ($scRow?->isFrozen()) {
+            foreach ([
+                'amount'    => [$this->scAmount, $scRow->amount],
+                'retention' => [$this->scRetention, $scRow->retention_percent],
+                'mc'        => [$this->scMcPercent, $scRow->mc_percent],
+                'abs'       => [$this->scAbsPercent, $scRow->abs_percent],
+            ] as $key => [$typed, $saved]) {
+                if (! is_numeric($typed) || round((float) $typed, 2) !== round((float) $saved, 2)) {
+                    $scPendingSettings[] = $key;
+                }
+            }
+        }
+
         $scPendingRedistribute = $scRow?->isFrozen()
             && $this->scRedistribute !== $scRow->redistributesDeductions();
 
@@ -1246,7 +1263,7 @@ class AttendanceRecords extends Component
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
-            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial', 'scPendingFunds',
+            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial', 'scPendingFunds', 'scPendingSettings',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }
