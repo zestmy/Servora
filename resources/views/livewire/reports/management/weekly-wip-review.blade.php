@@ -343,7 +343,7 @@
             ])
 
             @if ($cat['rows'] === [])
-                <p class="py-8 text-center text-sm text-gray-600">No sales categories set up yet — add them in Settings.</p>
+                <p class="py-8 text-center text-sm text-gray-600">No sales recorded for these two {{ $unit }}s.</p>
             @else
                 <div class="overflow-x-auto max-w-3xl wip-widen">
                     <table class="table-surface wip-big min-w-full text-sm">
@@ -602,8 +602,11 @@
                 {{-- Purchases and wastage are separate slides: side by side, each
                      chart got half the width and the table carried both, which
                      was too much to read off a projector. --}}
+                @if ($report['charts']['departments']['cost']['labels'] === [])
+                    <p class="py-4 text-sm text-gray-600">No department purchases to chart for these two {{ $unit }}s.</p>
+                @else
                 <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Purchase cost % of sales</h3>
-                <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['labels']) * 48 + 60) }}px"
+                <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['cost']['labels']) * 48 + 60) }}px"
                      :class="presenting && '!h-[30vh]'"
                      wire:key="wip-dept-{{ md5(json_encode($report['charts']['departments'])) }}"
                      x-data="{
@@ -614,10 +617,10 @@
                             new Chart(this.$refs.c, {
                                 type: 'bar',
                                 data: {
-                                    labels: d.labels,
+                                    labels: d.cost.labels,
                                     datasets: [
-                                        { label: 'This ' + d.unit, data: d.cost_pct, backgroundColor: d.colors.purchases, borderRadius: 3 },
-                                        { label: 'Last ' + d.unit, data: d.cost_pct_prev, backgroundColor: d.colors.previous, borderRadius: 3 },
+                                        { label: 'This ' + d.unit, data: d.cost.current, backgroundColor: d.colors.purchases, borderRadius: 3 },
+                                        { label: 'Last ' + d.unit, data: d.cost.previous, backgroundColor: d.colors.previous, borderRadius: 3 },
                                     ],
                                 },
                                 options: {
@@ -628,17 +631,18 @@
                                             label: i => i.dataset.label + ': ' + (i.parsed.x === null ? '—' : i.parsed.x.toFixed(1) + '%'),
                                             afterBody: items => {
                                                 const k = items[0].dataIndex;
-                                                return ['Purchases: ' + rm(d.purchases[k]), 'Sales: ' + rm(d.sales[k])];
+                                                return ['Purchases: ' + rm(d.cost.amount[k]), 'Sales: ' + rm(d.cost.sales[k])];
                                             },
                                         } },
                                     },
-                                    scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } },
+                                    scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } }, y: { grid: { display: false }, ticks: { autoSkip: false } } },
                                 },
                             });
                         },
                      }">
                     <canvas x-ref="c"></canvas>
                 </div>
+                @endif
 
                 <div class="overflow-x-auto mt-5">
                     <table class="table-surface min-w-full text-sm">
@@ -654,7 +658,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($report['departments'] as $d)
+                            {{-- Departments that bought nothing in either {{ $unit }} are left off. --}}
+                            @foreach (array_filter($report['departments'], fn ($d) => $d['purchases']['current'] > 0 || $d['purchases']['previous'] > 0) as $d)
                                 @php
                                     $s = $delta($d['sales']['change'], true);
                                     $p = $delta($d['purchases']['change'], false);
@@ -706,8 +711,9 @@
             @if ($wasteRows === [])
                 <p class="py-8 text-center text-sm text-gray-600">No wastage recorded by department for these two {{ $unit }}s.</p>
             @else
+                @if ($report['charts']['departments']['waste']['labels'] !== [])
                 <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Wastage % of sales</h3>
-                        <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['labels']) * 48 + 60) }}px"
+                        <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['waste']['labels']) * 48 + 60) }}px"
                              :class="presenting && '!h-[30vh]'"
                              wire:key="wip-dept-waste-{{ md5(json_encode($report['charts']['departments'])) }}"
                              x-data="{
@@ -718,10 +724,10 @@
                                     new Chart(this.$refs.c, {
                                         type: 'bar',
                                         data: {
-                                            labels: d.labels,
+                                            labels: d.waste.labels,
                                             datasets: [
-                                                { label: 'This ' + d.unit, data: d.wastage_pct, backgroundColor: d.colors.wastage, borderRadius: 3 },
-                                                { label: 'Last ' + d.unit, data: d.wastage_pct_prev, backgroundColor: d.colors.previous, borderRadius: 3 },
+                                                { label: 'This ' + d.unit, data: d.waste.current, backgroundColor: d.colors.wastage, borderRadius: 3 },
+                                                { label: 'Last ' + d.unit, data: d.waste.previous, backgroundColor: d.colors.previous, borderRadius: 3 },
                                             ],
                                         },
                                         options: {
@@ -732,17 +738,18 @@
                                                     label: i => i.dataset.label + ': ' + (i.parsed.x === null ? '—' : i.parsed.x.toFixed(1) + '%'),
                                                     afterBody: items => {
                                                         const k = items[0].dataIndex;
-                                                        return ['Wastage: ' + rm(d.wastage[k]), 'Sales: ' + rm(d.sales[k])];
+                                                        return ['Wastage: ' + rm(d.waste.amount[k]), 'Sales: ' + rm(d.waste.sales[k])];
                                                     },
                                                 } },
                                             },
-                                            scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } },
+                                            scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%' } }, y: { grid: { display: false }, ticks: { autoSkip: false } } },
                                         },
                                     });
                                 },
                              }">
                             <canvas x-ref="c"></canvas>
                         </div>
+                @endif
 
                 <div class="overflow-x-auto mt-5">
                     <table class="table-surface min-w-full text-sm">

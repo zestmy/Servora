@@ -424,7 +424,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($report['departments'] as $d)
+                @foreach (array_filter($report['departments'], fn ($d) => $d['purchases']['current'] > 0 || $d['purchases']['previous'] > 0) as $d)
                     @php
                         $s = $delta($d['sales']['change'], true);
                         $p = $delta($d['purchases']['change'], false);

@@ -852,18 +852,17 @@ class WeeklyWipReview
     /**
      * Sales by sales category for the reviewed period against the one before.
      *
-     * Every active category is listed, in the company's own order, even with
-     * no sales in either period — a category that sold nothing is worth seeing
-     * on the sheet. An inactive or deleted one appears only if it still sold.
-     * Header revenue with no lines behind it is Uncategorised, so the rows add
-     * up to total sales.
+     * Categories that sold something in either period, in the company's own
+     * order — an empty row is noise on a projected slide. Header revenue with
+     * no lines behind it is Uncategorised, so the rows add up to total sales;
+     * under RM 1 it is only the rounding between a record's total and its
+     * lines, and is left off rather than shown as a row of sen.
      */
     private function categoryRows(int $companyId, array $byCategory, array $sales, int $cur, int $prev): array
     {
         $categories = SalesCategory::withoutGlobalScopes()->withTrashed()
             ->where('company_id', $companyId)
-            ->where(fn ($q) => $q->where(fn ($q) => $q->where('is_active', true)->whereNull('deleted_at'))
-                ->orWhereIn('id', array_filter(array_keys($byCategory), 'is_int')))
+            ->whereIn('id', array_filter(array_keys($byCategory), 'is_int'))
             ->ordered()
             ->get(['id', 'name']);
 
@@ -883,11 +882,13 @@ class WeeklyWipReview
         $rows = [];
         foreach ($categories as $c) {
             $s = $byCategory[$c->id]['sales'] ?? null;
-            $rows[] = $line($c->name, $s[$cur] ?? 0.0, $s[$prev] ?? 0.0);
+            if ($s !== null && (abs($s[$cur]) > 0.005 || abs($s[$prev]) > 0.005)) {
+                $rows[] = $line($c->name, $s[$cur], $s[$prev]);
+            }
         }
 
         $none = $byCategory[self::UNASSIGNED]['sales'] ?? null;
-        if ($none !== null && (abs($none[$cur]) > 0.005 || abs($none[$prev]) > 0.005)) {
+        if ($none !== null && (abs($none[$cur]) >= 1 || abs($none[$prev]) >= 1)) {
             $rows[] = $line('Uncategorised', $none[$cur], $none[$prev]);
         }
 
@@ -999,7 +1000,28 @@ class WeeklyWipReview
                 fn ($r) => $r['name'],
                 array_filter($rows, fn ($r) => $r['cost_pct']['current'] === null && $r['wastage_pct']['current'] === null),
             )),
+            // Each chart on its own slide draws only the departments with a bar
+            // to show: a department that bought (or wasted) nothing in either
+            // period is an empty row that pushes the real ones apart.
+            'cost'          => $this->departmentSeries($charted, 'cost_pct', 'purchases'),
+            'waste'         => $this->departmentSeries($charted, 'wastage_pct', 'wastage'),
             'colors'        => $colors,
+        ];
+    }
+
+    private function departmentSeries(array $rows, string $pctKey, string $amountKey): array
+    {
+        $shown = array_values(array_filter(
+            $rows,
+            fn ($r) => ($r[$pctKey]['current'] ?? 0) > 0 || ($r[$pctKey]['previous'] ?? 0) > 0,
+        ));
+
+        return [
+            'labels'   => array_column($shown, 'name'),
+            'current'  => array_map(fn ($r) => $r[$pctKey]['current'], $shown),
+            'previous' => array_map(fn ($r) => $r[$pctKey]['previous'], $shown),
+            'amount'   => array_map(fn ($r) => $r[$amountKey]['current'], $shown),
+            'sales'    => array_map(fn ($r) => $r['sales']['current'], $shown),
         ];
     }
 

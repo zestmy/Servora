@@ -218,6 +218,14 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertEquals([2.0, 0.0], $chart['wastage_pct']);
         $this->assertSame([0.0, null], $chart['wastage_pct_prev'], 'Nothing wasted last week; the bar sold nothing then.');
         $this->assertSame(['Unassigned'], $chart['left_out'], 'No sales this week, so no percentage to draw.');
+
+        // Each slide's chart draws only departments with a bar to show.
+        $this->assertSame(['Kitchen'], $chart['cost']['labels'], 'Nothing bought for the bar in either week.');
+        $this->assertEquals([40.0], $chart['cost']['current']);
+        $this->assertSame([37.5], $chart['cost']['previous']);
+        $this->assertEquals([400], $chart['cost']['amount']);
+        $this->assertSame(['Kitchen'], $chart['waste']['labels'], 'Nothing wasted at the bar.');
+        $this->assertEquals([2.0], $chart['waste']['current']);
     }
 
     /**
@@ -230,25 +238,28 @@ class WeeklyWipReviewTest extends TestCase
         $this->seedTwoWeeks();
         SalesCategory::create(['company_id' => $this->company->id, 'name' => 'Retail', 'is_active' => true]);
         SalesCategory::create(['company_id' => $this->company->id, 'name' => 'Old menu', 'is_active' => false]);
+        // Five sen between a record's total and its lines: rounding, not a row.
+        $this->sale('2026-09-10', 100.05, [[$this->food, 100]]);
         $report = $this->report();
 
         $rows = collect($report['categories']['rows'])->keyBy('name');
 
-        $this->assertEquals(1000, $rows['Food']['current']);
+        $this->assertEquals(1100, $rows['Food']['current']);
         $this->assertEquals(800, $rows['Food']['previous']);
-        $this->assertEquals(200, $rows['Food']['variance']);
-        $this->assertEquals(25.0, $rows['Food']['change']);
+        $this->assertEquals(300, $rows['Food']['variance']);
+        $this->assertEquals(37.5, $rows['Food']['change']);
         $this->assertEquals(500, $rows['Beverage']['current']);
-        $this->assertEquals(0, $rows['Retail']['current'], 'An active category that sold nothing is still listed.');
-        $this->assertEquals(0, $rows['Retail']['variance']);
-        $this->assertFalse($rows->has('Old menu'), 'An inactive category with no sales is left out.');
+        $this->assertFalse($rows->has('Retail'), 'A category that sold nothing in either week is left off.');
+        $this->assertFalse($rows->has('Old menu'));
+        $this->assertSame(['Beverage', 'Food', 'Uncategorised'], $rows->keys()->all(),
+            'The 5 sen rounding this week does not make an Uncategorised row; the RM 200 total last week does.');
         $this->assertEquals(200, $rows['Uncategorised']['previous'], 'A sales total with no lines behind it.');
 
         $total = $report['categories']['total'];
-        $this->assertEquals(1500, $total['current']);
+        $this->assertEquals(1600.05, $total['current']);
         $this->assertEquals(1000, $total['previous']);
-        $this->assertEquals(500, $total['variance']);
-        $this->assertEquals($total['current'], collect($report['categories']['rows'])->sum('current'), 'Rows add up to total sales.');
+        $this->assertEquals(600.05, $total['variance']);
+        $this->assertEqualsWithDelta($total['current'], collect($report['categories']['rows'])->sum('current'), 1, 'Rows add up to total sales, give or take rounding.');
         $this->assertEquals($total['previous'], collect($report['categories']['rows'])->sum('previous'));
 
         Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
@@ -262,7 +273,7 @@ class WeeklyWipReviewTest extends TestCase
             'company' => $this->company, 'scopeLabel' => 'KLCC',
         ])->render();
         $this->assertStringContainsString('Weekly sales by category', $pdf);
-        $this->assertStringContainsString('Retail', $pdf);
+        $this->assertStringNotContainsString('Retail', $pdf);
         $this->assertStringContainsString('Purchases by department', $pdf);
         $this->assertStringContainsString('Wastage by department', $pdf);
     }
