@@ -56,8 +56,11 @@ class AttendanceRecords extends Component
     /**
      * Whether MC, absence, lateness and special deductions go back into the
      * pool and lift the final RM/point, rather than staying with the company.
+     *
+     * On for a NEW pool; a saved one shows what it was saved with. The column
+     * itself defaults off, so no pool saved before this option moves.
      */
-    public bool $scRedistribute = false;
+    public bool $scRedistribute = true;
 
     /** Named allocations that take points alongside staff: [['name','points']]. */
     public array $scFunds = [];
@@ -465,7 +468,7 @@ class AttendanceRecords extends Component
             $this->scAbsPercent = $row ? rtrim(rtrim(number_format((float) $row->abs_percent, 2, '.', ''), '0'), '.') : '10';
             $this->scRetention  = $row ? rtrim(rtrim(number_format((float) $row->retention_percent, 2, '.', ''), '0'), '.') : '0';
             $this->scMinWorkingDays = (string) ($row ? $row->minWorkingDays() : 0);
-            $this->scRedistribute   = $row ? $row->redistributesDeductions() : false;
+            $this->scRedistribute   = $row ? $row->redistributesDeductions() : true;
 
             $this->scFunds = $row
                 ? array_map(fn ($f) => ['name' => $f['name'], 'points' => (string) $f['points']], $row->funds())

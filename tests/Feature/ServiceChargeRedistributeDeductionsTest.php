@@ -188,12 +188,8 @@ class ServiceChargeRedistributeDeductionsTest extends TestCase
         $this->assertEquals(3000.0, $r['allocated']);
     }
 
-    public function test_the_panel_saves_the_tick_and_the_kept_figures_carry_it(): void
+    private function panel()
     {
-        $this->mc($this->staff('A'), 2);
-        $this->staff('B');
-        $this->staff('C');
-
         $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
         $user->companies()->syncWithoutDetaching([$this->company->id]);
         $user->outlets()->sync([$this->outlet->id]);
@@ -201,13 +197,44 @@ class ServiceChargeRedistributeDeductionsTest extends TestCase
         $user->givePermissionTo(['hr.attendance', 'hr.attendance.record', 'hr.attendance.service_charge', 'hr.compensation']);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        Livewire::actingAs($user)
+        return Livewire::actingAs($user)
             ->test(AttendanceRecords::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
+            ->set('showServiceCharge', true);
+    }
+
+    public function test_a_new_pool_redistributes_unless_somebody_unticks_it(): void
+    {
+        $this->staff('A');
+
+        $this->panel()
+            ->assertSet('scRedistribute', true)
+            ->set('scAmount', '1000')
+            ->call('saveServiceCharge')
+            ->assertHasNoErrors();
+
+        $row = ServiceChargePeriod::withoutGlobalScopes()->where('outlet_id', $this->outlet->id)->first();
+        $this->assertTrue($row->redistributesDeductions());
+    }
+
+    public function test_a_saved_pool_that_keeps_its_deductions_still_reads_unticked(): void
+    {
+        $this->staff('A');
+        $this->pool(1000, redistribute: false);
+
+        $this->panel()->assertSet('scRedistribute', false);
+    }
+
+    public function test_the_panel_saves_the_tick_and_the_kept_figures_carry_it(): void
+    {
+        $this->mc($this->staff('A'), 2);
+        $this->staff('B');
+        $this->staff('C');
+
+        $this->panel()
             ->set('scAmount', '3000')
             ->set('scMcPercent', '10')
             ->set('scAbsPercent', '0')
