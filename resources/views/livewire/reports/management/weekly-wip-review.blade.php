@@ -798,7 +798,7 @@
             @php $mealRows = array_values(array_filter($report['outlets'], fn ($o) => $o['staff_meal']['current'] > 0 || $o['staff_meal']['previous'] > 0)); @endphp
             @if ($mealRows !== [])
                 <div class="overflow-x-auto mt-5">
-                    <table class="table-surface min-w-full text-sm">
+                    <table class="table-surface wip-big min-w-full text-sm">
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Outlet</th>
