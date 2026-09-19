@@ -936,7 +936,7 @@
                                     $c = $canPay ? $delta($s['ot_cost']['change'], false) : null;
                                 @endphp
                                 <tr wire:key="ot-section-{{ $loop->index }}-{{ $s['name'] }}">
-                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $s['name'] }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800">{{ $s['name'] }}</td>
                                     <td class="px-3 py-2">
                                         <div class="h-2 rounded-full bg-gray-100 min-w-[80px]">
                                             <div class="h-2 rounded-full" style="width: {{ round($s['ot_hours']['current'] / $peakHours * 100, 1) }}%; background: {{ $report['charts']['overtime']['color'] }};"></div>
@@ -985,7 +985,7 @@
                                     $c = $canPay ? $delta($o['ot_cost']['change'], false) : null;
                                 @endphp
                                 <tr wire:key="ot-{{ $loop->index }}-{{ $o['name'] }}">
-                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $o['name'] }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800">{{ $o['name'] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_hours']['current'], 1) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $h[1] }}">{{ $h[0] }}</td>
                                     @if ($canPay)
@@ -1120,7 +1120,7 @@
                         fn ($o) => abs($o[$key]['current'] ?? 0) > 0.005 || abs($o[$key]['previous'] ?? 0) > 0.005);
                 @endphp
                 <div class="overflow-x-auto">
-                    <table class="table-surface min-w-full text-sm">
+                    <table class="table-surface wip-big min-w-full text-sm">
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Outlet</th>
@@ -1159,7 +1159,7 @@
                                     $c = $delta($o['cost_pct']['change'], false, true);
                                 @endphp
                                 <tr wire:key="outlet-{{ $loop->index }}-{{ $o['name'] }}">
-                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $o['name'] }}</td>
+                                    <td class="px-3 py-2 font-medium text-gray-800">{{ $o['name'] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['sales']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $s[1] }}">{{ $s[0] }}</td>
                                     @if ($has('purchases'))
