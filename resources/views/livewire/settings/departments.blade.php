@@ -29,7 +29,7 @@
         </button>
     </div>
 
-    <p class="text-xs text-gray-600 mb-4">Departments are cost centres for purchasing, inventory and costing. Link each department to a sales category for P&L reporting.</p>
+    <p class="text-xs text-gray-600 mb-4">Departments are cost centres for purchasing, inventory and costing. Link each department to a sales category — or to total sales — for P&L reporting.</p>
 
     {{-- List — horizontally scrollable on mobile. --}}
     <div class="card overflow-hidden">
@@ -50,7 +50,12 @@
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $dept->name }}</td>
                         <td class="px-4 py-3 text-gray-600 text-sm">
-                            @if ($dept->salesCategory)
+                            @if ($dept->costs_against_total_sales)
+                                <span class="inline-flex items-center gap-1.5 font-medium text-gray-800">
+                                    <x-icon name="chart" class="h-3.5 w-3.5 text-gray-500" />
+                                    Total sales (all categories)
+                                </span>
+                            @elseif ($dept->salesCategory)
                                 <span class="inline-flex items-center gap-1.5">
                                     <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $dept->salesCategory->color }}"></span>
                                     {{ $dept->salesCategory->name }}
@@ -143,11 +148,17 @@
                         <select id="dept_sales_cat" wire:model="sales_category_id"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                             <option value="">— None (Non-revenue) —</option>
+                            <option value="{{ \App\Livewire\Settings\Departments::TOTAL_SALES }}">Total sales (all categories)</option>
                             @foreach ($salesCategories as $sc)
                                 <option value="{{ $sc->id }}">{{ $sc->name }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-0.5 text-xs text-gray-600">Purchases by this department will be costed against this sales category</p>
+                        <x-input-error :messages="$errors->get('sales_category_id')" class="mt-1" />
+                        <p class="mt-0.5 text-xs text-gray-600">
+                            Purchases by this department will be costed against this sales category.
+                            Choose <strong>Total sales</strong> for a department that buys for the whole outlet
+                            (consumables, packaging) — it gets its own P&amp;L column, measured against all sales.
+                        </p>
                     </div>
 
                     {{-- Sort Order | Active --}}

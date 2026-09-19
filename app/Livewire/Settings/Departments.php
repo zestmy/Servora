@@ -10,11 +10,15 @@ use Livewire\Component;
 
 class Departments extends Component
 {
+    /** The dropdown value for "cost this department against total sales". */
+    public const TOTAL_SALES = 'total';
+
     public bool $showModal = false;
     public ?int $editingId = null;
 
     public string $name              = '';
-    public ?int   $sales_category_id = null;
+    /** A sales category id, self::TOTAL_SALES, or '' for non-revenue. */
+    public string $sales_category_id = '';
     public string $sort_order        = '0';
     public bool   $is_active         = true;
 
@@ -22,7 +26,14 @@ class Departments extends Component
     {
         return [
             'name'              => 'required|string|max:100',
-            'sales_category_id' => 'nullable|exists:sales_categories,id',
+            'sales_category_id' => ['nullable', function ($attribute, $value, $fail) {
+                if ($value === '' || $value === null || $value === self::TOTAL_SALES) {
+                    return;
+                }
+                if (! SalesCategory::whereKey((int) $value)->exists()) {
+                    $fail('Choose a sales category from the list.');
+                }
+            }],
             'sort_order'        => 'required|integer|min:0|max:9999',
         ];
     }
@@ -39,7 +50,9 @@ class Departments extends Component
 
         $this->editingId         = $dept->id;
         $this->name              = $dept->name;
-        $this->sales_category_id = $dept->sales_category_id;
+        $this->sales_category_id = $dept->costs_against_total_sales
+            ? self::TOTAL_SALES
+            : (string) ($dept->sales_category_id ?? '');
         $this->sort_order        = (string) $dept->sort_order;
         $this->is_active         = $dept->is_active;
 
@@ -50,9 +63,12 @@ class Departments extends Component
     {
         $this->validate();
 
+        $total = $this->sales_category_id === self::TOTAL_SALES;
+
         $data = [
-            'name'              => $this->name,
-            'sales_category_id' => $this->sales_category_id ?: null,
+            'name'                      => $this->name,
+            'sales_category_id'         => $total || $this->sales_category_id === '' ? null : (int) $this->sales_category_id,
+            'costs_against_total_sales' => $total,
             'sort_order'        => (int) $this->sort_order,
             'is_active'         => $this->is_active,
         ];
@@ -113,7 +129,7 @@ class Departments extends Component
     {
         $this->editingId         = null;
         $this->name              = '';
-        $this->sales_category_id = null;
+        $this->sales_category_id = '';
         $this->sort_order        = '0';
         $this->is_active         = true;
         $this->resetValidation();

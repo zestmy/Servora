@@ -283,6 +283,29 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertStringContainsString('Wastage by department', $pdf);
     }
 
+    public function test_a_department_set_to_total_sales_is_measured_against_every_sale(): void
+    {
+        $this->seedTwoWeeks();
+        $consumable = Department::create([
+            'company_id' => $this->company->id, 'name' => 'Consumable', 'costs_against_total_sales' => true,
+            'sort_order' => 3, 'is_active' => true,
+        ]);
+        $this->purchase('2026-09-09', 75, $consumable);
+        $report = $this->report();
+
+        $row = $this->dept($report, 'Consumable');
+        $this->assertEquals(1500, $row['sales']['current'], 'All of this week\'s sales, not one category.');
+        $this->assertEquals(1000, $row['sales']['previous'], 'Including last week\'s Z-report total with no lines.');
+        $this->assertEquals(5.0, $row['cost_pct']['current'], '75 of 1,500.');
+        $this->assertTrue($row['total_sales']);
+        $this->assertSame([], $row['shared_with']);
+        $this->assertFalse($this->dept($report, 'Kitchen')['total_sales']);
+
+        $this->assertEquals(1500, $this->kpi($report, 'sales')['current'], 'Total sales still count each sale once.');
+
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)->assertSee('vs total sales');
+    }
+
     public function test_purchases_keyed_in_stock_management_are_counted(): void
     {
         PurchaseCapture::create([

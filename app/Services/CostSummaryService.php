@@ -24,7 +24,10 @@ class CostSummaryService
      *
      * Groups purchases, stock, wastage and staff meals by DEPARTMENT → SALES CATEGORY.
      * Revenue comes from SalesRecordLines grouped by sales_category_id.
-     * Departments without a sales_category_id roll into "Non-Revenue" totals.
+     * Departments without a sales_category_id roll into "Non-Revenue" totals —
+     * except one set to cost against TOTAL sales (consumables, packaging), which
+     * gets a row of its own measured against all revenue. That row's revenue is
+     * total sales for reference only; it is not added into the revenue total.
      *
      * For monthly mode: pass $period as 'Y-m', leave $startDate/$endDate null.
      * For weekly/custom mode: pass $startDate and $endDate (stock takes will be skipped).
@@ -147,8 +150,47 @@ class CostSummaryService
             }
         }
 
+        // ── Departments costed against TOTAL sales: a row each ──
+        // Measured against all category revenue, which is already in the
+        // total — so their COGS is added to the totals and their revenue is not.
+        $totalSalesDepts = Department::where('company_id', $companyId)
+            ->where('costs_against_total_sales', true)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name']);
+
+        $allRevenue = $totals['revenue'];
+        foreach ($totalSalesDepts as $dept) {
+            $purchases   = (float) ($purchasesByDept[$dept->id] ?? 0);
+            $opening     = (float) ($openingByDept[$dept->id] ?? 0);
+            $closing     = (float) ($closingByDept[$dept->id] ?? 0);
+            $transferIn  = (float) ($transferInByDept[$dept->id] ?? 0);
+            $transferOut = (float) ($transferOutByDept[$dept->id] ?? 0);
+            $cogs        = $opening + $purchases + $transferIn - $transferOut - $closing;
+
+            $row = [
+                'id'            => 'dept-' . $dept->id,
+                'name'          => $dept->name . ' · total sales',
+                'color'         => null,
+                'type'          => null,
+                'basis'         => 'total_sales',
+                'revenue'       => round($allRevenue, 2),
+                'purchases'     => round($purchases, 2),
+                'transfer_in'   => round($transferIn, 2),
+                'transfer_out'  => round($transferOut, 2),
+                'opening_stock' => round($opening, 2),
+                'closing_stock' => round($closing, 2),
+                'cogs'          => round($cogs, 2),
+                'cost_pct'      => $allRevenue > 0 ? round(($cogs / $allRevenue) * 100, 1) : 0,
+            ];
+            $categories[] = $row;
+
+            foreach (['purchases', 'transfer_in', 'transfer_out', 'opening_stock', 'closing_stock', 'cogs'] as $field) {
+                $totals[$field] += $row[$field];
+            }
+        }
+
         // ── Roll in non-revenue costs (departments without sales category) ──
-        $mappedDeptIds = $deptToSalesCat->keys()->toArray();
+        $mappedDeptIds = array_merge($deptToSalesCat->keys()->toArray(), $totalSalesDepts->pluck('id')->all());
         $nonRevenuePurchases = 0;
         $nonRevenueOpening = 0;
         $nonRevenueClosing = 0;

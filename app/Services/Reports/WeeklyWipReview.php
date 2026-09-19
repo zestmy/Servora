@@ -147,7 +147,7 @@ class WeeklyWipReview
         $departments = Department::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->orderBy('sort_order')->orderBy('name')
-            ->get(['id', 'name', 'sales_category_id']);
+            ->get(['id', 'name', 'sales_category_id', 'costs_against_total_sales']);
 
         // EVERY department on a sales category is measured against that
         // category's sales. Several departments often share one — a kitchen
@@ -190,6 +190,14 @@ class WeeklyWipReview
             if ($gap > 0.005) {
                 $add($byDept, self::UNASSIGNED, 'sales', $w, $gap);
                 $add($byCategory, self::UNASSIGNED, 'sales', $w, $gap);
+            }
+        }
+
+        // A department set to cost against total sales (consumables, say) is
+        // measured against every sale — the same total the headline uses.
+        foreach ($departments->where('costs_against_total_sales', true) as $d) {
+            foreach ($totals['sales'] as $w => $amount) {
+                $add($byDept, $d->id, 'sales', $w, $amount);
             }
         }
 
@@ -335,6 +343,7 @@ class WeeklyWipReview
                 $byDept[$key], $zero, $cur, $prev, ['sales', 'purchases', 'wastage'],
             );
             $row['shared_with'] = $key === self::UNASSIGNED ? [] : ($sharedWith[$key] ?? []);
+            $row['total_sales'] = $key !== self::UNASSIGNED && (bool) $departments->firstWhere('id', $key)?->costs_against_total_sales;
 
             if ($row['active']) {
                 $departmentRows[] = $row;

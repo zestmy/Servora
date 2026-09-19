@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Department extends Model
 {
     protected $fillable = [
-        'company_id', 'name', 'sales_category_id', 'sort_order', 'is_active',
+        'company_id', 'name', 'sales_category_id', 'costs_against_total_sales', 'sort_order', 'is_active',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'                 => 'boolean',
+        'costs_against_total_sales' => 'boolean',
     ];
 
     protected static function booted(): void

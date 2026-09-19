@@ -674,6 +674,9 @@
                                         @if (! empty($d['shared_with']))
                                             <span class="wip-hide-present block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
                                         @endif
+                                        @if (! empty($d['total_sales']))
+                                            <span class="block text-[11px] font-normal text-gray-500">vs total sales</span>
+                                        @endif
                                     </td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['sales']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $s[1] }}">{{ $s[0] }}</td>
@@ -773,6 +776,9 @@
                                         {{ $d['name'] }}
                                         @if (! empty($d['shared_with']))
                                             <span class="wip-hide-present block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
+                                        @endif
+                                        @if (! empty($d['total_sales']))
+                                            <span class="block text-[11px] font-normal text-gray-500">vs total sales</span>
                                         @endif
                                     </td>
                                     <td class="px-3 py-2 text-right tabular-nums">{{ number_format($d['wastage']['current'], 2) }}</td>

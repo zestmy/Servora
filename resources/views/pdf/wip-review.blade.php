@@ -434,7 +434,7 @@
                         $c = $delta($d['cost_pct']['change'], false, true);
                     @endphp
                     <tr>
-                        <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif</td>
+                        <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif@if (! empty($d['total_sales']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">vs total sales</div>@endif</td>
                         <td>
                             {!! $bar((float) $d['cost_pct']['current'], $costPeak, $colors['purchases']) !!}
                             <div style="height: 1px;"></div>
@@ -553,7 +553,7 @@
                     @foreach ($wasteRows as $d)
                         @php $w = $delta($d['wastage']['change'], false); @endphp
                         <tr>
-                            <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif</td>
+                            <td style="font-weight: bold;">{{ $d['name'] }}@if (! empty($d['shared_with']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">sales shared with {{ implode(', ', $d['shared_with']) }}</div>@endif@if (! empty($d['total_sales']))<div style="font-size: 7pt; font-weight: normal; color: #64748b;">vs total sales</div>@endif</td>
                             <td>
                                 {!! $bar((float) $d['wastage_pct']['current'], $wastePeak, $colors['wastage']) !!}
                                 <div style="height: 1px;"></div>
