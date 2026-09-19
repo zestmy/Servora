@@ -1167,6 +1167,19 @@ class AttendanceRecords extends Component
             }
         }
 
+        // Fund allocations, as an ordered list normalised the way
+        // saveServiceCharge() keeps them: trimmed names, points to 2dp, and a
+        // row without a name or points dropped — so the blank row "+ Add
+        // allocation" puts on screen is not a change until it is filled in.
+        $scFundList = fn ($funds) => collect($funds ?? [])
+            ->map(fn ($f) => [trim((string) ($f['name'] ?? '')), round((float) ($f['points'] ?? 0), 2)])
+            ->filter(fn ($f) => $f[0] !== '' && $f[1] > 0)
+            ->values()
+            ->all();
+
+        $scPendingFunds = $scRow?->isFrozen()
+            && $scFundList($this->scFunds) !== $scFundList($scRow->funds());
+
         $scPendingRedistribute = $scRow?->isFrozen()
             && $this->scRedistribute !== $scRow->redistributesDeductions();
 
@@ -1233,7 +1246,7 @@ class AttendanceRecords extends Component
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
-            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial',
+            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial', 'scPendingFunds',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }

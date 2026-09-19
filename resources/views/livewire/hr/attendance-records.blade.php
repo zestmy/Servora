@@ -626,7 +626,7 @@
                                  out loud because the alternative is a tick that
                                  looks broken: the control is .live, the table does
                                  not move, and nothing on screen explains the gap. --}}
-                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []) || count($scPendingSpecial ?? []))
+                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false) || count($scPendingLate ?? []) || count($scPendingSpecial ?? []) || ($scPendingFunds ?? false))
                                 <span class="px-2.5 py-1 rounded-full bg-warning-50 text-warning-800 font-medium"
                                       title="A calculated period keeps its figures until it is recalculated.">
                                     @php
@@ -645,6 +645,9 @@
                                         if (count($scPendingSpecial ?? [])) {
                                             $pendingBits[] = count($scPendingSpecial) . ' special '
                                                 . \Illuminate\Support\Str::plural('deduction', count($scPendingSpecial));
+                                        }
+                                        if ($scPendingFunds ?? false) {
+                                            $pendingBits[] = 'the allocations';
                                         }
                                         if ($scPendingRedistribute ?? false) {
                                             $pendingBits[] = 'redistribution';
@@ -665,7 +668,12 @@
             <div class="px-4 py-3 border-b border-gray-100">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <p class="text-xs font-medium text-gray-700">Additional allocations</p>
+                        <p class="text-xs font-medium text-gray-700">
+                            Additional allocations
+                            @if ($scPendingFunds ?? false)
+                                <span class="ml-1 text-[10px] font-medium text-warning-700">not applied</span>
+                            @endif
+                        </p>
                         <p class="text-[11px] text-gray-500">
                             Named shares that take points alongside staff — an Outlet Fund, a Breakages Fund.
                         </p>
@@ -678,16 +686,23 @@
                         @foreach ($scFunds as $i => $fund)
                             <div wire:key="sc-fund-{{ $i }}" class="flex flex-wrap items-start gap-2">
                                 <div>
-                                    <input type="text" wire:model="scFunds.{{ $i }}.name" placeholder="e.g. Outlet Fund"
+                                    <input type="text" wire:model.blur="scFunds.{{ $i }}.name" placeholder="e.g. Outlet Fund"
                                            class="w-48 text-sm rounded-lg border-gray-300 shadow-sm" />
                                     @error('scFunds.' . $i . '.name') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                                 </div>
                                 <div>
-                                    <input type="number" step="0.01" min="0" wire:model="scFunds.{{ $i }}.points" placeholder="points"
+                                    <input type="number" step="0.01" min="0" wire:model.blur="scFunds.{{ $i }}.points" placeholder="points"
                                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                                     @error('scFunds.' . $i . '.points') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                                 </div>
-                                @if ($serviceCharge['row'] && isset($serviceCharge['funds'][$i]))
+                                {{-- The kept amount is matched by POSITION, so it is shown
+                                     only while this row still reads as the fund it was
+                                     calculated for. After a removal or a rename, position
+                                     i may hold a different fund, and printing the old
+                                     one's RM beside it would be a wrong figure. --}}
+                                @if ($serviceCharge['row'] && isset($serviceCharge['funds'][$i])
+                                     && trim((string) ($fund['name'] ?? '')) === $serviceCharge['funds'][$i]['name']
+                                     && round((float) ($fund['points'] ?? 0), 2) === round((float) $serviceCharge['funds'][$i]['points'], 2))
                                     <span class="text-xs text-gray-600 py-2">
                                         = RM {{ number_format($serviceCharge['funds'][$i]['amount'], 2) }}
                                     </span>

@@ -269,4 +269,41 @@ class ServiceChargeManualLatenessTest extends TestCase
             ->set("scManualLate.{$a->id}", '10')
             ->assertSee('Not applied yet: 1 late entry and 1 special deduction');
     }
+
+    public function test_a_fund_allocation_edit_on_a_calculated_pool_says_it_is_not_applied_yet(): void
+    {
+        $this->staff('A');
+
+        $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->outlet->id]);
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo(['hr.attendance', 'hr.attendance.record', 'hr.attendance.service_charge', 'hr.compensation']);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $panel = Livewire::actingAs($user)
+            ->test(AttendanceRecords::class)
+            ->set('outletFilter', (string) $this->outlet->id)
+            ->set('periodMode', 'range')
+            ->set('rangeFrom', $this->from->toDateString())
+            ->set('rangeTo', $this->to->toDateString())
+            ->set('showServiceCharge', true)
+            ->set('scAmount', '2000')
+            ->set('scFunds', [['name' => 'Outlet Fund', 'points' => '1']])
+            ->call('saveServiceCharge')
+            ->assertHasNoErrors()
+            ->assertDontSee('Not applied yet')
+            ->assertSee('= RM 1,000.00');
+
+        // An empty row from "+ Add allocation" is not a change yet.
+        $panel->call('addServiceChargeFund')->assertDontSee('Not applied yet');
+
+        $panel->set('scFunds.0.points', '2')
+            ->assertSee('Not applied yet: the allocations')
+            ->assertDontSee('= RM 1,000.00');
+
+        $panel->set('scFunds.0.points', '1.00')->assertDontSee('Not applied yet');
+
+        $panel->call('removeServiceChargeFund', 0)->assertSee('Not applied yet: the allocations');
+    }
 }
