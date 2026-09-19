@@ -319,7 +319,9 @@ class WeeklyWipReviewTest extends TestCase
 
         Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
             ->assertSee('sales shared with Kitchen')
-            ->assertSee('5.0% of sales');
+            ->assertSee('Purchases by department')
+            ->assertSee('Wastage by department')
+            ->assertSee('5.0%');
     }
 
     public function test_the_trend_buckets_each_record_into_its_week(): void

@@ -200,11 +200,29 @@
     .wip-review .table-surface tbody tr.wip-total-row td { @apply bg-brand-900 text-white font-bold; }
     .wip-review .table-surface tbody tr.wip-total-row td .text-gray-500 { @apply text-brand-100; }
 
-    .wip-presenting .table-surface { @apply text-base; }
-    .wip-presenting .table-surface thead th { @apply text-sm py-3; }
-    .wip-presenting .table-surface td { @apply py-2.5; }
-    .wip-presenting .stat-label { @apply text-sm font-semibold text-gray-700; }
-    .wip-presenting .stat-value { @apply text-4xl font-bold; }
+    /* Presenting is read off a projector from across a room. Type scales with
+       the screen rather than sitting at a fixed 14px, and fit() only ever
+       shrinks a slide, so a larger base is the only way figures get bigger.
+       Cells pad in em so columns stay tight as the type grows; the change
+       columns and sub-labels (12px and 11px on the page) come up to a size
+       that still reads, and footnotes and page-only detail are dropped. */
+    .wip-presenting .table-surface { font-size: clamp(15px, 1.4vw, 30px); }
+    /* Short tables (a handful of rows) have the room to go bigger still. */
+    .wip-presenting .table-surface.wip-big { font-size: clamp(18px, 1.8vw, 38px); }
+    .wip-presenting .table-surface thead th { font-size: clamp(12px, 0.95vw, 20px); padding: 0.7em 0.6em; line-height: 1.2; }
+    .wip-presenting .table-surface td { padding: 0.4em 0.6em; line-height: 1.25; }
+    /* Attribute selectors, not .text-xs: a selector naming a utility inside
+       .table-surface makes Tailwind report a circular @apply. */
+    .wip-presenting .table-surface [class~="text-xs"] { font-size: 0.9em; line-height: inherit; }
+    .wip-presenting .table-surface [class~="text-[11px]"] { font-size: 0.72em; line-height: 1.2; }
+    .wip-presenting .wip-note,
+    .wip-presenting .wip-hide-present { display: none; }
+    .wip-presenting .wip-widen { max-width: none; }
+    .wip-presenting .stat-label { font-size: clamp(13px, 1vw, 20px); @apply font-semibold text-gray-700; }
+    .wip-presenting .stat-value { font-size: clamp(30px, 2.8vw, 56px); @apply font-bold; }
+    .wip-presenting .stat [class~="text-xs"] { font-size: clamp(13px, 1vw, 20px); line-height: 1.35; }
+    .wip-presenting .wip-hint { font-size: clamp(13px, 1vw, 20px); }
+    .wip-presenting h3 { font-size: clamp(13px, 1vw, 20px); }
     .wip-presenting .page-eyebrow { @apply text-sm; }
     /* Plain declarations, not @apply: a selector naming text-xs cannot
        @apply text-sm without Tailwind reporting a circular dependency. */

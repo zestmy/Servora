@@ -44,8 +44,9 @@
     }
     $slides += [
         'trend'       => 'Purchase cost %',
-        'departments' => 'By department',
-        'wastage'     => 'Wastage',
+        'departments'  => 'Purchases by department',
+        'wastage'      => 'Wastage',
+        'dept_wastage' => 'Wastage by department',
         'staff_meals' => 'Staff meals',
         'transfers'   => 'Stock transfers',
         'overtime'    => 'Overtime claims',
@@ -90,7 +91,12 @@
         },
         refresh() {
             this.$nextTick(() => {
-                if (window.Chart) { Object.values(Chart.instances).forEach(c => c.resize()); }
+                // Axis labels and legends scale with the screen when presenting;
+                // Chart.js's 12px default is unreadable on a projector.
+                if (window.Chart) {
+                    Chart.defaults.font.size = this.presenting ? Math.round(Math.min(26, Math.max(14, window.innerWidth / 80))) : 12;
+                    Object.values(Chart.instances).forEach(c => { c.resize(); c.update('none'); });
+                }
                 requestAnimationFrame(() => this.fit());
             });
         },
@@ -217,7 +223,7 @@
                     Nothing recorded for these {{ $unit }}s — no sales, purchases, wastage, staff meals, transfers, overtime or payroll.
                 </div>
             @else
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" :class="presenting && '!grid-cols-4'">
                     @foreach ($report['kpis'] as $k)
                         @php
                             [$dText, $dClass] = $delta($k['change'], $k['up_is_good'], $k['format'] === 'pct');
@@ -241,7 +247,7 @@
                     @endforeach
                 </div>
                 @unless ($canPay)
-                    <p class="mt-3 text-[11px] text-gray-500">Overtime cost and labour cost are shown only to users who can see pay.</p>
+                    <p class="wip-note mt-3 text-[11px] text-gray-500">Overtime cost and labour cost are shown only to users who can see pay.</p>
                 @endunless
             @endif
         </section>
@@ -321,7 +327,7 @@
                     </div>
                 @endif
 
-                <p class="mt-2 text-[11px] text-gray-500">
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
                     Meal period as keyed on each sales record (none = All Day).
                 </p>
             </section>
@@ -339,8 +345,8 @@
             @if ($cat['rows'] === [])
                 <p class="py-8 text-center text-sm text-gray-600">No sales categories set up yet — add them in Settings.</p>
             @else
-                <div class="overflow-x-auto max-w-3xl">
-                    <table class="table-surface min-w-full text-sm">
+                <div class="overflow-x-auto max-w-3xl wip-widen">
+                    <table class="table-surface wip-big min-w-full text-sm">
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Category</th>
@@ -376,7 +382,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-500">
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
                     Sales category as keyed on each sales line. Uncategorised is revenue recorded as a total with no lines behind it.
                 </p>
             @endif
@@ -390,7 +396,7 @@
                     'hint' => 'to ' . $sp['current']['label'] . '\'s Sunday, against the same days of last month and last year',
                 ])
                 <div class="overflow-x-auto">
-                    <table class="table-surface min-w-full text-sm">
+                    <table class="table-surface wip-big min-w-full text-sm">
                         <thead>
                             <tr>
                                 <th class="px-3 py-2 text-left">Period</th>
@@ -431,7 +437,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-500">
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
                     Covers are the pax recorded with sales. Each month-to-date comparison stops on the same day of its own month.
                 </p>
 
@@ -461,7 +467,7 @@
                     'n' => $idx['forecast'] + 1, 'title' => $slides['forecast'],
                     'hint' => 'month-to-date daily average carried over the days left',
                 ])
-                <div class="overflow-x-auto max-w-2xl">
+                <div class="overflow-x-auto max-w-2xl wip-widen">
 
                     <table class="table-surface min-w-full text-sm">
                         <tbody>
@@ -474,7 +480,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-500">
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
                     Forecast = month-to-date sales plus the month-to-date daily average over the days left.
                     @switch($fc['target_source'])
                         @case('outlet') Target is this outlet's, from Settings &gt; Sales Targets. @break
@@ -490,7 +496,7 @@
         <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['trend'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['trend'] + 1, 'title' => $slides['trend'], 'hint' => 'click a ' . $unit . ' to review it'])
 
-            <div class="relative h-72" :class="presenting && '!h-[38vh]'"
+            <div class="relative h-72" :class="presenting && '!h-[40vh]'"
                  wire:key="wip-trend-{{ md5(json_encode($report['charts']['trend'])) }}"
                  x-data="{
                     init() {
@@ -551,14 +557,17 @@
                     <thead>
                         <tr>
                             <th class="px-3 py-2 text-left">{{ ucfirst($unit) }}</th>
+                            {{-- Presenting, only the last four periods: the chart above carries the full trend. --}}
+                            @php $olderThan = count($report['periods']) - 4; @endphp
                             @foreach ($report['periods'] as $p)
-                                <th class="px-3 py-2 text-right whitespace-nowrap {{ $loop->last ? 'wip-current' : '' }}">{{ $p['label'] }}</th>
+                                <th class="px-3 py-2 text-right whitespace-nowrap {{ $loop->last ? 'wip-current' : '' }} {{ $loop->index < $olderThan ? 'wip-hide-present' : '' }}">{{ $p['label'] }}</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($trendRows as [$label, $key, $format, $pctKey])
-                            <tr>
+                            {{-- Presenting, just sales and purchases: every other row has a slide of its own. --}}
+                            <tr class="{{ in_array($key, ['sales', 'purchases'], true) ? '' : 'wip-hide-present' }}">
                                 <td class="px-3 py-2 whitespace-nowrap wip-label">
                                     {{ $label }}
                                     @if ($pctKey)
@@ -566,7 +575,7 @@
                                     @endif
                                 </td>
                                 @foreach ($report['totals'][$key] as $i => $v)
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap {{ $loop->last ? 'font-semibold text-gray-900' : 'text-gray-700' }}">
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap {{ $loop->last ? 'font-semibold text-gray-900' : 'text-gray-700' }} {{ $i < $olderThan ? 'wip-hide-present' : '' }}">
                                         @if ($format === 'hours') {{ number_format((float) $v, 1) }} @else {{ number_format((float) $v, 2) }} @endif
                                         @if ($pctKey)
                                             <span class="block text-[11px] font-normal text-gray-500">{{ $pct($report['totals'][$pctKey][$i]) }}</span>
@@ -580,21 +589,19 @@
             </div>
         </section>
 
-        {{-- ── By department ───────────────────────────────────────────── --}}
+        {{-- ── Purchases by department ─────────────────────────────────── --}}
         <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['departments'] }}" :class="presenting && '!mb-0 shrink-0'">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['departments'] + 1, 'title' => $slides['departments'], 'hint' => 'this ' . $unit . ', as % of each department\'s own sales'])
 
             @if ($report['departments'] === [])
                 <p class="py-8 text-center text-sm text-gray-600">No department figures for these two {{ $unit }}s.</p>
             @else
-                {{-- Two charts, each on its own scale: wastage runs at 1–2% and
-                     purchase cost at 30–50%, so on one axis the wastage bars
-                     were slivers nobody could read. --}}
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                        <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Purchase cost % of sales</h3>
+                {{-- Purchases and wastage are separate slides: side by side, each
+                     chart got half the width and the table carried both, which
+                     was too much to read off a projector. --}}
+                <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Purchase cost % of sales</h3>
                 <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['labels']) * 48 + 60) }}px"
-                     :class="presenting && '!h-[32vh]'"
+                     :class="presenting && '!h-[30vh]'"
                      wire:key="wip-dept-{{ md5(json_encode($report['charts']['departments'])) }}"
                      x-data="{
                         init() {
@@ -630,11 +637,75 @@
                     <canvas x-ref="c"></canvas>
                 </div>
 
-                    </div>
-                    <div>
-                        <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Wastage % of sales</h3>
+                <div class="overflow-x-auto mt-5">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Department</th>
+                                <th class="px-3 py-2 text-right">Sales</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                <th class="px-3 py-2 text-right">Purchases</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                <th class="px-3 py-2 text-right">Cost %</th>
+                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($report['departments'] as $d)
+                                @php
+                                    $s = $delta($d['sales']['change'], true);
+                                    $p = $delta($d['purchases']['change'], false);
+                                    $c = $delta($d['cost_pct']['change'], false, true);
+                                @endphp
+                                <tr wire:key="dept-{{ $loop->index }}-{{ $d['name'] }}">
+                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
+                                        {{ $d['name'] }}
+                                        @if (! empty($d['shared_with']))
+                                            <span class="wip-hide-present block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['sales']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $s[1] }}">{{ $s[0] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['purchases']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $p[1] }}">{{ $p[0] }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">{{ $pct($d['cost_pct']['current']) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
+                    @if ($report['charts']['departments']['left_out'] !== [])
+                        Not charted, having no sales to measure against: {{ implode(', ', $report['charts']['departments']['left_out']) }}.
+                    @endif
+                    Sales reach a department through its sales category (Settings &gt; Departments). Sales no department claims, and
+                    purchases or wastage keyed without a department, are shown as Unassigned. Departments sharing a sales
+                    category are each measured against all of its sales, so department sales can add up to more than total sales.
+                </p>
+            @endif
+        </section>
+
+        {{-- ── Wastage ─────────────────────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['wastage'] }}" :class="presenting && '!mb-0 shrink-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['wastage'] + 1, 'title' => $slides['wastage'], 'hint' => 'cost, and as a share of sales'])
+
+            @include('livewire.reports.management.partials.wip-cost-trend', [
+                'chart' => $report['charts']['wastage'], 'key' => 'wastage', 'label' => 'Wastage',
+            ])
+        </section>
+
+        {{-- ── Wastage by department ───────────────────────────────────── --}}
+        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['dept_wastage'] }}" :class="presenting && '!mb-0 shrink-0'">
+            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['dept_wastage'] + 1, 'title' => $slides['dept_wastage'], 'hint' => 'this ' . $unit . ', as % of each department\'s own sales'])
+
+            @php $wasteRows = array_values(array_filter($report['departments'], fn ($d) => $d['wastage']['current'] > 0 || $d['wastage']['previous'] > 0)); @endphp
+            @if ($wasteRows === [])
+                <p class="py-8 text-center text-sm text-gray-600">No wastage recorded by department for these two {{ $unit }}s.</p>
+            @else
+                <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Wastage % of sales</h3>
                         <div class="relative" style="height: {{ max(180, count($report['charts']['departments']['labels']) * 48 + 60) }}px"
-                             :class="presenting && '!h-[32vh]'"
+                             :class="presenting && '!h-[30vh]'"
                              wire:key="wip-dept-waste-{{ md5(json_encode($report['charts']['departments'])) }}"
                              x-data="{
                                 init() {
@@ -669,76 +740,7 @@
                              }">
                             <canvas x-ref="c"></canvas>
                         </div>
-                    </div>
-                </div>
 
-                <div class="overflow-x-auto mt-5">
-                    <table class="table-surface min-w-full text-sm">
-                        <thead>
-                            <tr>
-                                <th class="px-3 py-2 text-left">Department</th>
-                                <th class="px-3 py-2 text-right">Sales</th>
-                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
-                                <th class="px-3 py-2 text-right">Purchases</th>
-                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
-                                <th class="px-3 py-2 text-right">Cost %</th>
-                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
-                                <th class="px-3 py-2 text-right">Wastage</th>
-                                <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($report['departments'] as $d)
-                                @php
-                                    $s = $delta($d['sales']['change'], true);
-                                    $p = $delta($d['purchases']['change'], false);
-                                    $c = $delta($d['cost_pct']['change'], false, true);
-                                    $w = $delta($d['wastage']['change'], false);
-                                @endphp
-                                <tr wire:key="dept-{{ $loop->index }}-{{ $d['name'] }}">
-                                    <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
-                                        {{ $d['name'] }}
-                                        @if (! empty($d['shared_with']))
-                                            <span class="block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['sales']['current'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $s[1] }}">{{ $s[0] }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($d['purchases']['current'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $p[1] }}">{{ $p[0] }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($d['cost_pct']['current']) }}</td>
-                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                                        {{ number_format($d['wastage']['current'], 2) }}
-                                        <span class="block text-[11px] text-gray-500">{{ $pct($d['wastage_pct']['current']) }} of sales</span>
-                                    </td>
-                                    <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $w[1] }}">{{ $w[0] }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <p class="mt-2 text-[11px] text-gray-500">
-                    @if ($report['charts']['departments']['left_out'] !== [])
-                        Not charted, having no sales to measure against: {{ implode(', ', $report['charts']['departments']['left_out']) }}.
-                    @endif
-                    Sales reach a department through its sales category (Settings &gt; Departments). Sales no department claims, and
-                    purchases or wastage keyed without a department, are shown as Unassigned. Departments sharing a sales
-                    category are each measured against all of its sales, so department sales can add up to more than total sales.
-                </p>
-            @endif
-        </section>
-
-        {{-- ── Wastage ─────────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" x-show="! presenting || current === {{ $idx['wastage'] }}" :class="presenting && '!mb-0 shrink-0'">
-            @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['wastage'] + 1, 'title' => $slides['wastage'], 'hint' => 'cost, and as a share of sales'])
-
-            @include('livewire.reports.management.partials.wip-cost-trend', [
-                'chart' => $report['charts']['wastage'], 'key' => 'wastage', 'label' => 'Wastage',
-            ])
-
-            @php $wasteRows = array_values(array_filter($report['departments'], fn ($d) => $d['wastage']['current'] > 0 || $d['wastage']['previous'] > 0)); @endphp
-            @if ($wasteRows !== [])
                 <div class="overflow-x-auto mt-5">
                     <table class="table-surface min-w-full text-sm">
                         <thead>
@@ -757,7 +759,7 @@
                                     <td class="px-3 py-2 font-medium text-gray-800">
                                         {{ $d['name'] }}
                                         @if (! empty($d['shared_with']))
-                                            <span class="block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
+                                            <span class="wip-hide-present block text-[11px] font-normal text-gray-500">sales shared with {{ implode(', ', $d['shared_with']) }}</span>
                                         @endif
                                     </td>
                                     <td class="px-3 py-2 text-right tabular-nums">{{ number_format($d['wastage']['current'], 2) }}</td>
@@ -857,7 +859,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-500">
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
                     Drafts and cancelled transfers are left out. Across the whole company a transfer nets to zero — it moves cost
                     between outlets rather than adding to it.
                 </p>
@@ -932,7 +934,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-500">Each claim counts under the employee's current section.</p>
+                <p class="wip-note mt-2 text-[11px] text-gray-500">Each claim counts under the employee's current section.</p>
             @endif
             </div>
             <div class="min-w-0">
@@ -1074,7 +1076,7 @@
                     </div>
                 @endif
 
-                <p class="mt-2 text-[11px] text-gray-500">
+                <p class="wip-note mt-2 text-[11px] text-gray-500">
                     Each employee is counted once a month, from their most settled run (paid, then approved, then draft).
                     A company-wide run is split by each employee's current outlet.
                     @if (! $labour['include_drafts'] && $labour['drafts_left_out'] > 0)
@@ -1105,9 +1107,9 @@
                                 <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
                                 <th class="px-3 py-2 text-right">Wastage</th>
                                 <th class="px-3 py-2 text-right">Staff meals</th>
-                                <th class="px-3 py-2 text-right">Transfers in</th>
-                                <th class="px-3 py-2 text-right">Transfers out</th>
-                                <th class="px-3 py-2 text-right">OT hours</th>
+                                <th class="px-3 py-2 text-right wip-hide-present">Transfers in</th>
+                                <th class="px-3 py-2 text-right wip-hide-present">Transfers out</th>
+                                <th class="px-3 py-2 text-right wip-hide-present">OT hours</th>
                                 @if ($labour !== null)
                                     <th class="px-3 py-2 text-right">Labour cost</th>
                                     <th class="px-3 py-2 text-right">Labour %</th>
@@ -1135,9 +1137,9 @@
                                         {{ number_format($o['staff_meal']['current'], 2) }}
                                         <span class="block text-[11px] text-gray-500">{{ $pct($o['staff_meal_pct']['current']) }}</span>
                                     </td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_in']['current'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['transfers_out']['current'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['ot_hours']['current'], 1) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap wip-hide-present">{{ number_format($o['transfers_in']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap wip-hide-present">{{ number_format($o['transfers_out']['current'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap wip-hide-present">{{ number_format($o['ot_hours']['current'], 1) }}</td>
                                     @if ($labour !== null)
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['labour_cost']['current'], 2) }}</td>
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($o['labour_pct']['current']) }}</td>
