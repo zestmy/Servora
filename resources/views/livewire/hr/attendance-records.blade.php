@@ -796,7 +796,28 @@
                                     <td class="px-2 py-1.5 text-center {{ $scRow['mcDays'] > 0 ? 'text-warning-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['mcDays'] }}</td>
                                     <td class="px-2 py-1.5 text-center {{ $scRow['absDays'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['absDays'] }}</td>
                                     @if ($showLate)
-                                        <td class="px-2 py-1.5 text-center {{ $scRow['lateMins'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['lateMins'] > 0 ? $scRow['lateMins'] : '—' }}</td>
+                                        @php $clockedMins = max(0, $scRow['lateMins'] - ($scRow['manualLateMins'] ?? 0)); @endphp
+                                        @if ($scRow['excluded'])
+                                            <td class="px-2 py-1.5 text-center {{ $scRow['lateMins'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-500' }}">{{ $scRow['lateMins'] > 0 ? $scRow['lateMins'] : '—' }}</td>
+                                        @else
+                                            {{-- Typed-in minutes, for lateness the web clock did not
+                                                 see. The clocked minutes are shown under it, because
+                                                 the two are added together, not one instead of the
+                                                 other. Saved with the pool by Save & Calculate. --}}
+                                            <td class="px-2 py-1.5 text-center">
+                                                <input type="number" step="1" min="0"
+                                                       wire:model="scManualLate.{{ $scRow['employee']->id }}"
+                                                       placeholder="0"
+                                                       title="Late minutes to add by hand for this period, charged at the clock's per-minute rate with no per-shift cap"
+                                                       class="w-16 text-xs text-center rounded border-gray-300 tabular-nums" />
+                                                @if ($clockedMins > 0)
+                                                    <span class="block text-[10px] text-danger-600 mt-0.5">+ {{ $clockedMins }} clocked</span>
+                                                @endif
+                                                @error('scManualLate.' . $scRow['employee']->id)
+                                                    <p class="text-[10px] text-danger-500 mt-0.5">{{ $message }}</p>
+                                                @enderror
+                                            </td>
+                                        @endif
                                     @endif
                                     <td class="px-2 py-1.5 text-right {{ $scRow['dedPct'] > 0 ? 'text-danger-600 font-semibold' : 'text-gray-600' }}">
                                         {{ $scRow['dedPct'] > 0 ? rtrim(rtrim(number_format($scRow['dedPct'], 2, '.', ''), '0'), '.') . '%' : '—' }}
@@ -897,7 +918,7 @@
                     + Absent days × {{ rtrim(rtrim(number_format($serviceCharge['absPct'], 2, '.', ''), '0'), '.') }}% of gross, capped at 100%.
                     MC days count cells marked with a code named MC or SL, or labelled “Sick”; ABS uses the built-in Absent code.
                     @if ($showLate)
-                        Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift, taken after the percentage deduction and never below a net of zero.
+                        Late (RM) is the web clock-in charge for minutes past the rostered start, after grace — one charge per shift — plus any minutes typed into Late (min), charged at the same per-minute rate with no per-shift cap. It is taken after the percentage deduction and never below a net of zero.
                     @endif
                     Special deduction is agreed per person for this period and is taken last, never below a net of zero.
                     @if ($showDays)

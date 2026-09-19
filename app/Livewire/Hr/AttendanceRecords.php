@@ -69,6 +69,13 @@ class AttendanceRecords extends Component
     public array $scSpecial = [];
 
     /**
+     * employee_id => late minutes typed in by hand for this period, for staff
+     * whose lateness is not coming from the web clock. Priced at the clock's
+     * per-minute rate, no per-shift cap — see ServiceChargePeriod::withManualLateness().
+     */
+    public array $scManualLate = [];
+
+    /**
      * employee_id => true for staff taking NO share of this pool.
      *
      * Offered for everybody the pool pays. They are on this period because
@@ -481,6 +488,11 @@ class AttendanceRecords extends Component
                 ]])
                 ->all();
 
+            $this->scManualLate = collect($row?->manual_late_minutes ?? [])
+                ->map(fn ($m) => (string) (int) $m)
+                ->mapWithKeys(fn ($m, $empId) => [(int) $empId => $m])
+                ->all();
+
             $this->scExcluded = collect($row?->excludedEmployeeIds() ?? [])
                 ->mapWithKeys(fn ($id) => [$id => true])
                 ->all();
@@ -647,10 +659,13 @@ class AttendanceRecords extends Component
             'scFunds.*.points' => 'required|numeric|min:0|max:9999',
             'scSpecial.*.amount' => 'nullable|numeric|min:0|max:9999999',
             'scSpecial.*.note'   => 'nullable|string|max:120',
+            'scManualLate'       => 'array',
+            'scManualLate.*'     => 'nullable|integer|min:0|max:99999',
             'scExcluded'         => 'array',
             'scExcluded.*'       => 'boolean',
             'scRedistribute'     => 'boolean',
         ], [
+            'scManualLate.*.integer'    => 'Whole minutes only.',
             'scFunds.*.name.required'   => 'Give every allocation a name.',
             'scFunds.*.points.required' => 'Give every allocation its points.',
         ], [
@@ -670,6 +685,13 @@ class AttendanceRecords extends Component
                 'amount' => round((float) $d['amount'], 2),
                 'note'   => trim((string) ($d['note'] ?? '')) ?: null,
             ]])
+            ->all();
+
+        // Same rule as the special deduction: a cleared box removes the entry.
+        $manualLate = collect($this->scManualLate)
+            ->map(fn ($m) => (int) $m)
+            ->filter(fn ($m) => $m > 0)
+            ->mapWithKeys(fn ($m, $empId) => [(string) $empId => $m])
             ->all();
 
         $funds = collect($this->scFunds)
@@ -703,6 +725,7 @@ class AttendanceRecords extends Component
                 'redistribute_deductions' => $this->scRedistribute,
                 'fund_allocations'   => $funds ?: null,
                 'special_deductions' => $special ?: null,
+                'manual_late_minutes' => $manualLate ?: null,
                 'excluded_employees' => $this->excludedServicePointIds(
                     $existing?->excludedEmployeeIds() ?? []
                 ) ?: null,

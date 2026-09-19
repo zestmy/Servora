@@ -17,7 +17,7 @@ class ServiceChargePeriod extends Model
         'company_id', 'outlet_id', 'period_from', 'period_to',
         'amount', 'retention_percent', 'mc_percent', 'abs_percent',
         'min_working_days', 'redistribute_deductions',
-        'fund_allocations', 'special_deductions', 'excluded_employees',
+        'fund_allocations', 'special_deductions', 'manual_late_minutes', 'excluded_employees',
         'distribution', 'calculated_at', 'calculated_by',
     ];
 
@@ -32,6 +32,7 @@ class ServiceChargePeriod extends Model
         'redistribute_deductions' => 'boolean',
         'fund_allocations'   => 'array',
         'special_deductions' => 'array',
+        'manual_late_minutes' => 'array',
         'excluded_employees' => 'array',
         'distribution'       => 'array',
         'calculated_at'      => 'datetime',
@@ -73,6 +74,7 @@ class ServiceChargePeriod extends Model
                     'gross'        => (float) $r['gross'],
                     'dedAmt'       => (float) $r['dedAmt'],
                     'lateMins'     => (int) $r['lateMins'],
+                    'manualLateMins' => (int) ($r['manualLateMins'] ?? 0),
                     'lateAmt'      => (float) $r['lateAmt'],
                     'specialAmt'   => (float) $r['specialAmt'],
                     'specialNote'  => $r['specialNote'],
@@ -133,7 +135,7 @@ class ServiceChargePeriod extends Model
                 return [
                     'employee' => $emp, 'excluded' => true, 'elsewhere' => false,
                     'points' => 0.0, 'mcDays' => 0, 'absDays' => 0, 'dedPct' => 0.0,
-                    'gross' => 0.0, 'dedAmt' => 0.0, 'lateMins' => 0, 'lateAmt' => 0.0,
+                    'gross' => 0.0, 'dedAmt' => 0.0, 'lateMins' => 0, 'manualLateMins' => 0, 'lateAmt' => 0.0,
                     'specialAmt' => 0.0, 'specialNote' => null, 'net' => 0.0,
                     'workDays' => 0, 'belowMinDays' => false,
                     // The reason the row is empty, so a screen can say
@@ -146,7 +148,7 @@ class ServiceChargePeriod extends Model
             // `+` keeps whatever the snapshot holds, so a period that WAS
             // judged on working days still reads back with its own figures.
             return $r + [
-                'employee' => $emp, 'notInPool' => false,
+                'employee' => $emp, 'notInPool' => false, 'manualLateMins' => 0,
                 'workDays' => 0, 'belowMinDays' => false,
             ];
         })->values()->all();
@@ -232,6 +234,51 @@ class ServiceChargePeriod extends Model
             'amount' => max(0.0, (float) ($row['amount'] ?? 0)),
             'note'   => (string) ($row['note'] ?? ''),
         ];
+    }
+
+    /** Late minutes entered by hand for one employee this period. */
+    public function manualLateMinutesFor(int $employeeId): int
+    {
+        $all = $this->manual_late_minutes ?? [];
+
+        return max(0, (int) ($all[(string) $employeeId] ?? $all[$employeeId] ?? 0));
+    }
+
+    /**
+     * Fold the hand-entered minutes into the clock's lateness totals.
+     *
+     * Priced at the company's per-minute clock rate with NO per-shift cap:
+     * this is one figure for the whole period, so there is no shift to cap.
+     * Added to whatever the clock charged rather than replacing it, so a
+     * person who clocked in late some days and was noted late on paper on
+     * others is charged for both.
+     *
+     * @param  array<int, array{minutes: int, amount: float}>  $latePenalties
+     * @return array<int, array{minutes: int, amount: float, manualMinutes: int}>
+     */
+    public function withManualLateness(array $latePenalties): array
+    {
+        $manual = collect($this->manual_late_minutes ?? [])
+            ->map(fn ($m) => max(0, (int) $m))
+            ->filter();
+
+        if ($manual->isEmpty()) {
+            return $latePenalties;
+        }
+
+        $rate = (float) ClockSetting::forCompany($this->company_id)->late_rate_per_minute;
+
+        foreach ($manual as $empId => $minutes) {
+            $current = $latePenalties[(int) $empId] ?? ['minutes' => 0, 'amount' => 0.0];
+
+            $latePenalties[(int) $empId] = [
+                'minutes'       => (int) ($current['minutes'] ?? 0) + $minutes,
+                'amount'        => (float) ($current['amount'] ?? 0) + round($minutes * $rate, 2),
+                'manualMinutes' => $minutes,
+            ] + $current;
+        }
+
+        return $latePenalties;
     }
 
     /**
@@ -452,6 +499,11 @@ class ServiceChargePeriod extends Model
             return $row->frozenDistribution($employees);
         }
 
+        // Lateness noted by hand on this pool, on top of the clock's.
+        if ($row) {
+            $latePenalties = $row->withManualLateness($latePenalties);
+        }
+
         $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
                 || stripos($c->label, 'sick') !== false)
             ->pluck('id')->all();
@@ -583,6 +635,7 @@ class ServiceChargePeriod extends Model
 
                 $late     = $latePenalties[$emp->id] ?? null;
                 $lateMins = (int) ($late['minutes'] ?? 0);
+                $manualLateMins = (int) ($late['manualMinutes'] ?? 0);
                 // Never more than what is left after the day-based deduction,
                 // so the row's own net cannot go negative and drag the column
                 // total below the pool that was actually paid out.
@@ -615,6 +668,8 @@ class ServiceChargePeriod extends Model
                     'gross'        => $gross,
                     'dedAmt'       => $dedAmt,
                     'lateMins'     => $lateMins,
+                    // The part of lateMins typed in by hand rather than clocked.
+                    'manualLateMins' => $manualLateMins,
                     'lateAmt'      => $lateAmt,
                     'specialAmt'   => $specialAmt,
                     'specialNote'  => $special['note'],
