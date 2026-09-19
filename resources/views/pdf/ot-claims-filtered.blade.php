@@ -9,7 +9,7 @@
          approved hours only; this one reproduces what somebody is looking at,
          including who submitted each claim and its status. --}}
     <style>
-        .ot-title      { font-size: 15pt; font-weight: bold; color: #104d4f; }
+        .ot-title      { font-size: 15pt; font-weight: bold; color: #0843a0; }
         .ot-sub        { font-size: 9pt; color: #6b7280; margin-top: 2px; }
         .ot-filters    { margin: 8px 0 10px; padding: 6px 9px; background: #f8fafc;
                          border: 1px solid #e2e8f0; border-radius: 4px; font-size: 8.5pt; color: #475569; }
@@ -17,7 +17,7 @@
 
         table.ot-list  { width: 100%; border-collapse: collapse; font-size: 8pt; }
         table.ot-list thead th {
-            background: #104d4f; color: #fff; font-weight: bold; text-align: left;
+            background: #0843a0; color: #fff; font-weight: bold; text-align: left;
             padding: 5px 6px; border: 1px solid #0d3f41; font-size: 7.5pt;
             text-transform: uppercase; letter-spacing: 0.3px;
         }

@@ -72,7 +72,7 @@
             font-size: 11px;
             font-weight: bold;
             color: #fff;
-            background: #0b7677;
+            background: #0962ef;
             padding: 5px 10px;
             margin: 12px 0 6px 0;
             text-transform: uppercase;
@@ -83,12 +83,12 @@
 
         /* Active filters notice */
         .filters-notice {
-            background: #eefbf9;
-            border-left: 3px solid #0b7677;
+            background: #edf4ff;
+            border-left: 3px solid #0962ef;
             padding: 4px 8px;
             margin-bottom: 8px;
             font-size: 7.5px;
-            color: #0d5f61;
+            color: #0752c7;
         }
         .filters-notice strong { color: #312e81; text-transform: uppercase; letter-spacing: 0.5px; font-size: 7px; }
     </style>
@@ -198,7 +198,7 @@
                             @foreach ($data['packagingData'] as $pd)
                                 <tr class="sub">
                                     <td colspan="3" class="r" style="color: #6b7280; font-style: italic;">
-                                        <span style="font-size: 6px; background: #d5f5f1; color: #0d5f61; padding: 1px 3px; border-radius: 2px;">PKG</span>
+                                        <span style="font-size: 6px; background: #d9e8fe; color: #0752c7; padding: 1px 3px; border-radius: 2px;">PKG</span>
                                         {{ $pd['ingredient'] }}
                                     </td>
                                     <td class="r">{{ rtrim(rtrim(number_format($pd['quantity'], 4), '0'), '.') }} {{ $pd['uom'] }}</td>

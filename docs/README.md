@@ -14,6 +14,7 @@ A structured, navigable reference for the Servora codebase. Pair with [../README
 | 06 | [Routes & controllers](06-routes.md) | …you need a specific URL, controller, or middleware stack. |
 | 07 | [Database schema](07-database.md) | …you're writing a migration or looking up when a column was added. |
 | 08 | [Feature playbook](08-feature-playbook.md) | …you want a step-by-step for common additions (new entity, new report, new toggle, new role). |
+| 09 | [Brand & CI](09-brand.md) | …you're touching a logo, a favicon, the accent colour, or anything that ships the identity. |
 
 ---
 

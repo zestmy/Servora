@@ -6,12 +6,13 @@ import typography from '@tailwindcss/typography';
  * Servora design tokens.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * IMPORTANT — why `indigo` is teal
+ * IMPORTANT — why `indigo` is not indigo
  * ─────────────────────────────────────────────────────────────────────────
- * The accent moved from indigo to a deep teal. Roughly 2,775 hardcoded
- * `*-indigo-*` utilities are spread across 316 blade files, several of them
- * inside Livewire templates where a blind find-and-replace risks touching
- * wire:model / wire:key lines and breaking bindings.
+ * The accent has moved twice: indigo → deep teal → the identity's Primary
+ * Blue. Roughly 2,775 hardcoded `*-indigo-*` utilities are spread across 316
+ * blade files, several of them inside Livewire templates where a blind
+ * find-and-replace risks touching wire:model / wire:key lines and breaking
+ * bindings.
  *
  * So instead of rewriting every call site, `indigo` is REMAPPED onto the
  * brand scale below. `bg-indigo-600` and `bg-brand-600` now render the same
@@ -24,28 +25,58 @@ import typography from '@tailwindcss/typography';
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-// Deep teal. Chosen because it is the only accent family that does not
-// collide with the semantic colours this app leans on heavily: green reads
-// "healthy margin", amber "attention", red "over budget". An accent that
-// shares a hue with any of those makes chrome look like data.
+// Primary Blue. brand-600 is #0962EF exactly — the blue of the logo artwork,
+// and the identity's one accent colour. The rest of the scale is built around
+// it: hue held at 217, lightness stepped, so every step is the same blue.
+//
+// It replaced a deep teal when the identity did. The teal was chosen for not
+// colliding with the semantic hues this app leans on (green "healthy margin",
+// amber "attention", red "over budget"), and blue keeps that property: none of
+// the three is blue. What blue DOES sit near is `info` (sky), so the two are
+// kept apart by job rather than by hue — `info` is reserved for transient
+// status, and chrome never uses it. Note that `.alert-info` is built from
+// brand steps, not from `info`.
 //
 // Contrast, white text on a filled button (WCAG AA needs 4.5:1 for body):
-//   brand-600  5.42:1  ✓ default fill
-//   brand-700  7.43:1  ✓ hover / active fill
-//   brand-500  3.16:1  ✗ large text only, never a body-size filled button
-// On the gray-900 sidebar, brand-400 sits at 7.78:1 ✓
+//   brand-600  5.24:1  ✓ default fill
+//   brand-700  6.91:1  ✓ hover / active fill
+//   brand-500  4.33:1  ✗ close, but short of AA — large text only, never a
+//                        body-size filled button
+// On the gray-900 sidebar, brand-400 sits at 5.33:1 ✓
 const brand = {
-    50:  '#eefbf9',
-    100: '#d5f5f1',
-    200: '#aeeae4',
-    300: '#79d8d1',
-    400: '#43bdb8',
-    500: '#22a19d',
-    600: '#0b7677',
-    700: '#0d5f61',
-    800: '#104d4f',
-    900: '#123f42',
-    950: '#042628',
+    50:  '#edf4ff',
+    100: '#d9e8fe',
+    200: '#b7d2fe',
+    300: '#85b3fc',
+    400: '#458bf9',
+    500: '#1f73f7',
+    600: '#0962ef',
+    700: '#0752c7',
+    800: '#0843a0',
+    900: '#0a387f',
+    950: '#072453',
+};
+
+// Deep Navy, the identity's second colour: the ground the logo is reversed
+// out of, and what dark chrome is moving towards. navy-900 is #0B1F3B exactly.
+//
+// The app's dark surfaces are still gray-900 (#111827) — a global swap would
+// mean separating "dark surface" from "darkest text" across hundreds of files,
+// which is its own change. This scale is the destination: use it for new dark
+// chrome, and migrate a surface when you are already in the file. White on
+// navy-900 is 16.49:1, and brand-400 on it is 4.96:1.
+const navy = {
+    50:  '#f2f6fb',
+    100: '#e3ebf5',
+    200: '#c2d3e7',
+    300: '#93b0d2',
+    400: '#5d84b6',
+    500: '#3a6199',
+    600: '#2a4a79',
+    700: '#1e3860',
+    800: '#152b4b',
+    900: '#0b1f3b',
+    950: '#061426',
 };
 
 /** @type {import('tailwindcss').Config} */
@@ -60,6 +91,7 @@ export default {
         extend: {
             colors: {
                 brand,
+                navy,
                 // Compatibility alias. See the note at the top of this file.
                 indigo: brand,
 
@@ -95,9 +127,7 @@ export default {
                  *
                  * Validated rather than eyeballed. Against a white chart surface:
                  *   lightness band     PASS
-                 *   chroma floor       PASS  (brand-600 FAILS this at 0.085 and
-                 *                             reads gray as a mark, which is why
-                 *                             the teal here is the 500 step)
+                 *   chroma floor       PASS
                  *   CVD separation     PASS  ΔE 21.5 deutan · 16.8 tritan
                  *   normal-vision      PASS  ΔE 30.4
                  *   contrast vs white  PASS  both >= 3:1
@@ -106,6 +136,13 @@ export default {
                  * paint Purchases in danger-400, which says "this number is an
                  * error" about a routine operating figure. Status hues stay
                  * reserved for status.
+                 *
+                 * These stayed teal and violet when the brand went blue, and
+                 * that is on purpose twice over. A series painted in the accent
+                 * reads as chrome rather than as data; and series 1 in brand
+                 * blue against series 2's violet is exactly the pair deuteranopes
+                 * cannot separate, which would throw away the CVD result above.
+                 * Chart colours answer "which series", not "whose product".
                  */
                 chart: {
                     1: '#22a19d',
@@ -166,19 +203,20 @@ export default {
             /**
              * Shadows are tinted toward the page hue rather than pure black,
              * which is what makes stock Tailwind elevation look grey and dead
-             * on a coloured surface.
+             * on a coloured surface. The tint is Deep Navy (11 31 59), so it
+             * carries the identity's own shade rather than a leftover teal.
              */
             boxShadow: {
-                'e1': '0 1px 2px 0 rgb(15 42 45 / 0.05)',
-                'e2': '0 2px 8px -2px rgb(15 42 45 / 0.08), 0 1px 2px 0 rgb(15 42 45 / 0.04)',
-                'e3': '0 8px 24px -6px rgb(15 42 45 / 0.10), 0 2px 6px -2px rgb(15 42 45 / 0.05)',
-                'e4': '0 20px 48px -12px rgb(15 42 45 / 0.16), 0 4px 12px -4px rgb(15 42 45 / 0.06)',
-                'brand': '0 8px 24px -8px rgb(11 118 119 / 0.45)',
+                'e1': '0 1px 2px 0 rgb(11 31 59 / 0.05)',
+                'e2': '0 2px 8px -2px rgb(11 31 59 / 0.08), 0 1px 2px 0 rgb(11 31 59 / 0.04)',
+                'e3': '0 8px 24px -6px rgb(11 31 59 / 0.10), 0 2px 6px -2px rgb(11 31 59 / 0.05)',
+                'e4': '0 20px 48px -12px rgb(11 31 59 / 0.16), 0 4px 12px -4px rgb(11 31 59 / 0.06)',
+                'brand': '0 8px 24px -8px rgb(9 98 239 / 0.45)',
                 // Filled controls. box-shadow is one property, so the inner
                 // highlight has to ship in the SAME token as the drop shadow —
                 // two utilities would just overwrite each other.
-                'btn': 'inset 0 1px 0 0 rgb(255 255 255 / 0.14), 0 2px 8px -2px rgb(15 42 45 / 0.18)',
-                'btn-hover': 'inset 0 1px 0 0 rgb(255 255 255 / 0.14), 0 4px 14px -3px rgb(15 42 45 / 0.22)',
+                'btn': 'inset 0 1px 0 0 rgb(255 255 255 / 0.14), 0 2px 8px -2px rgb(11 31 59 / 0.18)',
+                'btn-hover': 'inset 0 1px 0 0 rgb(255 255 255 / 0.14), 0 4px 14px -3px rgb(11 31 59 / 0.22)',
             },
 
             /**

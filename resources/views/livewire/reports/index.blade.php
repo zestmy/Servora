@@ -1171,7 +1171,7 @@
                     data: {
                         labels: dailySales.map(d => d.label),
                         datasets: [
-                            { label: 'Revenue (RM)', data: dailySales.map(d => d.revenue), borderColor: '#0b7677', backgroundColor: 'rgba(11,118,119,0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                            { label: 'Revenue (RM)', data: dailySales.map(d => d.revenue), borderColor: '#0962ef', backgroundColor: 'rgba(9,98,239,0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
                             { label: 'Pax', data: dailySales.map(d => d.pax), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: false, tension: 0.3, yAxisID: 'y1', borderDash: [5,5] }
                         ]
                     },
@@ -1195,7 +1195,7 @@
                     data: {
                         labels: dayOfWeek.map(d => d.day),
                         datasets: [
-                            { label: 'Avg Revenue', data: dayOfWeek.map(d => d.avg_revenue), backgroundColor: 'rgba(11,118,119,0.7)', borderRadius: 4, yAxisID: 'y' },
+                            { label: 'Avg Revenue', data: dayOfWeek.map(d => d.avg_revenue), backgroundColor: 'rgba(9,98,239,0.7)', borderRadius: 4, yAxisID: 'y' },
                             { label: 'Avg Pax', data: dayOfWeek.map(d => d.avg_pax), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 4, yAxisID: 'y1' }
                         ]
                     },
@@ -1225,7 +1225,7 @@
         }
 
         if (tab === 'cost_analysis') {
-            const colors = ['#0b7677','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+            const colors = ['#0962ef','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
             // Revenue by Category
             const el4 = document.getElementById('costRevCatChart');
             if (el4) {
@@ -1253,7 +1253,7 @@
                     data: {
                         labels: ['Revenue', 'COGS', 'Wastage', 'Staff Meals'],
                         datasets: [
-                            { label: 'Current', data: [mom.current.revenue, mom.current.cogs, mom.current.wastage, mom.current.staff_meals], backgroundColor: 'rgba(11,118,119,0.8)', borderRadius: 4 },
+                            { label: 'Current', data: [mom.current.revenue, mom.current.cogs, mom.current.wastage, mom.current.staff_meals], backgroundColor: 'rgba(9,98,239,0.8)', borderRadius: 4 },
                             { label: 'Previous', data: [mom.previous.revenue, mom.previous.cogs, mom.previous.wastage, mom.previous.staff_meals], backgroundColor: 'rgba(156,163,175,0.5)', borderRadius: 4 }
                         ]
                     },

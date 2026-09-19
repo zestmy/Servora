@@ -28,9 +28,9 @@ const OUT = __DIR__ . '/../public/images/docs';
 
 // ── Palette — mirrors tailwind.config.js. ──────────────────────────────────
 const C = [
-    'brand50'  => '#eefbf9', 'brand100' => '#d5f5f1', 'brand200' => '#aeeae4',
-    'brand400' => '#43bdb8', 'brand500' => '#22a19d', 'brand600' => '#0b7677',
-    'brand700' => '#0d5f61',
+    'brand50'  => '#edf4ff', 'brand100' => '#d9e8fe', 'brand200' => '#b7d2fe',
+    'brand400' => '#458bf9', 'brand500' => '#1f73f7', 'brand600' => '#0962ef',
+    'brand700' => '#0752c7',
     'ink'      => '#111827', 'ink700' => '#374151', 'ink600' => '#4b5563',
     'ink500'   => '#6b7280', 'ink400'  => '#9ca3af', 'ink300' => '#d1d5db',
     'ink200'   => '#e5e7eb', 'ink100'  => '#f3f4f6', 'ink50'  => '#f9fafb',

@@ -51,7 +51,7 @@
             height: 4px; background: rgba(255,255,255,0.15); z-index: 11;
             cursor: pointer;
         }
-        .progress-fill { height: 100%; background: #22a19d; width: 0%; transition: width 0.3s linear; }
+        .progress-fill { height: 100%; background: #1f73f7; width: 0%; transition: width 0.3s linear; }
         .progress-bar:hover { height: 6px; }
         .loading-msg { text-align: center; color: #666; padding: 60px 20px; font-size: 14px; }
         .footer { padding: 12px 20px; text-align: center; font-size: 11px; color: #555; border-top: 1px solid #1a1a2e; transition: transform 0.3s; }

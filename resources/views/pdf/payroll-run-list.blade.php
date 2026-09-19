@@ -8,7 +8,7 @@
          against before approving it, as opposed to the payslips, which are one
          document per person and go to the staff. --}}
     <style>
-        .pr-title   { font-size: 15pt; font-weight: bold; color: #104d4f; }
+        .pr-title   { font-size: 15pt; font-weight: bold; color: #0843a0; }
         .pr-sub     { font-size: 9pt; color: #6b7280; margin-top: 2px; }
         .pr-meta    { margin: 8px 0 10px; padding: 6px 9px; background: #f8fafc;
                       border: 1px solid #e2e8f0; border-radius: 4px; font-size: 8.5pt; color: #475569; }
@@ -16,7 +16,7 @@
 
         table.pr { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
         table.pr thead th {
-            background: #104d4f; color: #fff; font-weight: bold; padding: 5px 4px;
+            background: #0843a0; color: #fff; font-weight: bold; padding: 5px 4px;
             border: 1px solid #0d3f41; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.2px;
         }
         table.pr tbody td { padding: 4px; border: 1px solid #e2e8f0; }

@@ -46,7 +46,7 @@
     <title>{{ $title ?? 'Training Portal' }} | {{ $brandName }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="manifest" href="{{ asset('lms-manifest.json') }}">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#0b1f3b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="{{ $brandName }} Training">

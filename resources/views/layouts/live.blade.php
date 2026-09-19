@@ -30,7 +30,7 @@
 
     <title>{{ $title ?? 'Live session' }} | {{ $liveBrand }}</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#0b1f3b">
     <meta name="apple-mobile-web-app-capable" content="yes">
 
     <link rel="preconnect" href="https://fonts.bunny.net">

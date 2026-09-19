@@ -51,7 +51,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {{-- Matches the header fill exactly, so there is no seam between the OS
          status bar and the header on Android. --}}
-    <meta name="theme-color" content="#0d5f61">
+    <meta name="theme-color" content="#0752c7">
     {{-- Where clock.js fetches the recognition weights from. A meta tag
          rather than a hard-coded path: the app mounts on a subdomain in
          production and a sub-path locally, and the JS should not have to

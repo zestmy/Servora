@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Generates the clock-in PWA icons: a brand-teal rounded square with a white
+ * Generates the clock-in PWA icons: a brand-blue rounded square with a white
  * clock face, matching the app header fill.
  *
  * Drawn rather than shipped as binary so the shape stays editable in the repo
@@ -34,13 +34,13 @@ function makeIcon(int $size, string $path, bool $maskable = false): void
     imagealphablending($img, true);
     imagesavealpha($img, true);
 
-    $teal  = imagecolorallocate($img, 13, 95, 97);      // brand-700, the header fill
+    $brand = imagecolorallocate($img, 7, 82, 199);      // brand-700, the header fill
     $white = imagecolorallocate($img, 255, 255, 255);
 
     // Maskable icons get cropped to the OS's own shape, so the background
     // must bleed to the edges and the glyph must sit inside the safe zone.
     $radius = $maskable ? 0 : (int) round($size * 0.22);
-    roundedRect($img, 0, 0, $size - 1, $size - 1, $radius, $teal);
+    roundedRect($img, 0, 0, $size - 1, $size - 1, $radius, $brand);
 
     $cx      = (int) round($size / 2);
     $cy      = (int) round($size / 2);
@@ -57,11 +57,11 @@ function makeIcon(int $size, string $path, bool $maskable = false): void
     $hour   = $diameter * 0.30;
     $minute = $diameter * 0.38;
 
-    imageline($img, $cx, $cy, $cx, (int) round($cy - $hour), $teal);
-    imageline($img, $cx, $cy, (int) round($cx + $minute), $cy, $teal);
+    imageline($img, $cx, $cy, $cx, (int) round($cy - $hour), $brand);
+    imageline($img, $cx, $cy, (int) round($cx + $minute), $cy, $brand);
 
     $pin = max(3, (int) round($size * 0.035));
-    imagefilledellipse($img, $cx, $cy, $pin, $pin, $teal);
+    imagefilledellipse($img, $cx, $cy, $pin, $pin, $brand);
 
     imagepng($img, $path);
     imagedestroy($img);
