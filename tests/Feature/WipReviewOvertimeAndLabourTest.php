@@ -329,7 +329,7 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         $this->payrollRun('2026-08-01', PayrollRun::DRAFT, null, [[$this->aisyah, 9999], [$this->bala, 1000]]);
         $this->payrollRun('2026-07-01', PayrollRun::PAID, $this->outlet, [[$this->aisyah, 2500]]);
 
-        $report = $this->report(['mode' => 'month']);
+        $report = $this->report(['mode' => 'month', 'includeDraftPayroll' => false]);
 
         $labour = $this->kpi($report, 'labour_cost');
         $this->assertEquals(3000, $labour['current'], 'The draft run is left out.');
@@ -363,6 +363,25 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         $this->assertTrue($report['labour']['draft_used']);
         $this->assertEquals(4000, collect($report['outlets'])->firstWhere('name', 'KLCC')['labour_cost']['current'],
             'A company-wide run is split by each employee\'s outlet.');
+    }
+
+    public function test_draft_payroll_is_counted_by_default(): void
+    {
+        $this->canSeePay();
+        $this->sale('2026-08-10', 10000);
+        $this->payrollRun('2026-08-01', PayrollRun::DRAFT, $this->outlet, [[$this->aisyah, 3000]]);
+
+        $c = Livewire::actingAs($this->user)->test(WeeklyWipReview::class)->set('mode', 'month');
+        $this->assertTrue($c->get('includeDraftPayroll'));
+        $this->assertEquals(3000, $this->kpi($c->viewData('report'), 'labour_cost')['current'],
+            'The review meets before payroll is approved; a draft month is not RM 0.');
+        $this->assertStringContainsString('drafts=1', $c->viewData('pdfUrl'), 'The PDF carries the same choice.');
+
+        // Unticked, the PDF is told so explicitly — its own default is to include.
+        $c->set('includeDraftPayroll', false);
+        $this->assertEquals(0, $this->kpi($c->viewData('report'), 'labour_cost')['current']);
+        $this->assertStringContainsString('drafts=0', $c->viewData('pdfUrl'));
+        $c->assertSee('payroll run(s) still in draft');
     }
 
     public function test_weekly_mode_has_no_labour_cost(): void

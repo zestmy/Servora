@@ -38,8 +38,12 @@ class WeeklyWipReview extends Component
     /** Months in the trend. */
     public $months = 3;
 
-    /** Count draft payroll runs in labour cost, not only approved and paid. */
-    public bool $includeDraftPayroll = false;
+    /**
+     * Count draft payroll runs in labour cost, not only approved and paid.
+     * On by default: the review meets before the month's payroll is approved,
+     * and a labour cost of RM 0 until then helps nobody. Untick for final figures.
+     */
+    public bool $includeDraftPayroll = true;
 
     public string $outletFilter = '';
 
@@ -143,7 +147,7 @@ class WeeklyWipReview extends Component
                 'weeks'  => $monthly ? null : $count,
                 'months' => $monthly ? $count : null,
                 'outlet' => $selected,
-                'drafts' => $monthly && $this->includeDraftPayroll ? 1 : null,
+                'drafts' => $monthly ? ($this->includeDraftPayroll ? 1 : 0) : null,
             ], fn ($v) => $v !== null)),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'WIP Review']);
     }

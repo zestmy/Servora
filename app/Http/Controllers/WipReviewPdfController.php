@@ -45,7 +45,7 @@ class WipReviewPdfController extends Controller
             $anchor,
             $count,
             $mode,
-            $monthly && $request->boolean('drafts'),
+            $monthly && $request->boolean('drafts', true),  // included unless drafts=0, as on screen
             Employee::canViewPay($user),
         );
 
