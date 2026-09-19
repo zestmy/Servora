@@ -16,7 +16,7 @@ class ServiceChargePeriod extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'period_from', 'period_to',
         'amount', 'retention_percent', 'mc_percent', 'abs_percent',
-        'min_working_days',
+        'min_working_days', 'redistribute_deductions',
         'fund_allocations', 'special_deductions', 'excluded_employees',
         'distribution', 'calculated_at', 'calculated_by',
     ];
@@ -29,6 +29,7 @@ class ServiceChargePeriod extends Model
         'mc_percent'         => 'decimal:2',
         'abs_percent'        => 'decimal:2',
         'min_working_days'   => 'integer',
+        'redistribute_deductions' => 'boolean',
         'fund_allocations'   => 'array',
         'special_deductions' => 'array',
         'excluded_employees' => 'array',
@@ -98,6 +99,9 @@ class ServiceChargePeriod extends Model
             'mcPct'         => $computed['mcPct'],
             'absPct'        => $computed['absPct'],
             'minDays'       => $computed['minDays'],
+            'redistribute'  => $computed['redistribute'],
+            'basePerPoint'  => $computed['basePerPoint'],
+            'redistributed' => $computed['redistributed'],
         ];
     }
 
@@ -164,6 +168,11 @@ class ServiceChargePeriod extends Model
             'mcPct'         => $snapshot['mcPct'],
             'absPct'        => $snapshot['absPct'],
             'minDays'       => $snapshot['minDays'] ?? 0,
+            // Pools kept before redistribution existed kept everything they
+            // deducted, so their base rate IS their final rate.
+            'redistribute'  => (bool) ($snapshot['redistribute'] ?? false),
+            'basePerPoint'  => $snapshot['basePerPoint'] ?? $snapshot['perPoint'],
+            'redistributed' => (float) ($snapshot['redistributed'] ?? 0),
             'hasLate'       => ($snapshot['totals']['lateAmt'] ?? 0) > 0 || ($snapshot['totals']['lateMins'] ?? 0) > 0,
             'hasSpecial'    => ($snapshot['totals']['specialAmt'] ?? 0) > 0,
             'hasExcluded'   => collect($rows)->contains('excluded', true),
@@ -179,7 +188,17 @@ class ServiceChargePeriod extends Model
     protected $attributes = [
         'retention_percent' => 0,
         'min_working_days'  => 0,
+        'redistribute_deductions' => false,
     ];
+
+    /**
+     * Whether staff deductions go back into the pool rather than staying with
+     * the company. See distribute() for how the final RM/point is worked out.
+     */
+    public function redistributesDeductions(): bool
+    {
+        return (bool) $this->redistribute_deductions;
+    }
 
     /** What is actually shared out, after the company's retention. */
     public function distributableAmount(): float
@@ -477,15 +496,10 @@ class ServiceChargePeriod extends Model
 
         // RM/point is rounded DOWN to a whole ringgit (e.g. 360.6130 -> 360);
         // the remainder stays undistributed.
-        $perPoint = ($row && $totalPoints > 0) ? floor($distributable / $totalPoints) : 0.0;
+        $basePerPoint = ($row && $totalPoints > 0) ? floor($distributable / $totalPoints) : 0.0;
         $mcPct    = $row ? (float) $row->mc_percent : $mcPctFallback;
         $absPct   = $row ? (float) $row->abs_percent : $absPctFallback;
 
-        $fundRows = array_map(fn ($f) => $f + ['amount' => $f['points'] * $perPoint], $funds);
-
-        $rows   = [];
-        $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0,
-                   'specialAmt' => 0.0, 'net' => 0.0];
         /*
          * Which pool this is — PASSED IN, never read off $row.
          *
@@ -505,106 +519,167 @@ class ServiceChargePeriod extends Model
          * saves and a row finally exists.
          */
 
-        foreach ($employees as $emp) {
-            /*
-             * Paid from a DIFFERENT outlet's pool.
-             *
-             * Treated exactly like an exclusion — no points, no share, nothing
-             * to deduct from — because that is arithmetically what it is here.
-             * They are not missing money; they are collecting it from the
-             * outlet named on their record, and counting them twice is the one
-             * outcome this must never produce.
-             *
-             * It matters most in the attendance grid, where the rows are the
-             * people who WORK at an outlet rather than the people its pool
-             * pays. Somebody posted to IOI and paid from KLCC belongs in IOI's
-             * attendance and in KLCC's payout, and this is what keeps those
-             * two facts from contradicting each other on one screen.
-             */
-            $elsewhere = $poolOutletId !== null
-                && (int) $emp->serviceChargeOutletId() !== (int) $poolOutletId;
+        // Prices every row at one RM/point. A closure because redistribution
+        // needs to price the rows twice: once to learn what is deducted, and
+        // again at the rate that hands it back.
+        $price = function (float $perPoint) use ($employees, $poolOutletId, $workCounts, $minDays, $row, $mcCounts, $absCounts, $mcPct, $absPct, $latePenalties) {
+            $rows   = [];
+            $totals = ['gross' => 0.0, 'deduction' => 0.0, 'lateAmt' => 0.0, 'lateMins' => 0,
+                       'specialAmt' => 0.0, 'net' => 0.0];
 
-            /*
-             * Short of the qualifying period.
-             *
-             * The case this is for is the joiner who started on the 27th and
-             * the leaver who went on the 3rd: service points are an
-             * entitlement somebody holds whether or not they worked the
-             * period, so without a minimum both take a FULL share of a month
-             * they were barely in, out of the pockets of everyone who worked
-             * it. Their days read UNR either side of their employment, which
-             * is exactly what workingDayCounts() declines to count.
-             *
-             * Flagged separately from `excluded` for the same reason
-             * `elsewhere` is: the screen has to be able to say WHY a row is
-             * zero, and "excluded from this pool" is a decision somebody made
-             * about one person, where this is a rule the whole pool was
-             * calculated under.
-             */
-            $workDays     = $workCounts[$emp->id] ?? 0;
-            $belowMinDays = $minDays > 0 && $workDays < $minDays;
+            foreach ($employees as $emp) {
+                /*
+                 * Paid from a DIFFERENT outlet's pool.
+                 *
+                 * Treated exactly like an exclusion — no points, no share, nothing
+                 * to deduct from — because that is arithmetically what it is here.
+                 * They are not missing money; they are collecting it from the
+                 * outlet named on their record, and counting them twice is the one
+                 * outcome this must never produce.
+                 *
+                 * It matters most in the attendance grid, where the rows are the
+                 * people who WORK at an outlet rather than the people its pool
+                 * pays. Somebody posted to IOI and paid from KLCC belongs in IOI's
+                 * attendance and in KLCC's payout, and this is what keeps those
+                 * two facts from contradicting each other on one screen.
+                 */
+                $elsewhere = $poolOutletId !== null
+                    && (int) $emp->serviceChargeOutletId() !== (int) $poolOutletId;
 
-            // Excluded from this pool: no points, so no share and nothing to
-            // deduct from. The row is still listed — a name that simply
-            // vanished from the table would look like a bug, and "excluded"
-            // is the answer to why the figure is zero.
-            $excluded = $elsewhere || $belowMinDays || ($row ? $row->excludes($emp->id) : false);
+                /*
+                 * Short of the qualifying period.
+                 *
+                 * The case this is for is the joiner who started on the 27th and
+                 * the leaver who went on the 3rd: service points are an
+                 * entitlement somebody holds whether or not they worked the
+                 * period, so without a minimum both take a FULL share of a month
+                 * they were barely in, out of the pockets of everyone who worked
+                 * it. Their days read UNR either side of their employment, which
+                 * is exactly what workingDayCounts() declines to count.
+                 *
+                 * Flagged separately from `excluded` for the same reason
+                 * `elsewhere` is: the screen has to be able to say WHY a row is
+                 * zero, and "excluded from this pool" is a decision somebody made
+                 * about one person, where this is a rule the whole pool was
+                 * calculated under.
+                 */
+                $workDays     = $workCounts[$emp->id] ?? 0;
+                $belowMinDays = $minDays > 0 && $workDays < $minDays;
 
-            $points  = $excluded ? 0.0 : max(0, (float) $emp->service_points_entitlement);
-            $mcDays  = $mcCounts[$emp->id] ?? 0;
-            $absDays = $absCounts[$emp->id] ?? 0;
-            // Zeroed when excluded: a "25%" against a nil gross reads as a
-            // deduction that was applied, when nothing was.
-            $dedPct  = $excluded ? 0.0 : min(100.0, $mcDays * $mcPct + $absDays * $absPct);
-            $gross   = $points * $perPoint;
-            $dedAmt  = $gross * $dedPct / 100;
+                // Excluded from this pool: no points, so no share and nothing to
+                // deduct from. The row is still listed — a name that simply
+                // vanished from the table would look like a bug, and "excluded"
+                // is the answer to why the figure is zero.
+                $excluded = $elsewhere || $belowMinDays || ($row ? $row->excludes($emp->id) : false);
 
-            $late     = $latePenalties[$emp->id] ?? null;
-            $lateMins = (int) ($late['minutes'] ?? 0);
-            // Never more than what is left after the day-based deduction,
-            // so the row's own net cannot go negative and drag the column
-            // total below the pool that was actually paid out.
-            $lateAmt  = min(max(0.0, $gross - $dedAmt), (float) ($late['amount'] ?? 0));
+                $points  = $excluded ? 0.0 : max(0, (float) $emp->service_points_entitlement);
+                $mcDays  = $mcCounts[$emp->id] ?? 0;
+                $absDays = $absCounts[$emp->id] ?? 0;
+                // Zeroed when excluded: a "25%" against a nil gross reads as a
+                // deduction that was applied, when nothing was.
+                $dedPct  = $excluded ? 0.0 : min(100.0, $mcDays * $mcPct + $absDays * $absPct);
+                $gross   = $points * $perPoint;
+                $dedAmt  = $gross * $dedPct / 100;
 
-            // Agreed per employee for this period — a missed KPI, a till
-            // shortfall. Last in the order and capped at what is left, for the
-            // same reason as lateness: a share of a pool must never invert
-            // into money owed.
-            $special    = $row ? $row->specialDeductionFor($emp->id) : ['amount' => 0.0, 'note' => ''];
-            $specialAmt = min(max(0.0, $gross - $dedAmt - $lateAmt), $special['amount']);
+                $late     = $latePenalties[$emp->id] ?? null;
+                $lateMins = (int) ($late['minutes'] ?? 0);
+                // Never more than what is left after the day-based deduction,
+                // so the row's own net cannot go negative and drag the column
+                // total below the pool that was actually paid out.
+                $lateAmt  = min(max(0.0, $gross - $dedAmt), (float) ($late['amount'] ?? 0));
 
-            $rows[] = [
-                'employee'     => $emp,
-                'excluded'     => $excluded,
-                // Kept separate from `excluded` even though it forces it, so a
-                // screen can say "paid from KLCC" rather than the flatly
-                // misleading "excluded from the service charge" — this person
-                // is being paid, just not out of this pool.
-                'elsewhere'    => $elsewhere,
-                // Days worked and whether they cleared the minimum, so the
-                // table can show the count it was judged on rather than
-                // asking anybody to re-count the grid by eye.
-                'workDays'     => $workDays,
-                'belowMinDays' => $belowMinDays,
-                'points'       => $points,
-                'mcDays'       => $mcDays,
-                'absDays'      => $absDays,
-                'dedPct'       => $dedPct,
-                'gross'        => $gross,
-                'dedAmt'       => $dedAmt,
-                'lateMins'     => $lateMins,
-                'lateAmt'      => $lateAmt,
-                'specialAmt'   => $specialAmt,
-                'specialNote'  => $special['note'],
-                'net'          => $gross - $dedAmt - $lateAmt - $specialAmt,
-            ];
-            $totals['gross']      += $gross;
-            $totals['deduction']  += $dedAmt;
-            $totals['lateAmt']    += $lateAmt;
-            $totals['lateMins']   += $lateMins;
-            $totals['specialAmt'] += $specialAmt;
-            $totals['net']        += $gross - $dedAmt - $lateAmt - $specialAmt;
+                // Agreed per employee for this period — a missed KPI, a till
+                // shortfall. Last in the order and capped at what is left, for the
+                // same reason as lateness: a share of a pool must never invert
+                // into money owed.
+                $special    = $row ? $row->specialDeductionFor($emp->id) : ['amount' => 0.0, 'note' => ''];
+                $specialAmt = min(max(0.0, $gross - $dedAmt - $lateAmt), $special['amount']);
+
+                $rows[] = [
+                    'employee'     => $emp,
+                    'excluded'     => $excluded,
+                    // Kept separate from `excluded` even though it forces it, so a
+                    // screen can say "paid from KLCC" rather than the flatly
+                    // misleading "excluded from the service charge" — this person
+                    // is being paid, just not out of this pool.
+                    'elsewhere'    => $elsewhere,
+                    // Days worked and whether they cleared the minimum, so the
+                    // table can show the count it was judged on rather than
+                    // asking anybody to re-count the grid by eye.
+                    'workDays'     => $workDays,
+                    'belowMinDays' => $belowMinDays,
+                    'points'       => $points,
+                    'mcDays'       => $mcDays,
+                    'absDays'      => $absDays,
+                    'dedPct'       => $dedPct,
+                    'gross'        => $gross,
+                    'dedAmt'       => $dedAmt,
+                    'lateMins'     => $lateMins,
+                    'lateAmt'      => $lateAmt,
+                    'specialAmt'   => $specialAmt,
+                    'specialNote'  => $special['note'],
+                    'net'          => $gross - $dedAmt - $lateAmt - $specialAmt,
+                ];
+                $totals['gross']      += $gross;
+                $totals['deduction']  += $dedAmt;
+                $totals['lateAmt']    += $lateAmt;
+                $totals['lateMins']   += $lateMins;
+                $totals['specialAmt'] += $specialAmt;
+                $totals['net']        += $gross - $dedAmt - $lateAmt - $specialAmt;
+            }
+
+            return [$rows, $totals];
+        };
+
+        [$rows, $totals] = $price($basePerPoint);
+        $perPoint = $basePerPoint;
+
+        /*
+         * DEDUCTIONS BACK INTO THE POOL.
+         *
+         * Off, a deduction is simply not paid and sits in the remainder with
+         * the company. On, it is shared among everyone in the pool, so it
+         * shows up as a higher final RM/point rather than as a bonus line on
+         * anybody's row.
+         *
+         * Closed form rather than "add the deductions and divide again", which
+         * would never settle: the MC and absence deductions are a percentage
+         * of a gross that the redistribution itself raises. So they are
+         * counted in POINTS — 10 points at 15% keeps 8.5 — and the pool is
+         * divided over the points actually kept:
+         *
+         *   RM/point = (distributable + flat deductions) / kept points
+         *
+         * Kept points include the funds, which hold points like anybody else
+         * and so take their share of what comes back. Lateness and special
+         * deductions are flat RM, so they are added to the pool rather than
+         * taken off the divisor; they are the figures from the first pass,
+         * whose caps are tighter than at the final rate, so the pool can come
+         * up slightly short of exactly nil but can never pay out more than it
+         * holds. Still floored to a whole ringgit, as the base is.
+         */
+        $redistribute  = $row ? $row->redistributesDeductions() : false;
+        $redistributed = 0.0;
+
+        if ($redistribute && $perPoint > 0) {
+            // Off the whole divisor, never summed up from $rows: the grid may be
+            // showing a filtered handful, and a rate worked out from those
+            // alone would be priced for a much smaller pool.
+            $keptPoints = $totalPoints;
+            foreach ($rows as $r) {
+                $keptPoints -= $r['points'] * $r['dedPct'] / 100;
+            }
+            $flat = $totals['lateAmt'] + $totals['specialAmt'];
+
+            if ($keptPoints > 0) {
+                $perPoint = max($basePerPoint, floor(($distributable + $flat) / $keptPoints));
+                [$rows, $totals] = $price($perPoint);
+            }
+
+            $redistributed = round($totals['deduction'] + $totals['lateAmt'] + $totals['specialAmt'], 2);
         }
+
+        $fundRows = array_map(fn ($f) => $f + ['amount' => $f['points'] * $perPoint], $funds);
 
         return [
             'row'           => $row,
@@ -624,6 +699,11 @@ class ServiceChargePeriod extends Model
             'mcPct'         => $mcPct,
             'absPct'        => $absPct,
             'minDays'       => $minDays,
+            // The rate before anything deducted was handed back, and how much
+            // was. Equal to perPoint and 0 when the pool keeps its deductions.
+            'redistribute'  => $redistribute,
+            'basePerPoint'  => $basePerPoint,
+            'redistributed' => $redistributed,
             'hasLate'       => $totals['lateAmt'] > 0 || $totals['lateMins'] > 0,
             'hasSpecial'    => $totals['specialAmt'] > 0,
             'hasExcluded'   => collect($rows)->contains('excluded', true),

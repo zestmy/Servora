@@ -501,6 +501,14 @@
                            class="w-28 text-sm rounded-lg border-gray-300 shadow-sm" />
                     @error('scMinWorkingDays') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                 </div>
+                {{-- Sized to the inputs beside it (h-[38px]) so the row stays
+                     aligned on items-end. --}}
+                <label class="flex items-center gap-2 h-[38px] text-xs text-gray-700 cursor-pointer select-none"
+                       title="MC, absence, lateness and special deductions go back into the pool and are shared by everyone in it, so they raise the final RM per point. Unticked, what is deducted stays with the company.">
+                    <input type="checkbox" wire:model="scRedistribute"
+                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                    Redistribute deductions to pool
+                </label>
                 <button wire:click="saveServiceCharge"
                         class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
                     Save &amp; Calculate
@@ -586,9 +594,20 @@
                                 + {{ number_format($serviceCharge['fundPoints'], 2) }} funds)</span>
                             @endif
                         </span>
-                        <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                            RM {{ number_format($serviceCharge['perPoint']) }} / point
-                        </span>
+                        @if (($serviceCharge['redistribute'] ?? false) && ($serviceCharge['redistributed'] ?? 0) > 0)
+                            <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600"
+                                  title="Deductions returned to the pool and shared by everyone in it">
+                                + RM {{ number_format($serviceCharge['redistributed'], 2) }} deductions redistributed
+                            </span>
+                            <span class="px-2.5 py-1 rounded-full bg-teal-100 text-teal-800 font-semibold"
+                                  title="RM {{ number_format($serviceCharge['basePerPoint']) }} per point before deductions were redistributed">
+                                RM {{ number_format($serviceCharge['basePerPoint']) }} → RM {{ number_format($serviceCharge['perPoint']) }} / point
+                            </span>
+                        @else
+                            <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                                RM {{ number_format($serviceCharge['perPoint']) }} / point
+                            </span>
+                        @endif
                         {{-- Says the figures are FIXED, and when they were
                              fixed. Without it there is nothing on screen to
                              distinguish a calculated period from one being
@@ -607,7 +626,7 @@
                                  out loud because the alternative is a tick that
                                  looks broken: the control is .live, the table does
                                  not move, and nothing on screen explains the gap. --}}
-                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false))
+                            @if (count($scPendingExclusions ?? []) || ($scPendingMinDays ?? false) || ($scPendingRedistribute ?? false))
                                 <span class="px-2.5 py-1 rounded-full bg-warning-50 text-warning-800 font-medium"
                                       title="A calculated period keeps its figures until it is recalculated.">
                                     @php
@@ -618,6 +637,9 @@
                                         }
                                         if ($scPendingMinDays ?? false) {
                                             $pendingBits[] = 'the minimum';
+                                        }
+                                        if ($scPendingRedistribute ?? false) {
+                                            $pendingBits[] = 'redistribution';
                                         }
                                     @endphp
                                     Not applied yet: {{ implode(' and ', $pendingBits) }} —

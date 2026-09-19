@@ -274,7 +274,13 @@ class ServiceChargeDistributionSheet
             ['Staff points',                  (float) $sc['staffPoints']],
             ($sc['fundPoints'] ?? 0) > 0 ? ['Fund points', (float) $sc['fundPoints']] : null,
             ['Total points',                  (float) $sc['totalPoints']],
-            ['RM per point',                  (float) $sc['perPoint']],
+            ($sc['redistribute'] ?? false)
+                ? ['RM per point before deductions', (float) ($sc['basePerPoint'] ?? $sc['perPoint'])]
+                : null,
+            ($sc['redistribute'] ?? false)
+                ? ['Deductions redistributed (RM)', (float) ($sc['redistributed'] ?? 0)]
+                : null,
+            [($sc['redistribute'] ?? false) ? 'Final RM per point' : 'RM per point', (float) $sc['perPoint']],
             ['Allocated (RM)',                (float) $sc['allocated']],
             // What the rounding left behind. Named, because a pool that does
             // not add up to its own collected figure is the first thing

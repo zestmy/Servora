@@ -98,9 +98,18 @@
                         + {{ number_format($d['fundPoints'], 2) }} funds)</span>
                     @endif
                 </span>
-                <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                    RM {{ number_format($d['perPoint']) }} / point
-                </span>
+                @if (($d['redistribute'] ?? false) && ($d['redistributed'] ?? 0) > 0)
+                    <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                        + RM {{ number_format($d['redistributed'], 2) }} deductions redistributed
+                    </span>
+                    <span class="px-2.5 py-1 rounded-full bg-brand-100 text-brand-800 font-semibold">
+                        RM {{ number_format($d['basePerPoint']) }} → RM {{ number_format($d['perPoint']) }} / point
+                    </span>
+                @else
+                    <span class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                        RM {{ number_format($d['perPoint']) }} / point
+                    </span>
+                @endif
             </div>
         </div>
 

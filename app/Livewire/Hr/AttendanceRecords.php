@@ -53,6 +53,12 @@ class AttendanceRecords extends Component
      */
     public string $scMinWorkingDays = '0';
 
+    /**
+     * Whether MC, absence, lateness and special deductions go back into the
+     * pool and lift the final RM/point, rather than staying with the company.
+     */
+    public bool $scRedistribute = false;
+
     /** Named allocations that take points alongside staff: [['name','points']]. */
     public array $scFunds = [];
 
@@ -459,6 +465,7 @@ class AttendanceRecords extends Component
             $this->scAbsPercent = $row ? rtrim(rtrim(number_format((float) $row->abs_percent, 2, '.', ''), '0'), '.') : '10';
             $this->scRetention  = $row ? rtrim(rtrim(number_format((float) $row->retention_percent, 2, '.', ''), '0'), '.') : '0';
             $this->scMinWorkingDays = (string) ($row ? $row->minWorkingDays() : 0);
+            $this->scRedistribute   = $row ? $row->redistributesDeductions() : false;
 
             $this->scFunds = $row
                 ? array_map(fn ($f) => ['name' => $f['name'], 'points' => (string) $f['points']], $row->funds())
@@ -639,6 +646,7 @@ class AttendanceRecords extends Component
             'scSpecial.*.note'   => 'nullable|string|max:120',
             'scExcluded'         => 'array',
             'scExcluded.*'       => 'boolean',
+            'scRedistribute'     => 'boolean',
         ], [
             'scFunds.*.name.required'   => 'Give every allocation a name.',
             'scFunds.*.points.required' => 'Give every allocation its points.',
@@ -689,6 +697,7 @@ class AttendanceRecords extends Component
                 'mc_percent'         => round((float) $this->scMcPercent, 2),
                 'abs_percent'        => round((float) $this->scAbsPercent, 2),
                 'min_working_days'   => max(0, (int) $this->scMinWorkingDays),
+                'redistribute_deductions' => $this->scRedistribute,
                 'fund_allocations'   => $funds ?: null,
                 'special_deductions' => $special ?: null,
                 'excluded_employees' => $this->excludedServicePointIds(
@@ -1085,6 +1094,10 @@ class AttendanceRecords extends Component
         $scPendingMinDays = $scRow?->isFrozen()
             && max(0, (int) $this->scMinWorkingDays) !== $scRow->minWorkingDays();
 
+        // And so does the redistribution tick.
+        $scPendingRedistribute = $scRow?->isFrozen()
+            && $this->scRedistribute !== $scRow->redistributesDeductions();
+
         /*
          * Who falls short of the qualifying period, and therefore whose points
          * have to come OUT OF THE DIVISOR as well as off their own row.
@@ -1148,7 +1161,7 @@ class AttendanceRecords extends Component
             'dates', 'from', 'to', 'codes', 'activeCodes', 'codesById', 'cellMap',
             'hoursMap', 'hourTotals',
             'presentCounts', 'absentCounts', 'serviceCharge', 'canViewPay', 'canManageServiceCharge',
-            'scPendingExclusions', 'scPendingMinDays',
+            'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute',
         ))->layout('layouts.app', ['title' => 'Attendance Record']);
     }
 }

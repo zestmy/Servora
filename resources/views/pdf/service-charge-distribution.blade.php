@@ -26,7 +26,13 @@
             <div class="sc-meta">
                 Pool RM {{ number_format((float) $serviceCharge['row']->amount, 2) }}
                 · Total Service Points {{ number_format($serviceCharge['totalPoints'], 2) }}
-                · RM {{ number_format($serviceCharge['perPoint']) }} / point
+                @if (($serviceCharge['redistribute'] ?? false) && ($serviceCharge['redistributed'] ?? 0) > 0)
+                    · RM {{ number_format($serviceCharge['basePerPoint']) }} / point before deductions
+                    · RM {{ number_format($serviceCharge['redistributed'], 2) }} deductions redistributed
+                    · Final RM {{ number_format($serviceCharge['perPoint']) }} / point
+                @else
+                    · RM {{ number_format($serviceCharge['perPoint']) }} / point
+                @endif
                 · MC deduction {{ $fmtPct($serviceCharge['mcPct']) }}% / day
                 · Absent deduction {{ $fmtPct($serviceCharge['absPct']) }}% / day
                 @if (($serviceCharge['minDays'] ?? 0) > 0)
