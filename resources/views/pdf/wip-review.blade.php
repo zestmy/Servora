@@ -767,19 +767,26 @@
     @if ($report['outlets'] === [])
         <div style="{{ $note }}">No outlet figures for these two {{ $unit }}s.</div>
     @else
+        {{-- A figure no outlet has in either {{ $unit }} gets no column. --}}
+        @php
+            $has = fn (string $key) => collect($report['outlets'])->contains(
+                fn ($o) => abs($o[$key]['current'] ?? 0) > 0.005 || abs($o[$key]['previous'] ?? 0) > 0.005);
+        @endphp
         <table class="items">
             <thead>
                 <tr>
                     <th>Outlet</th>
                     <th class="right">Sales</th><th class="right">{{ $vsLast }}</th>
-                    <th class="right">Purchases</th><th class="right">Cost %</th>
-                    <th class="right">Wastage</th><th class="right">Staff meals</th>
-                    <th class="right">Transfers in</th><th class="right">Transfers out</th>
-                    <th class="right">OT hours</th>
-                    @if ($canPay)
+                    @if ($has('purchases'))<th class="right">Purchases</th><th class="right">Cost %</th>@endif
+                    @if ($has('wastage'))<th class="right">Wastage</th>@endif
+                    @if ($has('staff_meal'))<th class="right">Staff meals</th>@endif
+                    @if ($has('transfers_in'))<th class="right">Transfers in</th>@endif
+                    @if ($has('transfers_out'))<th class="right">Transfers out</th>@endif
+                    @if ($has('ot_hours'))<th class="right">OT hours</th>@endif
+                    @if ($canPay && $has('ot_cost'))
                         <th class="right">OT cost</th>
                     @endif
-                    @if ($labour !== null)
+                    @if ($labour !== null && $has('labour_cost'))
                         <th class="right">Labour</th><th class="right">Labour %</th>
                     @endif
                 </tr>
@@ -791,17 +798,19 @@
                         <td style="font-weight: bold;">{{ $o['name'] }}</td>
                         <td class="right">{{ $num($o['sales']['current']) }}</td>
                         <td class="right" style="color: {{ $s[1] }}; font-size: 8pt;">{{ $s[0] }}</td>
-                        <td class="right">{{ $num($o['purchases']['current']) }}</td>
-                        <td class="right">{{ $pct($o['cost_pct']['current']) }}</td>
-                        <td class="right">{{ $num($o['wastage']['current']) }}<div style="font-size: 7pt; color: #64748b;">{{ $pct($o['wastage_pct']['current']) }}</div></td>
-                        <td class="right">{{ $num($o['staff_meal']['current']) }}<div style="font-size: 7pt; color: #64748b;">{{ $pct($o['staff_meal_pct']['current']) }}</div></td>
-                        <td class="right">{{ $num($o['transfers_in']['current']) }}</td>
-                        <td class="right">{{ $num($o['transfers_out']['current']) }}</td>
-                        <td class="right">{{ $num($o['ot_hours']['current'], 1) }}</td>
-                        @if ($canPay)
+                        @if ($has('purchases'))
+                            <td class="right">{{ $num($o['purchases']['current']) }}</td>
+                            <td class="right">{{ $pct($o['cost_pct']['current']) }}</td>
+                        @endif
+                        @if ($has('wastage'))<td class="right">{{ $num($o['wastage']['current']) }}<div style="font-size: 7pt; color: #64748b;">{{ $pct($o['wastage_pct']['current']) }}</div></td>@endif
+                        @if ($has('staff_meal'))<td class="right">{{ $num($o['staff_meal']['current']) }}<div style="font-size: 7pt; color: #64748b;">{{ $pct($o['staff_meal_pct']['current']) }}</div></td>@endif
+                        @if ($has('transfers_in'))<td class="right">{{ $num($o['transfers_in']['current']) }}</td>@endif
+                        @if ($has('transfers_out'))<td class="right">{{ $num($o['transfers_out']['current']) }}</td>@endif
+                        @if ($has('ot_hours'))<td class="right">{{ $num($o['ot_hours']['current'], 1) }}</td>@endif
+                        @if ($canPay && $has('ot_cost'))
                             <td class="right">{{ $num($o['ot_cost']['current']) }}<div style="font-size: 7pt; color: #64748b;">{{ $pct($o['ot_cost_pct']['current']) }}</div></td>
                         @endif
-                        @if ($labour !== null)
+                        @if ($labour !== null && $has('labour_cost'))
                             <td class="right">{{ $num($o['labour_cost']['current']) }}</td>
                             <td class="right">{{ $pct($o['labour_pct']['current']) }}</td>
                         @endif

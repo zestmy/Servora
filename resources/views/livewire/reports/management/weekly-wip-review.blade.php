@@ -1105,6 +1105,11 @@
             @if ($report['outlets'] === [])
                 <p class="py-8 text-center text-sm text-gray-600">No outlet figures for these two {{ $unit }}s.</p>
             @else
+                {{-- A figure no outlet has in either {{ $unit }} gets no column. --}}
+                @php
+                    $has = fn (string $key) => collect($report['outlets'])->contains(
+                        fn ($o) => abs($o[$key]['current'] ?? 0) > 0.005 || abs($o[$key]['previous'] ?? 0) > 0.005);
+                @endphp
                 <div class="overflow-x-auto">
                     <table class="table-surface min-w-full text-sm">
                         <thead>
@@ -1112,15 +1117,27 @@
                                 <th class="px-3 py-2 text-left">Outlet</th>
                                 <th class="px-3 py-2 text-right">Sales</th>
                                 <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                @if ($has('purchases'))
                                 <th class="px-3 py-2 text-right">Purchases</th>
                                 <th class="px-3 py-2 text-right">Cost %</th>
                                 <th class="px-3 py-2 text-right">{{ $vsLast }}</th>
+                                @endif
+                                @if ($has('wastage'))
                                 <th class="px-3 py-2 text-right">Wastage</th>
+                                @endif
+                                @if ($has('staff_meal'))
                                 <th class="px-3 py-2 text-right">Staff meals</th>
+                                @endif
+                                @if ($has('transfers_in'))
                                 <th class="px-3 py-2 text-right wip-hide-present">Transfers in</th>
+                                @endif
+                                @if ($has('transfers_out'))
                                 <th class="px-3 py-2 text-right wip-hide-present">Transfers out</th>
+                                @endif
+                                @if ($has('ot_hours'))
                                 <th class="px-3 py-2 text-right wip-hide-present">OT hours</th>
-                                @if ($labour !== null)
+                                @endif
+                                @if ($labour !== null && $has('labour_cost'))
                                     <th class="px-3 py-2 text-right">Labour cost</th>
                                     <th class="px-3 py-2 text-right">Labour %</th>
                                 @endif
@@ -1136,21 +1153,33 @@
                                     <td class="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{{ $o['name'] }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['sales']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $s[1] }}">{{ $s[0] }}</td>
+                                    @if ($has('purchases'))
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['purchases']['current'], 2) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($o['cost_pct']['current']) }}</td>
                                     <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $c[1] }}">{{ $c[0] }}</td>
+                                    @endif
+                                    @if ($has('wastage'))
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                                         {{ number_format($o['wastage']['current'], 2) }}
                                         <span class="block text-[11px] text-gray-500">{{ $pct($o['wastage_pct']['current']) }}</span>
                                     </td>
+                                    @endif
+                                    @if ($has('staff_meal'))
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                                         {{ number_format($o['staff_meal']['current'], 2) }}
                                         <span class="block text-[11px] text-gray-500">{{ $pct($o['staff_meal_pct']['current']) }}</span>
                                     </td>
+                                    @endif
+                                    @if ($has('transfers_in'))
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap wip-hide-present">{{ number_format($o['transfers_in']['current'], 2) }}</td>
+                                    @endif
+                                    @if ($has('transfers_out'))
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap wip-hide-present">{{ number_format($o['transfers_out']['current'], 2) }}</td>
+                                    @endif
+                                    @if ($has('ot_hours'))
                                     <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap wip-hide-present">{{ number_format($o['ot_hours']['current'], 1) }}</td>
-                                    @if ($labour !== null)
+                                    @endif
+                                    @if ($labour !== null && $has('labour_cost'))
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($o['labour_cost']['current'], 2) }}</td>
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ $pct($o['labour_pct']['current']) }}</td>
                                     @endif

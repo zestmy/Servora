@@ -264,7 +264,10 @@ class WeeklyWipReviewTest extends TestCase
 
         Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
             ->assertSee('Weekly sales by category')
-            ->assertSee('Uncategorised');
+            ->assertSee('Uncategorised')
+            // By outlet: no outlet moved stock or claimed overtime, so no columns for them.
+            ->assertDontSee('Transfers in')
+            ->assertDontSee('OT hours');
 
         $pdf = view('pdf.wip-review', [
             'report' => app(\App\Services\Reports\WeeklyWipReview::class)->build(
@@ -274,6 +277,7 @@ class WeeklyWipReviewTest extends TestCase
         ])->render();
         $this->assertStringContainsString('Weekly sales by category', $pdf);
         $this->assertStringNotContainsString('Retail', $pdf);
+        $this->assertStringNotContainsString('Transfers in', $pdf);
         $this->assertStringContainsString('Purchases by department', $pdf);
         $this->assertStringContainsString('Wastage by department', $pdf);
     }
@@ -435,6 +439,11 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertEquals(30, $ioiRow['transfers_in']['current']);
         $this->assertEquals(0, $ioiRow['transfers_out']['current']);
         $this->assertEquals([0, 0, 0, 0, 0, 0, 20, 30], $report['totals']['transfers']);
+
+        // Stock moved, so By outlet carries the transfer columns.
+        Livewire::actingAs($this->user)->test(WeeklyWipReview::class)
+            ->assertSee('Transfers in')
+            ->assertSee('Transfers out');
     }
 
     public function test_an_outlet_filter_shows_only_its_own_side_of_a_transfer(): void
