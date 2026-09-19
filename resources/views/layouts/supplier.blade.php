@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Dashboard' }} | Servora Supplier Portal</title>
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak] { display: none !important; }</style>
 </head>
@@ -18,7 +18,7 @@
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center gap-6">
                     <a href="{{ route('supplier.dashboard') }}">
-                        <img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8">
+                        <img src="{{ brand_asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8">
                     </a>
                     <div class="hidden sm:flex items-center gap-4">
                         @php

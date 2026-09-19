@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Affiliate Dashboard — Servora</title>
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <nav class="bg-white border-b border-gray-100">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="{{ route('marketing.home') }}"><img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8"></a>
+                <a href="{{ route('marketing.home') }}"><img src="{{ brand_asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8"></a>
                 <div class="flex items-center gap-4">
                     <span class="text-sm text-gray-500">{{ $affiliate->email }}</span>
                     <form method="POST" action="{{ route('affiliate.logout') }}">

@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? 'Dashboard' }} | Kitchen | {{ config('app.name', 'Servora') }}</title>
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -82,8 +82,8 @@
     <x-app-nav workspace="kitchen"
                state-key="ck_nav"
                :groups="$ckGroups"
-               logo="/images/servora-logo-white.png"
-               logo-dark="/images/servora-logo-black.png">
+               logo="{{ brand_asset('images/servora-logo-white.png') }}"
+               logo-dark="{{ brand_asset('images/servora-logo-black.png') }}">
 
         {{-- Where you are standing.
 
@@ -187,8 +187,8 @@
                     aria-controls="ck_nav-primary">
                 <x-icon name="bars" size="h-6 w-6" stroke="2" />
             </button>
-            <img src="/images/servora-logo-white.png" alt="Servora" class="h-7" x-show="navTheme === 'dark'">
-            <img src="/images/servora-logo-black.png" alt="Servora" class="h-7" x-show="navTheme === 'light'" x-cloak>
+            <img src="{{ brand_asset('images/servora-logo-white.png') }}" alt="Servora" class="h-7" x-show="navTheme === 'dark'">
+            <img src="{{ brand_asset('images/servora-logo-black.png') }}" alt="Servora" class="h-7" x-show="navTheme === 'light'" x-cloak>
             <span class="ml-2 rounded-control bg-workspace-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-white">Kitchen</span>
             @if (! empty($title))
                 <span class="nav-muted ml-auto truncate text-sm max-w-[40%]">{{ $title }}</span>

@@ -14,11 +14,11 @@
     <meta property="og:title" content="{{ $title ?? 'Servora' }}">
     <meta property="og:description" content="{{ $description ?? 'AI-powered restaurant operations: costing, purchasing, inventory and training in one place.' }}">
     <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:image" content="{{ asset('images/servora-logo-black.png') }}">
+    <meta property="og:image" content="{{ brand_asset('images/servora-logo-black.png') }}">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="{{ url()->current() }}">
 
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
 
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet">
@@ -72,7 +72,7 @@
              aria-label="Primary">
 
             <a href="{{ route('marketing.home') }}" class="flex-shrink-0" aria-label="Servora home">
-                <img src="{{ asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8 w-auto">
+                <img src="{{ brand_asset('images/servora-logo-black.png') }}" alt="Servora" class="h-8 w-auto">
             </a>
 
             <div class="hidden items-center gap-7 lg:flex">
@@ -205,7 +205,7 @@
             <div class="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.6fr_repeat(4,1fr)]">
 
                 <div class="max-w-xs md:col-span-2 lg:col-span-1">
-                    <img src="{{ asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8 w-auto">
+                    <img src="{{ brand_asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8 w-auto">
                     <p class="mt-4 text-sm leading-relaxed">
                         Costing, purchasing, inventory and training for F&amp;B operators who need to know
                         their numbers before month end.

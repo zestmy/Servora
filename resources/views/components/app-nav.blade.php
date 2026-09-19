@@ -14,7 +14,7 @@
     // remembering "Production" open while standing in an outlet means nothing.
     'stateKey'  => 'nav',
 
-    'logo'      => '/images/servora-logo-white.png',
+    'logo'      => brand_asset('images/servora-logo-white.png'),
     'logoDark'  => null,
 ])
 
