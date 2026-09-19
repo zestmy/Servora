@@ -472,7 +472,7 @@
                 ])
                 <div class="overflow-x-auto max-w-2xl wip-widen">
 
-                    <table class="table-surface min-w-full text-sm">
+                    <table class="table-surface wip-tall-list min-w-full text-sm">
                         <tbody>
                             @foreach ($forecastRows as [$label, $value, $class])
                                 <tr wire:key="forecast-{{ $loop->index }}" class="{{ $label === 'Forecast monthly sales' ? 'wip-emph' : '' }}">
@@ -554,6 +554,9 @@
                 if ($labour !== null) {
                     $trendRows[] = ['Labour cost', 'labour_cost', 'money', 'labour_pct'];
                 }
+                // A figure that is zero in every period shown gets no row. Sales always stays.
+                $trendRows = array_values(array_filter($trendRows, fn ($r) => $r[1] === 'sales'
+                    || collect($report['totals'][$r[1]])->contains(fn ($v) => abs((float) $v) > 0.005)));
             @endphp
             <div class="overflow-x-auto mt-5">
                 <table class="table-surface min-w-full text-sm">

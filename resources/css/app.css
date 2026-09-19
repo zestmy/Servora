@@ -209,6 +209,11 @@
     .wip-presenting .table-surface { font-size: clamp(15px, 1.4vw, 30px); }
     /* Short tables (a handful of rows) have the room to go bigger still. */
     .wip-presenting .table-surface.wip-big { font-size: clamp(18px, 1.8vw, 38px); }
+    /* A long two-column list (the forecast): height is the limit, not width,
+       so size by the viewport height — 11 rows fill the slide without it
+       having to shrink. Labels here are the point, so full size too. */
+    .wip-presenting .table-surface.wip-tall-list { font-size: clamp(16px, min(2vw, 3.1vh), 44px); }
+    .wip-presenting .table-surface.wip-tall-list [class~="text-xs"] { font-size: 1em; }
     .wip-presenting .table-surface thead th { font-size: clamp(12px, 0.95vw, 20px); padding: 0.7em 0.6em; line-height: 1.2; }
     .wip-presenting .table-surface td { padding: 0.4em 0.6em; line-height: 1.25; }
     /* Attribute selectors, not .text-xs: a selector naming a utility inside

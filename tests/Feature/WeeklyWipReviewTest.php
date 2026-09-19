@@ -278,6 +278,7 @@ class WeeklyWipReviewTest extends TestCase
         $this->assertStringContainsString('Weekly sales by category', $pdf);
         $this->assertStringNotContainsString('Retail', $pdf);
         $this->assertStringNotContainsString('Transfers in', $pdf);
+        $this->assertStringNotContainsString('OT hours (approved)', $pdf, 'No overtime in any week, so no trend row for it.');
         $this->assertStringContainsString('Purchases by department', $pdf);
         $this->assertStringContainsString('Wastage by department', $pdf);
     }

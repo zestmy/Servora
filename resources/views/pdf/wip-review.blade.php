@@ -369,6 +369,9 @@
         if ($labour !== null) {
             $trendRows[] = ['Labour cost', 'labour_cost', 'money', 'labour_pct'];
         }
+        // A figure that is zero in every period shown gets no row. Sales always stays.
+        $trendRows = array_values(array_filter($trendRows, fn ($r) => $r[1] === 'sales'
+            || collect($report['totals'][$r[1]])->contains(fn ($v) => abs((float) $v) > 0.005)));
     @endphp
     <table class="items" style="margin-top: 8px; page-break-inside: avoid;">
         <thead>

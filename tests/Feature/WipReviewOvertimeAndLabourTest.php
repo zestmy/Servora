@@ -259,6 +259,7 @@ class WipReviewOvertimeAndLabourTest extends TestCase
                   'Overtime by section', 'Overtime by outlet', 'Labour cost', 'By outlet'] as $heading) {
             $this->assertStringContainsString($heading, $withPay);
         }
+        $this->assertStringContainsString('OT hours (approved)', $withPay, 'Overtime was claimed, so the trend keeps its row.');
 
         $withoutPay = $render(false);
         $this->assertStringNotContainsString('Labour cost', $withoutPay);
