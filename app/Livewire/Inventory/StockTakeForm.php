@@ -353,7 +353,7 @@ class StockTakeForm extends Component
 
         if ($action === 'complete') {
             session()->flash('success', 'Stock take completed.');
-            $this->redirectRoute('inventory.index');
+            $this->redirectRoute('inventory.index', ['tab' => 'stock-takes']);
             return;
         }
 

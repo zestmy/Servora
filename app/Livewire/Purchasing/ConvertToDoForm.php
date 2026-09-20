@@ -60,7 +60,7 @@ class ConvertToDoForm extends Component
 
         if (! in_array($po->status, ['approved', 'sent', 'partial'])) {
             session()->flash('error', 'Only approved/sent/partial POs can be converted to DO.');
-            $this->redirectRoute('purchasing.index');
+            $this->redirectRoute('purchasing.index', ['tab' => 'po']);
             return;
         }
 

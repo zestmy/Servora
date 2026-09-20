@@ -169,6 +169,13 @@ class StockFormsLockUnitCostTest extends TestCase
             ->set('lines.0.quantity', '2')
             ->call('save')
             ->assertRedirect(route('inventory.index', ['tab' => 'staff-meals']));
+
+        Livewire::actingAs($this->user)->test(StockTakeForm::class)
+            ->call('addIngredient', $this->dough->id)
+            ->set('department_id', $this->department->id)
+            ->set('lines.0.actual_quantity', '4')
+            ->call('save', 'complete')  // a draft save deliberately stays on the form
+            ->assertRedirect(route('inventory.index', ['tab' => 'stock-takes']));
     }
 
     public function test_a_staff_meal_stores_the_derived_cost(): void

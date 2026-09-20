@@ -440,7 +440,7 @@ class OrderForm extends Component
                 $count = count($poIds);
 
                 session()->flash('success', "Order split into {$count} Purchase Order(s) by supplier.");
-                $this->redirectRoute('purchasing.index');
+                $this->redirectRoute('purchasing.index', ['tab' => 'po']);
                 return;
             }
         }
@@ -556,7 +556,7 @@ class OrderForm extends Component
             $msg = 'Purchase order saved as draft.';
         }
         session()->flash('success', $msg);
-        $this->redirectRoute('purchasing.index');
+        $this->redirectRoute('purchasing.index', ['tab' => 'po']);
     }
 
     public function render()
