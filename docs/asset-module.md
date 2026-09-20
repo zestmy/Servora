@@ -248,9 +248,44 @@ The preview still counts asset lines, but the notice now says what happens
 ordered like anything else and received into the register rather than into
 stock.
 
-**Still not threaded through**: credit notes for assets. `CreditNoteLine` has
-no `asset()` relation, and the credit-note PDF deliberately does not
-eager-load one — so returning a faulty mixer to a supplier is not supported.
+### Credit notes — phase four (2026-09-21)
+
+A credit note line can name an asset, which closes the chain: an asset can
+be requested, ordered (directly or consolidated), delivered, received, and
+now credited back when the supplier sent the wrong mixer or billed for two
+and delivered one.
+
+**A CREDIT NOTE IS FINANCIAL ONLY, and an asset line does not change that.**
+Issuing one has never moved ingredient stock — it records what the supplier
+is crediting, not what is on the shelf — so it does not move the register
+either. Making assets the exception would be a surprise on a document that
+holds both kinds of line.
+
+That separation is also what stops the obvious double-count. The reason
+codes do not agree with each other about what physically happened:
+
+- `rejected` and `short_delivery` describe something that **never entered
+  the register**, because the GRN only ever receives what actually arrived
+  in a countable condition — auto-disposing on those would subtract twice;
+- `damaged` describes something that **did** enter it (a damaged line is
+  still received), so it is still counted;
+- `overcharge` and `other` are money-only and touch nothing physical.
+
+Any rule that moved the register automatically would have to be right about
+all five. It is a disposal instead, with the reason "Returned to supplier",
+and the form says so on screen whenever an asset line is present.
+
+An asset added by hand defaults to `reason_code = 'return'`, because that is
+what crediting an asset back usually means; a delivery's own variance
+(damaged / rejected / short) still sets the code it saw.
+
+**Also fixed here, found and not looked for**: `credit_notes.reason` was
+created `NOT NULL` with no default, while the form validates it as
+`nullable` and writes null when blank. Production runs
+`STRICT_TRANS_TABLES`, so issuing a note without typing a reason was a 500 —
+the same shape as the `source` enum that could not hold `'asset'`, code and
+column disagreeing with the column winning at the worst moment. It had never
+been hit because there were no credit notes in production yet.
 
 ## Not in v1
 

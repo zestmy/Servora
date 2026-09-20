@@ -93,9 +93,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function creditNote(int $id, ?Company $company)
     {
-        // No 'lines.asset' here: a credit note line has no asset relation.
-        // Credit notes for assets are not part of this phase.
-        $cn = \App\Models\CreditNote::with(['supplier', 'outlet', 'lines.ingredient', 'lines.uom', 'createdBy', 'procurementInvoice', 'goodsReceivedNote', 'purchaseOrder'])->findOrFail($id);
+        $cn = \App\Models\CreditNote::with(['supplier', 'outlet', 'lines.ingredient', 'lines.asset', 'lines.uom', 'createdBy', 'procurementInvoice', 'goodsReceivedNote', 'purchaseOrder'])->findOrFail($id);
         $this->authorizeOutlet($cn->outlet_id);
 
         $pdf = Pdf::loadView('pdf.credit-note', compact('cn', 'company'))

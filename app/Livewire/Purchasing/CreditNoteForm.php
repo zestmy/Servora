@@ -48,9 +48,10 @@ class CreditNoteForm extends Component
             'reason'                   => 'nullable|string|max:500',
             'notes'                    => 'nullable|string',
             'lines'                    => 'required|array|min:1',
-            'lines.*.ingredient_id'    => 'required|exists:ingredients,id',
             'lines.*.quantity'         => 'required|numeric|min:0.0001',
             'lines.*.unit_price'       => 'required|numeric|min:0',
+            'lines.*.ingredient_id'    => 'nullable|exists:ingredients,id',
+            'lines.*.asset_id'         => 'nullable|exists:assets,id',
             'lines.*.reason_code'      => 'required|in:damaged,rejected,short_delivery,return,overcharge,other',
         ];
     }
@@ -103,6 +104,7 @@ class CreditNoteForm extends Component
             'uom_id'          => $l->uom_id,
             'unit_price'      => (string) floatval($l->unit_price),
             'total_price'     => round(floatval($l->quantity) * floatval($l->unit_price), 4),
+            'asset_id'        => $l->asset_id,
             'reason_code'     => $l->reason_code ?? 'other',
         ])->toArray();
     }
@@ -118,7 +120,7 @@ class CreditNoteForm extends Component
     {
         if (! $this->goods_received_note_id) return;
 
-        $grn = GoodsReceivedNote::with(['lines.ingredient.baseUom', 'lines.uom'])
+        $grn = GoodsReceivedNote::with(['lines.ingredient.baseUom', 'lines.asset', 'lines.uom'])
             ->find($this->goods_received_note_id);
 
         if (! $grn) return;
@@ -139,8 +141,9 @@ class CreditNoteForm extends Component
             if ($line->condition === 'damaged') {
                 $this->lines[] = [
                     'ingredient_id'   => $line->ingredient_id,
-                    'ingredient_name' => $line->ingredient?->name ?? '—',
-                    'description'     => ($line->ingredient?->name ?? '') . ' — Damaged',
+                    'asset_id'        => $line->asset_id,
+                    'ingredient_name' => $line->displayName(),
+                    'description'     => $line->displayName() . ' — Damaged',
                     'quantity'        => (string) $received,
                     'uom_id'          => $line->uom_id,
                     'unit_price'      => (string) $unitCost,
@@ -151,8 +154,9 @@ class CreditNoteForm extends Component
                 $qty = $received > 0 ? $received : $expected;
                 $this->lines[] = [
                     'ingredient_id'   => $line->ingredient_id,
-                    'ingredient_name' => $line->ingredient?->name ?? '—',
-                    'description'     => ($line->ingredient?->name ?? '') . ' — Rejected',
+                    'asset_id'        => $line->asset_id,
+                    'ingredient_name' => $line->displayName(),
+                    'description'     => $line->displayName() . ' — Rejected',
                     'quantity'        => (string) $qty,
                     'uom_id'          => $line->uom_id,
                     'unit_price'      => (string) $unitCost,
@@ -163,8 +167,9 @@ class CreditNoteForm extends Component
                 $shortQty = $expected - $received;
                 $this->lines[] = [
                     'ingredient_id'   => $line->ingredient_id,
-                    'ingredient_name' => $line->ingredient?->name ?? '—',
-                    'description'     => ($line->ingredient?->name ?? '') . ' — Short delivery',
+                    'asset_id'        => $line->asset_id,
+                    'ingredient_name' => $line->displayName(),
+                    'description'     => $line->displayName() . ' — Short delivery',
                     'quantity'        => (string) $shortQty,
                     'uom_id'          => $line->uom_id,
                     'unit_price'      => (string) $unitCost,
@@ -175,6 +180,53 @@ class CreditNoteForm extends Component
         }
     }
 
+    /**
+     * Credit an asset back.
+     *
+     * Its own search box rather than a shared one, for the same reason the
+     * request form has two: on a credit note the difference between the
+     * Hobart and the cake mix decides whether the register or the shelf is
+     * the thing that was wrong.
+     *
+     * NOTE THE LIMIT OF THIS: the note is financial. Crediting a returned
+     * mixer does not take it out of the register — that is a disposal, with
+     * the reason "Returned to supplier", under Assets > Records. Issuing a
+     * credit note has never moved ingredient stock either, and making assets
+     * the exception would be a surprise on a document that holds both.
+     */
+    public string $assetSearch = '';
+
+    public function addAsset(int $assetId): void
+    {
+        $this->assetSearch = '';
+
+        $asset = \App\Models\Asset::find($assetId);
+
+        if (! $asset) {
+            return;
+        }
+
+        foreach ($this->lines as $line) {
+            if ((int) ($line['asset_id'] ?? 0) === $assetId) {
+                return;
+            }
+        }
+
+        $unitPrice = floatval($asset->unit_cost ?? 0);
+
+        $this->lines[] = [
+            'ingredient_id'   => null,
+            'asset_id'        => $asset->id,
+            'ingredient_name' => $asset->name,
+            'description'     => '',
+            'quantity'        => '1',
+            'uom_id'          => $asset->uom_id,
+            'unit_price'      => (string) $unitPrice,
+            'total_price'     => $unitPrice,
+            'reason_code'     => 'return',
+        ];
+    }
+
     public function addIngredient(int $ingredientId): void
     {
         $ingredient = Ingredient::with('baseUom')->find($ingredientId);
@@ -182,7 +234,8 @@ class CreditNoteForm extends Component
 
         // Skip duplicates
         foreach ($this->lines as $line) {
-            if ((int) $line['ingredient_id'] === $ingredientId) {
+            if (! empty($line['asset_id'])) continue;
+            if ((int) ($line['ingredient_id'] ?? 0) === $ingredientId) {
                 $this->ingredientSearch = '';
                 return;
             }
@@ -192,6 +245,7 @@ class CreditNoteForm extends Component
 
         $this->lines[] = [
             'ingredient_id'   => $ingredientId,
+            'asset_id'        => null,
             'ingredient_name' => $ingredient->name,
             'description'     => '',
             'quantity'        => '1',
@@ -223,9 +277,32 @@ class CreditNoteForm extends Component
         }
     }
 
+    /**
+     * Every line must name something — the same check the order and request
+     * forms make. Both id columns are nullable alone, so a line naming
+     * neither would validate and save as a row pointing at nothing.
+     */
+    private function everyLineNamesSomething(): bool
+    {
+        $ok = true;
+
+        foreach ($this->lines as $i => $line) {
+            if (empty($line['ingredient_id']) && empty($line['asset_id'])) {
+                $this->addError("lines.{$i}.ingredient_id", 'This line does not name an item.');
+                $ok = false;
+            }
+        }
+
+        return $ok;
+    }
+
     public function save(string $action = 'save'): void
     {
         $this->validate();
+
+        if (! $this->everyLineNamesSomething()) {
+            return;
+        }
 
         $user    = Auth::user();
         $company = $user->company;
@@ -277,7 +354,8 @@ class CreditNoteForm extends Component
             $qty   = floatval($line['quantity']);
             $price = floatval($line['unit_price']);
             $cn->lines()->create([
-                'ingredient_id' => $line['ingredient_id'],
+                'ingredient_id' => $line['ingredient_id'] ?: null,
+                'asset_id'      => $line['asset_id'] ?? null,
                 'description'   => $line['description'] ?? null,
                 'quantity'      => $qty,
                 'uom_id'        => $line['uom_id'],
@@ -339,6 +417,27 @@ class CreditNoteForm extends Component
             $searchResults = $q->get();
         }
 
+        // Offered only to somebody who may open the asset list at all —
+        // the same ability that gates the module everywhere else.
+        $assetResults = collect();
+        if (strlen($this->assetSearch) >= 2 && Auth::user()?->canDo('assets.view')) {
+            $onNote = collect($this->lines)->pluck('asset_id')->filter()->map(fn ($id) => (int) $id)->all();
+            $term   = '%' . $this->assetSearch . '%';
+
+            $assetResults = \App\Models\Asset::active()
+                ->when($onNote, fn ($q) => $q->whereNotIn('id', $onNote))
+                ->where(function ($q) use ($term) {
+                    $q->where('name', 'like', $term)
+                      ->orWhere('code', 'like', $term)
+                      ->orWhere('brand', 'like', $term);
+                })
+                ->orderBy('name')
+                ->limit(8)
+                ->get();
+        }
+
+        $canCreditAssets = (bool) Auth::user()?->canDo('assets.view');
+
         $subtotal   = collect($this->lines)->sum(fn ($l) => floatval($l['quantity']) * floatval($l['unit_price']));
         $company    = Auth::user()->company;
         $taxPct     = floatval($company?->tax_percent ?? 0);
@@ -351,7 +450,9 @@ class CreditNoteForm extends Component
             : 'New Credit/Debit Note';
 
         return view('livewire.purchasing.credit-note-form', compact(
-            'suppliers', 'uoms', 'invoices', 'grns', 'searchResults',
+            'suppliers', 'uoms', 'invoices', 'grns', 'searchResults', 'assetResults',
+            // The picker is offered only to somebody who may open the asset list.
+            'canCreditAssets',
             'subtotal', 'taxPct', 'taxAmount', 'grandTotal', 'isEditable'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }

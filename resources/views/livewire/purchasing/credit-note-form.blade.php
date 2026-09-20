@@ -175,6 +175,46 @@
                         </div>
                     @endif
                 </div>
+
+                {{-- Its own box, not a shared one: on a credit note the difference
+                     between the Hobart and the cake mix decides whether the
+                     register or the shelf is the thing that was wrong. --}}
+                @if ($canCreditAssets)
+                    <div class="relative">
+                        <input type="text" wire:model.live.debounce.300ms="assetSearch"
+                               placeholder="Search assets to credit back..."
+                               class="input" />
+
+                        @if ($assetResults->count())
+                            <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                @foreach ($assetResults as $a)
+                                    <button type="button" wire:click="addAsset({{ $a->id }})"
+                                            class="w-full text-left px-4 py-2 hover:bg-brand-50 text-sm flex justify-between items-center">
+                                        <span>{{ $a->name }}</span>
+                                        <span class="text-xs text-gray-600">{{ $a->uom?->abbreviation ?? '' }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endif
+                @endif
+
+                {{-- The limit of this document, said out loud. A credit note is
+                     financial — issuing one has never moved ingredient stock —
+                     so an asset credited here is still counted in the register
+                     until somebody records the disposal. --}}
+                @if (collect($lines)->contains(fn ($l) => ! empty($l['asset_id'])))
+                    <div class="alert-info text-xs">
+                        This note credits an asset back to the supplier. It settles the money only — the asset is still
+                        counted in the register. If it physically went back, record a disposal with the reason
+                        “Returned to supplier” under
+                        @canDo('assets.movements.record')
+                            <a href="{{ route('assets.records', ['tab' => 'disposals']) }}" class="underline font-medium">Assets &rsaquo; Records</a>.
+                        @else
+                            <span class="font-medium">Assets &rsaquo; Records</span>.
+                        @endcanDo
+                    </div>
                 @endif
 
                 {{-- Lines table --}}
@@ -199,6 +239,9 @@
                                     <tr wire:key="line-{{ $idx }}">
                                         <td class="px-3 py-2 text-gray-700 text-xs font-medium">
                                             {{ $line['ingredient_name'] }}
+                                            @if (! empty($line['asset_id']))
+                                                <span class="ml-1 px-1.5 py-0.5 bg-info-100 text-info-700 text-[10px] rounded font-medium">Asset</span>
+                                            @endif
                                             @if (!empty($line['description']))
                                                 <div class="text-xs text-gray-600 mt-0.5">{{ $line['description'] }}</div>
                                             @endif
