@@ -338,35 +338,65 @@ class CreditNoteForm extends Component
             'status'                   => $status,
         ];
 
-        if ($this->creditNoteId) {
-            $cn = CreditNote::findOrFail($this->creditNoteId);
-            $cn->update($data);
-        } else {
-            $data['company_id']          = $user->company_id;
-            $data['credit_note_number']  = $this->credit_note_number;
-            $data['created_by']          = Auth::id();
-            $cn = CreditNote::create($data);
-        }
+        /*
+         * The note, its lines and the register move together or not at all.
+         *
+         * Issuing a note that returns an asset now writes a disposal as well,
+         * so a failure halfway leaves the money saying one thing and the
+         * register another — on the number an outlet is audited against.
+         */
+        $cn = DB::transaction(function () use ($data, $user) {
+            if ($this->creditNoteId) {
+                $cn = CreditNote::findOrFail($this->creditNoteId);
+                $cn->update($data);
+            } else {
+                $data['company_id']          = $user->company_id;
+                $data['credit_note_number']  = $this->credit_note_number;
+                $data['created_by']          = Auth::id();
+                $cn = CreditNote::create($data);
+            }
 
-        // Sync lines
-        $cn->lines()->delete();
-        foreach ($this->lines as $line) {
-            $qty   = floatval($line['quantity']);
-            $price = floatval($line['unit_price']);
-            $cn->lines()->create([
-                'ingredient_id' => $line['ingredient_id'] ?: null,
-                'asset_id'      => $line['asset_id'] ?? null,
-                'description'   => $line['description'] ?? null,
-                'quantity'      => $qty,
-                'uom_id'        => $line['uom_id'],
-                'unit_price'    => $price,
-                'total_price'   => round($qty * $price, 4),
-                'reason_code'   => $line['reason_code'],
-            ]);
-        }
+            // Sync lines
+            $cn->lines()->delete();
+            foreach ($this->lines as $line) {
+                $qty   = floatval($line['quantity']);
+                $price = floatval($line['unit_price']);
+                $cn->lines()->create([
+                    'ingredient_id' => $line['ingredient_id'] ?: null,
+                    'asset_id'      => $line['asset_id'] ?? null,
+                    'description'   => $line['description'] ?? null,
+                    'quantity'      => $qty,
+                    'uom_id'        => $line['uom_id'],
+                    'unit_price'    => $price,
+                    'total_price'   => round($qty * $price, 4),
+                    'reason_code'   => $line['reason_code'],
+                ]);
+            }
+
+            /*
+             * An asset returned or credited as damaged leaves the register,
+             * because it left the outlet. A rejected or short line did not —
+             * it never arrived to begin with, so the register never counted
+             * it and taking it out again would subtract twice. The service
+             * owns that rule; see AssetDisposalFromCreditNoteService.
+             */
+            \App\Services\AssetDisposalFromCreditNoteService::sync($cn->fresh('lines'));
+
+            return $cn;
+        });
+
+        $disposed = $action === 'issue'
+            ? collect($this->lines)->filter(fn ($l) => ! empty($l['asset_id'])
+                && in_array($l['reason_code'] ?? '', \App\Services\AssetDisposalFromCreditNoteService::DISPOSING_REASONS, true))
+                ->count()
+            : 0;
 
         $msg = $action === 'issue'
             ? "Note {$cn->credit_note_number} saved and issued."
+                . ($disposed
+                    ? sprintf(' %d asset line%s %s taken out of the register.',
+                        $disposed, $disposed === 1 ? '' : 's', $disposed === 1 ? 'was' : 'were')
+                    : '')
             : "Note {$cn->credit_note_number} saved as draft.";
         session()->flash('success', $msg);
         $this->redirectRoute('purchasing.credit-notes.index');

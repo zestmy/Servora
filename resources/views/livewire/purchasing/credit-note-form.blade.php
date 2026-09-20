@@ -200,20 +200,38 @@
                 @endif
                 @endif
 
-                {{-- The limit of this document, said out loud. A credit note is
-                     financial — issuing one has never moved ingredient stock —
-                     so an asset credited here is still counted in the register
-                     until somebody records the disposal. --}}
-                @if (collect($lines)->contains(fn ($l) => ! empty($l['asset_id'])))
-                    <div class="alert-info text-xs">
-                        This note credits an asset back to the supplier. It settles the money only — the asset is still
-                        counted in the register. If it physically went back, record a disposal with the reason
-                        “Returned to supplier” under
-                        @canDo('assets.movements.record')
-                            <a href="{{ route('assets.records', ['tab' => 'disposals']) }}" class="underline font-medium">Assets &rsaquo; Records</a>.
+                {{-- What issuing this will do to the register, before it does it.
+                     Only "Returned" and "Damaged" describe an asset leaving an
+                     outlet that was actually holding it — a rejected or short
+                     line never arrived, so the register never counted it and
+                     taking it out again would subtract twice. --}}
+                @php
+                    $disposingLines = collect($lines)->filter(fn ($l) => ! empty($l['asset_id'])
+                        && in_array($l['reason_code'] ?? '', \App\Services\AssetDisposalFromCreditNoteService::DISPOSING_REASONS, true));
+                    $keptLines = collect($lines)->filter(fn ($l) => ! empty($l['asset_id'])
+                        && ! in_array($l['reason_code'] ?? '', \App\Services\AssetDisposalFromCreditNoteService::DISPOSING_REASONS, true));
+                @endphp
+
+                @if ($disposingLines->isNotEmpty())
+                    <div class="alert-warning text-xs">
+                        <strong>Issuing this note removes {{ $disposingLines->count() }}
+                        asset line{{ $disposingLines->count() === 1 ? '' : 's' }} from the register.</strong>
+                        A disposal is recorded against
+                        @canDo('assets.view')
+                            <a href="{{ route('assets.records', ['tab' => 'disposals']) }}" class="underline font-medium">Assets &rsaquo; Records</a>
                         @else
-                            <span class="font-medium">Assets &rsaquo; Records</span>.
+                            <span class="font-medium">Assets &rsaquo; Records</span>
                         @endcanDo
+                        with the reason “Returned to supplier”. Saving as a draft changes nothing.
+                    </div>
+                @endif
+
+                @if ($keptLines->isNotEmpty())
+                    <div class="alert-info text-xs">
+                        {{ $keptLines->count() }} asset line{{ $keptLines->count() === 1 ? ' is' : 's are' }} credited
+                        for money only and stay{{ $keptLines->count() === 1 ? 's' : '' }} in the register — a rejected or
+                        short-delivered asset never entered it, and an overcharge is not a return. Use
+                        “Returned” or “Damaged” if it physically went back.
                     </div>
                 @endif
 

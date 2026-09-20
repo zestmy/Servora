@@ -255,25 +255,41 @@ be requested, ordered (directly or consolidated), delivered, received, and
 now credited back when the supplier sent the wrong mixer or billed for two
 and delivered one.
 
-**A CREDIT NOTE IS FINANCIAL ONLY, and an asset line does not change that.**
-Issuing one has never moved ingredient stock — it records what the supplier
-is crediting, not what is on the shelf — so it does not move the register
-either. Making assets the exception would be a surprise on a document that
-holds both kinds of line.
+**Issuing a note disposes of `return` and `damaged` lines, and only those.**
+`AssetDisposalFromCreditNoteService` owns that rule — the mirror of
+`AssetReceiptFromGrnService`: receiving a delivery puts an asset into the
+register, crediting one back takes it out, and nobody keys the second
+document by hand.
 
-That separation is also what stops the obvious double-count. The reason
-codes do not agree with each other about what physically happened:
+THE REASON CODES DO NOT AGREE ABOUT WHAT PHYSICALLY HAPPENED, which is the
+whole reason the rule is a list of two rather than "assets on a credit note":
 
-- `rejected` and `short_delivery` describe something that **never entered
-  the register**, because the GRN only ever receives what actually arrived
-  in a countable condition — auto-disposing on those would subtract twice;
-- `damaged` describes something that **did** enter it (a damaged line is
-  still received), so it is still counted;
-- `overcharge` and `other` are money-only and touch nothing physical.
+| code | what happened | register |
+|---|---|---|
+| `return` | went back to the supplier | **disposed** |
+| `damaged` | arrived damaged, going back | **disposed** |
+| `rejected` | refused at the door — **never entered** | untouched |
+| `short_delivery` | never arrived | untouched |
+| `overcharge` | money only, the asset is still here | untouched |
+| `other` | unknown; guessing would be a write | untouched |
 
-Any rule that moved the register automatically would have to be right about
-all five. It is a disposal instead, with the reason "Returned to supplier",
-and the form says so on screen whenever an asset line is present.
+The two `never entered` rows are the trap. A GRN only ever receives what
+actually arrived in a countable condition, so a rejected or short line was
+never in the register — disposing on it would subtract a second time and
+understate what an outlet holds, on the number it is audited against. Every
+code is pinned in `CreditNoteDisposesAssetTest`, including the four that
+must do nothing.
+
+**Only when the note is ISSUED.** A draft is a piece of thinking, not a
+decision, and saving one changes nothing. The disposal is keyed on
+`asset_movements.credit_note_id`, so one note can only ever own one disposal
+and a line that stops qualifying takes its disposal with it — the register
+gets the asset back. `CreditNoteForm::save()` is wrapped in a transaction
+for the same reason: the money and the register move together or not at all.
+
+The screen says what will happen before it happens — one notice naming the
+lines that will leave the register, another naming the asset lines that will
+not and why.
 
 An asset added by hand defaults to `reason_code = 'return'`, because that is
 what crediting an asset back usually means; a delivery's own variance

@@ -146,25 +146,35 @@ class CreditNoteForAssetTest extends TestCase
         $this->assertSame(4250.0, (float) $line->unit_price, 'Priced from the asset itself.');
     }
 
-    /** The property this whole design rests on. */
-    public function test_crediting_an_asset_does_not_move_the_register(): void
+    /**
+     * A credit note moves the register only where a line says the asset
+     * physically left.
+     *
+     * This once pinned the blanket rule — that a note never touched the
+     * register at all. Issuing one now disposes of `return` and `damaged`
+     * lines, and only those; which codes qualify, and the double-count the
+     * others would cause, are pinned in CreditNoteDisposesAssetTest. What is
+     * still true, and what this holds, is that a money-only line leaves the
+     * count exactly where it was.
+     */
+    public function test_a_money_only_credit_leaves_the_register_alone(): void
     {
         $mixer = $this->asset();
         $this->receiveIntoRegister($mixer, 2);
 
-        $before = app(AssetOnHandService::class)->quantity($mixer->id, $this->outlet->id);
-        $this->assertSame(2.0, (float) $before);
+        $this->assertSame(2.0, (float) app(AssetOnHandService::class)->quantity($mixer->id, $this->outlet->id));
 
         $this->form()
             ->call('addAsset', $mixer->id)
+            ->set('lines.0.reason_code', 'overcharge')
             ->set('lines.0.quantity', '1')
             ->call('save', 'issue')
             ->assertHasNoErrors();
 
         $this->assertSame(2.0, (float) app(AssetOnHandService::class)->quantity($mixer->id, $this->outlet->id),
-            'A credit note settles money. Taking the asset out of the register is a disposal, recorded separately.');
+            'Being overcharged for a mixer does not mean the mixer left.');
 
-        $this->assertSame(1, AssetMovement::count(), 'No movement was invented by issuing the note.');
+        $this->assertSame(1, AssetMovement::count(), 'Only the receipt that put it there.');
     }
 
     public function test_the_same_asset_is_not_added_twice(): void
