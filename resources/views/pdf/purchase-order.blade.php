@@ -94,7 +94,10 @@
                 <tr>
                     <td>{{ $i + 1 }}</td>
                     <td>
-                        {{ $line->ingredient?->name ?? '—' }}
+                        {{ $line->displayName() }}
+                        @if ($line->isAssetItem())
+                            <small style="color: #0369a1;">(Asset)</small>
+                        @endif
                         @if ($line->supplier_product_name)
                             <br><small style="color: #666;">{{ $line->supplier_sku ? '['.$line->supplier_sku.'] ' : '' }}{{ $line->supplier_product_name }}</small>
                         @elseif ($line->supplier_sku)

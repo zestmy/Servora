@@ -150,20 +150,53 @@ editing, so the records list hides the links it cannot follow.
 
 An asset can be asked for on an ordinary purchase request — same screen, same
 approver, same queue as a request for flour. The line carries `asset_id` and no
-`ingredient_id`, which is what keeps it out of a food PO: both consolidation
-paths in `PurchaseRequestService` already skip a line without an ingredient.
+`ingredient_id`, which is what keeps it out of a **consolidated** food PO:
+both consolidation paths in `PurchaseRequestService` skip a line without an
+ingredient. (A direct PR → PO conversion does now carry it — see below.)
 The consolidation preview **counts** them (`asset_line_count`) and says so on
 screen, because a line that vanishes without a word is how a request gets
 approved and then forgotten.
 
-Buying the thing is then: approve the request → buy it → record what arrived
-under Assets ▸ Receipts, which prefills from the request via
-`/assets/movements/create?pr={id}`.
+### Assets on a purchase order — phase one (2026-09-21)
 
-A full PR → PO → GRN → invoice path for assets was deliberately **not** built:
-`asset_id` would have to thread through ~100 `ingredient_id` call sites in the
-live procurement chain, including invoice matching and ingredient cost writes.
-If it is ever wanted, it is its own piece of work with its own risk budget.
+**This supersedes the decision recorded above.** An asset line now carries
+from a request onto a purchase order: `purchase_order_lines.ingredient_id` is
+nullable and `asset_id` sits beside it, exactly as on the request line. The
+order form, the split-by-supplier path, the activity trail and the PO PDF all
+handle both kinds.
+
+Three things were only found by testing, and are worth knowing before touching
+this again:
+
+- **Nothing may key a line on `ingredient_id` alone.** Every asset line has a
+  null one, so `keyBy('ingredient_id')` silently collapses them into a single
+  bucket — an order with two assets then adjusts and audits as though it had
+  one. `PurchaseOrderLine::lineKey()` is what to use.
+- **`lookupSupplierInfo()` must never see an asset.** It reads
+  `supplier_ingredients`, which an asset has no row in, and returns the
+  supplier's defaults — so re-pricing an asset line replaced its UOM with null
+  and its cost with zero. Simply choosing a supplier destroyed the line.
+- **An asset's supplier lives in `asset_suppliers`.** `PoSplitService` drops
+  any line it cannot put under a supplier, so the ingredient-only lookup made
+  an asset vanish from a split order while its money stayed on the header.
+
+**Receiving is still NOT built, and that is load-bearing.** A PO becomes a DO,
+which becomes a GRN, and receiving a GRN writes a `PurchaseRecord` — the
+inventory receipt, whose `ingredient_id` is `NOT NULL`. An asset arriving
+there is either a hard failure or a phantom stock movement against nothing.
+**Both doorways into that chain** — `ConvertToDoForm` and the quick-GRN on
+`Purchasing\Index` — leave asset lines behind and say so on screen. Until
+phase two exists, `AssetOnPurchaseOrderTest` is what holds that line.
+
+So buying an asset today is: approve the request → convert to a PO and send it
+→ record what arrived under Assets ▸ Receipts, which prefills from the request
+via `/assets/movements/create?pr={id}`. The receipt is still the thing that
+puts it in the register.
+
+**Still not threaded through** (phase two and beyond): receiving an ordered
+asset into the register from the GRN, invoice matching, credit notes, and CPU
+consolidation — which still skips asset lines, so a consolidated order does
+not carry them the way a direct conversion does.
 
 ## Not in v1
 

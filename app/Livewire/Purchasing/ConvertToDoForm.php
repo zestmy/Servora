@@ -71,7 +71,33 @@ class ConvertToDoForm extends Component
         $this->delivery_date = now()->addDays(1)->toDateString();
         $this->notes        = $po->notes ?? '';
 
+        /*
+         * ASSET LINES DO NOT GO DOWN THIS CHAIN.
+         *
+         * A delivery order becomes a GRN, and receiving a GRN writes a
+         * PurchaseRecord — the inventory receipt, whose ingredient_id is NOT
+         * NULL. An asset arriving there is either a hard failure or a phantom
+         * stock movement against nothing. An ordered asset is received into
+         * the asset register instead, under Assets ▸ Records.
+         *
+         * Filtered here rather than at the DO write so the person converting
+         * SEES which lines are not on the list, and why.
+         */
+        $assetLines = $po->lines->filter(fn ($l) => $l->isAssetItem());
+
+        if ($assetLines->isNotEmpty()) {
+            $count = $assetLines->count();
+            session()->flash('warning', sprintf(
+                '%d asset line%s on %s %s not on this delivery — an asset is received into the asset register, under Assets ▸ Records, not against stock.',
+                $count,
+                $count === 1 ? '' : 's',
+                $po->po_number,
+                $count === 1 ? 'is' : 'are'
+            ));
+        }
+
         $this->lines = $po->lines
+            ->reject(fn ($l) => $l->isAssetItem())
             ->filter(fn ($l) => $l->remainingQuantity() > 0) // Only show lines with remaining qty
             ->map(function ($l) use ($po) {
                 $packSize = $this->getPackSize($l->ingredient_id, $po->supplier_id);

@@ -146,7 +146,14 @@ class PurchaseRequestToOrderTest extends TestCase
             ->assertCount('lines', 1);
     }
 
-    public function test_an_asset_only_request_says_why_it_has_no_lines(): void
+    /**
+     * Assets became real order lines in phase one of assets-on-POs, so what
+     * this once pinned — an empty order plus an explanation — is no longer
+     * the right answer. The explanation now belongs only to a hand-typed
+     * name, which has neither an ingredient nor an asset behind it to order.
+     * The asset's own journey is pinned in AssetOnPurchaseOrderTest.
+     */
+    public function test_an_asset_only_request_now_converts_to_a_real_order(): void
     {
         $pr = $this->request();
         $pr->lines()->create([
@@ -156,13 +163,38 @@ class PurchaseRequestToOrderTest extends TestCase
             'source'   => PurchaseRequestLine::SOURCE_ASSET,
         ]);
 
-        $this->openFrom($pr)->assertCount('lines', 0);
+        $this->openFrom($pr)->assertCount('lines', 1);
 
-        $this->assertNotNull(session('error'), 'An empty order with no explanation is the bug.');
-        $this->assertStringContainsString('1 asset line', session('error'));
+        $this->assertNull(session('error'), 'There is nothing left behind to explain any more.');
     }
 
-    public function test_a_mixed_request_orders_the_ingredient_and_flags_the_asset(): void
+    public function test_a_hand_typed_line_is_the_one_thing_still_left_behind(): void
+    {
+        $pr = $this->request();
+
+        $pr->lines()->create([
+            'ingredient_id'         => $this->ingredient('FLOUR')->id,
+            'quantity'              => 20,
+            'uom_id'                => $this->piece->id,
+            'preferred_supplier_id' => $this->supplier->id,
+            'source'                => PurchaseRequestLine::SOURCE_SUPPLIER,
+        ]);
+
+        // No ingredient and no asset — nothing a supplier can be asked for.
+        $pr->lines()->create([
+            'custom_name' => 'BLUE ROPE, 10M',
+            'quantity'    => 1,
+            'uom_id'      => $this->piece->id,
+            'source'      => PurchaseRequestLine::SOURCE_SUPPLIER,
+        ]);
+
+        $this->openFrom($pr)->assertCount('lines', 1);
+
+        $this->assertNotNull(session('warning'));
+        $this->assertStringContainsString('1 hand-typed item', session('warning'));
+    }
+
+    public function test_a_mixed_request_brings_both_kinds_across(): void
     {
         $pr = $this->request();
 
@@ -181,10 +213,9 @@ class PurchaseRequestToOrderTest extends TestCase
             'source'   => PurchaseRequestLine::SOURCE_ASSET,
         ]);
 
-        $this->openFrom($pr)->assertCount('lines', 1);
+        $this->openFrom($pr)->assertCount('lines', 2);
 
-        $this->assertNotNull(session('warning'));
-        $this->assertStringContainsString('1 asset line', session('warning'));
+        $this->assertNull(session('warning'), 'Nothing was left behind, so nothing to warn about.');
     }
 
     public function test_the_order_records_and_belongs_to_the_request_it_came_from(): void

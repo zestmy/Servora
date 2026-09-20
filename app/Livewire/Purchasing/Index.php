@@ -754,10 +754,34 @@ class Index extends Component
     {
         $po->loadMissing('lines');
 
-        DB::transaction(function () use ($po) {
+        /*
+         * ASSET LINES DO NOT GO DOWN THIS CHAIN — the DO becomes a GRN, and
+         * receiving a GRN writes a PurchaseRecord, the inventory receipt,
+         * whose ingredient_id is NOT NULL. An ordered asset is received into
+         * the asset register instead. Same rule as ConvertToDoForm, stated
+         * again because this is the other doorway in.
+         */
+        $receivable = $po->lines->reject(fn ($l) => $l->isAssetItem());
+
+        if ($receivable->isEmpty()) {
+            session()->flash('error', $po->po_number . ' has only asset lines on it. An asset is received into the asset register, under Assets ▸ Records — there is nothing here to deliver against stock.');
+            return;
+        }
+
+        $assetCount = $po->lines->count() - $receivable->count();
+        if ($assetCount) {
+            session()->flash('warning', sprintf(
+                '%d asset line%s on %s left off the delivery — an asset is received into the asset register, under Assets ▸ Records.',
+                $assetCount,
+                $assetCount === 1 ? '' : 's',
+                $po->po_number
+            ));
+        }
+
+        DB::transaction(function () use ($po, $receivable) {
             $doNumber  = $this->generateDoNumber();
             $grnNumber = $this->generateGrnNumber();
-            $total = $po->lines->sum(fn ($l) => floatval($l->quantity) * floatval($l->unit_cost));
+            $total = $receivable->sum(fn ($l) => floatval($l->quantity) * floatval($l->unit_cost));
 
             $do = DeliveryOrder::create([
                 'company_id'        => $po->company_id,
@@ -771,7 +795,7 @@ class Index extends Component
                 'created_by'        => Auth::id(),
             ]);
 
-            foreach ($po->lines as $line) {
+            foreach ($receivable as $line) {
                 $do->lines()->create([
                     'ingredient_id'     => $line->ingredient_id,
                     'ordered_quantity'   => $line->quantity,
@@ -794,7 +818,7 @@ class Index extends Component
                 'created_by'        => Auth::id(),
             ]);
 
-            foreach ($po->lines as $line) {
+            foreach ($receivable as $line) {
                 $grn->lines()->create([
                     'ingredient_id'     => $line->ingredient_id,
                     'expected_quantity'  => $line->quantity,

@@ -319,7 +319,7 @@
                         @endif
                     >
                         @foreach ($lines as $idx => $line)
-                            <tr wire:key="po-line-{{ $idx }}-{{ $line['ingredient_id'] ?? 'x' }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition">
+                            <tr wire:key="po-line-{{ $idx }}-{{ $line['asset_id'] ?? $line['ingredient_id'] ?? 'x' }}" data-idx="{{ $idx }}" class="hover:bg-gray-50 transition">
                                 @if ($isEditable)
                                     <td class="line-drag-handle px-2 py-2 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none" title="Drag to reorder">
                                         <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
@@ -329,6 +329,9 @@
                                 <td class="px-4 py-2">
                                     <div class="font-medium text-gray-800">
                                         {{ $line['ingredient_name'] }}
+                                        @if (! empty($line['asset_id']))
+                                            <span class="ml-1 px-1.5 py-0.5 bg-info-100 text-info-700 text-[10px] rounded font-medium">Asset</span>
+                                        @endif
                                         @if (! empty($line['pack_info']))
                                             <span class="text-brand-600 font-semibold">{{ $line['pack_info'] }}</span>
                                         @endif

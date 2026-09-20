@@ -77,11 +77,36 @@ class OrderForm extends Component
             'receiver_name'          => 'nullable|string|max:100',
             'department_id'          => 'nullable|exists:departments,id',
             'lines'                  => 'required|array|min:1',
-            'lines.*.ingredient_id'  => 'required|exists:ingredients,id',
+            'lines.*.ingredient_id'  => 'nullable|exists:ingredients,id',
+            'lines.*.asset_id'       => 'nullable|exists:assets,id',
             'lines.*.quantity'       => 'required|numeric|min:0.001',
             'lines.*.uom_id'         => 'required|exists:units_of_measure,id',
             'lines.*.unit_cost'      => 'required|numeric|min:0',
         ];
+    }
+
+    /**
+     * Every line must name something.
+     *
+     * Both id columns are nullable on their own — one holds an ingredient,
+     * the other an asset — so a line naming neither would pass the rules and
+     * save as a row pointing at nothing. Checked here rather than through
+     * withValidator(), which is a FormRequest hook that Livewire never calls.
+     *
+     * @return bool  true when every line names an item.
+     */
+    private function everyLineNamesSomething(): bool
+    {
+        $ok = true;
+
+        foreach ($this->lines as $i => $line) {
+            if (empty($line['ingredient_id']) && empty($line['asset_id'])) {
+                $this->addError("lines.{$i}.ingredient_id", 'This line does not name an item.');
+                $ok = false;
+            }
+        }
+
+        return $ok;
     }
 
     protected function messages(): array
@@ -103,30 +128,70 @@ class OrderForm extends Component
      * Dropping those quietly is what made an asset-only request look like a
      * broken conversion: the form opened with no lines and no explanation.
      */
+    /**
+     * One order line for an asset.
+     *
+     * Shaped exactly like an ingredient line so the blade, the totals and the
+     * save path do not each need to know which kind they are holding — the
+     * ingredient-only fields are simply empty. Cost comes off the asset
+     * itself: there is no supplier price list for a stand mixer.
+     */
+    private function assetLine(?\App\Models\Asset $asset, float $quantity, ?int $uomId): array
+    {
+        return [
+            'ingredient_id'          => null,
+            'asset_id'               => $asset?->id,
+            'ingredient_name'        => $asset?->name ?? '—',
+            'quantity'               => (string) $quantity,
+            'uom_id'                 => $uomId ?: $asset?->uom_id,
+            'unit_cost'              => (string) floatval($asset?->unit_cost ?? 0),
+            'total_cost'             => 0,
+            'tax_rate_id'            => null,
+            'tax_label'              => null,
+            'tax_rate_pct'           => 0,
+            'tax_amount'             => 0,
+            'pack_size'              => 1,
+            'pack_info'              => '',
+            'par_level'              => '0',
+            'balance'                => '',
+            'supplier_sku'           => null,
+            'supplier_product_name'  => null,
+            'supplier_id_override'   => null,
+        ];
+    }
+
+    /**
+     * A key that tells two lines apart whatever they point at.
+     *
+     * Keying on ingredient_id alone collapsed every asset line onto the same
+     * null bucket, which would have made an order with two assets adjust and
+     * audit as though it had one.
+     */
+    private static function lineKey(array|\App\Models\PurchaseOrderLine $line): string
+    {
+        $ingredient = is_array($line) ? ($line['ingredient_id'] ?? null) : $line->ingredient_id;
+        $asset      = is_array($line) ? ($line['asset_id'] ?? null)      : $line->asset_id;
+
+        return $asset ? 'asset:' . $asset : 'ingredient:' . (int) $ingredient;
+    }
+
     private function announceSkippedLines(\App\Models\PurchaseRequest $pr): void
     {
-        $assets = $pr->lines->filter(fn ($l) => $l->asset_id !== null)->count();
+        // Assets now become order lines of their own, so the only thing that
+        // can still be left behind is a hand-typed name with nothing behind it.
         $custom = $pr->lines->filter(fn ($l) => $l->asset_id === null && ! $l->ingredient_id)->count();
 
-        if (! $assets && ! $custom) {
+        if (! $custom) {
             return;
         }
 
-        $parts = [];
-        if ($assets) {
-            $parts[] = sprintf('%d asset line%s', $assets, $assets === 1 ? '' : 's');
-        }
-        if ($custom) {
-            $parts[] = sprintf('%d hand-typed item%s', $custom, $custom === 1 ? '' : 's');
-        }
-
-        $left = implode(' and ', $parts);
+        $left = sprintf('%d hand-typed item%s', $custom, $custom === 1 ? '' : 's');
 
         session()->flash(
             count($this->lines) ? 'warning' : 'error',
             count($this->lines)
-                ? "{$left} on {$pr->pr_number} could not be ordered here — a purchase order is raised against an ingredient. Assets are received straight into the asset register."
-                : "{$pr->pr_number} has {$left} and nothing else, so there is nothing to put on a purchase order. Assets are received straight into the asset register, under Assets ▸ Records."
+                ? "{$left} on {$pr->pr_number} could not be brought over — a hand-typed name has no ingredient or asset behind it to order. Add it to this order by hand."
+                : "{$pr->pr_number} has {$left} and nothing else. A hand-typed name has no ingredient or asset behind it, so there is nothing to put on a purchase order."
         );
     }
 
@@ -177,7 +242,21 @@ class OrderForm extends Component
                         $this->supplier_id = (int) $named->first();
                     }
                     foreach ($pr->lines as $line) {
-                        if (! $line->ingredient_id) continue; // skip custom items without ingredient
+                        /*
+                         * An asset line becomes an order line of its own.
+                         *
+                         * Its cost comes from the asset's own unit_cost rather
+                         * than a supplier price list, because an asset has no
+                         * supplier_ingredients row to look one up in — and its
+                         * UOM is whatever the request asked in, which for an
+                         * asset is the unit it is counted in.
+                         */
+                        if ($line->asset_id) {
+                            $this->lines[] = $this->assetLine($line->asset, (float) $line->quantity, $line->uom_id);
+                            continue;
+                        }
+
+                        if (! $line->ingredient_id) continue; // skip hand-typed items with nothing behind them
                         $taxRate = $line->ingredient?->effectiveTaxRate(Auth::user()->company);
                         $this->lines[] = [
                             'ingredient_id'          => $line->ingredient_id,
@@ -214,7 +293,7 @@ class OrderForm extends Component
             return;
         }
 
-        $po = PurchaseOrder::with(['lines.ingredient.baseUom', 'lines.uom'])->findOrFail($id);
+        $po = PurchaseOrder::with(['lines.ingredient.baseUom', 'lines.asset', 'lines.uom'])->findOrFail($id);
 
         if ($po->outlet_id && ! Auth::user()->canAccessOutlet($po->outlet_id)) {
             abort(403, 'You do not have access to this outlet.');
@@ -232,6 +311,24 @@ class OrderForm extends Component
         $this->department_id          = $po->department_id;
 
         $this->lines = $po->lines->map(function ($l) use ($po) {
+            /*
+             * An asset line reopens as it was saved.
+             *
+             * lookupSupplierInfo() reads supplier_ingredients, which an asset
+             * has no row in — asking it about one returns the supplier's
+             * defaults and would quietly overwrite the ordered cost and UOM
+             * with them on the next save.
+             */
+            if ($l->isAssetItem()) {
+                return array_merge(
+                    $this->assetLine($l->asset, (float) $l->quantity, $l->uom_id),
+                    [
+                        'unit_cost'  => (string) floatval($l->unit_cost),
+                        'total_cost' => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+                    ]
+                );
+            }
+
             [$unitCost, $uomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($l->ingredient_id, $po->supplier_id);
             $taxRate = $l->tax_rate_id ? TaxRate::find($l->tax_rate_id) : $l->ingredient?->effectiveTaxRate(Auth::user()->company);
             $totalCost = round(floatval($l->quantity) * floatval($l->unit_cost), 4);
@@ -269,6 +366,18 @@ class OrderForm extends Component
     {
         // Re-price existing lines from the newly selected supplier's catalog
         foreach ($this->lines as $idx => $line) {
+            /*
+             * An asset is not in anybody's catalogue.
+             *
+             * lookupSupplierInfo() with no ingredient returns the supplier's
+             * defaults, so re-pricing an asset line here replaced its UOM
+             * with null and its cost with zero — simply choosing a supplier
+             * destroyed the line.
+             */
+            if (! empty($line['asset_id'])) {
+                continue;
+            }
+
             $ingredientId = (int) $line['ingredient_id'];
             [$unitCost, $supplierUomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($ingredientId, $this->supplier_id);
             $this->lines[$idx]['unit_cost']  = (string) $unitCost;
@@ -467,6 +576,10 @@ class OrderForm extends Component
 
         $this->validate();
 
+        if (! $this->everyLineNamesSomething()) {
+            return;
+        }
+
         $user   = Auth::user();
         $taxPct = floatval($user->company?->tax_percent ?? 0);
 
@@ -512,6 +625,16 @@ class OrderForm extends Component
                             ->where('is_preferred', true)
                             ->value('supplier_id');
                         $sid = $preferred;
+                    }
+                    /*
+                     * An asset keeps its supplier in asset_suppliers, not in
+                     * supplier_ingredients — and PoSplitService drops any line
+                     * it cannot put under a supplier, so without this an asset
+                     * simply vanished from a split order while its money
+                     * stayed on the header.
+                     */
+                    if (! $sid && ! empty($l['asset_id'])) {
+                        $sid = \App\Models\Asset::find($l['asset_id'])?->preferredSupplier()?->id;
                     }
                     return array_merge($l, ['supplier_id' => $sid]);
                 })->toArray();
@@ -581,10 +704,9 @@ class OrderForm extends Component
 
         // Track adjustments on existing PO lines (for approved/sent POs being edited)
         if ($this->orderId && in_array($this->status, ['approved', 'sent', 'partial'])) {
-            $existingLines = $po->lines()->get()->keyBy('ingredient_id');
+            $existingLines = $po->lines()->get()->keyBy(fn ($l) => self::lineKey($l));
             foreach ($this->lines as $line) {
-                $ingId = (int) $line['ingredient_id'];
-                $existing = $existingLines->get($ingId);
+                $existing = $existingLines->get(self::lineKey($line));
                 if ($existing) {
                     $newQty = floatval($line['quantity']);
                     $oldQty = floatval($existing->quantity);
@@ -602,9 +724,9 @@ class OrderForm extends Component
 
         // Capture existing lines for the activity trail before replacing them.
         $auditBefore = [];
-        foreach ($po->lines()->with(['ingredient', 'uom'])->get() as $l) {
-            $auditBefore[(int) $l->ingredient_id] = [
-                'item'     => $l->ingredient?->name ?? ('#' . $l->ingredient_id),
+        foreach ($po->lines()->with(['ingredient', 'asset', 'uom'])->get() as $l) {
+            $auditBefore[self::lineKey($l)] = [
+                'item'     => $l->displayName(),
                 'quantity' => (float) $l->quantity,
                 'unit'     => $l->uom?->abbreviation ?? $l->uom?->code,
             ];
@@ -615,7 +737,8 @@ class OrderForm extends Component
             $qty  = floatval($line['quantity']);
             $cost = floatval($line['unit_cost']);
             $po->lines()->create([
-                'ingredient_id'          => $line['ingredient_id'],
+                'ingredient_id'          => $line['ingredient_id'] ?: null,
+                'asset_id'               => $line['asset_id'] ?? null,
                 'supplier_sku'           => $line['supplier_sku'] ?? null,
                 'supplier_product_name'  => $line['supplier_product_name'] ?? null,
                 'quantity'               => $qty,
@@ -630,16 +753,24 @@ class OrderForm extends Component
 
         // Log item add / remove / quantity changes on edits.
         if ($this->orderId) {
-            $ingIds = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $this->lines));
-            $uomIds = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $this->lines));
-            $names  = \App\Models\Ingredient::whereIn('id', $ingIds)->pluck('name', 'id');
-            $uoms   = UnitOfMeasure::whereIn('id', $uomIds)->pluck('abbreviation', 'id');
+            $ingIds   = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $this->lines));
+            $assetIds = array_filter(array_map(fn ($l) => (int) ($l['asset_id'] ?? 0), $this->lines));
+            $uomIds   = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $this->lines));
+            $names      = \App\Models\Ingredient::whereIn('id', $ingIds)->pluck('name', 'id');
+            $assetNames = \App\Models\Asset::whereIn('id', $assetIds)->pluck('name', 'id');
+            $uoms       = UnitOfMeasure::whereIn('id', $uomIds)->pluck('abbreviation', 'id');
             $auditAfter = [];
             foreach ($this->lines as $l) {
-                $ingId = (int) ($l['ingredient_id'] ?? 0);
-                if (! $ingId) continue;
-                $auditAfter[$ingId] = [
-                    'item'     => $names[$ingId] ?? ('#' . $ingId),
+                // An asset line is logged like any other. Skipping it here
+                // while auditBefore records it would read as a deletion on
+                // every save of an order that has one.
+                $ingId   = (int) ($l['ingredient_id'] ?? 0);
+                $assetId = (int) ($l['asset_id'] ?? 0);
+                if (! $ingId && ! $assetId) continue;
+                $auditAfter[self::lineKey($l)] = [
+                    'item'     => $assetId
+                        ? ($assetNames[$assetId] ?? ('#' . $assetId))
+                        : ($names[$ingId] ?? ('#' . $ingId)),
                     'quantity' => (float) ($l['quantity'] ?? 0),
                     'unit'     => $uoms[(int) ($l['uom_id'] ?? 0)] ?? null,
                 ];

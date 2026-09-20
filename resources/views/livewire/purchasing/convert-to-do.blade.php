@@ -5,6 +5,9 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('warning'))
+        <div class="alert-warning mb-4">{{ session('warning') }}</div>
+    @endif
     @if (session()->has('error'))
         <div class="mb-4 px-4 py-3 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-lg">{{ session('error') }}</div>
     @endif

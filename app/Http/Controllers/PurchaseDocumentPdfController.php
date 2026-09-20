@@ -54,7 +54,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function purchaseOrder(int $id, ?Company $company)
     {
-        $po = PurchaseOrder::with(['outlet', 'supplier', 'department', 'lines.ingredient', 'lines.uom', 'createdBy', 'approvedBy'])->findOrFail($id);
+        $po = PurchaseOrder::with(['outlet', 'supplier', 'department', 'lines.ingredient', 'lines.asset', 'lines.uom', 'createdBy', 'approvedBy'])->findOrFail($id);
         $this->authorizeOutlet($po->outlet_id);
 
         $pdf = Pdf::loadView('pdf.purchase-order', compact('po', 'company'))

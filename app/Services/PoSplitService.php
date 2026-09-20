@@ -15,7 +15,7 @@ class PoSplitService
     /**
      * Split a set of order lines (with mixed suppliers) into separate POs per supplier.
      *
-     * @param  array  $lines  [{ingredient_id, quantity, uom_id, unit_cost, supplier_id, supplier_sku, supplier_product_name}]
+     * @param  array  $lines  [{ingredient_id|asset_id, quantity, uom_id, unit_cost, supplier_id, supplier_sku, supplier_product_name}]
      * @param  array  $headerData  {company_id, outlet_id, order_date, expected_delivery_date, notes, tax_percent, status, created_by, ...}
      * @return array  Created PurchaseOrder IDs
      */
@@ -42,7 +42,10 @@ class PoSplitService
                     $subtotal += $total;
 
                     $poLines[] = [
-                        'ingredient_id'         => $line['ingredient_id'],
+                        'ingredient_id'         => $line['ingredient_id'] ?: null,
+                        // Carried, or a split order would drop the asset it
+                        // was raised for and keep the money on the header.
+                        'asset_id'              => $line['asset_id'] ?? null,
                         'supplier_sku'          => $line['supplier_sku'] ?? null,
                         'supplier_product_name' => $line['supplier_product_name'] ?? null,
                         'quantity'              => $qty,
