@@ -50,43 +50,69 @@
     </div>
 
     {{-- Items --}}
-    <table class="items-table">
+    <table class="items">
         <thead>
             <tr>
                 <th style="width: 5%;">#</th>
-                <th style="width: 35%; text-align: left;">Item</th>
-                <th style="width: 10%;" class="center">Qty</th>
+                <th style="width: 37%;">Item</th>
+                <th style="width: 9%;" class="right">Qty</th>
                 <th style="width: 8%;" class="center">UOM</th>
-                <th style="width: 25%; text-align: left;">Preferred Supplier</th>
-                <th style="width: 17%; text-align: left;">Notes</th>
+                <th style="width: 24%;">Preferred Supplier</th>
+                <th style="width: 17%;">Notes</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($pr->lines as $i => $line)
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td style="text-align: left;">
+                    <td>
                         {{ $line->displayName() }}
-                        @if ($line->asset_id)
+                        @if ($line->isAssetItem())
                             <small style="color: #0369a1;">(Asset)</small>
-                        @elseif ($line->custom_name && !$line->ingredient_id)
+                        @elseif ($line->isKitchenItem())
+                            <small style="color: #7c3aed;">(Kitchen)</small>
+                        @elseif ($line->custom_name && ! $line->ingredient_id)
                             <small style="color: #b45309;">(Custom)</small>
                         @endif
                     </td>
-                    <td class="center">{{ number_format($line->quantity, 2) }}</td>
+                    <td class="right">{{ number_format($line->quantity, 1) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>
-                    <td style="text-align: left;">{{ $line->preferredSupplier?->name ?? '—' }}</td>
-                    <td style="text-align: left;"><small>{{ $line->notes ?? '' }}</small></td>
+                    <td>{{ $line->preferredSupplier?->name ?? '—' }}</td>
+                    <td><small>{{ $line->notes ?? '' }}</small></td>
                 </tr>
             @endforeach
         </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="2" class="total-label">Total &mdash; {{ $pr->lines->count() }} {{ \Illuminate\Support\Str::plural('item', $pr->lines->count()) }}</td>
+                <td class="right total-value">{{ number_format($pr->lines->sum('quantity'), 1) }}</td>
+                <td colspan="3"></td>
+            </tr>
+        </tfoot>
     </table>
 
     {{-- Notes --}}
     @if ($pr->notes)
         <div class="notes-box">
-            <strong>Notes:</strong>
+            <strong>Notes</strong>
             <p>{{ $pr->notes }}</p>
         </div>
     @endif
+
+    {{-- Signatures — two, not the order's three: nobody receives a request. --}}
+    <div class="signatures">
+        <div class="sig-box">
+            <div class="sig-line">Requested By</div>
+            @if ($pr->createdBy)
+                <div class="sig-name">{{ strtoupper($pr->createdBy->name) }}</div>
+            @endif
+        </div>
+        <div class="sig-box">
+            <div class="sig-line">Approved By</div>
+            @if ($pr->approvedBy)
+                <div class="sig-name">{{ strtoupper($pr->approvedBy->name) }}</div>
+            @endif
+        </div>
+        <div class="sig-box"></div>
+    </div>
 @endsection

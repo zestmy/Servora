@@ -332,6 +332,118 @@
         table.items tbody td.right { text-align: right; }
         table.items tbody td.center { text-align: center; }
         table.items tbody tr:nth-child(even) td { background: #f9fafb; }
+        table.items tfoot td {
+            padding: 6px 7px;
+            border-top: 1.5px solid #0f172a;
+            font-size: 9pt;
+            background: #fff;
+        }
+        table.items tfoot td.total-label {
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #64748b;
+        }
+        table.items tfoot td.total-value { font-weight: bold; color: #0f172a; }
+
+        /* ═══ Purchase documents ═══════════════════════════════════════════
+           PR, PO, GRN, DO, credit note and procurement invoice all speak this
+           same small vocabulary — and NONE of it was defined, so every one of
+           them rendered as a column of unstyled text: info panels stacked
+           instead of sitting side by side, label/value pairs jammed together,
+           and no rule anywhere. Defined once here rather than six times.
+
+           display:table, never flex or grid. dompdf implements the table
+           display modes and silently ignores the other two, which is how a
+           two-column block becomes one column in a PDF and nowhere else. */
+
+        .company-detail { font-size: 8.5pt; color: #64748b; line-height: 1.45; }
+
+        .doc-status {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 2px 9px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Two panels side by side. The cells carry the gutter, because dompdf
+           gives border-spacing to the outer edges as well as between. */
+        .info-grid { display: table; width: 100%; margin-bottom: 12px; }
+        .info-box {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .info-box + .info-box { border-left: none; }
+        .info-box h4 {
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .info-box p { font-size: 9pt; color: #334155; line-height: 1.45; }
+        .info-box p.name { font-size: 10pt; font-weight: bold; color: #0f172a; }
+
+        /* The label column is fixed, so the values line up as a column rather
+           than sitting wherever each label happens to end. */
+        table.meta-table { width: 100%; border-collapse: collapse; }
+        table.meta-table td { font-size: 9pt; color: #334155; padding: 1.5px 0; vertical-align: top; }
+        table.meta-table td:first-child {
+            width: 95px;
+            color: #64748b;
+            padding-right: 8px;
+            white-space: nowrap;
+        }
+        table.meta-table td.label { width: 95px; color: #64748b; padding-right: 8px; }
+        table.meta-table td.value { color: #0f172a; font-weight: bold; }
+
+        /* ── Notes ── */
+        .notes, .notes-box {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            border-left: 2.5px solid #94a3b8;
+            background: #f8fafc;
+        }
+        .notes h4, .notes-box strong {
+            display: block;
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #64748b;
+            margin-bottom: 3px;
+        }
+        .notes p, .notes-box p { font-size: 9pt; color: #334155; line-height: 1.5; }
+
+        /* ── Signatures ──
+           Three cells of a table, so they cannot wrap onto separate lines the
+           way floated or inline-block boxes do once a name runs long. */
+        .signatures { display: table; width: 100%; margin-top: 26px; }
+        .sig-box { display: table-cell; width: 33.33%; padding-right: 18px; vertical-align: bottom; }
+        .sig-line {
+            border-top: 1px solid #94a3b8;
+            padding-top: 4px;
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+        }
+        .sig-name { font-size: 8.5pt; color: #0f172a; font-weight: bold; margin-top: 2px; }
+
     </style>
 </head>
 <body>

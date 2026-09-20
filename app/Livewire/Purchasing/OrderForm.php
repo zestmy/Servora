@@ -30,6 +30,17 @@ class OrderForm extends Component
      */
     public ?int $orderOutletId = null;
 
+    /**
+     * The request this order is being raised from, when it was started from one.
+     *
+     * Kept so the order can record the link (`purchase_orders.purchase_request_id`
+     * has always existed and this form never filled it) and so the order lands on
+     * the branch that ASKED, not on whichever outlet the person converting happens
+     * to be standing in.
+     */
+    public ?int $sourcePrId     = null;
+    public ?int $sourcePrOutlet = null;
+
     /** Raising a new order and amending an existing one are separate abilities. */
     private function authorizeWrite(): void
     {
@@ -84,6 +95,41 @@ class OrderForm extends Component
         ];
     }
 
+    /**
+     * Name what did not come across, and why.
+     *
+     * A purchase order goes to a supplier against an ingredient, so a request
+     * line carrying an asset or a hand-typed name has nothing to become here.
+     * Dropping those quietly is what made an asset-only request look like a
+     * broken conversion: the form opened with no lines and no explanation.
+     */
+    private function announceSkippedLines(\App\Models\PurchaseRequest $pr): void
+    {
+        $assets = $pr->lines->filter(fn ($l) => $l->asset_id !== null)->count();
+        $custom = $pr->lines->filter(fn ($l) => $l->asset_id === null && ! $l->ingredient_id)->count();
+
+        if (! $assets && ! $custom) {
+            return;
+        }
+
+        $parts = [];
+        if ($assets) {
+            $parts[] = sprintf('%d asset line%s', $assets, $assets === 1 ? '' : 's');
+        }
+        if ($custom) {
+            $parts[] = sprintf('%d hand-typed item%s', $custom, $custom === 1 ? '' : 's');
+        }
+
+        $left = implode(' and ', $parts);
+
+        session()->flash(
+            count($this->lines) ? 'warning' : 'error',
+            count($this->lines)
+                ? "{$left} on {$pr->pr_number} could not be ordered here — a purchase order is raised against an ingredient. Assets are received straight into the asset register."
+                : "{$pr->pr_number} has {$left} and nothing else, so there is nothing to put on a purchase order. Assets are received straight into the asset register, under Assets ▸ Records."
+        );
+    }
+
     public function mount(?int $id = null): void
     {
         $this->order_date = now()->toDateString();
@@ -94,9 +140,42 @@ class OrderForm extends Component
             // Pre-populate from Purchase Request if pr_id query param provided
             $prId = request()->query('pr_id');
             if ($prId) {
-                $pr = \App\Models\PurchaseRequest::with('lines.ingredient.baseUom', 'lines.uom')->find($prId);
+                $pr = \App\Models\PurchaseRequest::with([
+                    'lines.ingredient.baseUom', 'lines.uom', 'lines.asset', 'lines.preferredSupplier',
+                ])->find($prId);
                 if ($pr) {
+                    /*
+                     * The same outlet check every other document in this module
+                     * makes. CompanyScope stops a cross-company read on its own,
+                     * but without it a request raised for a branch this user
+                     * cannot open would still prefill an order here.
+                     */
+                    if ($pr->outlet_id && ! Auth::user()->canAccessOutlet($pr->outlet_id)) {
+                        abort(403, 'You do not have access to this outlet.');
+                    }
+
+                    $this->sourcePrId     = $pr->id;
+                    $this->sourcePrOutlet = $pr->outlet_id;
+
+                    /*
+                     * Carry the request's own details across.
+                     *
+                     * Only the notes used to come over, so every conversion began
+                     * by retyping the department, the date the branch needs it by,
+                     * and the supplier the request had already named on its lines
+                     * — from a screen that no longer shows any of them. A
+                     * needed-by date IS the delivery date being asked for.
+                     */
+                    $this->department_id          = $pr->department_id;
+                    $this->expected_delivery_date = $pr->needed_by_date?->toDateString() ?? '';
                     $this->notes = "From PR {$pr->pr_number}" . ($pr->notes ? " — {$pr->notes}" : '');
+
+                    // Only when the request agrees on one. A PR spanning two
+                    // suppliers gets split later, and guessing here picks a side.
+                    $named = $pr->lines->pluck('preferred_supplier_id')->filter()->unique();
+                    if ($named->count() === 1) {
+                        $this->supplier_id = (int) $named->first();
+                    }
                     foreach ($pr->lines as $line) {
                         if (! $line->ingredient_id) continue; // skip custom items without ingredient
                         $taxRate = $line->ingredient?->effectiveTaxRate(Auth::user()->company);
@@ -120,6 +199,15 @@ class OrderForm extends Component
                             'supplier_id_override'   => null,
                         ];
                     }
+
+                    /*
+                     * A line that cannot become an order line is REPORTED, not
+                     * dropped in silence. An asset-only request converted to a
+                     * completely empty order with nothing said — which reads as
+                     * the conversion being broken, rather than as the request
+                     * holding nothing a supplier PO can carry.
+                     */
+                    $this->announceSkippedLines($pr);
                 }
             }
 
@@ -387,7 +475,13 @@ class OrderForm extends Component
          * one — an edit leaves outlet_id alone, which is correct, so deriving
          * it here would be asking a question nobody uses the answer to.
          */
-        $outletId = $this->orderId ? null : $this->requireActiveOutlet();
+        // A converted request belongs to the branch that raised it. Falling back
+        // to the active outlet put the order on whoever happened to convert it —
+        // and in Central Kitchen mode, where there is no active outlet at all,
+        // it simply could not be converted.
+        $outletId = $this->orderId
+            ? null
+            : ($this->sourcePrOutlet ?: $this->requireActiveOutlet());
 
         $requiresApproval = $user->company?->require_po_approval ?? true;
 
@@ -476,6 +570,9 @@ class OrderForm extends Component
             $data['outlet_id']  = $outletId;
             $data['po_number']  = $this->poNumber;
             $data['created_by'] = Auth::id();
+            // The column has always been here; this form never filled it, so a
+            // converted order knew nothing about the request behind it.
+            $data['purchase_request_id'] = $this->sourcePrId;
             $po = PurchaseOrder::create($data);
         }
 

@@ -10,6 +10,15 @@
         </div>
     @endif
 
+    {{-- Why the conversion left something behind. No auto-dismiss: this is
+         often the only thing on the screen explaining an empty order. --}}
+    @if (session()->has('warning'))
+        <div class="alert-warning mb-4">{{ session('warning') }}</div>
+    @endif
+    @if (session()->has('error'))
+        <div class="alert-danger mb-4">{{ session('error') }}</div>
+    @endif
+
     {{-- Top bar --}}
     <div class="flex items-center gap-3 mb-6">
         <a data-back href="{{ route('purchasing.index') }}" class="text-gray-600 hover:text-gray-900 transition flex-shrink-0">
