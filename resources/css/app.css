@@ -219,6 +219,7 @@
     .wip-presenting .wip-chart-24 { height: 24vh; }
     .wip-presenting .wip-chart-30 { height: 30vh !important; }
     .wip-presenting .wip-chart-34 { height: 34vh; }
+    .wip-presenting .wip-chart-50 { height: 50vh; }
     .wip-presenting .wip-chart-40 { height: 40vh; }
     .wip-presenting .table-surface { font-size: clamp(15px, 1.4vw, 30px); }
     /* The widest table (sales performance: a column per day) buys its width

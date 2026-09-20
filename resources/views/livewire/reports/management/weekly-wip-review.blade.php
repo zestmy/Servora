@@ -141,7 +141,7 @@
                 // Axis labels and legends scale with the screen when presenting;
                 // Chart.js's 12px default is unreadable on a projector.
                 if (window.Chart) {
-                    Chart.defaults.font.size = this.presenting ? Math.round(Math.min(26, Math.max(14, window.innerWidth / 80))) : 12;
+                    Chart.defaults.font.size = this.presenting ? Math.round(Math.min(28, Math.max(15, window.innerWidth / 68))) : 12;
                     Object.values(Chart.instances).forEach(c => { c.resize(); c.update('none'); });
                 }
                 requestAnimationFrame(() => this.fit());
@@ -892,7 +892,7 @@
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['wastage'] + 1, 'title' => $slides['wastage'], 'hint' => 'cost, and as a share of sales'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
-                'chart' => $report['charts']['wastage'], 'key' => 'wastage', 'label' => 'Wastage',
+                'chart' => $report['charts']['wastage'], 'key' => 'wastage', 'label' => 'Wastage', 'tall' => true,
             ])
         </section>
 
@@ -1022,7 +1022,7 @@
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['transfers'] + 1, 'title' => $slides['transfers'], 'hint' => 'in transit and received, at line cost'])
 
             @include('livewire.reports.management.partials.wip-cost-trend', [
-                'chart' => $report['charts']['transfers'], 'key' => 'transfers', 'label' => 'Transfers',
+                'chart' => $report['charts']['transfers'], 'key' => 'transfers', 'label' => 'Transfers', 'tall' => true,
             ])
 
             @php
