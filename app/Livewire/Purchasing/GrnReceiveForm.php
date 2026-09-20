@@ -46,7 +46,7 @@ class GrnReceiveForm extends Component
     public function mount(int $id): void
     {
         $grn = GoodsReceivedNote::with([
-            'lines.ingredient.baseUom', 'lines.uom',
+            'lines.ingredient.baseUom', 'lines.asset', 'lines.uom',
             'deliveryOrder', 'purchaseOrder', 'outlet', 'supplier',
         ])->findOrFail($id);
 
@@ -71,7 +71,7 @@ class GrnReceiveForm extends Component
         $this->notes        = $grn->notes ?? '';
 
         $this->lines = $grn->lines->map(function ($l) use ($grn) {
-            $packSize = $this->getPackSize($l->ingredient_id, $grn->supplier_id);
+            $packSize = $l->isAssetItem() ? 1 : $this->getPackSize($l->ingredient_id, $grn->supplier_id);
             $packInfo = '';
             if ($packSize > 1 && $l->ingredient?->baseUom) {
                 $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
@@ -80,7 +80,8 @@ class GrnReceiveForm extends Component
             return [
                 'id'              => $l->id,
                 'ingredient_id'   => $l->ingredient_id,
-                'ingredient_name' => $l->ingredient?->name ?? '—',
+                'asset_id'        => $l->asset_id,
+                'ingredient_name' => $l->displayName(),
                 'uom_id'          => $l->uom_id,
                 'uom_abbr'        => $l->uom?->abbreviation ?? '',
                 'expected_qty'    => floatval($l->expected_quantity),
@@ -106,7 +107,16 @@ class GrnReceiveForm extends Component
             $companyId = $grn->company_id;
             $outletId  = $grn->outlet_id;
 
-            $recordTotal = 0;
+            /*
+             * The delivery is worth one thing; the stock on it is worth
+             * another. The GRN total is what the supplier delivered, assets
+             * included — the invoice is generated from it and they billed for
+             * the mixer. The purchase record is the INVENTORY receipt, so its
+             * total counts ingredients only, or an asset would show up as
+             * money spent on food.
+             */
+            $recordTotal = 0;   // everything received — the GRN's own value
+            $stockTotal  = 0;   // ingredients only — the purchase record
 
             // 1. Update GRN lines with received data
             foreach ($this->lines as $line) {
@@ -126,10 +136,16 @@ class GrnReceiveForm extends Component
 
                 if ($condition !== 'rejected' && $received > 0) {
                     $recordTotal += $received * $unitCost;
+
+                    if (empty($line['asset_id'])) {
+                        $stockTotal += $received * $unitCost;
+                    }
                 }
 
-                // Update ingredient cost when received in good condition
-                if ($condition === 'good' && $received > 0) {
+                // Update ingredient cost when received in good condition.
+                // An asset's cost is written back by AssetReceiptFromGrnService
+                // instead, against the asset and its supplier link.
+                if ($condition === 'good' && $received > 0 && empty($line['asset_id'])) {
                     $ingredient = Ingredient::find($line['ingredient_id']);
                     if ($ingredient) {
                         $packSize = $this->getPackSize($ingredient->id, $grn->supplier_id, (int) ($line['uom_id'] ?? 0) ?: null);
@@ -164,16 +180,23 @@ class GrnReceiveForm extends Component
             }
 
             // Activity trail: log received quantities per line.
-            $grnIngIds = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $this->lines));
-            $grnUomIds = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $this->lines));
-            $grnNames  = Ingredient::whereIn('id', $grnIngIds)->pluck('name', 'id');
+            $grnIngIds   = array_filter(array_map(fn ($l) => (int) ($l['ingredient_id'] ?? 0), $this->lines));
+            $grnAssetIds = array_filter(array_map(fn ($l) => (int) ($l['asset_id'] ?? 0), $this->lines));
+            $grnUomIds   = array_filter(array_map(fn ($l) => (int) ($l['uom_id'] ?? 0), $this->lines));
+            $grnNames    = Ingredient::whereIn('id', $grnIngIds)->pluck('name', 'id');
+            $grnAssets   = \App\Models\Asset::whereIn('id', $grnAssetIds)->pluck('name', 'id');
             $grnUoms   = \App\Models\UnitOfMeasure::whereIn('id', $grnUomIds)->pluck('abbreviation', 'id');
             foreach ($this->lines as $line) {
                 $received = floatval($line['received_qty']);
                 if ($received <= 0) continue;
-                $ingId = (int) $line['ingredient_id'];
+                $ingId   = (int) $line['ingredient_id'];
+                $assetId = (int) ($line['asset_id'] ?? 0);
                 \App\Services\AuditLogService::log($grn, 'line_received', [
-                    'item'     => $grnNames[$ingId] ?? ('#' . $ingId),
+                    // An asset would otherwise be logged as '#0' — the trail
+                    // is read by whoever is asking what actually turned up.
+                    'item'     => $assetId
+                        ? ($grnAssets[$assetId] ?? ('#' . $assetId))
+                        : ($grnNames[$ingId] ?? ('#' . $ingId)),
                     'quantity' => round($received, 4),
                     'unit'     => $grnUoms[(int) ($line['uom_id'] ?? 0)] ?? null,
                 ]);
@@ -192,7 +215,13 @@ class GrnReceiveForm extends Component
             if ($grn->deliveryOrder) {
                 $do = $grn->deliveryOrder;
                 foreach ($this->lines as $line) {
-                    $doLine = $do->lines()->where('ingredient_id', $line['ingredient_id'])->first();
+                    // Matched on the asset when there is one. Every asset line
+                    // has a null ingredient_id, and `where('ingredient_id', null)`
+                    // matches no row at all in SQL — so an asset's delivered
+                    // quantity was never written back.
+                    $doLine = ! empty($line['asset_id'])
+                        ? $do->lines()->where('asset_id', $line['asset_id'])->first()
+                        : $do->lines()->where('ingredient_id', $line['ingredient_id'])->first();
                     if ($doLine) {
                         $doLine->update([
                             'delivered_quantity' => floatval($line['received_qty']),
@@ -210,7 +239,16 @@ class GrnReceiveForm extends Component
             if ($grn->purchaseOrder) {
                 $po = $grn->purchaseOrder->load('lines');
                 foreach ($this->lines as $line) {
-                    $poLine = $po->lines->firstWhere('ingredient_id', $line['ingredient_id']);
+                    /*
+                     * Same rule, and here it mattered more: a Collection's
+                     * firstWhere(..., null) matches the FIRST row with a null
+                     * ingredient_id — so on a delivery of two assets, both
+                     * credited the same order line and the other never showed
+                     * as received at all.
+                     */
+                    $poLine = ! empty($line['asset_id'])
+                        ? $po->lines->firstWhere('asset_id', (int) $line['asset_id'])
+                        : $po->lines->firstWhere('ingredient_id', $line['ingredient_id']);
                     if ($poLine) {
                         $added = floatval($line['received_qty']);
                         // Don't cap at ordered qty — allow over-delivery (matches ReceiveForm)
@@ -225,8 +263,16 @@ class GrnReceiveForm extends Component
                 $po->update(['status' => $allReceived ? 'received' : ($anyReceived ? 'partial' : 'sent')]);
             }
 
-            // 5. Create Purchase Record
-            $pr = PurchaseRecord::create([
+            // 5. Create Purchase Record — the inventory receipt.
+            //    A delivery of nothing but assets has no stock on it, and an
+            //    empty purchase record would read as a purchase of nothing.
+            $hasStock = collect($this->lines)->contains(
+                fn ($l) => empty($l['asset_id'])
+                    && $l['condition'] !== 'rejected'
+                    && floatval($l['received_qty']) > 0
+            );
+
+            $pr = $hasStock ? PurchaseRecord::create([
                 'company_id'        => $companyId,
                 'outlet_id'         => $outletId,
                 'supplier_id'       => $grn->supplier_id,
@@ -234,24 +280,50 @@ class GrnReceiveForm extends Component
                 'delivery_order_id' => $grn->delivery_order_id,
                 'reference_number'  => $this->reference_number ?: null,
                 'purchase_date'     => $this->received_date,
-                'total_amount'      => round($recordTotal, 4),
+                'total_amount'      => round($stockTotal, 4),
                 'notes'             => $this->notes ?: null,
                 'created_by'        => Auth::id(),
-            ]);
+            ]) : null;
+
+            /*
+             * Stock and the register part company here.
+             *
+             * A PurchaseRecord line IS the inventory receipt — it says stock
+             * arrived — and an asset is not stock. Ingredients go there;
+             * assets go into an AssetMovement receipt, which is the same
+             * document somebody would otherwise key by hand under
+             * Assets ▸ Receipts, so AssetOnHandService stays the only thing
+             * that decides what an outlet holds.
+             */
+            $assetLines = [];
 
             foreach ($this->lines as $line) {
                 $received = floatval($line['received_qty']);
                 $unitCost = floatval($line['unit_cost']);
-                if ($line['condition'] !== 'rejected' && $received > 0) {
-                    $pr->lines()->create([
-                        'ingredient_id' => $line['ingredient_id'],
-                        'quantity'      => $received,
-                        'uom_id'        => $line['uom_id'],
-                        'unit_cost'     => $unitCost,
-                        'total_cost'    => round($received * $unitCost, 4),
-                    ]);
+
+                if ($line['condition'] === 'rejected' || $received <= 0) {
+                    continue;
                 }
+
+                if (! empty($line['asset_id'])) {
+                    $assetLines[] = [
+                        'asset_id'  => (int) $line['asset_id'],
+                        'quantity'  => $received,
+                        'unit_cost' => $unitCost,
+                    ];
+                    continue;
+                }
+
+                $pr?->lines()->create([
+                    'ingredient_id' => $line['ingredient_id'],
+                    'quantity'      => $received,
+                    'uom_id'        => $line['uom_id'],
+                    'unit_cost'     => $unitCost,
+                    'total_cost'    => round($received * $unitCost, 4),
+                ]);
             }
+
+            \App\Services\AssetReceiptFromGrnService::record($grn, $assetLines);
         });
 
         // Auto-generate procurement invoice from GRN

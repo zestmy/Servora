@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GoodsReceivedNoteLine extends Model
 {
     protected $fillable = [
-        'goods_received_note_id', 'ingredient_id', 'expected_quantity',
+        'goods_received_note_id', 'ingredient_id', 'asset_id', 'expected_quantity',
         'received_quantity', 'uom_id', 'unit_cost', 'total_cost', 'condition',
         'tax_rate_id', 'tax_amount',
     ];
@@ -39,5 +39,22 @@ class GoodsReceivedNoteLine extends Model
     public function taxRate(): BelongsTo
     {
         return $this->belongsTo(TaxRate::class);
+    }
+
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class);
+    }
+
+    /** An asset line, not an ingredient line. The id is the fact. */
+    public function isAssetItem(): bool
+    {
+        return $this->asset_id !== null;
+    }
+
+    /** What to show, whichever kind of line it is. */
+    public function displayName(): string
+    {
+        return $this->asset?->name ?? $this->ingredient?->name ?? '—';
     }
 }

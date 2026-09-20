@@ -94,7 +94,10 @@
                 <tr>
                     <td>{{ $i + 1 }}</td>
                     <td>
-                        {{ $line->ingredient?->name ?? '—' }}
+                        {{ $line->displayName() }}
+                        @if ($line->isAssetItem())
+                            <small style="color: #0369a1;">(Asset)</small>
+                        @endif
                         @if ($line->uom?->abbreviation === 'pack' && $line->ingredient)
                             @php
                                 $grnPackSize = \Illuminate\Support\Facades\DB::table('supplier_ingredients')

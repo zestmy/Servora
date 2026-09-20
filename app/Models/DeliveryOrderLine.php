@@ -11,7 +11,7 @@ class DeliveryOrderLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'delivery_order_id', 'purchase_order_line_id', 'ingredient_id',
+        'delivery_order_id', 'purchase_order_line_id', 'ingredient_id', 'asset_id',
         'ordered_quantity', 'delivered_quantity',
         'uom_id', 'unit_cost', 'condition', 'tax_rate_id', 'tax_amount',
     ];
@@ -46,5 +46,22 @@ class DeliveryOrderLine extends Model
     public function taxRate(): BelongsTo
     {
         return $this->belongsTo(TaxRate::class);
+    }
+
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class);
+    }
+
+    /** An asset line, not an ingredient line. The id is the fact. */
+    public function isAssetItem(): bool
+    {
+        return $this->asset_id !== null;
+    }
+
+    /** What to show, whichever kind of line it is. */
+    public function displayName(): string
+    {
+        return $this->asset?->name ?? $this->ingredient?->name ?? '—';
     }
 }

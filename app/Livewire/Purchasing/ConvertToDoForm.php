@@ -32,7 +32,8 @@ class ConvertToDoForm extends Component
         return [
             'delivery_date'          => 'required|date',
             'lines'                  => 'required|array|min:1',
-            'lines.*.ingredient_id'  => 'required|exists:ingredients,id',
+            'lines.*.ingredient_id'  => 'nullable|exists:ingredients,id',
+            'lines.*.asset_id'       => 'nullable|exists:assets,id',
             'lines.*.quantity'       => 'required|numeric|min:0.0001',
             'lines.*.uom_id'        => 'required|exists:units_of_measure,id',
             'lines.*.unit_cost'      => 'required|numeric|min:0',
@@ -72,35 +73,18 @@ class ConvertToDoForm extends Component
         $this->notes        = $po->notes ?? '';
 
         /*
-         * ASSET LINES DO NOT GO DOWN THIS CHAIN.
+         * Asset lines ride the delivery like anything else.
          *
-         * A delivery order becomes a GRN, and receiving a GRN writes a
-         * PurchaseRecord — the inventory receipt, whose ingredient_id is NOT
-         * NULL. An asset arriving there is either a hard failure or a phantom
-         * stock movement against nothing. An ordered asset is received into
-         * the asset register instead, under Assets ▸ Records.
-         *
-         * Filtered here rather than at the DO write so the person converting
-         * SEES which lines are not on the list, and why.
+         * They part company at the far end, not here: confirming the GRN
+         * writes them into the asset register rather than into stock. See
+         * AssetReceiptFromGrnService.
          */
-        $assetLines = $po->lines->filter(fn ($l) => $l->isAssetItem());
-
-        if ($assetLines->isNotEmpty()) {
-            $count = $assetLines->count();
-            session()->flash('warning', sprintf(
-                '%d asset line%s on %s %s not on this delivery — an asset is received into the asset register, under Assets ▸ Records, not against stock.',
-                $count,
-                $count === 1 ? '' : 's',
-                $po->po_number,
-                $count === 1 ? 'is' : 'are'
-            ));
-        }
-
         $this->lines = $po->lines
-            ->reject(fn ($l) => $l->isAssetItem())
             ->filter(fn ($l) => $l->remainingQuantity() > 0) // Only show lines with remaining qty
             ->map(function ($l) use ($po) {
-                $packSize = $this->getPackSize($l->ingredient_id, $po->supplier_id);
+                // An asset is not sold by the pack; asking would read the
+                // supplier's ingredient catalogue, which has no row for it.
+                $packSize = $l->isAssetItem() ? 1 : $this->getPackSize($l->ingredient_id, $po->supplier_id);
                 $packInfo = '';
                 if ($packSize > 1 && $l->ingredient?->baseUom) {
                     $formatted = rtrim(rtrim(number_format($packSize, 4, '.', ''), '0'), '.');
@@ -110,7 +94,8 @@ class ConvertToDoForm extends Component
                 return [
                     'po_line_id'      => $l->id,
                     'ingredient_id'   => $l->ingredient_id,
-                    'ingredient_name' => $l->ingredient?->name ?? '—',
+                    'asset_id'        => $l->asset_id,
+                    'ingredient_name' => $l->displayName(),
                     'quantity'        => (string) $remaining,
                     'uom_id'          => $l->uom_id,
                     'uom_abbr'        => $l->uom?->abbreviation ?? '',
@@ -165,9 +150,32 @@ class ConvertToDoForm extends Component
         }
     }
 
+    /**
+     * Every line must name something — see OrderForm for the same check.
+     * Both id columns are nullable alone, so a line naming neither would
+     * validate and become a delivery line pointing at nothing.
+     */
+    private function everyLineNamesSomething(): bool
+    {
+        $ok = true;
+
+        foreach ($this->lines as $i => $line) {
+            if (empty($line['ingredient_id']) && empty($line['asset_id'])) {
+                $this->addError("lines.{$i}.ingredient_id", 'This line does not name an item.');
+                $ok = false;
+            }
+        }
+
+        return $ok;
+    }
+
     public function convert(): void
     {
         $this->validate();
+
+        if (! $this->everyLineNamesSomething()) {
+            return;
+        }
 
         // Filter to only included lines
         $includedLines = array_filter($this->lines, fn ($l) => ($l['include'] ?? true) && floatval($l['quantity']) > 0);
@@ -206,7 +214,8 @@ class ConvertToDoForm extends Component
                 $cost = floatval($line['unit_cost']);
                 $do->lines()->create([
                     'purchase_order_line_id' => $line['po_line_id'] ?? null,
-                    'ingredient_id'          => $line['ingredient_id'],
+                    'ingredient_id'          => $line['ingredient_id'] ?: null,
+                    'asset_id'               => $line['asset_id'] ?? null,
                     'ordered_quantity'       => $qty,
                     'delivered_quantity'     => 0,
                     'uom_id'                => $line['uom_id'],
@@ -233,7 +242,8 @@ class ConvertToDoForm extends Component
                 $qty  = floatval($line['quantity']);
                 $cost = floatval($line['unit_cost']);
                 $grn->lines()->create([
-                    'ingredient_id'     => $line['ingredient_id'],
+                    'ingredient_id'     => $line['ingredient_id'] ?: null,
+                    'asset_id'          => $line['asset_id'] ?? null,
                     'expected_quantity'  => $qty,
                     'received_quantity'  => 0,
                     'uom_id'            => $line['uom_id'],

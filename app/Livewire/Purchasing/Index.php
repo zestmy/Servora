@@ -755,28 +755,11 @@ class Index extends Component
         $po->loadMissing('lines');
 
         /*
-         * ASSET LINES DO NOT GO DOWN THIS CHAIN — the DO becomes a GRN, and
-         * receiving a GRN writes a PurchaseRecord, the inventory receipt,
-         * whose ingredient_id is NOT NULL. An ordered asset is received into
-         * the asset register instead. Same rule as ConvertToDoForm, stated
-         * again because this is the other doorway in.
+         * Asset lines come along. They separate when the GRN is confirmed,
+         * where they are written into the asset register instead of stock —
+         * see AssetReceiptFromGrnService.
          */
-        $receivable = $po->lines->reject(fn ($l) => $l->isAssetItem());
-
-        if ($receivable->isEmpty()) {
-            session()->flash('error', $po->po_number . ' has only asset lines on it. An asset is received into the asset register, under Assets ▸ Records — there is nothing here to deliver against stock.');
-            return;
-        }
-
-        $assetCount = $po->lines->count() - $receivable->count();
-        if ($assetCount) {
-            session()->flash('warning', sprintf(
-                '%d asset line%s on %s left off the delivery — an asset is received into the asset register, under Assets ▸ Records.',
-                $assetCount,
-                $assetCount === 1 ? '' : 's',
-                $po->po_number
-            ));
-        }
+        $receivable = $po->lines;
 
         DB::transaction(function () use ($po, $receivable) {
             $doNumber  = $this->generateDoNumber();
@@ -798,6 +781,7 @@ class Index extends Component
             foreach ($receivable as $line) {
                 $do->lines()->create([
                     'ingredient_id'     => $line->ingredient_id,
+                    'asset_id'          => $line->asset_id,
                     'ordered_quantity'   => $line->quantity,
                     'delivered_quantity' => 0,
                     'uom_id'            => $line->uom_id,
@@ -821,6 +805,7 @@ class Index extends Component
             foreach ($receivable as $line) {
                 $grn->lines()->create([
                     'ingredient_id'     => $line->ingredient_id,
+                    'asset_id'          => $line->asset_id,
                     'expected_quantity'  => $line->quantity,
                     'received_quantity'  => 0,
                     'uom_id'            => $line->uom_id,

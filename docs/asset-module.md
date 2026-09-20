@@ -180,23 +180,51 @@ this again:
   any line it cannot put under a supplier, so the ingredient-only lookup made
   an asset vanish from a split order while its money stayed on the header.
 
-**Receiving is still NOT built, and that is load-bearing.** A PO becomes a DO,
-which becomes a GRN, and receiving a GRN writes a `PurchaseRecord` — the
-inventory receipt, whose `ingredient_id` is `NOT NULL`. An asset arriving
-there is either a hard failure or a phantom stock movement against nothing.
-**Both doorways into that chain** — `ConvertToDoForm` and the quick-GRN on
-`Purchasing\Index` — leave asset lines behind and say so on screen. Until
-phase two exists, `AssetOnPurchaseOrderTest` is what holds that line.
+### Receiving an ordered asset — phase two (2026-09-21)
 
-So buying an asset today is: approve the request → convert to a PO and send it
-→ record what arrived under Assets ▸ Receipts, which prefills from the request
-via `/assets/movements/create?pr={id}`. The receipt is still the thing that
-puts it in the register.
+An asset now rides the delivery order and the GRN beside the ingredients it
+was ordered with, and **parts company at the moment of receiving**:
 
-**Still not threaded through** (phase two and beyond): receiving an ordered
-asset into the register from the GRN, invoice matching, credit notes, and CPU
-consolidation — which still skips asset lines, so a consolidated order does
-not carry them the way a direct conversion does.
+- an ingredient becomes a `PurchaseRecord` line — the inventory receipt;
+- an asset becomes an `AssetMovement` receipt, the same document somebody
+  would otherwise key by hand under Assets ▸ Receipts, so `AssetOnHandService`
+  remains the only thing that decides what an outlet holds.
+
+`AssetReceiptFromGrnService` does the second half. The receipt is keyed on
+`asset_movements.goods_received_note_id`, so one GRN can only ever produce one
+receipt — the form already refuses a GRN that is not pending, but the register
+is what an outlet is audited against, so the property is held in the service
+too rather than only in a screen.
+
+**`purchase_record_lines.ingredient_id` is deliberately still `NOT NULL`.**
+That table means *stock arrived*, and an asset is not stock. Leaving the
+column strict means the database itself refuses an asset if a future change
+ever routes one there by mistake. Do not relax it.
+
+Two more totals-and-matching traps, the same family as phase one's:
+
+- **The GRN total and the stock total are different numbers.** The GRN is
+  worth what the supplier delivered, assets included — the invoice is
+  generated from it and they billed for the mixer. The purchase record counts
+  ingredients only, or an asset shows up as money spent on food.
+- **A GRN line matches its DO and PO line on the asset when it has one.**
+  `where('ingredient_id', null)` matches no SQL row at all, so an asset's
+  delivered quantity was silently never written back; worse, a Collection's
+  `firstWhere(..., null)` matches the *first* null row, so on a delivery of
+  two assets both credited the same order line and the other never showed as
+  received.
+
+A delivery of nothing but assets writes **no** purchase record at all — an
+empty one would read as a purchase of nothing.
+
+The invoice auto-generated from the GRN **does** carry asset lines. Its header
+total is summed from every GRN line, so excluding them from the lines alone
+would produce an invoice that does not add up to itself.
+
+**Still not threaded through**: credit notes for assets (`CreditNoteLine` has
+no `asset()` relation, and the credit-note PDF deliberately does not eager-load
+one), and CPU consolidation — which still skips asset lines, so a consolidated
+order does not carry them the way a direct conversion does.
 
 ## Not in v1
 

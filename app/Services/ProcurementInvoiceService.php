@@ -55,9 +55,13 @@ class ProcurementInvoiceService
             foreach ($grn->lines as $line) {
                 if (floatval($line->received_quantity) <= 0) continue;
 
+                // The header total is summed from every GRN line, so an
+                // asset line must appear here too or the invoice would not
+                // add up to itself — and the supplier did bill for it.
                 ProcurementInvoiceLine::create([
                     'procurement_invoice_id' => $invoice->id,
                     'ingredient_id'          => $line->ingredient_id,
+                    'asset_id'               => $line->asset_id,
                     'quantity'               => $line->received_quantity,
                     'uom_id'                => $line->uom_id,
                     'unit_price'            => $line->unit_cost,

@@ -106,6 +106,9 @@
                                     <td class="py-2 px-2">
                                         <div class="font-medium text-gray-800">
                                             {{ $line['ingredient_name'] }}
+                                            @if (! empty($line['asset_id']))
+                                                <span class="ml-1 px-1.5 py-0.5 bg-info-100 text-info-700 text-[10px] rounded font-medium">Asset</span>
+                                            @endif
                                             @if (! empty($line['pack_info']))
                                                 <span class="text-brand-600 font-semibold">{{ $line['pack_info'] }}</span>
                                             @endif

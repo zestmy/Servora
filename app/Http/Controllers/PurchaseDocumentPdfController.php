@@ -65,7 +65,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function deliveryOrder(int $id, ?Company $company)
     {
-        $do = DeliveryOrder::with(['outlet', 'supplier', 'purchaseOrder.department', 'lines.ingredient', 'lines.uom', 'createdBy', 'receivedBy'])->findOrFail($id);
+        $do = DeliveryOrder::with(['outlet', 'supplier', 'purchaseOrder.department', 'lines.ingredient', 'lines.asset', 'lines.uom', 'createdBy', 'receivedBy'])->findOrFail($id);
         $this->authorizeOutlet($do->outlet_id);
         $showPrice = (bool) $company?->show_price_on_do_grn;
 
@@ -77,7 +77,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function goodsReceivedNote(int $id, ?Company $company)
     {
-        $grn = GoodsReceivedNote::with(['outlet', 'supplier', 'deliveryOrder', 'purchaseOrder.department', 'lines.ingredient', 'lines.uom', 'receivedBy'])->findOrFail($id);
+        $grn = GoodsReceivedNote::with(['outlet', 'supplier', 'deliveryOrder', 'purchaseOrder.department', 'lines.ingredient', 'lines.asset', 'lines.uom', 'receivedBy'])->findOrFail($id);
         $this->authorizeOutlet($grn->outlet_id);
         $showPrice = (bool) $company?->show_price_on_do_grn;
 
@@ -89,6 +89,8 @@ class PurchaseDocumentPdfController extends Controller
 
     private function creditNote(int $id, ?Company $company)
     {
+        // No 'lines.asset' here: a credit note line has no asset relation.
+        // Credit notes for assets are not part of this phase.
         $cn = \App\Models\CreditNote::with(['supplier', 'outlet', 'lines.ingredient', 'lines.uom', 'createdBy', 'procurementInvoice', 'goodsReceivedNote', 'purchaseOrder'])->findOrFail($id);
         $this->authorizeOutlet($cn->outlet_id);
 
@@ -103,7 +105,7 @@ class PurchaseDocumentPdfController extends Controller
     {
         $invoice = ProcurementInvoice::with([
             'outlet', 'supplier', 'purchaseOrder', 'goodsReceivedNote',
-            'lines.ingredient', 'lines.uom', 'taxRate', 'createdBy',
+            'lines.ingredient', 'lines.asset', 'lines.uom', 'taxRate', 'createdBy',
         ])->findOrFail($id);
         $this->authorizeOutlet($invoice->outlet_id);
 

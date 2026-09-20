@@ -201,41 +201,36 @@ class AssetOnPurchaseOrderTest extends TestCase
             ->assertHasErrors('lines.0.ingredient_id');
     }
 
-    /* ── The guards ──────────────────────────────────────────────────────
-       Everything below is about what must NOT happen. */
+    /* ── Down the chain ─────────────────────────────────────────────────
+       Phase two opened the delivery chain to assets, so what this once
+       pinned — the asset being left off — is no longer the right answer.
+       Receiving itself is covered in ReceiveAnOrderedAssetTest; what stays
+       here is that the ingredient half is untouched by any of it. */
 
-    public function test_the_delivery_conversion_leaves_the_asset_line_behind(): void
+    public function test_the_asset_travels_with_the_delivery(): void
     {
         $po = $this->orderWithAssetAndIngredient();
         $po->update(['status' => 'approved']);
 
         Livewire::test(ConvertToDoForm::class, ['id' => $po->id])
-            ->assertCount('lines', 1);
-
-        $this->assertNotNull(session('warning'));
-        $this->assertStringContainsString('asset line', session('warning'));
-    }
-
-    public function test_receiving_never_sees_the_asset(): void
-    {
-        $po = $this->orderWithAssetAndIngredient();
-        $po->update(['status' => 'approved']);
-
-        Livewire::test(ConvertToDoForm::class, ['id' => $po->id])
+            ->assertCount('lines', 2)
             ->set('delivery_date', now()->addDay()->toDateString())
             ->call('convert');
 
         $grn = GoodsReceivedNote::with('lines')->first();
 
-        $this->assertNotNull($grn, 'The ingredient line still converts normally.');
-        $this->assertCount(1, $grn->lines, 'Only the ingredient reaches the GRN.');
-        $this->assertNotNull($grn->lines->first()->ingredient_id);
+        $this->assertNotNull($grn);
+        $this->assertCount(2, $grn->lines);
 
-        // The receiving chain ends in a stock receipt whose ingredient_id is
-        // NOT NULL — a null here would be the enum bug all over again.
+        // Exactly one of each, and never both on a line.
+        $this->assertSame(1, $grn->lines->whereNotNull('asset_id')->count());
+        $this->assertSame(1, $grn->lines->whereNotNull('ingredient_id')->count());
+
         foreach ($grn->lines as $line) {
-            $this->assertNotNull($line->ingredient_id,
-                'A GRN line without an ingredient becomes a stock receipt against nothing.');
+            $this->assertTrue(
+                ($line->ingredient_id === null) !== ($line->asset_id === null),
+                'A line names an ingredient or an asset, never both and never neither.'
+            );
         }
     }
 

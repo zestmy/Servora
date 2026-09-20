@@ -97,7 +97,7 @@
             @foreach ($invoice->lines as $i => $line)
                 <tr>
                     <td>{{ $i + 1 }}</td>
-                    <td>{{ $line->ingredient?->name ?? '—' }}</td>
+                    <td>{{ $line->displayName() }}@if ($line->isAssetItem()) <small style="color: #0369a1;">(Asset)</small>@endif</td>
                     <td>{{ $line->description ?? '' }}</td>
                     <td class="center">{{ floatval($line->quantity) }}</td>
                     <td class="center">{{ $line->uom?->abbreviation ?? '' }}</td>
