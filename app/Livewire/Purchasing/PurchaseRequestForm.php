@@ -214,7 +214,7 @@ class PurchaseRequestForm extends Component
             // addIngredient() returns quietly on a duplicate, so the quantity is
             // written only when a line was actually appended.
             if (count($this->lines) > $countBefore && (float) $line->default_quantity > 0) {
-                $this->lines[count($this->lines) - 1]['quantity'] = (float) $line->default_quantity;
+                $this->lines[count($this->lines) - 1]['quantity'] = round((float) $line->default_quantity, 1);
             }
         }
 
@@ -326,6 +326,25 @@ class PurchaseRequestForm extends Component
             'tax_rate_id'           => null,
             'tax_label'             => null,
         ];
+    }
+
+    /**
+     * Quantities are kept to one decimal place.
+     *
+     * The field steps in halves, because half a case or half a tray is a real
+     * thing to ask for and 0.01 steps meant forty clicks to get there. One
+     * decimal is the matching precision: it still accepts a typed 2.3, and it
+     * stops a fat-fingered 2.347 from reaching a supplier. Rounding here rather
+     * than only in the input means it holds whichever way the number arrived —
+     * typed, stepped, or carried in from a form template.
+     */
+    public function updatedLines($value, $key): void
+    {
+        $parts = explode('.', $key);
+
+        if (count($parts) === 2 && $parts[1] === 'quantity') {
+            $this->lines[(int) $parts[0]]['quantity'] = round((float) $value, 1);
+        }
     }
 
     public function removeLine(int $index): void

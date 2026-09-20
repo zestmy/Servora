@@ -247,7 +247,7 @@
                         </div>
                         <div>
                             <p class="stat-label">Total quantity</p>
-                            <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format(collect($lines)->sum('quantity'), 2) }}</p>
+                            <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format(collect($lines)->sum('quantity'), 1) }}</p>
                         </div>
                         <div>
                             <p class="stat-label">Suppliers</p>
@@ -273,7 +273,7 @@
                                 <th class="px-4 py-3 text-left">Product</th>
                                 <th class="px-4 py-3 text-center w-20">Par Level</th>
                                 <th class="px-4 py-3 text-center w-28">Quantity</th>
-                                <th class="px-4 py-3 text-left w-24">UOM</th>
+                                <th class="px-4 py-3 text-left w-28">UOM</th>
                                 <th class="px-4 py-3 text-center w-24">Tax</th>
                                 <th class="px-4 py-3 text-left w-40">Preferred Supplier</th>
                                 @if ($isEditable)
@@ -303,17 +303,17 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         @if ($isEditable)
-                                            <input type="number" step="0.01" min="0"
+                                            <input type="number" step="0.5" min="0"
                                                    wire:model.live.debounce.500ms="lines.{{ $i }}.quantity"
-                                                   class="w-full text-center rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                                                   class="input text-center" />
                                         @else
-                                            <div class="text-center">{{ number_format($line['quantity'], 2) }}</div>
+                                            <div class="text-center">{{ number_format($line['quantity'], 1) }}</div>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">
                                         @if ($isEditable)
                                             <select wire:model="lines.{{ $i }}.uom_id"
-                                                    class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                                                    class="input pl-2 pr-7">
                                                 @foreach ($uoms as $uom)
                                                     <option value="{{ $uom->id }}">{{ $uom->abbreviation ?? $uom->name }}</option>
                                                 @endforeach
