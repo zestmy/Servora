@@ -199,15 +199,21 @@
                                 <div class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                     @foreach ($assetResults as $item)
                                         <button wire:click="addAsset({{ $item->id }})" type="button"
-                                                class="w-full text-left px-4 py-2.5 hover:bg-brand-50 text-sm flex items-center justify-between border-b border-gray-50 last:border-0">
-                                            <div>
-                                                <span class="font-medium text-gray-700">{{ $item->name }}</span>
-                                                @if ($item->code)
-                                                    <span class="text-gray-600 ml-1">({{ $item->code }})</span>
+                                                class="w-full text-left px-4 py-2.5 hover:bg-brand-50 text-sm flex items-center justify-between gap-3 border-b border-gray-50 last:border-0">
+                                            <div class="flex min-w-0 items-center gap-2.5">
+                                                @if ($item->image_path)
+                                                    <img src="{{ $item->imageUrl() }}" alt="" loading="lazy"
+                                                         class="h-8 w-8 flex-shrink-0 rounded-control border border-gray-200 object-cover" />
                                                 @endif
-                                                @if ($item->brand)
-                                                    <span class="block text-xs text-gray-600">{{ $item->brand }} {{ $item->model }}</span>
-                                                @endif
+                                                <div class="min-w-0">
+                                                    <span class="font-medium text-gray-700">{{ $item->name }}</span>
+                                                    @if ($item->code)
+                                                        <span class="text-gray-600 ml-1">({{ $item->code }})</span>
+                                                    @endif
+                                                    @if ($item->brand)
+                                                        <span class="block text-xs text-gray-600">{{ $item->brand }} {{ $item->model }}</span>
+                                                    @endif
+                                                </div>
                                             </div>
                                             <span class="text-xs text-gray-600">{{ $item->uom?->abbreviation ?? $item->uom?->name }}</span>
                                         </button>

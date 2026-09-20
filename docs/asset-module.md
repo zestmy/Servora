@@ -17,7 +17,7 @@ plates quarterly).
 
 | Screen | Route | What it is |
 |---|---|---|
-| Asset List | `assets.index` | The catalogue — the Market List for assets. Name, code, category, unit, unit cost, brand/model, suppliers. Categories are managed on the same page. |
+| Asset List | `assets.index` | The catalogue — the Market List for assets. Name, code, category, unit, unit cost, brand/model, photo, suppliers. Categories are managed on the same page. |
 | Asset Register | `assets.register` | What is held and what it is worth, per outlet or across all of them, broken down by category. |
 | Asset Records | `assets.records` | Counts, receipts and disposals in three tabs. |
 | Asset Count | `assets.counts.create` / `.show` | The stock take for assets. |
@@ -67,6 +67,35 @@ comment and pinned by `tests/Feature/AssetOnHandTest.php`:
    in the morning, take a delivery in the afternoon, book it in: by date alone
    those cannot be ordered, and either fixed rule loses a real document
    silently.
+
+## The photograph
+
+One per asset, in `assets.image_path` — a column rather than a gallery table,
+because the picture answers one question ("is this the one?") for somebody
+telling two mixing bowls apart on a count sheet, and a second picture adds
+nothing to that.
+
+Stored on the **public** disk under `asset-photos/{company_id}/`, unlike the
+employee photograph in the same tree: staff photos are identity documents and
+sit on `local` behind an authorised route, while this is a picture of a knife,
+served directly so a count sheet can draw forty of them without forty authorised
+requests.
+
+It shows on the asset list, on the count sheet (tap to enlarge — 40px is not
+enough once you are down to which of two knives), and in every asset picker:
+the count form's, the receipt/disposal form's and the purchase request's.
+
+Uploads go through `RejectsUnpreviewableUploads` and `ImageStorageService`, like
+every other upload in the product: HEIC is converted on arrival so an iPhone
+sending originals works, anything the browser cannot draw is refused **as it
+lands** rather than at save (the preview calls `temporaryUrl()`, which throws on
+those and takes the whole form down with it), and what is stored is
+auto-oriented, stripped of metadata and capped at 1600px.
+
+Removing a photo is **deferred to Save**, unlike `EmployeeForm` where it applies
+immediately — this is a modal with a Cancel beside it, and a picture of a knife
+is not something anybody needs gone within the second. Replacing one deletes the
+file it replaced, but only after the row is safely on the new path.
 
 ## Permissions
 

@@ -88,13 +88,19 @@
                         <div class="absolute z-20 mt-1 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg max-h-60">
                             @foreach ($searchResults as $item)
                                 <button type="button" wire:click="addAsset({{ $item->id }})"
-                                        class="flex w-full items-center justify-between border-b border-gray-50 px-4 py-2.5 text-left text-sm last:border-0 hover:bg-brand-50">
-                                    <div>
-                                        <span class="font-medium text-gray-700">{{ $item->name }}</span>
-                                        @if ($item->code)<span class="ml-1 text-gray-600">({{ $item->code }})</span>@endif
-                                        @if ($item->category)
-                                            <span class="block text-xs text-gray-600">{{ $item->category->name }}</span>
+                                        class="flex w-full items-center justify-between gap-3 border-b border-gray-50 px-4 py-2.5 text-left text-sm last:border-0 hover:bg-brand-50">
+                                    <div class="flex min-w-0 items-center gap-2.5">
+                                        @if ($item->image_path)
+                                            <img src="{{ $item->imageUrl() }}" alt="" loading="lazy"
+                                                 class="h-8 w-8 flex-shrink-0 rounded-control border border-gray-200 object-cover" />
                                         @endif
+                                        <div class="min-w-0">
+                                            <span class="font-medium text-gray-700">{{ $item->name }}</span>
+                                            @if ($item->code)<span class="ml-1 text-gray-600">({{ $item->code }})</span>@endif
+                                            @if ($item->category)
+                                                <span class="block text-xs text-gray-600">{{ $item->category->name }}</span>
+                                            @endif
+                                        </div>
                                     </div>
                                     <span class="text-xs text-gray-600">{{ $item->uom?->abbreviation }}</span>
                                 </button>
@@ -191,9 +197,41 @@
                             <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
 
                             <td class="px-4 py-3">
-                                <span class="font-medium text-gray-700">{{ $line['asset_name'] }}</span>
-                                @if ($line['code'])<span class="ml-1 text-gray-600">({{ $line['code'] }})</span>@endif
-                                <span class="ml-1 text-xs text-gray-600">{{ $line['uom'] }}</span>
+                                {{-- The picture is the point of the column: somebody
+                                     walking the outlet with forty smallwares on a sheet
+                                     needs to tell two mixing bowls apart, and a name
+                                     cannot do that. Tap to enlarge, because 40px cannot
+                                     either once you are down to which of two knives. --}}
+                                <div class="flex items-center gap-3" x-data="{ zoom: false }">
+                                    @if ($line['image'] ?? null)
+                                        <button type="button" @click="zoom = true" title="View larger"
+                                                class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-control border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                                            <img src="{{ $line['image'] }}" alt="" loading="lazy" class="h-full w-full object-cover" />
+                                        </button>
+
+                                        <template x-teleport="body">
+                                            <div x-show="zoom" x-cloak @keydown.escape.window="zoom = false"
+                                                 class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                                <div class="fixed inset-0 bg-gray-900/70" @click="zoom = false"></div>
+                                                <div class="relative max-h-full" @click.stop>
+                                                    <img src="{{ $line['image'] }}" alt="{{ $line['asset_name'] }}"
+                                                         class="max-h-[80vh] max-w-[90vw] rounded-panel bg-white object-contain shadow-e4" />
+                                                    <p class="mt-3 text-center text-sm text-white/90">{{ $line['asset_name'] }}</p>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    @else
+                                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control border border-gray-200 bg-gray-100">
+                                            <x-icon name="building" size="h-4 w-4" class="text-gray-400" />
+                                        </div>
+                                    @endif
+
+                                    <div class="min-w-0">
+                                        <span class="font-medium text-gray-700">{{ $line['asset_name'] }}</span>
+                                        @if ($line['code'])<span class="ml-1 text-gray-600">({{ $line['code'] }})</span>@endif
+                                        <span class="ml-1 text-xs text-gray-600">{{ $line['uom'] }}</span>
+                                    </div>
+                                </div>
                             </td>
 
                             <td class="px-4 py-3 text-gray-600">{{ $line['category'] ?? '—' }}</td>

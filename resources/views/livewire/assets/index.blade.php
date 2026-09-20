@@ -118,13 +118,29 @@
                             @endif
 
                             <td class="px-4 py-3">
-                                <span class="font-medium text-gray-700">{{ $asset->name }}</span>
-                                @if ($asset->code)
-                                    <span class="text-gray-600 ml-1">({{ $asset->code }})</span>
-                                @endif
-                                @if ($asset->brand || $asset->model)
-                                    <span class="block text-xs text-gray-600">{{ trim($asset->brand . ' ' . $asset->model) }}</span>
-                                @endif
+                                <div class="flex items-center gap-3">
+                                    {{-- 40px: enough to recognise the thing, small enough
+                                         that a page of them is still a table and not a
+                                         gallery. An asset without one keeps the row height
+                                         so the column does not jump. --}}
+                                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-control border border-gray-200 bg-gray-100">
+                                        @if ($asset->image_path)
+                                            <img src="{{ $asset->imageUrl() }}" alt="" loading="lazy"
+                                                 class="h-full w-full object-cover" />
+                                        @else
+                                            <x-icon name="building" size="h-4 w-4" class="text-gray-400" />
+                                        @endif
+                                    </div>
+                                    <div class="min-w-0">
+                                        <span class="font-medium text-gray-700">{{ $asset->name }}</span>
+                                        @if ($asset->code)
+                                            <span class="text-gray-600 ml-1">({{ $asset->code }})</span>
+                                        @endif
+                                        @if ($asset->brand || $asset->model)
+                                            <span class="block text-xs text-gray-600">{{ trim($asset->brand . ' ' . $asset->model) }}</span>
+                                        @endif
+                                    </div>
+                                </div>
                             </td>
 
                             <td class="px-4 py-3 text-gray-600">
@@ -257,6 +273,91 @@
 
                     <form wire:submit="save">
                         <div class="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5">
+                            @php
+                                /* A fresh upload is previewed from its temp URL, but only
+                                   once it is one the browser can actually draw — the trait
+                                   converts HEIC on arrival and clears anything it cannot,
+                                   and temporaryUrl() throws on the rest. Anything short of
+                                   previewable falls back to the stored picture, unless
+                                   Remove is pending, in which case there is nothing to show. */
+                                $pendingPreviewable = $image && in_array(
+                                    strtolower($image->getClientOriginalExtension()),
+                                    ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], true
+                                );
+                                $imageSrc = $pendingPreviewable
+                                    ? $image->temporaryUrl()
+                                    : (($imagePath && ! $removeImage) ? \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath) : null);
+                            @endphp
+
+                            <div class="flex items-start gap-4 border-b border-gray-100 pb-4">
+                                <div class="flex-shrink-0" x-data="{ zoom: false }">
+                                    <div class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-surface border border-gray-200 bg-gray-100">
+                                        @if ($imageSrc)
+                                            <button type="button" @click="zoom = true" title="View larger"
+                                                    class="h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                                                <img src="{{ $imageSrc }}" alt="" class="h-full w-full object-cover" />
+                                            </button>
+                                        @else
+                                            <x-icon name="building" size="h-8 w-8" class="text-gray-400" />
+                                        @endif
+                                    </div>
+
+                                    <div wire:loading wire:target="image" class="mt-1 text-center text-[11px] text-gray-600">Uploading…</div>
+
+                                    @if ($imageSrc)
+                                        {{-- Teleported to body: this modal is itself fixed, and a
+                                             lightbox nested inside its scroll container would be
+                                             clipped by it. --}}
+                                        <template x-teleport="body">
+                                            <div x-show="zoom" x-cloak @keydown.escape.window="zoom = false"
+                                                 class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                                <div class="fixed inset-0 bg-gray-900/70" @click="zoom = false"></div>
+                                                <div class="relative max-h-full" @click.stop>
+                                                    <img src="{{ $imageSrc }}" alt="{{ $name ?: 'Asset photo' }}"
+                                                         class="max-h-[80vh] max-w-[90vw] rounded-panel bg-white object-contain shadow-e4" />
+                                                    <button type="button" @click="zoom = false" title="Close"
+                                                            class="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 shadow-e2 hover:text-gray-900">
+                                                        <x-icon name="close" size="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    @endif
+                                </div>
+
+                                <div class="min-w-0 flex-1">
+                                    <p class="label">Photo</p>
+                                    <p class="help">
+                                        What it looks like, so whoever is counting can tell two similar
+                                        items apart. Shown on the list and on the count sheet.
+                                    </p>
+
+                                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                                        <label class="cursor-pointer text-xs font-medium text-brand-600 hover:text-brand-800">
+                                            {{ ($imagePath && ! $removeImage) || $image ? 'Change photo' : 'Add photo' }}
+                                            <input type="file" wire:model="image" accept="image/*" class="hidden" />
+                                        </label>
+
+                                        @if ($imageSrc)
+                                            <button type="button" wire:click="clearImage"
+                                                    class="text-xs font-medium text-danger-600 hover:text-danger-800">
+                                                Remove
+                                            </button>
+                                        @endif
+
+                                        <span class="text-[11px] text-gray-600">JPG, PNG, WebP or HEIC. Up to 5 MB.</span>
+                                    </div>
+
+                                    @if ($removeImage && ! $image)
+                                        <p class="mt-1.5 text-xs text-warning-700">
+                                            The photo comes off when you save. Cancel puts it back.
+                                        </p>
+                                    @endif
+
+                                    @error('image') <p class="error-text">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div class="sm:col-span-2">
                                     <label class="label" for="asset-name">Name</label>

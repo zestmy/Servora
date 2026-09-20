@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PurgesStoredFiles;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * One line of the asset catalogue: a TYPE of thing the company owns.
@@ -24,11 +26,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Asset extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, PurgesStoredFiles;
 
     protected $fillable = [
         'company_id', 'name', 'code', 'asset_category_id', 'uom_id',
-        'unit_cost', 'brand', 'model', 'is_active', 'remark',
+        'unit_cost', 'brand', 'model', 'image_path', 'is_active', 'remark',
     ];
 
     protected $casts = [
@@ -45,6 +47,20 @@ class Asset extends Model
                 $model->name = strtoupper($model->name);
             }
         });
+
+        /*
+         * A soft delete leaves the row, so it leaves the picture: restoring an
+         * asset to a broken image would be worse than keeping a few kilobytes.
+         * This fires on a force delete — a tenant purge, a cleanup — where
+         * nothing else is watching the file.
+         */
+        static::forceDeleted(fn (self $asset) => $asset->purgeOwnedFile('image_path'));
+    }
+
+    /** Where the photograph is served from, or null when there is none. */
+    public function imageUrl(): ?string
+    {
+        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
     }
 
     public function company(): BelongsTo

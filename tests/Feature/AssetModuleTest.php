@@ -139,6 +139,30 @@ class AssetModuleTest extends TestCase
         $this->assertSame(12.5, (float) $asset->unit_cost, 'The price they were not allowed to set is left as it stands.');
     }
 
+    /**
+     * Alphabetical order gave "bar" as the unit a new asset starts on, which is
+     * a plausible unit for nothing anybody puts in an asset list.
+     */
+    public function test_a_new_asset_starts_on_a_per_item_unit(): void
+    {
+        $this->actingAs($this->userWith(['assets.view', 'assets.manage']));
+
+        // The seeded unit list is alphabetically headed by things like "bar",
+        // so this only passes because 'pc' is preferred over the first row.
+        UnitOfMeasure::create(['name' => 'Bar', 'abbreviation' => 'bar', 'type' => 'count']);
+
+        Livewire::test(AssetsIndex::class)
+            ->call('openCreate')
+            ->assertSet('uom_id', $this->piece->id);
+
+        // With nothing per-item named, alphabetical is no worse than before.
+        $this->piece->delete();
+
+        Livewire::test(AssetsIndex::class)
+            ->call('openCreate')
+            ->assertSet('uom_id', UnitOfMeasure::orderBy('name')->value('id'));
+    }
+
     public function test_a_category_still_holding_assets_is_not_deleted(): void
     {
         $this->actingAs($this->userWith(['assets.view', 'assets.manage', 'assets.delete']));

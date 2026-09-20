@@ -7,8 +7,12 @@ use App\Models\AssetCategory;
 use App\Models\AssetSupplier;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
+use App\Services\ImageStorageService;
+use App\Traits\RejectsUnpreviewableUploads;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 /**
@@ -24,7 +28,7 @@ use Livewire\WithPagination;
  */
 class Index extends Component
 {
-    use WithPagination;
+    use WithPagination, WithFileUploads, RejectsUnpreviewableUploads;
 
     public string $search         = '';
     public string $categoryFilter = '';
@@ -49,6 +53,21 @@ class Index extends Component
     public string $model             = '';
     public bool   $is_active         = true;
     public string $remark            = '';
+
+    /*
+     * The photograph: the pending upload, the one already stored, and whether
+     * Remove was pressed.
+     *
+     * REMOVE IS DEFERRED HERE, unlike EmployeeForm where it deletes on the
+     * spot. That form is a full page and the photo is a person's likeness, so
+     * "taken down" has to mean taken down. This is a modal with a Cancel button
+     * beside it, and a picture of a knife is not something anybody needs gone
+     * within the second — so Remove behaves the way everything else in this
+     * modal behaves, and Cancel puts it back.
+     */
+    public $image = null;
+    public ?string $imagePath = null;
+    public bool $removeImage  = false;
 
     /** Supplier rows inside the modal: [['supplier_id','supplier_sku','last_cost','is_preferred'], …] */
     public array $supplierLinks = [];
@@ -156,8 +175,25 @@ class Index extends Component
         abort_unless($this->canManage, 403);
 
         $this->resetForm();
-        $this->uom_id = UnitOfMeasure::orderBy('name')->value('id');
+        $this->uom_id    = $this->defaultUomId();
         $this->showModal = true;
+    }
+
+    /**
+     * The unit a new asset starts on.
+     *
+     * Alphabetical order gave "bar", which is a plausible unit for exactly
+     * nothing in an asset list — assets are counted in pieces, sets and pairs.
+     * Anything the company has actually named for a single item wins; failing
+     * that it falls back to alphabetical, which is no worse than before.
+     */
+    private function defaultUomId(): ?int
+    {
+        $preferred = UnitOfMeasure::whereIn('abbreviation', ['pc', 'pcs', 'unit', 'ea'])
+            ->orderByRaw("CASE abbreviation WHEN 'pc' THEN 1 WHEN 'pcs' THEN 2 WHEN 'unit' THEN 3 ELSE 4 END")
+            ->value('id');
+
+        return $preferred ?: UnitOfMeasure::orderBy('name')->value('id');
     }
 
     public function openEdit(int $id): void
@@ -174,6 +210,7 @@ class Index extends Component
         $this->model             = $asset->model ?? '';
         $this->is_active         = (bool) $asset->is_active;
         $this->remark            = $asset->remark ?? '';
+        $this->imagePath         = $asset->image_path;
 
         $this->supplierLinks = $asset->supplierLinks->map(fn ($l) => [
             'supplier_id'  => $l->supplier_id,
@@ -183,6 +220,47 @@ class Index extends Component
         ])->toArray();
 
         $this->showModal = true;
+    }
+
+    /**
+     * Make the photograph previewable the moment it lands, or refuse it politely.
+     *
+     * The modal draws the preview with $image->temporaryUrl(), and for an
+     * iPhone HEIC that call THROWS — a 500 on the render right after choosing
+     * the file, which then repeats on every later request because the poisoned
+     * upload rides along in the component state. EmployeeForm has the full
+     * account of how that presents; this is the same guard, and the reason
+     * every upload in this product goes through the trait.
+     */
+    public function updatedImage(): void
+    {
+        if (! is_object($this->image)) {
+            return;
+        }
+
+        try {
+            $this->image = $this->keepPreviewableUpload($this->image, 'image');
+        } catch (\Throwable $e) {
+            report($e);
+
+            $this->image = null;
+            $this->addError('image', 'That photo could not be read. iPhone tip: Settings → Camera → Formats → Most Compatible, or share it as JPEG.');
+        }
+
+        // Choosing a new picture is itself an answer to "remove the old one?".
+        if ($this->image) {
+            $this->removeImage = false;
+        }
+    }
+
+    /**
+     * Take the photograph off — on Save, not now. See the note on $removeImage.
+     */
+    public function clearImage(): void
+    {
+        $this->image       = null;
+        $this->removeImage = (bool) $this->imagePath;
+        $this->resetValidation('image');
     }
 
     public function addSupplierRow(): void
@@ -218,6 +296,21 @@ class Index extends Component
 
         $this->validate();
 
+        /*
+         * Validated here rather than in rules(), because rules() runs on every
+         * save and this one only makes sense when a file was actually chosen.
+         * Not Laravel's `image` rule — it asks getimagesize(), which does not
+         * know HEIC, so an iPhone sending originals would be told "must be an
+         * image" with no way to comply. ImageStorageService is the thing that
+         * has to read the file, so it is the thing that says what it accepts.
+         */
+        if ($this->image) {
+            $this->validate(['image' => ImageStorageService::uploadRule(5120)], [
+                'image.mimes' => ImageStorageService::uploadMessage(),
+                'image.max'   => 'The photo may not be larger than 5 MB.',
+            ]);
+        }
+
         $data = $this->withoutCostFields([
             'name'              => $this->name,
             'code'              => $this->code ?: null,
@@ -230,6 +323,25 @@ class Index extends Component
             'remark'            => $this->remark ?: null,
         ]);
 
+        /*
+         * The picture is settled before the write, so the row and the file can
+         * never disagree — and the OLD path is kept so it can be deleted after
+         * the write succeeds, not before. Deleting first and then failing to
+         * save would take the photograph with it and leave the asset pointing
+         * at nothing.
+         */
+        $replaced = null;
+
+        if ($this->image) {
+            $replaced           = $this->imagePath;
+            $data['image_path'] = ImageStorageService::storeCompressed(
+                $this->image, 'asset-photos/' . Auth::user()->company_id, 'public'
+            );
+        } elseif ($this->removeImage) {
+            $replaced           = $this->imagePath;
+            $data['image_path'] = null;
+        }
+
         if ($this->editingId) {
             $asset = Asset::findOrFail($this->editingId);
             $asset->update($data);
@@ -237,6 +349,15 @@ class Index extends Component
             $data['company_id'] = Auth::user()->company_id;
             $data['unit_cost'] ??= 0;
             $asset = Asset::create($data);
+        }
+
+        // Only once the row is safely on the new path. Skipped when something
+        // else still points at the same file — duplication can produce that.
+        if ($replaced && $replaced !== ($data['image_path'] ?? null)) {
+            if (! Asset::withoutGlobalScopes()->withTrashed()
+                    ->where('image_path', $replaced)->exists()) {
+                Storage::disk('public')->delete($replaced);
+            }
         }
 
         $this->saveSupplierLinks($asset);
@@ -298,6 +419,7 @@ class Index extends Component
         $this->reset([
             'editingId', 'name', 'code', 'asset_category_id', 'uom_id',
             'unit_cost', 'brand', 'model', 'remark', 'supplierLinks',
+            'image', 'imagePath', 'removeImage',
         ]);
         $this->is_active = true;
         $this->unit_cost = '0';

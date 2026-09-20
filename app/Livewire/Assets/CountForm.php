@@ -125,6 +125,7 @@ class CountForm extends Component
                 'asset_name'       => $line->asset?->name ?? '(Deleted asset)',
                 'code'             => $line->asset?->code,
                 'category'         => $line->asset?->category?->name,
+                'image'            => $line->asset?->imageUrl(),
                 'uom'              => $line->asset?->uom?->abbreviation ?? '',
                 'system_quantity'  => $systemQty,
                 'counted_quantity' => (string) floatval($line->counted_quantity),
@@ -232,6 +233,10 @@ class CountForm extends Component
             'asset_name'       => $asset->name,
             'code'             => $asset->code,
             'category'         => $asset->category?->name,
+            // Resolved here rather than in the view: a count sheet can carry
+            // hundreds of rows, and the blade would otherwise hold a model per
+            // row just to ask it for one URL.
+            'image'            => $asset->imageUrl(),
             'uom'              => $asset->uom?->abbreviation ?? '',
             'system_quantity'  => $systemQuantity,
             'counted_quantity' => '',

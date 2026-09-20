@@ -105,13 +105,19 @@
                 <div class="absolute z-20 mt-1 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg max-h-60">
                     @foreach ($searchResults as $item)
                         <button type="button" wire:click="addAsset({{ $item->id }})"
-                                class="flex w-full items-center justify-between border-b border-gray-50 px-4 py-2.5 text-left text-sm last:border-0 hover:bg-brand-50">
-                            <div>
-                                <span class="font-medium text-gray-700">{{ $item->name }}</span>
-                                @if ($item->code)<span class="ml-1 text-gray-600">({{ $item->code }})</span>@endif
-                                @if ($item->brand)
-                                    <span class="block text-xs text-gray-600">{{ $item->brand }} {{ $item->model }}</span>
+                                class="flex w-full items-center justify-between gap-3 border-b border-gray-50 px-4 py-2.5 text-left text-sm last:border-0 hover:bg-brand-50">
+                            <div class="flex min-w-0 items-center gap-2.5">
+                                @if ($item->image_path)
+                                    <img src="{{ $item->imageUrl() }}" alt="" loading="lazy"
+                                         class="h-8 w-8 flex-shrink-0 rounded-control border border-gray-200 object-cover" />
                                 @endif
+                                <div class="min-w-0">
+                                    <span class="font-medium text-gray-700">{{ $item->name }}</span>
+                                    @if ($item->code)<span class="ml-1 text-gray-600">({{ $item->code }})</span>@endif
+                                    @if ($item->brand)
+                                        <span class="block text-xs text-gray-600">{{ $item->brand }} {{ $item->model }}</span>
+                                    @endif
+                                </div>
                             </div>
                             <span class="text-xs text-gray-600">{{ $item->uom?->abbreviation }}</span>
                         </button>
