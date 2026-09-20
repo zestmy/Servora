@@ -13,6 +13,7 @@ use App\Models\UnitOfMeasure;
 use App\Services\ProcurementRoutingService;
 use App\Services\PurchaseRequestService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class PurchaseRequestForm extends Component
@@ -410,29 +411,46 @@ class PurchaseRequestForm extends Component
             $data['status'] = 'draft';
         }
 
-        if ($this->requestId) {
-            $pr = PurchaseRequest::findOrFail($this->requestId);
-            $pr->update($data);
-            $pr->lines()->delete();
-        } else {
-            $pr = PurchaseRequest::create($data);
-            $this->requestId = $pr->id;
-        }
+        /*
+         * The request and its lines are written together or not at all.
+         *
+         * Without this, a line that the database refuses leaves the request
+         * row behind on its own — which is exactly what happened when an
+         * asset line hit a `source` enum that had no 'asset' in it: an
+         * approved purchase request with nothing on it, sitting in the list.
+         * The edit path is worse than the create path, because it deletes the
+         * existing lines before writing the new ones.
+         */
+        $pr = DB::transaction(function () use ($data) {
+            if ($this->requestId) {
+                $pr = PurchaseRequest::findOrFail($this->requestId);
+                $pr->update($data);
+                $pr->lines()->delete();
+            } else {
+                $pr = PurchaseRequest::create($data);
+            }
 
-        foreach ($this->lines as $line) {
-            $pr->lines()->create([
-                'ingredient_id'        => $line['ingredient_id'] ?: null,
-                'asset_id'             => $line['asset_id'] ?? null,
-                'custom_name'          => $line['custom_name'] ?? null,
-                'quantity'             => $line['quantity'],
-                'uom_id'              => $line['uom_id'],
-                'preferred_supplier_id' => $line['preferred_supplier_id'] ?: null,
-                'source'               => $line['source'] ?? 'supplier',
-                'kitchen_id'           => $line['kitchen_id'] ?? null,
-                'notes'                => $line['notes'] ?? null,
-                'tax_rate_id'          => $line['tax_rate_id'] ?? null,
-            ]);
-        }
+            foreach ($this->lines as $line) {
+                $pr->lines()->create([
+                    'ingredient_id'        => $line['ingredient_id'] ?: null,
+                    'asset_id'             => $line['asset_id'] ?? null,
+                    'custom_name'          => $line['custom_name'] ?? null,
+                    'quantity'             => $line['quantity'],
+                    'uom_id'              => $line['uom_id'],
+                    'preferred_supplier_id' => $line['preferred_supplier_id'] ?: null,
+                    'source'               => $line['source'] ?? 'supplier',
+                    'kitchen_id'           => $line['kitchen_id'] ?? null,
+                    'notes'                => $line['notes'] ?? null,
+                    'tax_rate_id'          => $line['tax_rate_id'] ?? null,
+                ]);
+            }
+
+            return $pr;
+        });
+
+        // Only once the whole save is committed — a rolled-back create would
+        // otherwise leave the form pointing at a request that does not exist.
+        $this->requestId = $pr->id;
 
         $this->status = $pr->status;
 
