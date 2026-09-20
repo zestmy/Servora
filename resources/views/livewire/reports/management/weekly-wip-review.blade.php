@@ -1208,7 +1208,7 @@
 
                     <div class="overflow-x-auto">
                         @php $labourPct = collect($report['kpis'])->firstWhere('key', 'labour_cost')['share'] ?? null; @endphp
-                        <table class="table-surface min-w-full text-sm">
+                        <table class="table-surface wip-big min-w-full text-sm">
                             <thead>
                                 <tr>
                                     <th class="px-3 py-2 text-left">{{ $cw['range'] }}</th>
@@ -1250,7 +1250,7 @@
                 @php $labourRows = array_values(array_filter($report['outlets'], fn ($o) => $o['labour_cost']['current'] > 0 || $o['labour_cost']['previous'] > 0)); @endphp
                 @if ($labourRows !== [])
                     <div class="overflow-x-auto mt-5">
-                        <table class="table-surface min-w-full text-sm">
+                        <table class="table-surface wip-big min-w-full text-sm">
                             <thead>
                                 <tr>
                                     <th class="px-3 py-2 text-left">Outlet</th>
