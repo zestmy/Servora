@@ -178,7 +178,7 @@ class Index extends Component
 
         $headers = ['Metric'];
         foreach ($cats as $cat) {
-            $headers[] = $cat['name'];
+            $headers[] = $cat['short_name'] ?? $cat['name'];
         }
         $headers[] = 'Total';
 
