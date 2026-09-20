@@ -221,6 +221,9 @@
     .wip-presenting .wip-chart-34 { height: 34vh; }
     .wip-presenting .wip-chart-40 { height: 40vh; }
     .wip-presenting .table-surface { font-size: clamp(15px, 1.4vw, 30px); }
+    /* The widest table (sales performance: a column per day) buys its width
+       back from the gutters rather than from the type. */
+    .wip-presenting .table-surface.wip-tight :where(td, th) { padding-left: 0.3em; padding-right: 0.3em; }
     /* Short tables (a handful of rows) have the room to go bigger still. */
     .wip-presenting .table-surface.wip-big { font-size: clamp(18px, 1.8vw, 38px); }
     /* A long two-column list (the forecast): height is the limit, not width,
