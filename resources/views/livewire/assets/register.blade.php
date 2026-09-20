@@ -107,7 +107,9 @@
         {{-- The register itself --}}
         <div class="card overflow-hidden lg:col-span-3">
             <div class="overflow-x-auto">
-                <table class="table-surface min-w-[720px]">
+                {{-- +60px over the old 720: the thumbnail and its gap come out of the Asset
+                     column, and without this the value columns start squeezing first. --}}
+                <table class="table-surface min-w-[780px]">
                     <thead>
                         <tr>
                             <th class="px-4 py-3 text-left">Asset</th>
@@ -121,16 +123,48 @@
                         @forelse ($rows as $row)
                             <tr wire:key="reg-{{ $row['id'] }}" class="hover:bg-gray-50">
                                 <td class="px-4 py-3">
-                                    <span class="font-medium text-gray-700">{{ $row['name'] }}</span>
-                                    @if ($row['code'])
-                                        <span class="text-gray-600 ml-1">({{ $row['code'] }})</span>
-                                    @endif
-                                    @if ($row['brand'])
-                                        <span class="block text-xs text-gray-600">{{ $row['brand'] }}</span>
-                                    @endif
-                                    @unless ($row['is_active'])
-                                        <span class="badge-neutral ml-1">Inactive</span>
-                                    @endunless
+                                    {{-- Tap to enlarge, unlike the asset list. There the row
+                                         has an edit button that opens the photo full size in
+                                         the modal; the register has no such way in, so a
+                                         thumbnail on its own would be a dead end for anyone
+                                         wondering which mixing bowl the RM 1,224 belongs to. --}}
+                                    <div class="flex items-center gap-3" x-data="{ zoom: false }">
+                                        @if ($row['image'])
+                                            <button type="button" @click="zoom = true" title="View larger"
+                                                    class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-control border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                                                <img src="{{ $row['image'] }}" alt="" loading="lazy" class="h-full w-full object-cover" />
+                                            </button>
+
+                                            <template x-teleport="body">
+                                                <div x-show="zoom" x-cloak @keydown.escape.window="zoom = false"
+                                                     class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                                    <div class="fixed inset-0 bg-gray-900/70" @click="zoom = false"></div>
+                                                    <div class="relative max-h-full" @click.stop>
+                                                        <img src="{{ $row['image'] }}" alt="{{ $row['name'] }}"
+                                                             class="max-h-[80vh] max-w-[90vw] rounded-panel bg-white object-contain shadow-e4" />
+                                                        <p class="mt-3 text-center text-sm text-white/90">{{ $row['name'] }}</p>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        @else
+                                            <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control border border-gray-200 bg-gray-100">
+                                                <x-icon name="building" size="h-4 w-4" class="text-gray-400" />
+                                            </div>
+                                        @endif
+
+                                        <div class="min-w-0">
+                                            <span class="font-medium text-gray-700">{{ $row['name'] }}</span>
+                                            @if ($row['code'])
+                                                <span class="text-gray-600 ml-1">({{ $row['code'] }})</span>
+                                            @endif
+                                            @if ($row['brand'])
+                                                <span class="block text-xs text-gray-600">{{ $row['brand'] }}</span>
+                                            @endif
+                                            @unless ($row['is_active'])
+                                                <span class="badge-neutral ml-1">Inactive</span>
+                                            @endunless
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">
                                     <span class="inline-flex items-center gap-1.5">

@@ -131,6 +131,11 @@ class Register extends Component
                 'id'        => $asset->id,
                 'name'      => $asset->name,
                 'code'      => $asset->code,
+                // Resolved here, not in the view: the rows are plain arrays by
+                // the time the blade sees them, and holding a model per row
+                // just to ask it for one URL is what the row array exists to
+                // avoid.
+                'image'     => $asset->imageUrl(),
                 'brand'     => trim(($asset->brand ?? '') . ' ' . ($asset->model ?? '')),
                 'category'  => $categoryName,
                 'color'     => $asset->category?->color,

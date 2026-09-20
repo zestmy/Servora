@@ -81,9 +81,15 @@ sit on `local` behind an authorised route, while this is a picture of a knife,
 served directly so a count sheet can draw forty of them without forty authorised
 requests.
 
-It shows on the asset list, on the count sheet (tap to enlarge — 40px is not
-enough once you are down to which of two knives), and in every asset picker:
-the count form's, the receipt/disposal form's and the purchase request's.
+It shows on the asset list, on the register, on the count sheet, and in every
+asset picker: the count form's, the receipt/disposal form's and the purchase
+request's.
+
+The register and the count sheet enlarge on tap; the asset list does not, and
+the difference is deliberate. A list row has an edit button that opens the photo
+full size in the modal, so the thumbnail is a doorway. The register has no way
+in at all, and the count sheet is read by somebody standing in front of the
+thing — 40px is not enough once you are down to which of two knives.
 
 Uploads go through `RejectsUnpreviewableUploads` and `ImageStorageService`, like
 every other upload in the product: HEIC is converted on arrival so an iPhone

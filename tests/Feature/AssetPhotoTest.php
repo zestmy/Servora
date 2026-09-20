@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Assets\CountForm;
 use App\Livewire\Assets\Index as AssetsIndex;
+use App\Livewire\Assets\Register;
 use App\Models\Asset;
 use App\Models\Company;
 use App\Models\Outlet;
@@ -233,6 +234,35 @@ class AssetPhotoTest extends TestCase
             ->assertSet('lines.1.image', Storage::disk('public')->url($withPhoto->image_path));
 
         $this->assertNull($without->imageUrl());
+    }
+
+    /**
+     * The register carries it too, so the screen that says what a thing is
+     * worth can also show what it is.
+     */
+    public function test_the_register_carries_the_photo(): void
+    {
+        $withPhoto = $this->asset('MIXING BOWL', 'asset-photos/bowl.jpg');
+        $without   = $this->asset('CHEF KNIFE');
+
+        // The register only lists what is actually held, so give both a receipt.
+        $movement = \App\Models\AssetMovement::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'movement_type' => \App\Models\AssetMovement::TYPE_RECEIPT,
+            'movement_date' => now()->toDateString(), 'total_cost' => 0,
+        ]);
+        $movement->lines()->create(['asset_id' => $withPhoto->id, 'quantity' => 4, 'unit_cost' => 10, 'total_cost' => 40]);
+        $movement->lines()->create(['asset_id' => $without->id, 'quantity' => 2, 'unit_cost' => 10, 'total_cost' => 20]);
+
+        $rows = Livewire::test(Register::class)->viewData('rows')->items();
+
+        $byName = collect($rows)->keyBy('name');
+
+        $this->assertSame(
+            Storage::disk('public')->url($withPhoto->image_path),
+            $byName['MIXING BOWL']['image']
+        );
+        $this->assertNull($byName['CHEF KNIFE']['image']);
     }
 
     public function test_force_deleting_an_asset_takes_its_photo_with_it(): void
