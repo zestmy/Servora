@@ -46,7 +46,11 @@ class PurchaseDocumentPdfController extends Controller
         $pr = PurchaseRequest::with(['outlet', 'department', 'lines.ingredient', 'lines.asset', 'lines.uom', 'lines.preferredSupplier', 'createdBy', 'approvedBy'])->findOrFail($id);
         $this->authorizeOutlet($pr->outlet_id);
 
-        $pdf = Pdf::loadView('pdf.purchase-request', compact('pr', 'company'))
+        // One estimate, derived the same way the form derives it, so the
+        // printed sheet and the screen cannot disagree.
+        $linePrices = \App\Services\RequestPriceEstimator::forLines($pr->lines);
+
+        $pdf = Pdf::loadView('pdf.purchase-request', compact('pr', 'company', 'linePrices'))
             ->setPaper('a4', 'portrait');
 
         return $pdf->download("PR-{$pr->pr_number}.pdf");

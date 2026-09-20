@@ -142,6 +142,11 @@ class PurchaseRequestForm extends Component
                 'notes'                => $line->notes ?? '',
                 'tax_rate_id'          => $taxRate?->id,
                 'tax_label'            => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+                'est_price'            => \App\Services\RequestPriceEstimator::estimate(
+                    $line->ingredient_id,
+                    $line->asset_id,
+                    $line->preferred_supplier_id
+                ),
             ];
         }
     }
@@ -275,6 +280,11 @@ class PurchaseRequestForm extends Component
             'notes'                => '',
             'tax_rate_id'          => $taxRate?->id,
             'tax_label'            => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+            'est_price'            => \App\Services\RequestPriceEstimator::estimate(
+                $ingredient->id,
+                null,
+                $isPrep ? null : $preferred?->id
+            ),
         ];
 
         $this->ingredientSearch = '';
@@ -325,6 +335,11 @@ class PurchaseRequestForm extends Component
             'notes'                 => '',
             'tax_rate_id'           => null,
             'tax_label'             => null,
+            'est_price'             => \App\Services\RequestPriceEstimator::estimate(
+                null,
+                $asset->id,
+                $preferred?->id
+            ),
         ];
     }
 
@@ -342,8 +357,33 @@ class PurchaseRequestForm extends Component
     {
         $parts = explode('.', $key);
 
-        if (count($parts) === 2 && $parts[1] === 'quantity') {
-            $this->lines[(int) $parts[0]]['quantity'] = round((float) $value, 1);
+        if (count($parts) !== 2) {
+            return;
+        }
+
+        [$index, $field] = [(int) $parts[0], $parts[1]];
+
+        if ($field === 'quantity') {
+            $this->lines[$index]['quantity'] = round((float) $value, 1);
+            return;
+        }
+
+        /*
+         * The estimate is only as good as the supplier it was read against,
+         * so changing the supplier has to re-read it — otherwise the row
+         * keeps whatever the previous supplier last charged and quietly
+         * misstates the total.
+         */
+        if ($field === 'preferred_supplier_id') {
+            $line = $this->lines[$index] ?? null;
+
+            if ($line) {
+                $this->lines[$index]['est_price'] = \App\Services\RequestPriceEstimator::estimate(
+                    $line['ingredient_id'] ?? null,
+                    $line['asset_id'] ?? null,
+                    $value ? (int) $value : null
+                );
+            }
         }
     }
 

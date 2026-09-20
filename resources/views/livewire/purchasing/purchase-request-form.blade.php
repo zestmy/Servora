@@ -250,6 +250,12 @@
                             <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ number_format(collect($lines)->sum('quantity'), 1) }}</p>
                         </div>
                         <div>
+                            <p class="stat-label">Estimated value</p>
+                            <p class="text-sm font-semibold text-gray-800 tabular-nums">
+                                {{ number_format(collect($lines)->sum(fn ($l) => floatval($l['est_price'] ?? 0) * floatval($l['quantity'] ?? 0)), 2) }}
+                            </p>
+                        </div>
+                        <div>
                             <p class="stat-label">Suppliers</p>
                             <p class="text-sm font-semibold text-gray-800 tabular-nums">{{ collect($lines)->pluck('preferred_supplier_id')->filter()->unique()->count() }}</p>
                         </div>
@@ -270,12 +276,17 @@
                         <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left">#</th>
+                                {{-- The supplier moved into this column, on its own line under
+                                     the name: it belongs to the item rather than being a fact
+                                     of its own, and the row was wide enough that the numbers
+                                     that matter were being pushed off the side. --}}
                                 <th class="px-4 py-3 text-left">Product</th>
                                 <th class="px-4 py-3 text-center w-20">Par Level</th>
                                 <th class="px-4 py-3 text-center w-28">Quantity</th>
                                 <th class="px-4 py-3 text-left w-28">UOM</th>
+                                <th class="px-4 py-3 text-right w-28">Price</th>
+                                <th class="px-4 py-3 text-right w-28">Total</th>
                                 <th class="px-4 py-3 text-center w-24">Tax</th>
-                                <th class="px-4 py-3 text-left w-40">Preferred Supplier</th>
                                 @if ($isEditable)
                                     <th class="px-4 py-3 w-12"></th>
                                 @endif
@@ -297,6 +308,21 @@
                                                 <span class="ml-1 px-1.5 py-0.5 bg-danger-100 text-danger-700 text-[10px] rounded font-medium" title="Assign a central kitchen for this branch in Settings ▸ Branches">No kitchen</span>
                                             @endif
                                         @endif
+
+                                        {{-- Preferred supplier, under the name it belongs to. --}}
+                                        <div class="mt-1">
+                                            @if ($isEditable)
+                                                <select wire:model.live="lines.{{ $i }}.preferred_supplier_id"
+                                                        class="input py-1 text-xs max-w-[15rem]">
+                                                    <option value="">— No preferred supplier —</option>
+                                                    @foreach ($suppliers as $s)
+                                                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @elseif (! empty($line['supplier_name']))
+                                                <span class="text-xs text-gray-600">{{ $line['supplier_name'] }}</span>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3 text-center text-gray-600">
                                         {{ $line['par_level'] > 0 ? number_format($line['par_level'], 2) : '—' }}
@@ -322,6 +348,23 @@
                                             {{ $uoms->firstWhere('id', $line['uom_id'])?->abbreviation ?? '' }}
                                         @endif
                                     </td>
+                                    {{-- An estimate, never typed and never saved: the price is
+                                         settled on the purchase order. Shown so an approver can
+                                         see roughly what they are approving. --}}
+                                    <td class="px-4 py-3 text-right tabular-nums text-gray-600">
+                                        @if (floatval($line['est_price'] ?? 0) > 0)
+                                            {{ number_format(floatval($line['est_price']), 2) }}
+                                        @else
+                                            <span class="text-gray-500">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-700">
+                                        @if (floatval($line['est_price'] ?? 0) > 0)
+                                            {{ number_format(floatval($line['est_price']) * floatval($line['quantity'] ?? 0), 2) }}
+                                        @else
+                                            <span class="text-gray-500 font-normal">—</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-3 text-center">
                                         @if (!empty($line['tax_label']))
                                             <span class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded
@@ -332,19 +375,7 @@
                                             <span class="text-gray-500 text-xs">—</span>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3">
-                                        @if ($isEditable)
-                                            <select wire:model="lines.{{ $i }}.preferred_supplier_id"
-                                                    class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                                                <option value="">— None —</option>
-                                                @foreach ($suppliers as $s)
-                                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        @else
-                                            {{ $line['supplier_name'] ?? '—' }}
-                                        @endif
-                                    </td>
+
                                     @if ($isEditable)
                                         <td class="px-4 py-3 text-center">
                                             <button wire:click="removeLine({{ $i }})" class="text-danger-400 hover:text-danger-600 transition">
@@ -355,7 +386,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-4 py-8 text-center text-gray-600">
+                                    <td colspan="{{ $isEditable ? 9 : 8 }}" class="px-4 py-8 text-center text-gray-600">
                                         No ingredients added. Use the search above to add items.
                                     </td>
                                 </tr>
