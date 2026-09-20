@@ -169,7 +169,11 @@ class CostSummaryService
 
             $row = [
                 'id'            => 'dept-' . $dept->id,
+                // Named for the P&L, where it sits among sales categories and has
+                // to say what it is measured against. Screens with room for a
+                // note under the name use short_name instead.
                 'name'          => $dept->name . ' · total sales',
+                'short_name'    => $dept->name,
                 'color'         => null,
                 'type'          => null,
                 'basis'         => 'total_sales',

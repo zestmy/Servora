@@ -382,7 +382,7 @@
                                 $net = $r['transfer_in'] - $r['transfer_out'];
                             @endphp
                             <tr>
-                                <td style="font-weight: bold; {{ $b }}">{{ $r['name'] }}@if (($r['basis'] ?? null) === 'total_sales')<div style="font-size: 7pt; font-weight: normal; color: #64748b;">measured against total sales</div>@endif</td>
+                                <td style="font-weight: bold; {{ $b }}">{{ $r['short_name'] ?? $r['name'] }}@if (($r['basis'] ?? null) === 'total_sales')<div style="font-size: 7pt; font-weight: normal; color: #64748b;">measured against total sales</div>@endif</td>
                                 <td class="right" style="{{ $b }}">{{ $num($r['revenue']) }}</td>
                                 <td class="right" style="{{ $b }}">{{ $num($r['opening_stock']) }}</td>
                                 <td class="right" style="{{ $b }}">{{ $num($r['purchases']) }}</td>

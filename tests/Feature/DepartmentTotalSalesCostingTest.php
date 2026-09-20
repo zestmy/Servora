@@ -93,6 +93,7 @@ class DepartmentTotalSalesCostingTest extends TestCase
 
         $consumable = $rows['Consumable · total sales'];
         $this->assertSame('total_sales', $consumable['basis']);
+        $this->assertSame('Consumable', $consumable['short_name'], 'Screens with a note under the name use the plain one.');
         $this->assertEquals(1500, $consumable['revenue'], 'Measured against every sale, not one category.');
         $this->assertEquals(150, $consumable['cogs']);
         $this->assertEquals(10.0, $consumable['cost_pct'], '150 of 1,500.');

@@ -742,7 +742,7 @@
                                     @endphp
                                     <tr wire:key="cs-{{ $loop->index }}" class="{{ $isTotal ? 'wip-emph' : '' }}">
                                         <td class="px-3 py-2 wip-label">
-                                            {{ $r['name'] }}
+                                            {{ $r['short_name'] ?? $r['name'] }}
                                             @if (($r['basis'] ?? null) === 'total_sales')
                                                 <span class="block text-[11px] font-normal text-gray-500">measured against total sales</span>
                                             @endif
