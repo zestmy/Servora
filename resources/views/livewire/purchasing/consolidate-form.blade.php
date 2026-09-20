@@ -115,7 +115,7 @@
                                                 @endif
                                             </button>
                                         </td>
-                                        <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}</td>
+                                        <td class="px-4 py-2 font-medium text-gray-800">{{ $line['ingredient_name'] }}@if (! empty($line['asset_id']))<span class="ml-1 px-1.5 py-0.5 bg-info-100 text-info-700 text-[10px] rounded font-medium">Asset</span>@endif</td>
                                         <td class="px-4 py-2">
                                             <input type="number" step="0.01" min="0.01"
                                                    wire:model.blur="editablePreview.{{ $gIdx }}.lines.{{ $lIdx }}.quantity"
@@ -307,15 +307,14 @@
                             {{ $kitchenLineCount }} item(s) are kitchen-made — they were routed to Central Kitchen production instead of a supplier order.
                         </div>
                     @endif
-                    {{-- Said out loud rather than left to be noticed: an asset line
-                         is not ordered through a food PO, it is bought and then
-                         booked in on Assets > Receipts. A line that vanished from
-                         this preview in silence is a request that gets approved
-                         and then forgotten about. --}}
+                    {{-- Assets are ordered here like anything else. What is worth
+                         saying is what happens AFTER the order: they are received
+                         into the asset register rather than into stock, and this
+                         is the last screen before that is set in motion. --}}
                     @if ($assetLineCount > 0)
                         <div class="mb-3 px-3 py-2 bg-info-50 border border-info-200 rounded-lg text-xs text-info-700">
-                            {{ $assetLineCount }} item(s) are assets — they are not consolidated into a supplier order.
-                            Buy them, then record what arrived under
+                            {{ $assetLineCount }} item(s) are assets. They are ordered on these purchase orders like
+                            anything else, but when the delivery is received they go into the asset register, not into stock —
                             {{-- A link only for somebody who can actually open it. Consolidating
                                  is purchasing.consolidate; the asset records are assets.view, and
                                  a link across that boundary is a 403 with no warning. --}}
@@ -339,7 +338,7 @@
                                 <div class="space-y-1">
                                     @foreach ($po['lines'] as $line)
                                         <div class="flex justify-between text-xs text-gray-500">
-                                            <span>{{ $line['ingredient_name'] }}</span>
+                                            <span>{{ $line['ingredient_name'] }}@if (! empty($line['asset_id']))<span class="ml-1 px-1.5 py-0.5 bg-info-100 text-info-700 text-[10px] rounded font-medium">Asset</span>@endif</span>
                                             <span class="tabular-nums">{{ number_format($line['quantity'], 2) }} {{ $line['uom'] }} · RM {{ number_format($line['total_cost'] ?? 0, 2) }}</span>
                                         </div>
                                     @endforeach

@@ -48,11 +48,48 @@ class PurchaseRequestService
      * @param  int  $cpuId
      * @return array  Created PurchaseOrder IDs
      */
+    /**
+     * What makes two consolidated lines the same line.
+     *
+     * Grouping on ingredient_id alone put every asset in the one null bucket,
+     * so a consolidation covering a mixer and an oven merged them into a
+     * single order line — the quantities added together and one of the two
+     * simply stopped existing.
+     */
+    private static function mergeKey(array $line): string
+    {
+        $asset = $line['asset_id'] ?? null;
+
+        return $asset ? 'asset:' . $asset : 'ingredient:' . (int) ($line['ingredient_id'] ?? 0);
+    }
+
+    /**
+     * What a supplier last charged for an asset, keyed by asset id.
+     *
+     * Assets keep their prices in `asset_suppliers`, not in the
+     * `supplier_ingredients` table the rest of this service reads — asking
+     * the wrong one returns nothing, and every asset consolidates at zero.
+     *
+     * @param  array<int, int>  $assetIds
+     * @return array<int, float>
+     */
+    private static function assetCosts(int $supplierId, array $assetIds): array
+    {
+        if ($assetIds === []) {
+            return [];
+        }
+
+        return \App\Models\AssetSupplier::where('supplier_id', $supplierId)
+            ->whereIn('asset_id', $assetIds)
+            ->pluck('last_cost', 'asset_id')
+            ->map(fn ($c) => floatval($c))
+            ->all();
+    }
     public static function consolidate(array $purchaseRequestIds, int $cpuId): array
     {
         return DB::transaction(function () use ($purchaseRequestIds, $cpuId) {
             $cpu = CentralPurchasingUnit::findOrFail($cpuId);
-            $prs = PurchaseRequest::with('lines.ingredient', 'lines.uom')
+            $prs = PurchaseRequest::with('lines.ingredient', 'lines.asset', 'lines.uom')
                 ->whereIn('id', $purchaseRequestIds)
                 ->where('status', PurchaseRequest::STATUS_APPROVED)
                 ->get();
@@ -72,14 +109,12 @@ class PurchaseRequestService
 
             foreach ($prs as $pr) {
                 foreach ($pr->lines as $line) {
-                    // An asset line has no ingredient, so it was already being
-                    // skipped by the next test. Named here so the reason is on
-                    // the page: assets are received into the asset register,
-                    // not ordered through a food PO — see the migration that
-                    // added purchase_request_lines.asset_id.
-                    if ($line->asset_id) continue;
-                    if (! $line->ingredient_id) continue;       // skip custom items
-                    if ($line->source === 'kitchen') continue;  // handled above
+                    // An asset consolidates like anything else — it is bought
+                    // from a supplier on a purchase order. It parts company at
+                    // receiving, where it goes into the asset register rather
+                    // than into stock; see AssetReceiptFromGrnService.
+                    if (! $line->ingredient_id && ! $line->asset_id) continue;  // hand-typed items
+                    if ($line->source === 'kitchen') continue;                  // handled above
 
                     $supplierId = $line->preferred_supplier_id ?? 0;
                     if (!$linesBySupplier->has($supplierId)) {
@@ -89,9 +124,11 @@ class PurchaseRequestService
                         'pr_id'         => $pr->id,
                         'outlet_id'     => $pr->outlet_id,
                         'ingredient_id' => $line->ingredient_id,
+                        'asset_id'      => $line->asset_id,
                         'quantity'      => $line->quantity,
                         'uom_id'        => $line->uom_id,
                         'ingredient'    => $line->ingredient,
+                        'asset'         => $line->asset,
                     ]);
                 }
             }
@@ -103,13 +140,15 @@ class PurchaseRequestService
                 }
 
                 // Merge same ingredient quantities
-                $merged = $lines->groupBy('ingredient_id')->map(function ($group) {
+                $merged = $lines->groupBy(fn ($l) => self::mergeKey($l))->map(function ($group) {
                     $first = $group->first();
                     return [
                         'ingredient_id' => $first['ingredient_id'],
+                        'asset_id'      => $first['asset_id'] ?? null,
                         'quantity'      => $group->sum('quantity'),
                         'uom_id'       => $first['uom_id'],
                         'ingredient'    => $first['ingredient'],
+                        'asset'         => $first['asset'] ?? null,
                     ];
                 });
 
@@ -119,8 +158,13 @@ class PurchaseRequestService
 
                 // Look up supplier costs
                 $supplierCosts = SupplierIngredient::where('supplier_id', $supplierId)
-                    ->whereIn('ingredient_id', $merged->pluck('ingredient_id'))
+                    ->whereIn('ingredient_id', $merged->pluck('ingredient_id')->filter())
                     ->pluck('last_cost', 'ingredient_id');
+
+                $assetCosts = self::assetCosts(
+                    (int) $supplierId,
+                    $merged->pluck('asset_id')->filter()->map(fn ($id) => (int) $id)->all()
+                );
 
                 // Generate PO number
                 $date = Carbon::now()->format('Ymd');
@@ -141,13 +185,15 @@ class PurchaseRequestService
                 $subtotal = 0;
                 $poLines = [];
                 foreach ($merged as $item) {
-                    $unitCost = $supplierCosts[$item['ingredient_id'] ?? 0]
-                        ?? ($item['ingredient']?->purchase_price ?? 0);
+                    $unitCost = $item['asset_id']
+                        ? ($assetCosts[(int) $item['asset_id']] ?? floatval($item['asset']?->unit_cost ?? 0))
+                        : ($supplierCosts[$item['ingredient_id'] ?? 0] ?? ($item['ingredient']?->purchase_price ?? 0));
                     $totalCost = round($item['quantity'] * $unitCost, 4);
                     $subtotal += $totalCost;
 
                     $poLines[] = [
                         'ingredient_id' => $item['ingredient_id'],
+                        'asset_id'      => $item['asset_id'],
                         'quantity'      => $item['quantity'],
                         'uom_id'       => $item['uom_id'],
                         'unit_cost'    => $unitCost,
@@ -307,7 +353,7 @@ class PurchaseRequestService
      */
     public static function consolidationPreviewWithCosts(array $purchaseRequestIds): array
     {
-        $prs = PurchaseRequest::with('lines.ingredient.taxRate', 'lines.preferredSupplier', 'lines.uom', 'outlet')
+        $prs = PurchaseRequest::with('lines.ingredient.taxRate', 'lines.asset', 'lines.preferredSupplier', 'lines.uom', 'outlet')
             ->whereIn('id', $purchaseRequestIds)
             ->where('status', PurchaseRequest::STATUS_APPROVED)
             ->get();
@@ -320,6 +366,15 @@ class PurchaseRequestService
         $supplierIngredients = SupplierIngredient::whereIn('ingredient_id', $ingredientIds)->get();
         foreach ($supplierIngredients as $si) {
             $costLookup[$si->ingredient_id][$si->supplier_id] = floatval($si->last_cost);
+        }
+
+        // The same, for assets. They price out of `asset_suppliers`, which is
+        // a different table from the one above — reading the wrong one shows
+        // every asset on the preview at zero.
+        $assetIds = $prs->flatMap(fn ($pr) => $pr->lines->pluck('asset_id'))->filter()->unique()->values();
+        $assetCostLookup = [];
+        foreach (\App\Models\AssetSupplier::whereIn('asset_id', $assetIds)->get() as $as) {
+            $assetCostLookup[$as->asset_id][$as->supplier_id] = floatval($as->last_cost);
         }
 
         // Tax info per ingredient
@@ -340,8 +395,8 @@ class PurchaseRequestService
         $assetLineCount   = 0;
         foreach ($prs as $pr) {
             foreach ($pr->lines as $line) {
-                if ($line->asset_id) { $assetLineCount++; continue; }
-                if (! $line->ingredient_id) continue;
+                if ($line->asset_id) { $assetLineCount++; }
+                if (! $line->ingredient_id && ! $line->asset_id) continue;
                 if ($line->source === 'kitchen') { $kitchenLineCount++; continue; }
 
                 $supplierId = $line->preferred_supplier_id ?? 0;
@@ -356,8 +411,15 @@ class PurchaseRequestService
 
                 // Merge same ingredient
                 $found = false;
+                $lineKey = self::mergeKey([
+                    'ingredient_id' => $line->ingredient_id,
+                    'asset_id'      => $line->asset_id,
+                ]);
+
                 foreach ($groups[$supplierId]['lines'] as &$existing) {
-                    if ($existing['ingredient_id'] === $line->ingredient_id) {
+                    // Comparing ingredient_id alone matched every asset line
+                    // against every other, because they are all null.
+                    if (self::mergeKey($existing) === $lineKey) {
                         $existing['quantity'] += floatval($line->quantity);
                         $found = true;
                         break;
@@ -366,14 +428,23 @@ class PurchaseRequestService
                 unset($existing);
 
                 if (! $found) {
-                    $unitCost = $costLookup[$line->ingredient_id][$supplierId] ?? floatval($line->ingredient?->purchase_price ?? 0);
-                    $tax = $taxLookup[$line->ingredient_id] ?? null;
+                    $isAsset = (bool) $line->asset_id;
+
+                    // An asset prices off its own supplier link, falling back
+                    // to the catalogue cost, and carries no tax rate — the
+                    // request never captured one for it.
+                    $unitCost = $isAsset
+                        ? ($assetCostLookup[$line->asset_id][$supplierId] ?? floatval($line->asset?->unit_cost ?? 0))
+                        : ($costLookup[$line->ingredient_id][$supplierId] ?? floatval($line->ingredient?->purchase_price ?? 0));
+
+                    $tax = $isAsset ? null : ($taxLookup[$line->ingredient_id] ?? null);
                     $totalCost = round(floatval($line->quantity) * $unitCost, 4);
 
                     $groups[$supplierId]['lines'][] = [
-                        'key'             => $line->ingredient_id . '-' . $supplierId,
+                        'key'             => ($isAsset ? 'a' . $line->asset_id : $line->ingredient_id) . '-' . $supplierId,
                         'ingredient_id'   => $line->ingredient_id,
-                        'ingredient_name' => $line->ingredient?->name ?? '—',
+                        'asset_id'        => $line->asset_id,
+                        'ingredient_name' => $line->displayName(),
                         'quantity'        => floatval($line->quantity),
                         'uom'             => $line->uom?->abbreviation ?? '',
                         'uom_id'          => $line->uom_id,
@@ -384,7 +455,7 @@ class PurchaseRequestService
                         'tax_label'       => $tax['label'] ?? null,
                         'tax_rate_pct'    => $tax['rate'] ?? 0,
                         'tax_amount'      => $tax ? round($totalCost * ($tax['rate'] / 100), 4) : 0,
-                        'source'          => 'supplier',
+                        'source'          => $isAsset ? 'asset' : 'supplier',
                         'excluded'        => false,
                     ];
                 }
@@ -412,16 +483,20 @@ class PurchaseRequestService
         return [
             'groups'             => array_values($groups),
             'cost_lookup'        => $costLookup,
+            // Assets price out of a different table, so moving one to another
+            // supplier on the preview needs its own lookup or the row keeps
+            // the first supplier's price.
+            'asset_cost_lookup'  => $assetCostLookup,
             'tax_lookup'         => $taxLookup,
             'supplier_options'   => $supplierOptions,
             'kitchen_options'    => $kitchenOptions,
             // Lines routed to kitchen production instead of supplier POs —
             // surfaced in the preview so their absence is explained.
             'kitchen_line_count' => $kitchenLineCount,
-            // Asset lines, same reason. They are received through the asset
-            // register rather than a food PO, and a line that disappeared from
-            // this preview with nothing said is how a request gets approved and
-            // then forgotten.
+            // Asset lines are consolidated like everything else now. The count
+            // stays because they behave differently AFTER the order: they are
+            // received into the asset register rather than into stock, and the
+            // preview is the last screen before that is decided.
             'asset_line_count'   => $assetLineCount,
         ];
     }
@@ -438,7 +513,7 @@ class PurchaseRequestService
             // Kitchen-sourced lines are excluded from the editable preview, so
             // handle them here (same as the non-edit consolidate path) to avoid
             // silently dropping them when the PRs are marked converted below.
-            $prs = PurchaseRequest::with('lines.ingredient')
+            $prs = PurchaseRequest::with('lines.ingredient', 'lines.asset')
                 ->whereIn('id', $purchaseRequestIds)
                 ->where('status', PurchaseRequest::STATUS_APPROVED)
                 ->get();
@@ -452,10 +527,14 @@ class PurchaseRequestService
                 if ($activeLines->isEmpty()) continue;
 
                 // Merge same ingredients (in case of regrouping)
-                $merged = $activeLines->groupBy('ingredient_id')->map(function ($items) {
+                // Keyed on what the line points at. Regrouping on
+                // ingredient_id alone folded every asset in the group into
+                // one line, since they all carry a null one.
+                $merged = $activeLines->groupBy(fn ($l) => self::mergeKey($l))->map(function ($items) {
                     $first = $items->first();
                     return [
                         'ingredient_id' => $first['ingredient_id'],
+                        'asset_id'      => $first['asset_id'] ?? null,
                         'quantity'      => $items->sum('quantity'),
                         'uom_id'        => $first['uom_id'],
                         'unit_cost'     => floatval($first['unit_cost']),
@@ -490,6 +569,7 @@ class PurchaseRequestService
 
                     $poLines[] = [
                         'ingredient_id' => $item['ingredient_id'],
+                        'asset_id'      => $item['asset_id'],
                         'quantity'      => $item['quantity'],
                         'uom_id'        => $item['uom_id'],
                         'unit_cost'     => $item['unit_cost'],

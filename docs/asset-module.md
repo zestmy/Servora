@@ -150,9 +150,9 @@ editing, so the records list hides the links it cannot follow.
 
 An asset can be asked for on an ordinary purchase request — same screen, same
 approver, same queue as a request for flour. The line carries `asset_id` and no
-`ingredient_id`, which is what keeps it out of a **consolidated** food PO:
-both consolidation paths in `PurchaseRequestService` skip a line without an
-ingredient. (A direct PR → PO conversion does now carry it — see below.)
+`ingredient_id`. That used to be what kept it out of a purchase order
+entirely; it is now simply how a line says which of the two things it is.
+Both the direct PR → PO conversion and CPU consolidation carry it.
 The consolidation preview **counts** them (`asset_line_count`) and says so on
 screen, because a line that vanishes without a word is how a request gets
 approved and then forgotten.
@@ -221,10 +221,36 @@ The invoice auto-generated from the GRN **does** carry asset lines. Its header
 total is summed from every GRN line, so excluding them from the lines alone
 would produce an invoice that does not add up to itself.
 
-**Still not threaded through**: credit notes for assets (`CreditNoteLine` has
-no `asset()` relation, and the credit-note PDF deliberately does not eager-load
-one), and CPU consolidation — which still skips asset lines, so a consolidated
-order does not carry them the way a direct conversion does.
+### Consolidation — phase three (2026-09-21)
+
+CPU consolidation carries asset lines too. It was the last place where the
+same request behaved differently depending on the route it took: converting a
+request directly ordered the mixer, consolidating the identical request
+dropped it.
+
+There are **three separate merge points** in `PurchaseRequestService` and all
+three had the same flaw — `consolidate()`, `consolidationPreviewWithCosts()`
+(what the screen renders) and `consolidateFromCustomized()` (what runs when
+that preview is confirmed). Each grouped lines on `ingredient_id`, which is
+null on every asset, so a consolidation covering a mixer and an oven merged
+them into one order line: the quantities added together and one of the two
+stopped existing. `PurchaseRequestService::mergeKey()` is what to group on.
+
+**Assets price out of `asset_suppliers`, not `supplier_ingredients`.** The
+rest of the service reads the latter; asking it about an asset returns
+nothing and every asset consolidates at zero. There is an `assetCosts()`
+helper for the service and an `asset_cost_lookup` handed to the screen, so
+moving an asset to another supplier on the preview re-prices it instead of
+keeping the first supplier's figure.
+
+The preview still counts asset lines, but the notice now says what happens
+*after* the order rather than claiming they are left out of it: they are
+ordered like anything else and received into the register rather than into
+stock.
+
+**Still not threaded through**: credit notes for assets. `CreditNoteLine` has
+no `asset()` relation, and the credit-note PDF deliberately does not
+eager-load one — so returning a faulty mixer to a supplier is not supported.
 
 ## Not in v1
 

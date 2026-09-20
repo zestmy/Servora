@@ -125,11 +125,17 @@ class AssetPurchaseRequestTest extends TestCase
     }
 
     /**
-     * The whole safety argument for riding on the existing request: an asset
-     * line has no ingredient, and both consolidation paths already skip a line
-     * without one. This fails loudly if that ever stops being true.
+     * Consolidation carries the asset now.
+     *
+     * This test was originally the safety argument for the opposite rule —
+     * that an asset line has no ingredient and every consolidation path
+     * therefore skipped it. That was true until consolidation was taught to
+     * carry assets, so that the same request stops behaving differently
+     * depending on whether it was converted directly or consolidated. The
+     * merge and pricing rules it now depends on are covered in full by
+     * ConsolidateAssetLinesTest.
      */
-    public function test_consolidation_makes_no_purchase_order_for_an_asset_line(): void
+    public function test_consolidation_orders_an_asset_line(): void
     {
         $supplier = Supplier::create([
             'company_id' => $this->company->id, 'name' => 'Kitchen Kit Sdn Bhd', 'is_active' => true,
@@ -152,16 +158,20 @@ class AssetPurchaseRequestTest extends TestCase
 
         $preview = PurchaseRequestService::consolidationPreviewWithCosts([$pr->id]);
 
-        $this->assertSame(1, $preview['asset_line_count'], 'The preview has to say the line was left behind.');
-        $this->assertSame([], $preview['groups'], 'An asset-only request produces no supplier group.');
+        $this->assertSame(1, $preview['asset_line_count'],
+            'Still counted, so the screen can say what happens to it after the order.');
+        $this->assertCount(1, $preview['groups'], 'An asset-only request now produces a supplier group.');
 
-        $created = PurchaseRequestService::consolidate([$pr->id], $cpu->id);
+        PurchaseRequestService::consolidate([$pr->id], $cpu->id);
 
-        $this->assertSame([], $created);
-        $this->assertSame(0, PurchaseOrder::count());
+        $po = PurchaseOrder::with('lines')->firstOrFail();
+
+        $this->assertCount(1, $po->lines);
+        $this->assertSame($mixer->id, (int) $po->lines->first()->asset_id);
+        $this->assertNull($po->lines->first()->ingredient_id);
     }
 
-    public function test_an_ingredient_on_the_same_request_still_consolidates(): void
+    public function test_an_ingredient_and_an_asset_both_consolidate(): void
     {
         $supplier = Supplier::create([
             'company_id' => $this->company->id, 'name' => 'Dry Goods Sdn Bhd', 'is_active' => true,
@@ -197,8 +207,12 @@ class AssetPurchaseRequestTest extends TestCase
 
         $po = PurchaseOrder::firstOrFail();
 
-        $this->assertSame(1, $po->lines()->count(), 'The flour is ordered; the mixer is not.');
-        $this->assertSame($flour->id, (int) $po->lines()->first()->ingredient_id);
+        // Both are ordered, from the one supplier they share, and they stay
+        // two lines — the mixer's null ingredient_id must not fold it into
+        // the flour.
+        $this->assertSame(2, $po->lines()->count());
+        $this->assertSame($flour->id, (int) $po->lines()->whereNotNull('ingredient_id')->first()->ingredient_id);
+        $this->assertSame($mixer->id, (int) $po->lines()->whereNotNull('asset_id')->first()->asset_id);
     }
 
     /**

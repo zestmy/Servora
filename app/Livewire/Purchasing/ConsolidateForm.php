@@ -24,6 +24,7 @@ class ConsolidateForm extends Component
     public int   $kitchenLineCount  = 0;
     public int   $assetLineCount    = 0;
     public array $costLookup        = [];
+    public array $assetCostLookup   = [];
     public array $taxLookup         = [];
 
     public function mount(): void
@@ -71,6 +72,7 @@ class ConsolidateForm extends Component
 
         $this->editablePreview  = $data['groups'];
         $this->costLookup       = $data['cost_lookup'];
+        $this->assetCostLookup  = $data['asset_cost_lookup'] ?? [];
         $this->taxLookup        = $data['tax_lookup'];
         $this->supplierOptions  = $data['supplier_options'];
         $this->kitchenOptions   = $data['kitchen_options'];
@@ -109,11 +111,15 @@ class ConsolidateForm extends Component
         if (! isset($this->editablePreview[$groupIdx]['lines'][$lineIdx])) return;
 
         $line = &$this->editablePreview[$groupIdx]['lines'][$lineIdx];
-        $ingredientId = $line['ingredient_id'];
 
-        // Update supplier and cost
+        // Update supplier and cost. An asset's price lives in a different
+        // table from an ingredient's, so it needs its own lookup — reading
+        // the ingredient one leaves the row at the previous supplier's price.
         $line['supplier_id'] = $newSupplierId;
-        $line['unit_cost'] = $this->costLookup[$ingredientId][$newSupplierId] ?? $line['unit_cost'];
+
+        $line['unit_cost'] = ! empty($line['asset_id'])
+            ? ($this->assetCostLookup[$line['asset_id']][$newSupplierId] ?? $line['unit_cost'])
+            : ($this->costLookup[$line['ingredient_id']][$newSupplierId] ?? $line['unit_cost']);
         $this->recalcLine($groupIdx, $lineIdx);
 
         // Regroup after supplier change
