@@ -103,6 +103,32 @@ immediately — this is a modal with a Cancel beside it, and a picture of a knif
 is not something anybody needs gone within the second. Replacing one deletes the
 file it replaced, but only after the row is safely on the new path.
 
+## The printed count sheet
+
+`assets.counts.count-sheet` → `AssetCountSheetController` → `pdf.asset-count-sheet`.
+Built like the ingredient count sheet, with the one thing that sheet has no use
+for: **a photograph per row**. That is why this is worth printing rather than
+reading names off a tablet.
+
+Grouped by top-level category in the same order the form builds the sheet, so
+the paper and the screen walk the outlet the same way. **No expected quantities
+are printed** — a sheet that says what it expects gets that number written back
+onto it. The variance is worked out afterwards, against what was found.
+
+Photos are embedded as data URIs through `PdfImage::thumb()`, capped at 160px:
+dompdf fetches nothing over the network, and there is one photo per row, which
+is how a count sheet blows a memory limit. The fitted width and height are
+worked out in the controller because dompdf has no `object-fit` — an `<img>`
+given both dimensions stretches to them, and a squashed photo on a sheet whose
+job is telling two similar objects apart is the one thing it must not do.
+
+Measured on 200 rows, each with its own 1600px photo: **15.7 s and 162 MB cold,
+3.1 s warm**, producing a 1.1 MB PDF. `PdfImage` caches per file + mtime, so
+only the first print after a photo changes pays the decode. That is inside the
+prod box's 256 MB / 60 s, but it is the number to re-measure before this export
+grows — a catalogue two or three times that size would want queueing, the way
+the SOP exports already are.
+
 ## Permissions
 
 Nine abilities under the `assets` module in `config/permissions.php`, split the
@@ -146,4 +172,4 @@ If it is ever wanted, it is its own piece of work with its own risk budget.
 - Per-unit serial numbers, warranty expiry, service schedules.
 - Asset transfers between outlets (a disposal at one and a receipt at the other
   works today, but it is two documents and nothing ties them together).
-- PDF and Excel exports of the register and of a count.
+- Excel exports, and a PDF of the register (the count sheet has one — see above).

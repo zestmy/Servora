@@ -42,6 +42,15 @@ class PdfImage
     /** The logo renders at 110px on the cover, 68px in each page header. */
     private const MAX_LOGO_PX = 240;
 
+    /**
+     * A row thumbnail on a printed list. Far smaller than MAX_PHOTO_PX because
+     * there is one PER ROW: a count sheet of 200 assets at the photo cap would
+     * put ~20 MB of base64 into the HTML string before dompdf parsed a byte,
+     * and dompdf's peak is roughly twice that. 160px is still ~370dpi at the
+     * 11mm these print at, which is more resolution than the paper can show.
+     */
+    private const MAX_THUMB_PX = 160;
+
     private const QUALITY = 82;
 
     private const TTL = 86400;
@@ -50,6 +59,12 @@ class PdfImage
     public function photo(?string $path): ?string
     {
         return $this->dataUri($path, self::MAX_PHOTO_PX, false);
+    }
+
+    /** One row of a printed list — an asset on a count sheet. See MAX_THUMB_PX. */
+    public function thumb(?string $path): ?string
+    {
+        return $this->dataUri($path, self::MAX_THUMB_PX, false);
     }
 
     /** The company logo. Stays PNG — it is usually artwork on transparency. */

@@ -175,6 +175,13 @@
                                         </a>
                                     @endif
                                     @if ($isCount)
+                                        {{-- Printing is reading, so it is offered to
+                                             anyone who can open this list — unlike the
+                                             chevron beside it, which leads to a form. --}}
+                                        <a href="{{ route('assets.counts.count-sheet', $record->id) }}"
+                                           target="_blank" class="icon-btn" title="Print count sheet">
+                                            <x-icon name="printer" size="h-4 w-4" />
+                                        </a>
                                         @canDo('assets.counts.delete')
                                             <button wire:click="deleteCount({{ $record->id }})"
                                                     class="icon-btn icon-btn-danger" title="Delete"

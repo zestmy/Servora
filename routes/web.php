@@ -17,6 +17,7 @@ require __DIR__ . '/pos-agent.php';
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Dashboard;
+use App\Http\Controllers\AssetCountSheetController;
 use App\Livewire\Assets\CountForm as AssetCountForm;
 use App\Livewire\Assets\Index as AssetsIndex;
 use App\Livewire\Assets\MovementForm as AssetMovementForm;
@@ -239,6 +240,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/assets/register', AssetsRegister::class)->name('assets.register')->middleware('can:assets.view');
     Route::get('/assets/records', AssetsRecords::class)->name('assets.records')->middleware('can:assets.view');
     Route::get('/assets/counts/create', AssetCountForm::class)->name('assets.counts.create')->middleware('can:assets.counts.record');
+    // Above /assets/counts/{id} would be wrong — {id} is numeric and this
+    // hangs off it, so there is no collision either way. It is gated on
+    // assets.view, not counts.record: printing the sheet somebody else will
+    // fill in is reading, and the ingredient count sheet is gated the same.
+    Route::get('/assets/counts/{id}/count-sheet', AssetCountSheetController::class)->name('assets.counts.count-sheet')->middleware('can:assets.view');
     Route::get('/assets/counts/{id}', AssetCountForm::class)->name('assets.counts.show')->middleware('can:assets.counts.record');
     Route::get('/assets/movements/create', AssetMovementForm::class)->name('assets.movements.create')->middleware('can:assets.movements.record');
     Route::get('/assets/movements/{id}', AssetMovementForm::class)->name('assets.movements.show')->middleware('can:assets.movements.record');

@@ -7,6 +7,16 @@
         <x-slot:actions>
             <a href="{{ route('assets.records', ['tab' => 'counts']) }}" wire:navigate class="btn-secondary">Back</a>
 
+            {{-- Only once the count exists: the sheet is generated from the
+                 saved lines, so there is nothing to print from an unsaved one.
+                 Save a draft first, then walk the outlet with the paper. --}}
+            @if ($recordId)
+                <a href="{{ route('assets.counts.count-sheet', $recordId) }}" target="_blank" class="btn-secondary">
+                    <x-icon name="printer" size="h-4 w-4" />
+                    <span class="hidden sm:inline">Print count sheet</span>
+                </a>
+            @endif
+
             @if (! $isEditable)
                 <span class="badge-success">Completed</span>
                 @canDo('assets.counts.reopen')
