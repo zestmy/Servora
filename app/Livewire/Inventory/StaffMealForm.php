@@ -318,7 +318,8 @@ class StaffMealForm extends Component
             \App\Services\AuditLogService::logItemLineChanges($record, $auditBefore, $this->lines);
         }
 
-        $this->redirectRoute('inventory.index');
+        // Back to the list this record belongs to, not the default tab.
+        $this->redirectRoute('inventory.index', ['tab' => 'staff-meals']);
     }
 
     public function render()

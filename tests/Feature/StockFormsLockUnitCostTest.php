@@ -154,6 +154,23 @@ class StockFormsLockUnitCostTest extends TestCase
         $this->assertSame(11.38, round((float) $line->total_cost, 2));
     }
 
+    /** Saving hands the user back to the list the record belongs to. */
+    public function test_saving_returns_to_the_list_it_belongs_to(): void
+    {
+        Livewire::actingAs($this->user)->test(WastageForm::class)
+            ->call('addIngredient', $this->dough->id)
+            ->set('department_id', $this->department->id)
+            ->set('lines.0.quantity', '4')
+            ->call('save')
+            ->assertRedirect(route('inventory.index', ['tab' => 'wastage']));
+
+        Livewire::actingAs($this->user)->test(StaffMealForm::class)
+            ->call('addIngredient', $this->dough->id)
+            ->set('lines.0.quantity', '2')
+            ->call('save')
+            ->assertRedirect(route('inventory.index', ['tab' => 'staff-meals']));
+    }
+
     public function test_a_staff_meal_stores_the_derived_cost(): void
     {
         Livewire::actingAs($this->user)->test(StaffMealForm::class)
