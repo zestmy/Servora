@@ -78,7 +78,8 @@
                                 <span class="h-2 w-2 flex-none rounded-full"
                                       style="background:{{ $cat['color'] }}" aria-hidden="true"></span>
                             @endif
-                            {{ $cat['name'] }}
+                            {{ $cat['short_name'] ?? $cat['name'] }}
+                            @if (($cat['basis'] ?? null) === 'total_sales')<span class="block text-[11px] font-normal text-gray-500">vs total sales</span>@endif
                         </span>
                     </th>
                     <td class="num text-right">{{ number_format($cat['revenue'], 2) }}</td>

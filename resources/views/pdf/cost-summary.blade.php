@@ -134,7 +134,7 @@
                             $cdl = $lcr > 0 ? round(($cat['revenue'] - $lcr) / $lcr * 100, 1) : 0;
                         @endphp
                         <tr>
-                            <td>{{ $cat['name'] }}</td>
+                            <td>{{ $cat['short_name'] ?? $cat['name'] }}@if (($cat['basis'] ?? null) === 'total_sales')<div style="font-size: 7pt; font-weight: normal; color: #64748b;">vs total sales</div>@endif</td>
                             <td class="right" style="font-weight: bold;">{{ number_format($cat['revenue'], 2) }}</td>
                             <td class="right">{{ number_format($pcr, 2) }}</td>
                             <td class="right" style="color: {{ $cdp >= 0 ? '#16a34a' : '#dc2626' }};">{{ $cdp >= 0 ? '+' : '' }}{{ $cdp }}%</td>
@@ -179,7 +179,7 @@
             <tr>
                 <th>Metric</th>
                 @foreach ($summary['categories'] as $cat)
-                    <th class="right">{{ $cat['name'] }}</th>
+                    <th class="right">{{ $cat['short_name'] ?? $cat['name'] }}@if (($cat['basis'] ?? null) === 'total_sales')<div style="font-size: 6.5pt; font-weight: normal; text-transform: none;">vs total sales</div>@endif</th>
                 @endforeach
                 <th class="right">Total</th>
             </tr>

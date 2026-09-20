@@ -398,7 +398,8 @@
                                             <tr class="hover:bg-gray-50">
                                                 <td class="py-2 px-3 font-medium text-gray-800">
                                                     <span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:{{ $cat['color'] ?? '#6b7280' }}"></span>
-                                                    {{ $cat['name'] }}
+                                                    {{ $cat['short_name'] ?? $cat['name'] }}
+                                                    @if (($cat['basis'] ?? null) === 'total_sales')<span class="block text-[11px] font-normal text-gray-500">vs total sales</span>@endif
                                                 </td>
                                                 <td class="py-2 px-3 text-right font-bold text-gray-900 tabular-nums">{{ number_format($cat['revenue'], 2) }}</td>
                                                 <td class="py-2 px-3 text-right text-gray-600 tabular-nums">{{ number_format($prevCatRev, 2) }}</td>
@@ -468,7 +469,10 @@
                                             @if ($cat['color'])
                                                 <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:{{ $cat['color'] }}"></span>
                                             @endif
-                                            {{ $cat['name'] }}
+                                            <span>
+                                                {{ $cat['short_name'] ?? $cat['name'] }}
+                                                @if (($cat['basis'] ?? null) === 'total_sales')<span class="block text-[11px] font-normal text-gray-500">vs total sales</span>@endif
+                                            </span>
                                         </div>
                                     </th>
                                 @endforeach
@@ -563,7 +567,7 @@
                                     @if ($cat['color'])
                                         <span class="w-2.5 h-2.5 rounded-full" style="background:{{ $cat['color'] }}"></span>
                                     @endif
-                                    <span class="font-medium text-gray-700">{{ $cat['name'] }}</span>
+                                    <span class="font-medium text-gray-700">{{ $cat['short_name'] ?? $cat['name'] }}</span>
                                 </span>
                                 <span class="font-semibold {{ $cat['cost_pct'] > 35 ? 'text-danger-600' : ($cat['cost_pct'] > 30 ? 'text-warning-600' : 'text-success-600') }}">
                                     {{ $cat['cost_pct'] }}%
@@ -841,7 +845,8 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="py-2 px-3 font-medium text-gray-800">
                                             <span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:{{ $cat['color'] ?? '#6b7280' }}"></span>
-                                            {{ $cat['name'] }}
+                                            {{ $cat['short_name'] ?? $cat['name'] }}
+                                            @if (($cat['basis'] ?? null) === 'total_sales')<span class="block text-[11px] font-normal text-gray-500">vs total sales</span>@endif
                                         </td>
                                         <td class="py-2 px-3 text-right text-gray-700 tabular-nums">{{ number_format($cat['revenue'], 2) }}</td>
                                         <td class="py-2 px-3 text-right text-gray-700 tabular-nums">{{ number_format($cat['purchases'], 2) }}</td>
@@ -894,7 +899,7 @@
                                         @if ($cat['opening_stock'] > 0 || $cat['closing_stock'] > 0)
                                             @php $stockChange = $cat['closing_stock'] - $cat['opening_stock']; @endphp
                                             <tr class="hover:bg-gray-50">
-                                                <td class="py-2 px-3 font-medium text-gray-800">{{ $cat['name'] }}</td>
+                                                <td class="py-2 px-3 font-medium text-gray-800">{{ $cat['short_name'] ?? $cat['name'] }}</td>
                                                 <td class="py-2 px-3 text-right tabular-nums">{{ number_format($cat['opening_stock'], 2) }}</td>
                                                 <td class="py-2 px-3 text-right tabular-nums">{{ number_format($cat['closing_stock'], 2) }}</td>
                                                 <td class="py-2 px-3 text-right font-medium tabular-nums {{ $stockChange >= 0 ? 'text-success-600' : 'text-danger-600' }}">

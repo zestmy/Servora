@@ -55,7 +55,7 @@
                             <span class="h-2.5 w-2.5 flex-none rounded-full"
                                   style="background:{{ $cat['color'] }}" aria-hidden="true"></span>
                         @endif
-                        <span class="truncate font-medium text-gray-700">{{ $cat['name'] }}</span>
+                        <span class="truncate font-medium text-gray-700">{{ $cat['short_name'] ?? $cat['name'] }}</span>
                     </span>
 
                     <span class="flex-none font-semibold tabular-nums {{ $verdict['tone'] }}">
