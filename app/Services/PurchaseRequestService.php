@@ -72,6 +72,12 @@ class PurchaseRequestService
 
             foreach ($prs as $pr) {
                 foreach ($pr->lines as $line) {
+                    // An asset line has no ingredient, so it was already being
+                    // skipped by the next test. Named here so the reason is on
+                    // the page: assets are received into the asset register,
+                    // not ordered through a food PO — see the migration that
+                    // added purchase_request_lines.asset_id.
+                    if ($line->asset_id) continue;
                     if (! $line->ingredient_id) continue;       // skip custom items
                     if ($line->source === 'kitchen') continue;  // handled above
 
@@ -331,8 +337,10 @@ class PurchaseRequestService
         // Group by supplier
         $groups = [];
         $kitchenLineCount = 0;
+        $assetLineCount   = 0;
         foreach ($prs as $pr) {
             foreach ($pr->lines as $line) {
+                if ($line->asset_id) { $assetLineCount++; continue; }
                 if (! $line->ingredient_id) continue;
                 if ($line->source === 'kitchen') { $kitchenLineCount++; continue; }
 
@@ -410,6 +418,11 @@ class PurchaseRequestService
             // Lines routed to kitchen production instead of supplier POs —
             // surfaced in the preview so their absence is explained.
             'kitchen_line_count' => $kitchenLineCount,
+            // Asset lines, same reason. They are received through the asset
+            // register rather than a food PO, and a line that disappeared from
+            // this preview with nothing said is how a request gets approved and
+            // then forgotten.
+            'asset_line_count'   => $assetLineCount,
         ];
     }
 

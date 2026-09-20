@@ -111,6 +111,9 @@ class NavigationPanelTest extends TestCase
         $this->assertSame([
             'Procurement',
             'Inventory & Recipes',
+            // What the company owns, beside what it consumes — and before
+            // Labels, so the two stock-shaped groups sit together.
+            'Assets',
             'Labels',
             'Sales',
             'HR',

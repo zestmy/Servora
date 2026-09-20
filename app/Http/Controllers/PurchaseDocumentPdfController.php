@@ -43,7 +43,7 @@ class PurchaseDocumentPdfController extends Controller
 
     private function purchaseRequest(int $id, ?Company $company)
     {
-        $pr = PurchaseRequest::with(['outlet', 'department', 'lines.ingredient', 'lines.uom', 'lines.preferredSupplier', 'createdBy', 'approvedBy'])->findOrFail($id);
+        $pr = PurchaseRequest::with(['outlet', 'department', 'lines.ingredient', 'lines.asset', 'lines.uom', 'lines.preferredSupplier', 'createdBy', 'approvedBy'])->findOrFail($id);
         $this->authorizeOutlet($pr->outlet_id);
 
         $pdf = Pdf::loadView('pdf.purchase-request', compact('pr', 'company'))

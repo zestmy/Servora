@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Purchasing;
 
+use App\Models\Asset;
 use App\Models\Department;
 use App\Models\Ingredient;
 use App\Models\IngredientParLevel;
@@ -39,6 +40,16 @@ class PurchaseRequestForm extends Component
     public array  $lines            = [];
     public string $ingredientSearch = '';
 
+    /*
+     * Assets get their own search box rather than sharing the ingredient one.
+     *
+     * A single box over both lists would have to explain which of two "MIXER"
+     * rows is the Hobart and which is the cake mix, on a screen where the
+     * difference decides whether the line reaches a food PO or an asset
+     * receipt. Two boxes say it without a word.
+     */
+    public string $assetSearch = '';
+
     /**
      * Outlets this user may raise a request for. In Central Kitchen mode there
      * is no "active outlet" to fall back on, so the request has to name its
@@ -60,6 +71,7 @@ class PurchaseRequestForm extends Component
             'department_id'                   => 'nullable|exists:departments,id',
             'lines'                           => 'required|array|min:1',
             'lines.*.ingredient_id'           => 'nullable|exists:ingredients,id',
+            'lines.*.asset_id'                => 'nullable|exists:assets,id',
             'lines.*.custom_name'             => 'nullable|string|max:200',
             'lines.*.quantity'                => 'required|numeric|min:0.0001',
             'lines.*.uom_id'                 => 'required|exists:units_of_measure,id',
@@ -95,7 +107,7 @@ class PurchaseRequestForm extends Component
             return;
         }
 
-        $pr = PurchaseRequest::with(['lines.ingredient.baseUom', 'lines.uom', 'lines.preferredSupplier'])->findOrFail($id);
+        $pr = PurchaseRequest::with(['lines.ingredient.baseUom', 'lines.asset.uom', 'lines.uom', 'lines.preferredSupplier'])->findOrFail($id);
 
         if ($pr->outlet_id && ! Auth::user()->canAccessOutlet($pr->outlet_id)) {
             abort(403, 'You do not have access to this outlet.');
@@ -116,7 +128,8 @@ class PurchaseRequestForm extends Component
                 : $line->ingredient?->effectiveTaxRate(Auth::user()->company);
             $this->lines[] = [
                 'ingredient_id'        => $line->ingredient_id,
-                'ingredient_name'      => $line->ingredient?->name ?? $line->custom_name ?? '—',
+                'asset_id'             => $line->asset_id,
+                'ingredient_name'      => $line->displayName(),
                 'custom_name'          => $line->custom_name,
                 'quantity'             => (float) $line->quantity,
                 'uom_id'              => $line->uom_id,
@@ -249,6 +262,7 @@ class PurchaseRequestForm extends Component
 
         $this->lines[] = [
             'ingredient_id'        => $ingredient->id,
+            'asset_id'             => null,
             'ingredient_name'      => $ingredient->name,
             'quantity'             => 0,
             'uom_id'              => $ingredient->base_uom_id,
@@ -263,6 +277,54 @@ class PurchaseRequestForm extends Component
         ];
 
         $this->ingredientSearch = '';
+    }
+
+    /**
+     * Put an asset on the request.
+     *
+     * The line carries no ingredient, which is what keeps it out of the food
+     * POs — both consolidation paths in PurchaseRequestService skip a line with
+     * no ingredient_id, and have since long before assets existed. `source` is
+     * set to 'asset' so that skip is a decision the code states rather than a
+     * side effect a reader has to reconstruct.
+     *
+     * No par level and no tax rate: an asset has neither. Its UOM is its own,
+     * because an asset is bought in the unit it is counted in.
+     */
+    public function addAsset(int $assetId): void
+    {
+        $this->assetSearch = '';
+
+        foreach ($this->lines as $line) {
+            if ((int) ($line['asset_id'] ?? 0) === $assetId) {
+                return;
+            }
+        }
+
+        $asset = Asset::with('uom')->find($assetId);
+
+        if (! $asset) {
+            return;
+        }
+
+        $preferred = $asset->preferredSupplier();
+
+        $this->lines[] = [
+            'ingredient_id'         => null,
+            'asset_id'              => $asset->id,
+            'ingredient_name'       => $asset->name,
+            'custom_name'           => null,
+            'quantity'              => 1,
+            'uom_id'                => $asset->uom_id,
+            'preferred_supplier_id' => $preferred?->id,
+            'supplier_name'         => $preferred?->name ?? '',
+            'source'                => \App\Models\PurchaseRequestLine::SOURCE_ASSET,
+            'kitchen_id'            => null,
+            'par_level'             => 0,
+            'notes'                 => '',
+            'tax_rate_id'           => null,
+            'tax_label'             => null,
+        ];
     }
 
     public function removeLine(int $index): void
@@ -360,6 +422,7 @@ class PurchaseRequestForm extends Component
         foreach ($this->lines as $line) {
             $pr->lines()->create([
                 'ingredient_id'        => $line['ingredient_id'] ?: null,
+                'asset_id'             => $line['asset_id'] ?? null,
                 'custom_name'          => $line['custom_name'] ?? null,
                 'quantity'             => $line['quantity'],
                 'uom_id'              => $line['uom_id'],
@@ -430,6 +493,25 @@ class PurchaseRequestForm extends Component
                 ->get();
         }
 
+        $assetResults = [];
+
+        if (strlen($this->assetSearch) >= 2 && Auth::user()?->canDo('assets.view')) {
+            $onRequest = collect($this->lines)->pluck('asset_id')->filter()->map(fn ($id) => (int) $id)->all();
+            $term      = '%' . $this->assetSearch . '%';
+
+            $assetResults = Asset::with('uom')
+                ->active()
+                ->when($onRequest, fn ($q) => $q->whereNotIn('id', $onRequest))
+                ->where(function ($q) use ($term) {
+                    $q->where('name', 'like', $term)
+                      ->orWhere('code', 'like', $term)
+                      ->orWhere('brand', 'like', $term);
+                })
+                ->orderBy('name')
+                ->limit(15)
+                ->get();
+        }
+
         // Line level here, so every supplier already named on a line is kept.
         $suppliers = Supplier::selectable(
                 collect($this->lines)->pluck('preferred_supplier_id')->all()
@@ -444,6 +526,10 @@ class PurchaseRequestForm extends Component
 
         return view('livewire.purchasing.purchase-request-form', [
             'searchResults' => $searchResults,
+            'assetResults'  => $assetResults,
+            // The asset picker is offered only to somebody who may open the
+            // asset list at all — the same ability that gates the module.
+            'canRequestAssets' => (bool) Auth::user()?->canDo('assets.view'),
             'suppliers'     => $suppliers,
             'departments'   => $departments,
             'uoms'          => $uoms,

@@ -185,6 +185,21 @@ final class NavMenu
                 ],
             ],
             [
+                // Its own group, not a shelf inside Inventory & Recipes. That
+                // group answers "what do we consume"; this one answers "what do
+                // we own", and they are usually different people's jobs — see
+                // the note on the `assets` module in config/permissions.php.
+                'label' => 'Assets',
+                'icon'  => 'building',
+                'items' => [
+                    ['route' => 'assets.index',    'label' => 'Asset List',     'permission' => 'assets.view'],
+                    ['route' => 'assets.register', 'label' => 'Asset Register', 'permission' => 'assets.view'],
+                    ['route' => 'assets.records',  'label' => 'Asset Counts',   'permission' => 'assets.view', 'query' => 'tab=counts'],
+                    ['route' => 'assets.records',  'label' => 'Receipts',       'permission' => 'assets.view', 'query' => 'tab=receipts'],
+                    ['route' => 'assets.records',  'label' => 'Disposals',      'permission' => 'assets.view', 'query' => 'tab=disposals'],
+                ],
+            ],
+            [
                 'label' => 'Labels',
                 'icon'  => 'tag',
                 'items' => [
@@ -428,6 +443,21 @@ final class NavMenu
                     // to name it after one tab of it.
                     ['route' => 'inventory.index',             'label' => 'Stock Management',  'permission' => 'inventory.view'],
                     ['route' => 'inventory.transfers.create',  'label' => 'New Transfer', 'permission' => 'inventory.transfers.record'],
+                ],
+            ],
+            [
+                // Its own group, not a shelf inside Inventory & Recipes. That
+                // group answers "what do we consume"; this one answers "what do
+                // we own", and they are usually different people's jobs — see
+                // the note on the `assets` module in config/permissions.php.
+                'label' => 'Assets',
+                'icon'  => 'building',
+                'items' => [
+                    ['route' => 'assets.index',    'label' => 'Asset List',     'permission' => 'assets.view'],
+                    ['route' => 'assets.register', 'label' => 'Asset Register', 'permission' => 'assets.view'],
+                    ['route' => 'assets.records',  'label' => 'Asset Counts',   'permission' => 'assets.view', 'query' => 'tab=counts'],
+                    ['route' => 'assets.records',  'label' => 'Receipts',       'permission' => 'assets.view', 'query' => 'tab=receipts'],
+                    ['route' => 'assets.records',  'label' => 'Disposals',      'permission' => 'assets.view', 'query' => 'tab=disposals'],
                 ],
             ],
             [

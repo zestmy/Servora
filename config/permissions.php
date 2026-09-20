@@ -344,6 +344,68 @@ return [
             ],
         ],
 
+        /*
+         * Assets are their own module, not a corner of Inventory.
+         *
+         * The two answer different questions — Inventory is what an outlet
+         * consumes and Assets is what it keeps — and they are usually different
+         * people's jobs: a chef counts the walk-in weekly, somebody in the
+         * office counts the plates and the ovens once a quarter. Splitting the
+         * abilities the way Ingredients and Inventory are split (view / add-edit
+         * / set costs / delete, then record-and-delete per document type) means
+         * a company grants asset access exactly the way it already grants those.
+         */
+        'assets' => [
+            'label'     => 'Assets',
+            'group'     => 'operations',
+            'abilities' => [
+                'view' => [
+                    'name'  => 'assets.view',
+                    'label' => 'View (read-only)',
+                    'title' => 'Assets',
+                    'help'  => 'See the asset list, the value register, counts and receipts. Read-only on its own.',
+                ],
+                'manage' => [
+                    'name'  => 'assets.manage',
+                    'label' => 'Add & edit',
+                    'title' => 'Assets (Add & Edit)',
+                    'help'  => 'Create and change assets and asset categories. Costs need "Set costs" as well.',
+                ],
+                'cost' => [
+                    'name'  => 'assets.cost',
+                    'label' => 'Set costs',
+                    'title' => 'Assets (Set Costs)',
+                    'help'  => 'Change the unit cost on an asset and its supplier prices. Without this, other edits still save and the cost is left as it stands.',
+                ],
+                'delete' => [
+                    'name'  => 'assets.delete',
+                    'label' => 'Delete',
+                    'title' => 'Assets (Delete)',
+                    'help'  => 'Delete an asset or an asset category.',
+                ],
+                'counts_record' => [
+                    'name' => 'assets.counts.record', 'label' => 'Counts — record',
+                    'title' => 'Assets (Record Counts)', 'help' => 'Start and complete asset inventory counts.',
+                ],
+                'counts_delete' => [
+                    'name' => 'assets.counts.delete', 'label' => 'Counts — delete',
+                    'title' => 'Assets (Delete Counts)', 'help' => 'Delete an asset count, including a completed one.',
+                ],
+                'counts_reopen' => [
+                    'name' => 'assets.counts.reopen', 'label' => 'Counts — reopen',
+                    'title' => 'Assets (Reopen Counts)', 'help' => 'Reopen a completed count for editing, putting it back in progress.',
+                ],
+                'movements_record' => [
+                    'name' => 'assets.movements.record', 'label' => 'Receipts & disposals — record',
+                    'title' => 'Assets (Record Receipts & Disposals)', 'help' => 'Book assets in when they arrive and out when they are disposed of.',
+                ],
+                'movements_delete' => [
+                    'name' => 'assets.movements.delete', 'label' => 'Receipts & disposals — delete',
+                    'title' => 'Assets (Delete Receipts & Disposals)', 'help' => 'Delete an asset receipt or disposal.',
+                ],
+            ],
+        ],
+
         'labels' => [
             'label'     => 'Food Labels',
             'group'     => 'operations',

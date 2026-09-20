@@ -66,8 +66,10 @@
                 <tr>
                     <td>{{ $i + 1 }}</td>
                     <td style="text-align: left;">
-                        {{ $line->ingredient?->name ?? $line->custom_name ?? '—' }}
-                        @if ($line->custom_name && !$line->ingredient_id)
+                        {{ $line->displayName() }}
+                        @if ($line->asset_id)
+                            <small style="color: #0369a1;">(Asset)</small>
+                        @elseif ($line->custom_name && !$line->ingredient_id)
                             <small style="color: #b45309;">(Custom)</small>
                         @endif
                     </td>

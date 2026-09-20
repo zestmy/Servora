@@ -183,6 +183,43 @@
                             </div>
                         @endif
                     </div>
+
+                    {{-- Assets get their own box.
+
+                         One search over both lists would have to explain which
+                         "MIXER" is the Hobart and which is the cake mix, on the
+                         screen where that difference decides whether the line
+                         reaches a supplier PO or an asset receipt. --}}
+                    @if ($canRequestAssets)
+                        <div class="relative mt-3">
+                            <input type="text" wire:model.live.debounce.300ms="assetSearch"
+                                   placeholder="Search assets — utensils, appliances, equipment, furniture..."
+                                   class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
+                            @if (count($assetResults) > 0)
+                                <div class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                    @foreach ($assetResults as $item)
+                                        <button wire:click="addAsset({{ $item->id }})" type="button"
+                                                class="w-full text-left px-4 py-2.5 hover:bg-brand-50 text-sm flex items-center justify-between border-b border-gray-50 last:border-0">
+                                            <div>
+                                                <span class="font-medium text-gray-700">{{ $item->name }}</span>
+                                                @if ($item->code)
+                                                    <span class="text-gray-600 ml-1">({{ $item->code }})</span>
+                                                @endif
+                                                @if ($item->brand)
+                                                    <span class="block text-xs text-gray-600">{{ $item->brand }} {{ $item->model }}</span>
+                                                @endif
+                                            </div>
+                                            <span class="text-xs text-gray-600">{{ $item->uom?->abbreviation ?? $item->uom?->name }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+                            <p class="help mt-1.5">
+                                Asset lines follow this request through approval, then are received under
+                                Assets &rsaquo; Receipts — they are not consolidated into a supplier order.
+                            </p>
+                        </div>
+                    @endif
                 </div>
             @endif
 
@@ -244,7 +281,9 @@
                                     <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
                                     <td class="px-4 py-3 font-medium text-gray-700">
                                         {{ $line['ingredient_name'] }}
-                                        @if (empty($line['ingredient_id']))
+                                        @if (! empty($line['asset_id']))
+                                            <span class="ml-1 px-1.5 py-0.5 bg-info-100 text-info-700 text-[10px] rounded font-medium">Asset</span>
+                                        @elseif (empty($line['ingredient_id']))
                                             <span class="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded font-medium">Custom</span>
                                         @elseif (($line['source'] ?? 'supplier') === 'kitchen')
                                             <span class="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-medium">Kitchen</span>

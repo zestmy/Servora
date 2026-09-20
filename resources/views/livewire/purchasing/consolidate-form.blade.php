@@ -307,6 +307,25 @@
                             {{ $kitchenLineCount }} item(s) are kitchen-made — they were routed to Central Kitchen production instead of a supplier order.
                         </div>
                     @endif
+                    {{-- Said out loud rather than left to be noticed: an asset line
+                         is not ordered through a food PO, it is bought and then
+                         booked in on Assets > Receipts. A line that vanished from
+                         this preview in silence is a request that gets approved
+                         and then forgotten about. --}}
+                    @if ($assetLineCount > 0)
+                        <div class="mb-3 px-3 py-2 bg-info-50 border border-info-200 rounded-lg text-xs text-info-700">
+                            {{ $assetLineCount }} item(s) are assets — they are not consolidated into a supplier order.
+                            Buy them, then record what arrived under
+                            {{-- A link only for somebody who can actually open it. Consolidating
+                                 is purchasing.consolidate; the asset records are assets.view, and
+                                 a link across that boundary is a 403 with no warning. --}}
+                            @canDo('assets.view')
+                                <a href="{{ route('assets.records', ['tab' => 'receipts']) }}" class="underline font-medium">Assets &rsaquo; Receipts</a>.
+                            @else
+                                <span class="font-medium">Assets &rsaquo; Receipts</span>.
+                            @endcanDo
+                        </div>
+                    @endif
 
                     <p class="text-xs text-gray-600 mb-4">{{ $creatableCount }} Purchase Order(s) will be created:</p>
 

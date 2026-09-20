@@ -22,6 +22,7 @@ class ConsolidateForm extends Component
     public array $supplierOptions   = [];
     public array $kitchenOptions    = [];
     public int   $kitchenLineCount  = 0;
+    public int   $assetLineCount    = 0;
     public array $costLookup        = [];
     public array $taxLookup         = [];
 
@@ -74,6 +75,7 @@ class ConsolidateForm extends Component
         $this->supplierOptions  = $data['supplier_options'];
         $this->kitchenOptions   = $data['kitchen_options'];
         $this->kitchenLineCount = (int) ($data['kitchen_line_count'] ?? 0);
+        $this->assetLineCount   = (int) ($data['asset_line_count'] ?? 0);
 
         // Also build the simple preview for quick view
         $this->preview = collect($data['groups'])->map(fn ($g) => [

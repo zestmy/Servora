@@ -17,6 +17,11 @@ require __DIR__ . '/pos-agent.php';
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Livewire\Dashboard;
+use App\Livewire\Assets\CountForm as AssetCountForm;
+use App\Livewire\Assets\Index as AssetsIndex;
+use App\Livewire\Assets\MovementForm as AssetMovementForm;
+use App\Livewire\Assets\Records as AssetsRecords;
+use App\Livewire\Assets\Register as AssetsRegister;
 use App\Livewire\Ingredients\Index as IngredientsIndex;
 use App\Livewire\Ingredients\Import as IngredientsImport;
 use App\Livewire\Recipes\Index as RecipesIndex;
@@ -220,6 +225,23 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/onboarding', OnboardingWizard::class)->name('onboarding');
 
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
+
+    /*
+     * Assets — the register of what an outlet keeps rather than consumes.
+     *
+     * `/assets/counts/create` sits ABOVE `/assets/counts/{id}` and the records
+     * list is `/assets/records`, not `/assets/counts`, for the same reason the
+     * inventory routes below are laid out the way they are: a literal segment
+     * that could be read as an id is a collision waiting for somebody to add a
+     * route in the wrong order.
+     */
+    Route::get('/assets', AssetsIndex::class)->name('assets.index')->middleware('can:assets.view');
+    Route::get('/assets/register', AssetsRegister::class)->name('assets.register')->middleware('can:assets.view');
+    Route::get('/assets/records', AssetsRecords::class)->name('assets.records')->middleware('can:assets.view');
+    Route::get('/assets/counts/create', AssetCountForm::class)->name('assets.counts.create')->middleware('can:assets.counts.record');
+    Route::get('/assets/counts/{id}', AssetCountForm::class)->name('assets.counts.show')->middleware('can:assets.counts.record');
+    Route::get('/assets/movements/create', AssetMovementForm::class)->name('assets.movements.create')->middleware('can:assets.movements.record');
+    Route::get('/assets/movements/{id}', AssetMovementForm::class)->name('assets.movements.show')->middleware('can:assets.movements.record');
 
     Route::get('/ingredients', IngredientsIndex::class)->name('ingredients.index')->middleware('can:ingredients.view');
     Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
