@@ -326,7 +326,7 @@
                                         <th class="px-3 py-2 text-right">{{ $dn }}</th>
                                     @endforeach
                                     <th class="px-3 py-2 text-right">Total</th>
-                                    <th class="px-3 py-2 text-right wip-hide-present">%</th>
+                                    <th class="px-3 py-2 text-right">%</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -339,7 +339,7 @@
                                                 <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($v, 2) }}</td>
                                             @endforeach
                                             <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold">{{ number_format($l['total'], 2) }}</td>
-                                            <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap italic text-gray-600 wip-hide-present">{{ $pct($l['share']) }}</td>
+                                            <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap italic text-gray-600">{{ $pct($l['share']) }}</td>
                                         </tr>
                                     @endforeach
                                     <tr class="wip-total-row" wire:key="sp-{{ $which }}-total">
@@ -351,7 +351,7 @@
                                             <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($v, 2) }}</td>
                                         @endforeach
                                         <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">{{ number_format($wk['total'], 2) }}</td>
-                                        <td class="px-3 py-2 wip-hide-present"></td>
+                                        <td class="px-3 py-2"></td>
                                     </tr>
                                 @endforeach
                                 <tr>
@@ -365,7 +365,7 @@
                                             {{ $up ? '▲ ' : ($down ? '▼ ' : '') }}{{ number_format(abs($v['amount']), 2) }}
                                         </td>
                                     @endforeach
-                                    <td class="px-3 py-2 wip-hide-present"></td>
+                                    <td class="px-3 py-2"></td>
                                 </tr>
                                 <tr>
                                     <td class="px-3 py-2 whitespace-nowrap wip-label">Var. %</td>
@@ -373,7 +373,7 @@
                                         @php [$vt, $vc] = $delta($v['change'], true); @endphp
                                         <td class="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap {{ $vc }}">{{ $vt }}</td>
                                     @endforeach
-                                    <td class="px-3 py-2 wip-hide-present"></td>
+                                    <td class="px-3 py-2"></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1294,7 +1294,7 @@
         @endif
 
         {{-- ── By outlet ───────────────────────────────────────────────── --}}
-        <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-outlets-{{ $idx['outlets'] }}-{{ count($slides) }}">
+        <section class="card wip-wide p-5 mb-6" wire:key="wip-slide-{{ $unit }}-outlets-{{ $idx['outlets'] }}-{{ count($slides) }}">
             @include('livewire.reports.management.partials.wip-slide-head', ['n' => $idx['outlets'] + 1, 'title' => $slides['outlets']])
 
             @if ($report['outlets'] === [])
