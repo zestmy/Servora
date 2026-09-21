@@ -123,11 +123,10 @@
                         @forelse ($rows as $row)
                             <tr wire:key="reg-{{ $row['id'] }}" class="hover:bg-gray-50">
                                 <td class="px-4 py-3">
-                                    {{-- Tap to enlarge, unlike the asset list. There the row
-                                         has an edit button that opens the photo full size in
-                                         the modal; the register has no such way in, so a
-                                         thumbnail on its own would be a dead end for anyone
-                                         wondering which mixing bowl the RM 1,224 belongs to. --}}
+                                    {{-- Tap to enlarge, as on the asset list and the count
+                                         sheet. A thumbnail on its own is a dead end for
+                                         anyone wondering which mixing bowl the RM 1,224
+                                         belongs to. --}}
                                     <div class="flex items-center gap-3" x-data="{ zoom: false }">
                                         @if ($row['image'])
                                             <button type="button" @click="zoom = true" title="View larger"

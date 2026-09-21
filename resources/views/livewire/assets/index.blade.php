@@ -118,19 +118,42 @@
                             @endif
 
                             <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-3" x-data="{ zoom: false }">
                                     {{-- 40px: enough to recognise the thing, small enough
                                          that a page of them is still a table and not a
                                          gallery. An asset without one keeps the row height
-                                         so the column does not jump. --}}
-                                    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-control border border-gray-200 bg-gray-100">
-                                        @if ($asset->image_path)
+                                         so the column does not jump.
+
+                                         Tap to enlarge, like the register and the count
+                                         sheet. This row used to rely on its edit button to
+                                         show the photo full size, which is a detour through
+                                         a form — and one that needs assets.manage, so
+                                         anybody with read access had no way to look at all. --}}
+                                    @if ($asset->image_path)
+                                        <button type="button" @click="zoom = true" title="View larger"
+                                                class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-control border border-gray-200 bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                                             <img src="{{ $asset->imageUrl() }}" alt="" loading="lazy"
                                                  class="h-full w-full object-cover" />
-                                        @else
+                                        </button>
+
+                                        {{-- Teleported to body: the row sits inside the table's
+                                             horizontal scroll container, which would clip it. --}}
+                                        <template x-teleport="body">
+                                            <div x-show="zoom" x-cloak @keydown.escape.window="zoom = false"
+                                                 class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                                <div class="fixed inset-0 bg-gray-900/70" @click="zoom = false"></div>
+                                                <div class="relative max-h-full" @click.stop>
+                                                    <img src="{{ $asset->imageUrl() }}" alt="{{ $asset->name }}"
+                                                         class="max-h-[80vh] max-w-[90vw] rounded-panel bg-white object-contain shadow-e4" />
+                                                    <p class="mt-3 text-center text-sm text-white/90">{{ $asset->name }}</p>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    @else
+                                        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-control border border-gray-200 bg-gray-100">
                                             <x-icon name="building" size="h-4 w-4" class="text-gray-400" />
-                                        @endif
-                                    </div>
+                                        </div>
+                                    @endif
                                     <div class="min-w-0">
                                         <span class="font-medium text-gray-700">{{ $asset->name }}</span>
                                         @if ($asset->code)

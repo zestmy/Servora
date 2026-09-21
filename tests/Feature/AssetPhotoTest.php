@@ -265,6 +265,39 @@ class AssetPhotoTest extends TestCase
         $this->assertNull($byName['CHEF KNIFE']['image']);
     }
 
+    /**
+     * The list row's photo opens full size.
+     *
+     * It used to be a plain thumbnail, on the argument that the row's edit
+     * button already showed the photo full size in the modal. That is a
+     * detour through a form, and the form needs `assets.manage` — so anybody
+     * with read access had no way to look at the picture at all. It now
+     * enlarges on tap like the register and the count sheet.
+     *
+     * Asserted on the rendered markup rather than by driving a browser: what
+     * can silently regress here is the wiring — the button, the Alpine state
+     * it toggles, and the teleport that keeps the overlay out of the table's
+     * scroll container, which is what would clip it.
+     */
+    public function test_the_list_photo_opens_full_size(): void
+    {
+        $withPhoto = $this->asset('MIXING BOWL', 'asset-photos/bowl.jpg');
+
+        $html = Livewire::test(AssetsIndex::class)->html();
+
+        $url = Storage::disk('public')->url($withPhoto->image_path);
+
+        $this->assertStringContainsString('x-data="{ zoom: false }"', $html);
+        $this->assertStringContainsString('View larger', $html);
+        $this->assertStringContainsString('x-teleport="body"', $html,
+            'Nested in the table it would be clipped by the horizontal scroll container.');
+        $this->assertStringContainsString('max-h-[80vh]', $html,
+            'The same size as the register and the count sheet.');
+
+        // The full-size image is the photo itself, not the 40px thumbnail again.
+        $this->assertGreaterThanOrEqual(2, substr_count($html, $url),
+            'The thumbnail and the enlarged copy both point at the photo.');
+    }
     public function test_force_deleting_an_asset_takes_its_photo_with_it(): void
     {
         $asset = $this->asset('MIXING BOWL', 'asset-photos/bowl.jpg');
