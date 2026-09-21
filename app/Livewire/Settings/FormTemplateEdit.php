@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Settings;
 
+use App\Models\Asset;
+use App\Models\AssetCategory;
 use App\Models\Department;
 use App\Models\FormTemplate;
 use App\Models\FormTemplateLine;
@@ -45,6 +47,7 @@ class FormTemplateEdit extends Component
             'lines.ingredient.baseUom',
             'lines.ingredient.recipeUom',
             'lines.recipe.yieldUom',
+            'lines.asset.uom',
         ])->findOrFail($id);
 
         $this->templateId  = $template->id;
@@ -62,7 +65,9 @@ class FormTemplateEdit extends Component
         $formType = $this->form_type;
         $this->lines = $template->lines->map(function ($l) use ($formType) {
             $packInfo = '';
-            if ($l->item_type === 'recipe') {
+            if ($l->item_type === 'asset') {
+                $uomAbbr = $l->asset?->uom?->abbreviation ?? '';
+            } elseif ($l->item_type === 'recipe') {
                 $uomAbbr = $l->recipe?->yieldUom?->abbreviation ?? '';
             } else {
                 $uom = $this->ingredientUomFor($l->ingredient, $formType);
@@ -85,6 +90,7 @@ class FormTemplateEdit extends Component
                 'item_type'        => $l->item_type,
                 'ingredient_id'    => $l->ingredient_id,
                 'recipe_id'        => $l->recipe_id,
+                'asset_id'         => $l->asset_id,
                 'item_name'        => $l->itemName(),
                 'uom_abbr'         => $uomAbbr,
                 'pack_info'        => $packInfo,
@@ -233,9 +239,81 @@ class FormTemplateEdit extends Component
             'item_type'        => 'ingredient',
             'ingredient_id'    => $ingredient->id,
             'recipe_id'        => null,
+            'asset_id'         => null,
             'item_name'        => $ingredient->name,
             'uom_abbr'         => $uomAbbr,
             'pack_info'        => $packInfo,
+            'default_quantity' => '0',
+        ];
+    }
+
+    /**
+     * Assets, for an asset-count template. An asset is counted as itself —
+     * no pack size, no recipe UOM — so the line is simpler than the others.
+     */
+    public function addAsset(int $assetId): void
+    {
+        foreach ($this->lines as $line) {
+            if ($line['item_type'] === 'asset' && (int) ($line['asset_id'] ?? 0) === $assetId) {
+                $this->itemSearch = '';
+                return;
+            }
+        }
+
+        $asset = Asset::with('uom')->findOrFail($assetId);
+        $this->addAssetToLines($asset);
+        $this->itemSearch = '';
+    }
+
+    public function loadByAssetCategory(int $categoryId): void
+    {
+        $category = AssetCategory::find($categoryId);
+        if (! $category) return;
+
+        $existing = collect($this->lines)
+            ->where('item_type', 'asset')
+            ->pluck('asset_id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        $assets = Asset::with('uom')
+            ->active()
+            ->where('asset_category_id', $categoryId)
+            ->when($existing, fn ($q) => $q->whereNotIn('id', $existing))
+            ->orderBy('name')
+            ->get();
+
+        foreach ($assets as $asset) {
+            $this->addAssetToLines($asset);
+        }
+
+        session()->flash(
+            $assets->isEmpty() ? 'info' : 'success',
+            $assets->isEmpty()
+                ? "No new assets to add from {$category->name}."
+                : "{$assets->count()} asset(s) added from {$category->name}.",
+        );
+    }
+
+    private function addAssetToLines(Asset $asset): void
+    {
+        $line = FormTemplateLine::create([
+            'form_template_id' => $this->templateId,
+            'item_type'        => 'asset',
+            'asset_id'         => $asset->id,
+            'default_quantity' => 0,
+            'sort_order'       => count($this->lines),
+        ]);
+
+        $this->lines[] = [
+            'id'               => $line->id,
+            'item_type'        => 'asset',
+            'ingredient_id'    => null,
+            'recipe_id'        => null,
+            'asset_id'         => $asset->id,
+            'item_name'        => $asset->name,
+            'uom_abbr'         => $asset->uom?->abbreviation ?? '',
+            'pack_info'        => '',
             'default_quantity' => '0',
         ];
     }
@@ -265,6 +343,7 @@ class FormTemplateEdit extends Component
             'item_type'        => 'recipe',
             'ingredient_id'    => null,
             'recipe_id'        => $recipe->id,
+            'asset_id'         => null,
             'item_name'        => $recipe->name,
             'uom_abbr'         => $recipe->yieldUom?->abbreviation ?? '',
             'pack_info'        => '',
@@ -378,8 +457,30 @@ class FormTemplateEdit extends Component
     {
         $ingredientResults = collect();
         $recipeResults     = collect();
+        $assetResults      = collect();
+        $isAssetCount      = $this->form_type === 'asset_count';
 
-        if (strlen($this->itemSearch) >= 2) {
+        if ($isAssetCount && strlen($this->itemSearch) >= 2) {
+            $onSheet = collect($this->lines)
+                ->where('item_type', 'asset')
+                ->pluck('asset_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+
+            $assetResults = Asset::with(['uom', 'category'])
+                ->active()
+                ->where(function ($q) {
+                    $q->where('name', 'like', '%' . $this->itemSearch . '%')
+                      ->orWhere('code', 'like', '%' . $this->itemSearch . '%')
+                      ->orWhere('brand', 'like', '%' . $this->itemSearch . '%');
+                })
+                ->when($onSheet, fn ($q) => $q->whereNotIn('id', $onSheet))
+                ->orderBy('name')
+                ->limit(10)
+                ->get();
+        }
+
+        if (! $isAssetCount && strlen($this->itemSearch) >= 2) {
             $existingIngIds = collect($this->lines)
                 ->where('item_type', 'ingredient')
                 ->pluck('ingredient_id')
@@ -420,11 +521,14 @@ class FormTemplateEdit extends Component
 
         $suppliers   = Supplier::selectable($this->supplier_id)->orderBy('name')->get();
         $departments = Department::active()->ordered()->get();
-        $categories  = IngredientCategory::roots()->with('children')->active()->ordered()->get();
+        $categories  = $isAssetCount
+            ? collect()
+            : IngredientCategory::roots()->with('children')->active()->ordered()->get();
+        $assetCategories = $isAssetCount ? AssetCategory::ordered()->get() : collect();
 
         $visibleLines = $this->visibleLines();
 
-        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'suppliers', 'departments', 'categories', 'visibleLines'))
+        return view('livewire.settings.form-template-edit', compact('ingredientResults', 'recipeResults', 'assetResults', 'assetCategories', 'isAssetCount', 'suppliers', 'departments', 'categories', 'visibleLines'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Edit Template: ' . $this->name]);
     }
 }

@@ -57,8 +57,8 @@
                     <x-input-label value="Type" />
                     <p class="mt-1 text-sm text-gray-600 font-medium px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                         @php
-                            $typeLabels = ['stock_take' => 'Stock Take', 'purchase_order' => 'Purchase Order', 'wastage' => 'Wastage'];
-                            $typeColors = ['stock_take' => 'text-teal-700', 'purchase_order' => 'text-blue-700', 'wastage' => 'text-danger-700'];
+                            $typeLabels = \App\Models\FormTemplate::formTypeOptions();
+                            $typeColors = ['stock_take' => 'text-teal-700', 'purchase_order' => 'text-blue-700', 'wastage' => 'text-danger-700', 'asset_count' => 'text-brand-700'];
                         @endphp
                         <span class="{{ $typeColors[$form_type] ?? 'text-gray-700' }}">
                             {{ $typeLabels[$form_type] ?? $form_type }}
@@ -131,7 +131,9 @@
 
                 <div class="text-xs text-gray-600 pt-2 border-t border-gray-100">
                     <p>{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }} in this template.</p>
-                    @if ($form_type === 'wastage')
+                    @if ($isAssetCount)
+                        <p class="mt-1">Search for assets to add to this template.</p>
+                    @elseif ($form_type === 'wastage')
                         <p class="mt-1">Wastage templates support both ingredients and recipes.</p>
                     @else
                         <p class="mt-1">Search for ingredients to add to this template.</p>
@@ -152,6 +154,17 @@
                 {{-- Search --}}
                 <div class="px-6 py-4 border-b border-gray-100">
                     {{-- Quick Add --}}
+                    @if ($isAssetCount)
+                        <div class="flex items-center gap-2 mb-3">
+                            <select class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-brand-500 focus:ring-brand-500 py-1.5"
+                                    @change="if($event.target.value) { $wire.loadByAssetCategory(parseInt($event.target.value)); $event.target.value = ''; }">
+                                <option value="">Load by Asset Category…</option>
+                                @foreach ($assetCategories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @else
                     <div class="flex items-center gap-2 mb-3">
                         {{-- Load by Category --}}
                         <div class="flex items-center gap-1.5">
@@ -178,6 +191,7 @@
                             </select>
                         </div>
                     </div>
+                    @endif
 
                     <div class="relative">
                         <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -187,11 +201,35 @@
                         </div>
                         <input type="text"
                                wire:model.live.debounce.300ms="itemSearch"
-                               placeholder="{{ $form_type === 'wastage' ? 'Search ingredients or recipes…' : 'Search ingredients…' }}"
+                               placeholder="{{ $isAssetCount ? 'Search assets by name, code or brand…' : ($form_type === 'wastage' ? 'Search ingredients or recipes…' : 'Search ingredients…') }}"
                                class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                     </div>
 
-                    @if ($ingredientResults->isNotEmpty() || $recipeResults->isNotEmpty())
+                    @if ($isAssetCount)
+                        @if ($assetResults->isNotEmpty())
+                            <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
+                                @foreach ($assetResults as $asset)
+                                    <button type="button" wire:click="addAsset({{ $asset->id }})"
+                                            class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
+                                        <div class="min-w-0">
+                                            <span class="font-medium text-gray-800 text-sm">{{ $asset->name }}</span>
+                                            @if ($asset->code)
+                                                <span class="ml-2 text-xs text-gray-500">{{ $asset->code }}</span>
+                                            @endif
+                                            @if ($asset->category)
+                                                <span class="block text-xs text-gray-500">{{ $asset->category->name }}</span>
+                                            @endif
+                                        </div>
+                                        <span class="text-xs text-gray-600 ml-4 whitespace-nowrap">{{ $asset->uom?->abbreviation }}
+                                            <span class="text-brand-400 ml-1">+ Add</span>
+                                        </span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @elseif (strlen($itemSearch) >= 2)
+                            <p class="mt-2 text-sm text-gray-600 text-center py-2">No assets found.</p>
+                        @endif
+                    @elseif ($ingredientResults->isNotEmpty() || $recipeResults->isNotEmpty())
                         <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
 
                             @if ($ingredientResults->isNotEmpty())
@@ -342,7 +380,7 @@
                     <div class="py-12 text-center text-gray-600">
                         <p class="text-3xl mb-2">📝</p>
                         <p class="font-medium">No items yet</p>
-                        <p class="text-xs mt-1">Search above to add ingredients{{ $form_type === 'wastage' ? ' or recipes' : '' }} to this template.</p>
+                        <p class="text-xs mt-1">Search above to add {{ $isAssetCount ? 'assets' : 'ingredients' . ($form_type === 'wastage' ? ' or recipes' : '') }} to this template.</p>
                     </div>
                 @endif
 

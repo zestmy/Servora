@@ -39,7 +39,7 @@ class FormTemplates extends Component
     {
         return [
             'name'      => 'required|string|max:100',
-            'form_type' => ['required', 'string', 'in:stock_take,purchase_order,wastage'],
+            'form_type' => ['required', 'string', 'in:' . implode(',', array_keys(FormTemplate::formTypeOptions()))],
             'sort_order'=> 'required|integer|min:0|max:9999',
         ];
     }

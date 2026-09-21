@@ -133,6 +133,18 @@
 
                 <button type="button" wire:click="loadAll()" class="btn-secondary">Load</button>
 
+                @if ($templates->isNotEmpty())
+                    <div class="sm:w-56">
+                        <label class="label" for="count-template">Load a template</label>
+                        <select id="count-template" wire:model="selectedTemplateId" wire:change="loadTemplate" class="input">
+                            <option value="">Choose a template…</option>
+                            @foreach ($templates as $t)
+                                <option value="{{ $t->id }}">{{ $t->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+
                 @if ($lines)
                     <button type="button" wire:click="clearLines" class="btn-ghost"
                             data-confirm-delete="Clear every line off this count sheet.">

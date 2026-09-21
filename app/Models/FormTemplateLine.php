@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class FormTemplateLine extends Model
 {
     protected $fillable = [
-        'form_template_id', 'item_type', 'ingredient_id', 'recipe_id',
+        'form_template_id', 'item_type', 'ingredient_id', 'recipe_id', 'asset_id',
         'default_quantity', 'sort_order',
     ];
 
@@ -32,11 +32,17 @@ class FormTemplateLine extends Model
         return $this->belongsTo(Recipe::class);
     }
 
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class);
+    }
+
     public function itemName(): string
     {
-        if ($this->item_type === 'recipe') {
-            return $this->recipe?->name ?? '—';
-        }
-        return $this->ingredient?->name ?? '—';
+        return match ($this->item_type) {
+            'recipe' => $this->recipe?->name ?? '—',
+            'asset'  => $this->asset?->name ?? '—',
+            default  => $this->ingredient?->name ?? '—',
+        };
     }
 }

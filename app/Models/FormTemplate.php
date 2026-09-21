@@ -63,6 +63,7 @@ class FormTemplate extends Model
             'stock_take'     => 'Stock Take',
             'purchase_order' => 'Purchase Order',
             'wastage'        => 'Wastage',
+            'asset_count'    => 'Asset Count',
         ];
     }
 

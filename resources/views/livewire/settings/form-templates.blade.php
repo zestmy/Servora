@@ -95,6 +95,7 @@
                                         'stock_take'     => 'bg-teal-100 text-teal-700',
                                         'purchase_order' => 'bg-blue-100 text-blue-700',
                                         'wastage'        => 'bg-danger-100 text-danger-700',
+                                        'asset_count'    => 'bg-brand-100 text-brand-700',
                                     ];
                                 @endphp
                                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $typeColors[$t->form_type] ?? 'bg-gray-100 text-gray-600' }}">

@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\AssetCount;
 use App\Models\Department;
+use App\Models\FormTemplate;
 use App\Services\AssetOnHandService;
 use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
@@ -46,8 +47,9 @@ class CountForm extends Component
     /** @var array<int, array<string, mixed>> */
     public array $lines = [];
 
-    public string $assetSearch     = '';
-    public string $loadCategoryId  = '';
+    public string $assetSearch        = '';
+    public string $loadCategoryId     = '';
+    public string $selectedTemplateId = '';
     public bool   $hideSystemQty   = false;
 
     /** @var array<string, float> asset key => unit cost, server-authored only */
@@ -187,6 +189,40 @@ class CountForm extends Component
         }
 
         $this->lines[] = $this->buildLine($asset);
+    }
+
+    /**
+     * A saved count sheet — Settings > Form Templates, type "Asset Count".
+     * Assets already on the sheet are skipped, like every other load here.
+     */
+    public function loadTemplate(): void
+    {
+        if (! $this->selectedTemplateId) return;
+
+        $template = FormTemplate::with('lines.asset.uom', 'lines.asset.category')
+            ->ofType('asset_count')
+            ->find((int) $this->selectedTemplateId);
+
+        $this->selectedTemplateId = '';
+
+        if (! $template) return;
+
+        $existing = collect($this->lines)->pluck('asset_id')->map(fn ($id) => (int) $id)->all();
+        $assets   = $template->lines
+            ->filter(fn ($l) => $l->item_type === 'asset' && $l->asset && ! in_array((int) $l->asset_id, $existing, true))
+            ->map(fn ($l) => $l->asset)
+            ->values();
+
+        if ($assets->isEmpty()) {
+            session()->flash('info', 'Every asset on that template is already on this count.');
+            return;
+        }
+
+        $systemQuantities = $this->systemQuantitiesFor($assets->pluck('id')->all());
+
+        foreach ($assets as $asset) {
+            $this->lines[] = $this->buildLine($asset, $systemQuantities[$asset->id] ?? 0.0);
+        }
     }
 
     /** Everything active, or everything in one category — the usual way a sheet starts. */
@@ -441,6 +477,7 @@ class CountForm extends Component
             'hasOutletChoice' => $this->hasOutletChoice(),
             'departments'   => Department::selectable($this->department_id)->orderBy('sort_order')->get(),
             'categories'    => AssetCategory::ordered()->get(),
+            'templates'     => FormTemplate::ofType('asset_count')->active()->ordered()->get(),
             'isEditable'    => $this->isEditable(),
             'countedValue'  => round($countedValue, 2),
             'varianceCost'  => round($varianceCost, 2),
