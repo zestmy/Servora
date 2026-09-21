@@ -210,6 +210,13 @@
        deck — not off an Alpine binding on each slide, which a slide replaced by
        Livewire could lose (see show() in the WIP review). */
     .wip-presenting > section.card { margin-bottom: 0; flex-shrink: 0; }
+    /* .wip-wide: a slide whose table cannot give up any width — every figure is
+       one line — grows the card to fit it, and the deck then scales the card
+       down to the screen. Without it the table spills out of the card and off
+       the screen, because the deck only scales what the card measures. Slides
+       whose tables CAN compress are left alone: growing them would scale the
+       whole slide down for width they did not need. */
+    .wip-presenting > section.wip-wide { width: max-content; min-width: 100%; max-width: none; align-self: flex-start; }
     .wip-bar { display: none; }
     .wip-presenting .wip-bar { display: flex; }
     .wip-slide-count { display: none; }

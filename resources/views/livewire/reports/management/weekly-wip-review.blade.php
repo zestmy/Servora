@@ -307,7 +307,7 @@
 
         {{-- ── Sales performance (weekly) ──────────────────────────────── --}}
         @if ($sp !== null)
-            <section class="card p-5 mb-6" wire:key="wip-slide-{{ $unit }}-sales-{{ $idx['sales'] }}-{{ count($slides) }}">
+            <section class="card wip-wide p-5 mb-6" wire:key="wip-slide-{{ $unit }}-sales-{{ $idx['sales'] }}-{{ count($slides) }}">
                 @include('livewire.reports.management.partials.wip-slide-head', [
                     'n' => $idx['sales'] + 1, 'title' => $slides['sales'],
                     'hint' => 'by day and meal period — ' . $sp['current']['label'] . ' against ' . $sp['previous']['label'],
