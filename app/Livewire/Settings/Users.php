@@ -157,7 +157,7 @@ class Users extends Component
         'Chef'               => [],
         'Purchasing'         => [],
         'Finance'            => ['purchasing.invoice'],
-        'HR Manager'         => ['hr.clock.waive_lateness'],
+        'HR Manager'         => ['hr.clock.waive_lateness', 'hr.compensation.transfers.manage'],
         'Staff'              => [],
     ];
 
