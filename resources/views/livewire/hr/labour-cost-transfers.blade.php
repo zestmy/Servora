@@ -1,6 +1,6 @@
 <div>
     <x-page-header eyebrow="HR / Pay" title="Labour Cost Transfer"
-                   subtitle="Salary and overtime moved to the outlet that borrowed the staff — outlet support, events and outside catering.">
+                   subtitle="Salary and overtime moved to the outlet that borrowed the staff — outlet support, events and outside catering. Confirmed transfers move this cost between outlets in the labour reports.">
         <x-slot:actions>
             <a href="{{ route('hr.labour-transfers.create') }}" class="btn-primary">+ New transfer</a>
         </x-slot:actions>

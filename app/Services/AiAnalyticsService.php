@@ -465,7 +465,13 @@ class AiAnalyticsService
             }
         }
 
-        $totalLabourCost = $labourData['foh']['total'] + $labourData['boh']['total'];
+        // Confirmed labour cost transfers. They net to zero company-wide, so
+        // this only moves the figure when the analysis is for one outlet.
+        $labourTransfers = $outletId
+            ? \App\Services\Hr\LabourCostTransferLedger::netFor((int) $company->id, $startOfMonth->toDateString(), $endOfMonth->toDateString(), [(int) $outletId])
+            : 0.0;
+
+        $totalLabourCost = $labourData['foh']['total'] + $labourData['boh']['total'] + $labourTransfers;
         $totalRevenue = $costSummary['totals']['revenue'] ?? 0;
         $labourCostPct = $totalRevenue > 0 ? round($totalLabourCost / $totalRevenue * 100, 1) : 0;
 
@@ -476,6 +482,12 @@ class AiAnalyticsService
             $prevLabourQuery->where('outlet_id', $outletId);
         }
         $prevTotalLabour = round((float) $prevLabourQuery->get()->sum(fn ($lc) => $lc->total_cost), 2);
+        if ($outletId) {
+            $prevMonth = $date->copy()->subMonth();
+            $prevTotalLabour += \App\Services\Hr\LabourCostTransferLedger::netFor(
+                (int) $company->id, $prevMonth->copy()->startOfMonth()->toDateString(), $prevMonth->copy()->endOfMonth()->toDateString(), [(int) $outletId]
+            );
+        }
         $labourChange = $prevTotalLabour > 0 ? round(($totalLabourCost - $prevTotalLabour) / $prevTotalLabour * 100, 1) : 0;
 
         // Overtime claims for this month

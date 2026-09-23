@@ -18,6 +18,7 @@ use App\Models\Section;
 use App\Models\StaffMealRecord;
 use App\Models\WastageRecord;
 use App\Services\CostSummaryService;
+use App\Services\Hr\LabourCostTransferLedger;
 use App\Services\PurchaseSupplierBreakdown;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -676,6 +677,29 @@ class WeeklyWipReview
             }
         }
 
+        /*
+         * Confirmed labour cost transfers move cost between outlets: the
+         * outlet that borrowed staff takes on their pay for those days, the
+         * outlet that lent them hands it off. Company-wide it nets to zero, so
+         * only the per-outlet split (and a filtered total) changes. Carried as
+         * its own part so the breakdown shows the adjustment rather than
+         * quietly folding it into the payroll figure.
+         */
+        $sum['transfers'] = $zero;
+        foreach ($periods as $i => $period) {
+            if (($w = $bucket($period['start'])) === null) continue;
+
+            foreach (LabourCostTransferLedger::byOutlet($companyId, $period['start'], $period['end']) as $outletId => $row) {
+                if ($outletIds && ! in_array((int) $outletId, $outletIds, true)) continue;
+                if ($row['net'] == 0.0) continue;
+
+                $sum['transfers'][$w]     += $row['net'];
+                $sum['employer_cost'][$w] += $row['net'];
+                $byOutlet[$outletId] ??= $zero;
+                $byOutlet[$outletId][$w] += $row['net'];
+            }
+        }
+
         return [
             'parts'           => $sum,
             'headcount'       => $headcount,
@@ -990,6 +1014,7 @@ class WeeklyWipReview
             'service_charge'     => 'Service charge',
             'gross'              => 'Gross pay',
             'statutory_employer' => 'Employer statutory (EPF, SOCSO, EIS…)',
+            'transfers'          => 'Labour cost transfers (net)',
             'employer_cost'      => 'Labour cost (employer cost)',
         ];
 
@@ -997,6 +1022,9 @@ class WeeklyWipReview
         foreach ($labels as $key => $label) {
             $now  = round($labour['parts'][$key][$cur], 2);
             $then = round($labour['parts'][$key][$prev], 2);
+
+            // Only worth a row when something was transferred in or out.
+            if ($key === 'transfers' && $now == 0.0 && $then == 0.0) continue;
             $rows[] = ['key' => $key, 'label' => $label, 'current' => $now, 'previous' => $then, 'change' => self::change($now, $then)];
         }
 

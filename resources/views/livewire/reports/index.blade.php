@@ -1025,6 +1025,9 @@
                 <div class="card p-5">
                     <p class="text-xs text-gray-600 uppercase tracking-wider">Total Labour Cost</p>
                     <p class="text-xl font-bold text-gray-800 mt-1">{{ number_format($labourData['grand_total'], 2) }}</p>
+                    @if (abs($labourData['total_transfers'] ?? 0) >= 0.01)
+                        <p class="text-xs text-gray-600 mt-0.5">incl. {{ $labourData['total_transfers'] > 0 ? '+' : '−' }}{{ number_format(abs($labourData['total_transfers']), 2) }} labour transfers</p>
+                    @endif
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-blue-100 p-5">
                     <p class="text-xs text-blue-500 uppercase tracking-wider">FOH</p>
@@ -1122,6 +1125,24 @@
                             @endif
                         </div>
                     </div>
+
+                    {{-- Confirmed labour cost transfers for the month --}}
+                    @if (($o['transfer_in'] ?? 0) > 0 || ($o['transfer_out'] ?? 0) > 0)
+                        <div class="px-5 py-3 border-t border-gray-100 text-sm space-y-1">
+                            <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
+                                Labour cost transfers
+                                @canDo('hr.compensation')
+                                    <a href="{{ route('hr.labour-transfers', ['outlet' => $outletId, 'status' => 'confirmed', 'from' => \Carbon\Carbon::createFromFormat('!Y-m', $period)->startOfMonth()->toDateString(), 'to' => \Carbon\Carbon::createFromFormat('!Y-m', $period)->endOfMonth()->toDateString()]) }}" class="ml-1 normal-case tracking-normal font-normal text-brand-700 hover:underline">View</a>
+                                @endcanDo
+                            </h4>
+                            @if ($o['transfer_in'] > 0)
+                                <div class="flex justify-between"><span class="text-gray-600">Staff borrowed from other outlets</span><span class="font-medium tabular-nums">+{{ number_format($o['transfer_in'], 2) }}</span></div>
+                            @endif
+                            @if ($o['transfer_out'] > 0)
+                                <div class="flex justify-between"><span class="text-gray-600">Staff lent to other outlets</span><span class="font-medium tabular-nums">−{{ number_format($o['transfer_out'], 2) }}</span></div>
+                            @endif
+                        </div>
+                    @endif
 
                     {{-- Outlet Total --}}
                     <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">

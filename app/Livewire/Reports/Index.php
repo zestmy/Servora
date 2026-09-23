@@ -713,25 +713,51 @@ class Index extends Component
             ];
         }
 
+        /*
+         * Confirmed labour cost transfers for the month: the outlet that
+         * borrowed staff takes on their pay, the lending outlet hands it off.
+         * An outlet with transfers but no labour entry still gets a card, or
+         * an event outlet staffed entirely by borrowed people would vanish.
+         */
+        $monthEnd  = Carbon::parse($month)->endOfMonth()->toDateString();
+        $transfers = \App\Services\Hr\LabourCostTransferLedger::byOutlet((int) auth()->user()->company_id, $month, $monthEnd);
+        foreach ($transfers as $oid => $t) {
+            if ($outletId && (int) $oid !== (int) $outletId) continue;
+            if (! isset($outlets[$oid])) {
+                $outlets[$oid] = [
+                    'outlet_name' => \App\Models\Outlet::find($oid)?->name ?? 'Unknown',
+                    'revenue'     => (float) ($revenueByOutlet[$oid] ?? 0),
+                    'foh'         => null,
+                    'boh'         => null,
+                ];
+            }
+        }
+
         // Totals
         $totalFoh = 0;
         $totalBoh = 0;
-        foreach ($outlets as &$o) {
+        $totalTransfers = 0;
+        foreach ($outlets as $oid => &$o) {
             $o['foh_total'] = $o['foh']['total'] ?? 0;
             $o['boh_total'] = $o['boh']['total'] ?? 0;
-            $o['total']     = $o['foh_total'] + $o['boh_total'];
+            $o['transfer_in']  = $transfers[$oid]['in'] ?? 0.0;
+            $o['transfer_out'] = $transfers[$oid]['out'] ?? 0.0;
+            $o['transfer_net'] = $transfers[$oid]['net'] ?? 0.0;
+            $o['total']     = $o['foh_total'] + $o['boh_total'] + $o['transfer_net'];
+            $totalTransfers += $o['transfer_net'];
             $o['labour_pct'] = $o['revenue'] > 0 ? round($o['total'] / $o['revenue'] * 100, 1) : 0;
             $totalFoh += $o['foh_total'];
             $totalBoh += $o['boh_total'];
         }
         unset($o);
 
-        $grandTotal = $totalFoh + $totalBoh;
+        $grandTotal = $totalFoh + $totalBoh + $totalTransfers;
 
         $this->labourData = [
             'outlets'       => $outlets,
             'total_foh'     => $totalFoh,
             'total_boh'     => $totalBoh,
+            'total_transfers' => round($totalTransfers, 2),
             'grand_total'   => $grandTotal,
             'total_revenue' => $totalRevenue,
             'labour_pct'    => $totalRevenue > 0 ? round($grandTotal / $totalRevenue * 100, 1) : 0,

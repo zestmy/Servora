@@ -6,6 +6,7 @@ use App\Models\LabourCostTransfer;
 use App\Models\Outlet;
 use App\Services\Hr\LabourCostTransferCalculator;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,17 +21,18 @@ class LabourCostTransfers extends Component
 {
     use WithPagination;
 
-    public string $from   = '';
-    public string $to     = '';
-    public string $outlet = '';
-    public string $status = '';
+    // In the URL so a report can link straight to one outlet's month.
+    #[Url] public string $from   = '';
+    #[Url] public string $to     = '';
+    #[Url] public string $outlet = '';
+    #[Url] public string $status = '';
 
     public function mount(): void
     {
         abort_unless(Auth::user()?->canDo('hr.compensation'), 403);
 
-        $this->from = now()->startOfMonth()->toDateString();
-        $this->to   = now()->endOfMonth()->toDateString();
+        $this->from = $this->from ?: now()->startOfMonth()->toDateString();
+        $this->to   = $this->to ?: now()->endOfMonth()->toDateString();
     }
 
     public function updating($name): void
