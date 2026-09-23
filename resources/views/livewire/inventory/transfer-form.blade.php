@@ -276,7 +276,7 @@
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Product</th>
                             <th class="px-4 py-2 text-right w-28">Qty</th>
-                            <th class="px-4 py-2 text-left w-16">UOM</th>
+                            <th class="px-4 py-2 text-left w-32">UOM</th>
                             <th class="px-4 py-2 text-right w-32">Unit Cost (RM)</th>
                             <th class="px-4 py-2 text-right w-32">Total Cost (RM)</th>
                             @if ($isDraft)
@@ -319,8 +319,12 @@
                                 </td>
                                 <td class="px-4 py-2 text-gray-600 text-xs">
                                     @if ($type === 'custom' && $isDraft)
+                                        {{-- min-w: a select needs room for its text AND its
+                                             arrow; at the old 64px column the arrow was all
+                                             that showed. --}}
                                         <select wire:model.live="lines.{{ $idx }}.uom_id" aria-label="Unit"
-                                                class="w-full rounded-control border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                                class="w-full min-w-[6.5rem] rounded-control border-gray-300 text-sm text-gray-800 focus:border-brand-500 focus:ring-brand-500">
+                                            <option value="" disabled>Unit…</option>
                                             @foreach ($uoms as $uom)
                                                 <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
                                             @endforeach
