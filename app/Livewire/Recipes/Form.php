@@ -114,6 +114,18 @@ class Form extends Component
             'extraCosts.*.label.required'        => 'Cost label is required.',
             'extraCosts.*.amount.required'       => 'Cost amount is required.',
             'extraCosts.*.amount.min'            => 'Cost amount cannot be negative.',
+
+            // Without these the form says "The newDineInImages.0 field ..." —
+            // the property name, which means nothing to whoever picked the photo.
+            'newDineInImages.*.image'            => 'That dine-in file is not an image.',
+            'newDineInImages.*.mimes'            => 'Dine-in photos must be JPG, PNG, GIF or WEBP.',
+            'newDineInImages.*.max'              => 'Each dine-in photo must be 5 MB or smaller.',
+            'newTakeawayImages.*.image'          => 'That takeaway file is not an image.',
+            'newTakeawayImages.*.mimes'          => 'Takeaway photos must be JPG, PNG, GIF or WEBP.',
+            'newTakeawayImages.*.max'            => 'Each takeaway photo must be 5 MB or smaller.',
+            'steps.*.new_image.image'            => 'That step file is not an image.',
+            'steps.*.new_image.mimes'            => 'Step photos must be JPG, PNG, GIF or WEBP.',
+            'steps.*.new_image.max'              => 'Each step photo must be 5 MB or smaller.',
         ];
     }
 
