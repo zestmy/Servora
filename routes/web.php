@@ -360,6 +360,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/transfers-summary.xlsx', \App\Http\Controllers\TransferSummaryExcelController::class)->name('inventory.transfers.summary-excel')->middleware('can:inventory.view');
     Route::get('/inventory/transfers-details', \App\Http\Controllers\TransferDetailController::class)->name('inventory.transfers.detail')->middleware('can:inventory.view');
     Route::get('/inventory/transfers-details.xlsx', \App\Http\Controllers\TransferDetailExcelController::class)->name('inventory.transfers.detail-excel')->middleware('can:inventory.view');
+    Route::get('/inventory/transfers/{id}/pdf', \App\Http\Controllers\StockTransferPdfController::class)->whereNumber('id')->name('inventory.transfers.pdf')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/purchases/create', PurchaseCaptureForm::class)->name('inventory.purchases.create')->middleware('can:inventory.purchases.record');
     // Above the {id} route on purpose: "supplier-summary" is a valid {id} as far
@@ -537,6 +538,11 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/hr/compensation/export-pdf', \App\Http\Controllers\CompensationPdfController::class)->name('hr.compensation.export-pdf')->middleware('can:hr.compensation');
     Route::get('/hr/compensation/{id}', \App\Livewire\Hr\EmployeeCompensation::class)->name('hr.compensation.employee')->middleware('can:hr.compensation');
     // Payroll: runs, and payslips printed from a run's locked lines.
+    // Labour cost transfer prints salary rates, so it sits behind the pay gate.
+    Route::get('/hr/labour-transfers', \App\Livewire\Hr\LabourCostTransfers::class)->name('hr.labour-transfers')->middleware('can:hr.compensation');
+    Route::get('/hr/labour-transfers/create', \App\Livewire\Hr\LabourCostTransferForm::class)->name('hr.labour-transfers.create')->middleware('can:hr.compensation');
+    Route::get('/hr/labour-transfers/{id}/pdf', \App\Http\Controllers\LabourCostTransferPdfController::class)->whereNumber('id')->name('hr.labour-transfers.pdf')->middleware('can:hr.compensation');
+    Route::get('/hr/labour-transfers/{id}', \App\Livewire\Hr\LabourCostTransferForm::class)->whereNumber('id')->name('hr.labour-transfers.show')->middleware('can:hr.compensation');
     Route::get('/hr/payroll', \App\Livewire\Hr\Payroll::class)->name('hr.payroll')->middleware('can:hr.payroll');
     // EA forms declared BEFORE /hr/payroll/{run}, or "ea" is swallowed as a run id.
     Route::get('/hr/payroll/ea-forms', \App\Livewire\Hr\EaForms::class)->name('hr.payroll.ea-forms')->middleware('can:hr.payroll');

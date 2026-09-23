@@ -906,6 +906,11 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    <a href="{{ route('inventory.transfers.pdf', $transfer->id) }}" title="Download PDF"
+                                       aria-label="Download PDF for {{ $transfer->transfer_number }}"
+                                       class="text-gray-600 hover:text-gray-900 transition">
+                                        <x-icon name="download" class="h-4 w-4" />
+                                    </a>
                                     @if ($transfer->status === 'draft' || $canDelete['transfers'])
                                         <button wire:click="deleteTransfer({{ $transfer->id }})"
                                                 data-confirm-delete="{{ $transfer->status === 'draft' ? 'Delete this transfer? This cannot be undone.' : 'Delete this ' . str_replace('_', ' ', $transfer->status) . ' transfer? This cannot be undone.' }}"

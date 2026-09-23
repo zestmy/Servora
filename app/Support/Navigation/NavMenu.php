@@ -246,6 +246,7 @@ final class NavMenu
 
                     ['route' => 'hr.compensation',       'label' => 'Compensation',      'permission' => 'hr.compensation', 'section' => 'Pay'],
                     ['route' => 'hr.payroll',            'label' => 'Payroll',           'permission' => 'hr.payroll',      'section' => 'Pay'],
+                    ['route' => 'hr.labour-transfers',   'label' => 'Labour Cost Transfer', 'permission' => 'hr.compensation', 'section' => 'Pay'],
                     ['route' => 'hr.payroll.ea-forms',   'label' => 'EA Forms',          'permission' => 'hr.payroll',      'section' => 'Pay'],
                     ['route' => 'settings.labour-costs', 'label' => 'Labour Costs',      'permission' => 'hr.view',         'section' => 'Pay'],
 

@@ -1,0 +1,260 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Livewire\Hr\LabourCostTransferForm;
+use App\Livewire\Hr\LabourCostTransfers;
+use App\Models\Company;
+use App\Models\Employee;
+use App\Models\LabourCostTransfer;
+use App\Models\Outlet;
+use App\Models\OutletTransfer;
+use App\Models\OvertimeClaim;
+use App\Models\UnitOfMeasure;
+use App\Models\User;
+use App\Services\Hr\LabourCostTransferCalculator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+/**
+ * Labour Cost Transfer: salary and approved OT moved from the outlet that
+ * employs someone to the outlet they were lent to.
+ *
+ * Money in these tests: RM 2,600 a month over the default 26 working days is
+ * RM 100 a day; over 8 hours that is RM 12.50 an hour, so a normal-day OT
+ * hour at 1.5x is RM 18.75 and a rest-day hour at 2x is RM 25.
+ */
+class LabourCostTransferTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Company $company;
+    private Outlet $home;
+    private Outlet $branch;
+    private Outlet $events;
+    private User $hr;
+    private Employee $aisyah;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->company = Company::create([
+            'name' => 'Labour Co', 'slug' => Str::slug('Labour Co') . '-' . uniqid(),
+            'currency' => 'MYR', 'is_active' => true,
+        ]);
+        $this->home   = $this->outlet('Home', 'HOME');
+        $this->branch = $this->outlet('Branch', 'BR');
+        $this->events = $this->outlet('Events', 'EVT');
+
+        foreach (['hr.compensation', 'inventory.view'] as $p) {
+            Permission::findOrCreate($p, 'web');
+        }
+        $this->hr = $this->user(['hr.compensation', 'inventory.view']);
+
+        $this->aisyah = $this->employee('Aisyah', $this->home);
+    }
+
+    private function outlet(string $name, string $code): Outlet
+    {
+        return Outlet::create(['company_id' => $this->company->id, 'name' => $name, 'code' => $code, 'is_active' => true]);
+    }
+
+    private function user(array $permissions): User
+    {
+        $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->home->id, $this->branch->id, $this->events->id]);
+
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo($permissions);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return $user;
+    }
+
+    private function employee(string $name, Outlet $outlet, ?float $salary = 2600): Employee
+    {
+        return Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $outlet->id, 'name' => $name,
+            'employment_status' => 'confirmed', 'is_active' => true,
+            'basic_salary' => $salary, 'pay_type' => 'monthly',
+        ]);
+    }
+
+    private function claim(Employee $e, string $date, float $hours, string $type = 'normal_day', string $status = 'approved', string $settlement = 'payroll'): OvertimeClaim
+    {
+        return OvertimeClaim::create([
+            'company_id' => $this->company->id, 'outlet_id' => $e->outlet_id, 'employee_id' => $e->id,
+            'submitted_by' => $this->hr->id, 'claim_date' => $date,
+            'ot_time_start' => '22:00', 'ot_time_end' => '23:00', 'total_ot_hours' => $hours,
+            'ot_type' => $type, 'reason' => 'Event', 'status' => $status, 'settlement' => $settlement,
+        ]);
+    }
+
+    private function form(string $to = null)
+    {
+        return Livewire::actingAs($this->hr)->test(LabourCostTransferForm::class)
+            ->set('to_outlet_id', (string) ($to ?? $this->events->id))
+            ->set('purpose', 'event');
+    }
+
+    public function test_a_line_is_days_at_the_daily_rate_plus_approved_payroll_overtime(): void
+    {
+        $this->claim($this->aisyah, '2026-09-02', 2);                              // 2 x 18.75 = 37.50
+        $this->claim($this->aisyah, '2026-09-03', 1, 'rest_day');                  // 1 x 25.00 = 25.00
+        $this->claim($this->aisyah, '2026-09-03', 3, status: 'submitted');         // pending: out
+        $this->claim($this->aisyah, '2026-09-03', 4, settlement: 'time_off');      // time off: out
+        $this->claim($this->aisyah, '2026-09-10', 5);                              // outside dates: out
+
+        $price = (new LabourCostTransferCalculator($this->company->id))
+            ->price($this->aisyah, '2026-09-01', '2026-09-03');
+
+        $this->assertEquals(3, $price['days']);
+        $this->assertEquals(100, $price['daily_rate']);
+        $this->assertEquals(300, $price['salary_amount']);
+        $this->assertEquals(3, $price['ot_hours']);
+        $this->assertEquals(62.5, $price['ot_amount']);
+        $this->assertEquals(362.5, $price['total_amount']);
+        $this->assertCount(2, $price['ot_claim_ids']);
+    }
+
+    public function test_saving_stores_a_snapshot_priced_on_the_server(): void
+    {
+        $this->claim($this->aisyah, '2026-09-02', 2);
+
+        $this->form()
+            ->set('reference', 'Wedding at Dewan Seri')
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')
+            ->set('lines.0.date_end', '2026-09-03')
+            // A browser cannot set the money: these are overwritten on save.
+            ->set('lines.0.daily_rate', 9999)
+            ->set('lines.0.total_amount', 9999)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $t = LabourCostTransfer::with('lines')->firstOrFail();
+        $this->assertSame('draft', $t->status);
+        $this->assertSame($this->events->id, $t->to_outlet_id);
+
+        $line = $t->lines->first();
+        $this->assertSame($this->home->id, $line->from_outlet_id, 'The sender is the outlet that employs them.');
+        $this->assertEquals(3, (float) $line->days);
+        $this->assertEquals(100, (float) $line->daily_rate);
+        $this->assertEquals(337.5, (float) $line->total_amount);
+    }
+
+    public function test_lowering_the_days_leaves_out_rest_days_but_cannot_exceed_the_range(): void
+    {
+        $c = $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')
+            ->set('lines.0.date_end', '2026-09-07');
+
+        $this->assertEquals(7, (float) $c->get('lines')[0]['days']);
+
+        $c->set('lines.0.days', '6');
+        $this->assertEquals(600, $c->get('lines')[0]['salary_amount']);
+
+        $c->set('lines.0.days', '9');   // clamped by the preview to the 7 in range
+        $this->assertEquals(7, (float) $c->get('lines')[0]['days']);
+    }
+
+    public function test_the_same_days_cannot_be_transferred_twice_until_the_first_is_cancelled(): void
+    {
+        $this->form()->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-05')
+            ->call('confirm')->assertHasNoErrors();
+
+        $this->form((string) $this->branch->id)->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-04')->set('lines.0.date_end', '2026-09-06')
+            ->call('save')
+            ->assertHasErrors('lines.0.date_start');
+
+        $this->assertSame(1, LabourCostTransfer::count());
+
+        LabourCostTransfer::first()->update(['status' => 'cancelled']);
+
+        $this->form((string) $this->branch->id)->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-04')->set('lines.0.date_end', '2026-09-06')
+            ->call('save')
+            ->assertHasNoErrors();
+    }
+
+    public function test_staff_cannot_be_transferred_to_their_own_outlet(): void
+    {
+        $this->form((string) $this->home->id)
+            ->call('addEmployee', $this->aisyah->id)
+            ->call('save')
+            ->assertHasErrors('lines.0.employee_id');
+    }
+
+    public function test_the_outlet_summary_credits_senders_charges_the_receiver_and_nets_to_zero(): void
+    {
+        $bob = $this->employee('Bob', $this->branch, 5200);   // RM 200 a day
+
+        $c = $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-02')
+            ->call('addEmployee', $bob->id)
+            ->set('lines.1.date_start', '2026-09-01')->set('lines.1.date_end', '2026-09-01');
+
+        $summary = collect($c->viewData('summary'))->keyBy('outlet_id');
+
+        $this->assertEquals(400, $summary[$this->events->id]['net']);
+        $this->assertEquals(-200, $summary[$this->home->id]['net']);
+        $this->assertEquals(-200, $summary[$this->branch->id]['net']);
+        $this->assertEquals(0, $summary->sum('net'));
+    }
+
+    public function test_the_list_summarises_confirmed_transfers_only(): void
+    {
+        $this->form()->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', now()->startOfMonth()->toDateString())
+            ->set('lines.0.date_end', now()->startOfMonth()->toDateString())
+            ->set('transfer_date', now()->toDateString())
+            ->call('save');   // draft
+
+        $list = Livewire::actingAs($this->hr)->test(LabourCostTransfers::class);
+        $this->assertSame([], $list->viewData('summary'));
+        $this->assertSame(1, $list->viewData('transfers')->total());
+
+        LabourCostTransfer::first()->update(['status' => 'confirmed']);
+        $list = Livewire::actingAs($this->hr)->test(LabourCostTransfers::class);
+        $this->assertEquals(100, collect($list->viewData('summary'))->firstWhere('outlet_id', $this->events->id)['net']);
+    }
+
+    public function test_the_pdf_downloads_and_is_behind_the_pay_gate(): void
+    {
+        $this->form()->call('addEmployee', $this->aisyah->id)->call('confirm');
+        $t = LabourCostTransfer::firstOrFail();
+
+        $this->actingAs($this->hr)->get(route('hr.labour-transfers.pdf', $t->id))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $noPay = $this->user(['inventory.view']);
+        $this->actingAs($noPay)->get(route('hr.labour-transfers.pdf', $t->id))->assertForbidden();
+        $this->actingAs($noPay)->get(route('hr.labour-transfers'))->assertForbidden();
+    }
+
+    public function test_the_stock_transfer_pdf_downloads(): void
+    {
+        $pcs = UnitOfMeasure::create(['name' => 'Pieces', 'abbreviation' => 'pcs', 'type' => 'count', 'base_unit_factor' => 1]);
+        $transfer = OutletTransfer::create([
+            'company_id' => $this->company->id, 'from_outlet_id' => $this->home->id, 'to_outlet_id' => $this->branch->id,
+            'transfer_number' => 'TRF-TEST-001', 'status' => 'in_transit', 'transfer_date' => '2026-09-01',
+            'created_by' => $this->hr->id,
+        ]);
+        $transfer->lines()->create(['custom_name' => 'Cake stand', 'uom_id' => $pcs->id, 'quantity' => 2, 'unit_cost' => 12]);
+
+        $this->actingAs($this->hr)->get(route('inventory.transfers.pdf', $transfer->id))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+}

@@ -12,6 +12,11 @@
                 / {{ $transferId ? 'Transfer ' . $transfer_number : 'New Transfer' }}
             </p>
         </div>
+        @if ($transferId)
+            <a href="{{ route('inventory.transfers.pdf', $transferId) }}" class="btn-secondary">
+                <x-icon name="download" class="h-4 w-4" /> PDF
+            </a>
+        @endif
         @if ($isDraft)
             <button wire:click="save"
                     class="btn-primary">
