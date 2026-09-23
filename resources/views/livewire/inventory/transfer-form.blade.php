@@ -16,6 +16,9 @@
             <a href="{{ route('inventory.transfers.pdf', $transferId) }}" class="btn-secondary">
                 <x-icon name="download" class="h-4 w-4" /> PDF
             </a>
+            <a href="{{ route('inventory.transfers.excel', $transferId) }}" class="btn-secondary">
+                <x-icon name="download" class="h-4 w-4" /> Excel
+            </a>
         @endif
         @if ($isDraft)
             <button wire:click="save"

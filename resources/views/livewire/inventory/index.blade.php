@@ -911,6 +911,11 @@
                                        class="text-gray-600 hover:text-gray-900 transition">
                                         <x-icon name="download" class="h-4 w-4" />
                                     </a>
+                                    <a href="{{ route('inventory.transfers.excel', $transfer->id) }}" title="Download Excel"
+                                       aria-label="Download Excel for {{ $transfer->transfer_number }}"
+                                       class="text-success-700 hover:text-success-800 transition">
+                                        <x-icon name="document" class="h-4 w-4" />
+                                    </a>
                                     @if ($transfer->status === 'draft' || $canDelete['transfers'])
                                         <button wire:click="deleteTransfer({{ $transfer->id }})"
                                                 data-confirm-delete="{{ $transfer->status === 'draft' ? 'Delete this transfer? This cannot be undone.' : 'Delete this ' . str_replace('_', ' ', $transfer->status) . ' transfer? This cannot be undone.' }}"

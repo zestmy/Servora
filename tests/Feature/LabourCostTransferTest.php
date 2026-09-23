@@ -519,6 +519,53 @@ class LabourCostTransferTest extends TestCase
         $this->assertSame([], \App\Services\Hr\LabourCostTransferLedger::byOutlet($this->company->id, '2026-09-01', '2026-09-30'));
     }
 
+    public function test_a_stock_transfer_downloads_as_a_workbook(): void
+    {
+        $kg  = UnitOfMeasure::create(['name' => 'Kilogram', 'abbreviation' => 'kg', 'type' => 'weight', 'base_unit_factor' => 1000]);
+        $pcs = UnitOfMeasure::create(['name' => 'Pieces', 'abbreviation' => 'pcs', 'type' => 'count', 'base_unit_factor' => 1]);
+        $flour = \App\Models\Ingredient::create([
+            'company_id' => $this->company->id, 'name' => 'Flour', 'code' => 'FL01',
+            'base_uom_id' => $kg->id, 'recipe_uom_id' => $kg->id, 'current_cost' => 4, 'is_active' => true,
+        ]);
+        $transfer = OutletTransfer::create([
+            'company_id' => $this->company->id, 'from_outlet_id' => $this->home->id, 'to_outlet_id' => $this->branch->id,
+            'transfer_number' => 'TRF-TEST-002', 'status' => 'received', 'transfer_date' => '2026-09-01',
+            'created_by' => $this->hr->id,
+        ]);
+        $transfer->lines()->create(['ingredient_id' => $flour->id, 'uom_id' => $kg->id, 'quantity' => 12.5, 'unit_cost' => 4]);
+        $transfer->lines()->create(['custom_name' => 'Cake stand', 'uom_id' => $pcs->id, 'quantity' => 2, 'unit_cost' => 12]);
+
+        $response = $this->actingAs($this->hr)->get(route('inventory.transfers.excel', $transfer->id));
+        $response->assertOk();
+        $this->assertStringContainsString('Stock-Transfer-TRF-TEST-002.xlsx', $response->headers->get('content-disposition'));
+
+        $path = tempnam(sys_get_temp_dir(), 'trf') . '.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet();
+        @unlink($path);
+
+        $rows = [];
+        foreach ($sheet->getRowIterator() as $r) {
+            $i = $r->getRowIndex();
+            $rows[(string) $sheet->getCell("B{$i}")->getValue() ?: (string) $sheet->getCell("A{$i}")->getValue()] = $i;
+        }
+
+        $this->assertSame('Market List', $sheet->getCell('C' . $rows['FLOUR'])->getValue());
+        $this->assertEquals(50, $sheet->getCell('H' . $rows['FLOUR'])->getCalculatedValue());
+        $this->assertSame('Custom', $sheet->getCell('C' . $rows['Cake stand'])->getValue());
+        $this->assertEquals(74, $sheet->getCell('H' . $rows['TOTAL'])->getCalculatedValue(), 'Live SUM of quantity x unit cost.');
+
+        // Same access rule as the PDF: someone who can see neither end is refused.
+        $outsider = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => false]);
+        $outsider->companies()->syncWithoutDetaching([$this->company->id]);
+        $outsider->outlets()->sync([$this->events->id]);
+        setPermissionsTeamId($this->company->id);
+        $outsider->givePermissionTo('inventory.view');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($outsider)->get(route('inventory.transfers.excel', $transfer->id))->assertForbidden();
+    }
+
     public function test_the_stock_transfer_pdf_downloads(): void
     {
         $pcs = UnitOfMeasure::create(['name' => 'Pieces', 'abbreviation' => 'pcs', 'type' => 'count', 'base_unit_factor' => 1]);

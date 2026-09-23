@@ -360,6 +360,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/inventory/transfers-summary.xlsx', \App\Http\Controllers\TransferSummaryExcelController::class)->name('inventory.transfers.summary-excel')->middleware('can:inventory.view');
     Route::get('/inventory/transfers-details', \App\Http\Controllers\TransferDetailController::class)->name('inventory.transfers.detail')->middleware('can:inventory.view');
     Route::get('/inventory/transfers-details.xlsx', \App\Http\Controllers\TransferDetailExcelController::class)->name('inventory.transfers.detail-excel')->middleware('can:inventory.view');
+    Route::get('/inventory/transfers/{id}/excel', \App\Http\Controllers\StockTransferExcelController::class)->whereNumber('id')->name('inventory.transfers.excel')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}/pdf', \App\Http\Controllers\StockTransferPdfController::class)->whereNumber('id')->name('inventory.transfers.pdf')->middleware('can:inventory.view');
     Route::get('/inventory/transfers/{id}', TransferForm::class)->name('inventory.transfers.show')->middleware('can:inventory.transfers.record');
     Route::get('/inventory/purchases/create', PurchaseCaptureForm::class)->name('inventory.purchases.create')->middleware('can:inventory.purchases.record');
