@@ -64,6 +64,23 @@ class LabourCostTransfer extends Model
         return $this->belongsTo(User::class, 'confirmed_by');
     }
 
+    /**
+     * Transfers dated in a period that touch any of the given outlets, at
+     * either end. The list screen and the summary PDF both read through this,
+     * so the page and the document can never disagree about what is in the
+     * period.
+     *
+     * @param  array<int, int>  $outletIds  outlets the viewer may see (already narrowed by any filter)
+     */
+    public function scopeForPeriod($query, ?string $from, ?string $to, array $outletIds)
+    {
+        return $query
+            ->when($from, fn ($q) => $q->whereDate('transfer_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('transfer_date', '<=', $to))
+            ->where(fn ($q) => $q->whereIn('to_outlet_id', $outletIds ?: [0])
+                ->orWhereHas('lines', fn ($l) => $l->whereIn('from_outlet_id', $outletIds ?: [0])));
+    }
+
     public function purposeLabel(): string
     {
         return self::PURPOSES[$this->purpose] ?? ucfirst((string) $this->purpose);

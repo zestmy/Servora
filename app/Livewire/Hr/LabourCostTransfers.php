@@ -48,11 +48,7 @@ class LabourCostTransfers extends Component
         $ids = $this->outlet !== '' ? array_intersect([(int) $this->outlet], Auth::user()->accessibleOutletIds())
                                     : Auth::user()->accessibleOutletIds();
 
-        return LabourCostTransfer::query()
-            ->when($this->from, fn ($q) => $q->whereDate('transfer_date', '>=', $this->from))
-            ->when($this->to, fn ($q) => $q->whereDate('transfer_date', '<=', $this->to))
-            ->where(fn ($q) => $q->whereIn('to_outlet_id', $ids ?: [0])
-                ->orWhereHas('lines', fn ($l) => $l->whereIn('from_outlet_id', $ids ?: [0])));
+        return LabourCostTransfer::query()->forPeriod($this->from, $this->to, array_values($ids));
     }
 
     public function render()

@@ -347,6 +347,41 @@ class LabourCostTransferTest extends TestCase
         $this->actingAs($noPay)->get(route('hr.labour-transfers'))->assertForbidden();
     }
 
+    public function test_the_period_summary_pdf_downloads_for_the_filters_on_screen(): void
+    {
+        $this->form()->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-02')
+            ->set('transfer_date', '2026-09-02')
+            ->call('confirm');
+
+        $this->actingAs($this->hr)
+            ->get(route('hr.labour-transfers.summary-pdf', ['from' => '2026-09-01', 'to' => '2026-09-30', 'outlet' => $this->home->id]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        // Same set the list counts: confirmed, dated in the period.
+        $this->assertSame(1, LabourCostTransfer::query()
+            ->forPeriod('2026-09-01', '2026-09-30', [$this->home->id])->where('status', 'confirmed')->count());
+        $this->assertSame(0, LabourCostTransfer::query()
+            ->forPeriod('2026-10-01', '2026-10-31', [$this->home->id])->count());
+
+        // An outlet in the URL is not access to it.
+        $limited = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => false]);
+        $limited->companies()->syncWithoutDetaching([$this->company->id]);
+        $limited->outlets()->sync([$this->branch->id]);
+        setPermissionsTeamId($this->company->id);
+        $limited->givePermissionTo('hr.compensation');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($limited)
+            ->get(route('hr.labour-transfers.summary-pdf', ['outlet' => $this->home->id]))
+            ->assertForbidden();
+
+        $this->actingAs($this->user(['inventory.view']))
+            ->get(route('hr.labour-transfers.summary-pdf'))
+            ->assertForbidden();
+    }
+
     public function test_the_stock_transfer_pdf_downloads(): void
     {
         $pcs = UnitOfMeasure::create(['name' => 'Pieces', 'abbreviation' => 'pcs', 'type' => 'count', 'base_unit_factor' => 1]);

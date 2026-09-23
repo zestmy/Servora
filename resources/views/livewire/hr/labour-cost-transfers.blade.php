@@ -2,6 +2,9 @@
     <x-page-header eyebrow="HR / Pay" title="Labour Cost Transfer"
                    subtitle="Salary and overtime moved to the outlet that borrowed the staff — outlet support, events and outside catering. Confirmed transfers move this cost between outlets in the labour reports.">
         <x-slot:actions>
+            <a href="{{ route('hr.labour-transfers.summary-pdf', array_filter(['from' => $from, 'to' => $to, 'outlet' => $outlet])) }}" class="btn-secondary">
+                <x-icon name="download" class="h-4 w-4" /> Summary PDF
+            </a>
             <a href="{{ route('hr.labour-transfers.create') }}" class="btn-primary">+ New transfer</a>
         </x-slot:actions>
     </x-page-header>
