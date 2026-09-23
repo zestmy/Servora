@@ -27,6 +27,22 @@ class LabourCostTransferSummaryPdfController extends Controller
 {
     public function __invoke(Request $request)
     {
+        $data = $this->load($request);
+
+        return Pdf::loadView('pdf.labour-cost-transfer-summary', $data)
+            ->setPaper('a4', 'portrait')
+            ->download('Labour-Cost-Transfer-Summary-' . $data['scope']['from'] . '-to-' . $data['scope']['to'] . '.pdf');
+    }
+
+    /**
+     * Everything the summary shows, shared by the PDF and the workbook
+     * (LabourCostTransferSummaryExcelController extends this) so the two can
+     * never disagree about the same period.
+     *
+     * @return array{company: ?Company, scope: array, transfers: \Illuminate\Support\Collection, summary: array, outletNames: \Illuminate\Support\Collection, sections: array, draftCount: int}
+     */
+    protected function load(Request $request): array
+    {
         $user = $request->user();
 
         $from = $this->date($request->query('from')) ?? now()->startOfMonth()->toDateString();
@@ -59,6 +75,7 @@ class LabourCostTransferSummaryPdfController extends Controller
             foreach ($t->lines as $l) {
                 $row = [
                     'transfer' => $t->transfer_number,
+                    'line'     => $l,
                     // The event name says more than the category when there is one.
                     'purpose'  => $t->reference ?: $t->purposeLabel(),
                     'employee' => $l->employee_name,
@@ -96,11 +113,7 @@ class LabourCostTransferSummaryPdfController extends Controller
             'outlet' => $outletId ? (Outlet::find($outletId)?->name ?? '—') : 'All outlets',
         ];
 
-        return Pdf::loadView('pdf.labour-cost-transfer-summary', compact(
-            'company', 'scope', 'transfers', 'summary', 'outletNames', 'sections', 'draftCount'
-        ))
-            ->setPaper('a4', 'portrait')
-            ->download('Labour-Cost-Transfer-Summary-' . $from . '-to-' . $to . '.pdf');
+        return compact('company', 'scope', 'transfers', 'summary', 'outletNames', 'sections', 'draftCount');
     }
 
     private function range($s, $e): string

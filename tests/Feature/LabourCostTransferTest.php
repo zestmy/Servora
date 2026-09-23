@@ -382,6 +382,61 @@ class LabourCostTransferTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_period_summary_downloads_as_a_workbook_with_live_totals(): void
+    {
+        $bob = $this->employee('Bob', $this->branch, 5200);   // RM 200 a day
+        $this->claim($bob, '2026-09-03', 2);                  // RM 25/hr x 1.5 x 2 = RM 75
+
+        $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-02')   // RM 200
+            ->call('addEmployee', $bob->id)
+            ->set('lines.1.date_start', '2026-09-03')->set('lines.1.date_end', '2026-09-03')
+            ->set('lines.1.basis', 'ot_only')                                                   // RM 75
+            ->set('transfer_date', '2026-09-03')
+            ->call('confirm')->assertHasNoErrors();
+
+        $response = $this->actingAs($this->hr)
+            ->get(route('hr.labour-transfers.summary-excel', ['from' => '2026-09-01', 'to' => '2026-09-30']));
+        $response->assertOk();
+        $this->assertStringContainsString('Labour-Cost-Transfer-Summary-2026-09-01-to-2026-09-30.xlsx', $response->headers->get('content-disposition'));
+
+        $path = tempnam(sys_get_temp_dir(), 'lct') . '.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+        @unlink($path);
+
+        $this->assertSame(['Net by Outlet', 'By Outlet', 'Lines'], $book->getSheetNames());
+
+        // Net by Outlet: find each outlet's row and read the live net formula.
+        $net = $book->getSheetByName('Net by Outlet');
+        $byName = [];
+        foreach ($net->getRowIterator() as $r) {
+            $i = $r->getRowIndex();
+            $byName[(string) $net->getCell("A{$i}")->getValue()] = $i;
+        }
+        $this->assertEquals(275, $net->getCell('H' . $byName['Events'])->getCalculatedValue());
+        $this->assertEquals(-200, $net->getCell('H' . $byName['Home'])->getCalculatedValue());
+        $this->assertEquals(-75, $net->getCell('H' . $byName['Branch'])->getCalculatedValue());
+        $this->assertEquals(0, $net->getCell('H' . $byName['TOTAL'])->getCalculatedValue(), 'The net column sums to zero.');
+
+        // Lines: one row per line, total = salary + OT, SUBTOTAL at the foot.
+        $lines = $book->getSheetByName('Lines');
+        $rows = [];
+        foreach ($lines->getRowIterator() as $r) {
+            $i = $r->getRowIndex();
+            $rows[(string) $lines->getCell("A{$i}")->getValue()][] = $i;
+        }
+        $this->assertCount(2, $rows[LabourCostTransfer::first()->transfer_number]);
+        $this->assertEquals(275, $lines->getCell('R' . $rows['TOTAL'][0])->getCalculatedValue());
+        $this->assertSame('OT only', $lines->getCell('K' . $rows[LabourCostTransfer::first()->transfer_number][1])->getValue());
+
+        // Same gate as the PDF.
+        $this->actingAs($this->user(['inventory.view']))
+            ->get(route('hr.labour-transfers.summary-excel'))
+            ->assertForbidden();
+    }
+
     // ── Editing and deleting after confirmation ───────────────────────────
 
     private function confirmedTransfer(): LabourCostTransfer

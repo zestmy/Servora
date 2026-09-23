@@ -541,6 +541,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // Labour cost transfer prints salary rates, so it sits behind the pay gate.
     Route::get('/hr/labour-transfers', \App\Livewire\Hr\LabourCostTransfers::class)->name('hr.labour-transfers')->middleware('can:hr.compensation');
     Route::get('/hr/labour-transfers/create', \App\Livewire\Hr\LabourCostTransferForm::class)->name('hr.labour-transfers.create')->middleware('can:hr.compensation');
+    Route::get('/hr/labour-transfers/summary.xlsx', \App\Http\Controllers\LabourCostTransferSummaryExcelController::class)->name('hr.labour-transfers.summary-excel')->middleware('can:hr.compensation');
     Route::get('/hr/labour-transfers/summary-pdf', \App\Http\Controllers\LabourCostTransferSummaryPdfController::class)->name('hr.labour-transfers.summary-pdf')->middleware('can:hr.compensation');
     Route::get('/hr/labour-transfers/{id}/pdf', \App\Http\Controllers\LabourCostTransferPdfController::class)->whereNumber('id')->name('hr.labour-transfers.pdf')->middleware('can:hr.compensation');
     Route::get('/hr/labour-transfers/{id}', \App\Livewire\Hr\LabourCostTransferForm::class)->whereNumber('id')->name('hr.labour-transfers.show')->middleware('can:hr.compensation');
