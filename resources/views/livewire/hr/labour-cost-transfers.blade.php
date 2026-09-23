@@ -77,10 +77,17 @@
                                 <td class="px-4 py-2">
                                     <span class="{{ match ($t->status) { 'confirmed' => 'badge-success', 'cancelled' => 'badge-danger', default => 'badge-neutral' } }}">{{ $t->statusLabel() }}</span>
                                 </td>
-                                <td class="px-4 py-2 text-right">
+                                <td class="px-4 py-2 text-right whitespace-nowrap">
                                     <a href="{{ route('hr.labour-transfers.pdf', $t->id) }}" class="icon-btn" aria-label="Download PDF for {{ $t->transfer_number }}" title="Download PDF">
                                         <x-icon name="download" class="h-4 w-4" />
                                     </a>
+                                    @if ($t->status === 'draft' || $canManage)
+                                        <button type="button" wire:click="deleteTransfer({{ $t->id }})"
+                                                wire:confirm="{{ $t->status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $t->status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"
+                                                class="icon-btn" aria-label="Delete {{ $t->transfer_number }}" title="Delete">
+                                            <x-icon name="trash" class="h-4 w-4 text-danger-600" />
+                                        </button>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

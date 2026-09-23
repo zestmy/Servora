@@ -9,9 +9,16 @@
                     <x-icon name="download" class="h-4 w-4" /> PDF
                 </a>
             @endif
-            @if ($isDraft)
+            @if ($status === 'draft')
                 <button wire:click="save" class="btn-secondary">Save draft</button>
                 <button wire:click="confirm" wire:confirm="Confirm this transfer? The figures are locked once confirmed." class="btn-primary">Confirm</button>
+            @elseif ($editing)
+                <a href="{{ route('hr.labour-transfers.show', $transferId) }}" class="btn-ghost">Discard changes</a>
+                <button wire:click="saveChanges" wire:confirm="Save these changes? The lines are recalculated, and the labour reports change with them." class="btn-primary">Save changes</button>
+            @elseif ($status === 'confirmed' && $canManage)
+                <button wire:click="startEditing" class="btn-secondary">
+                    <x-icon name="pencil" class="h-4 w-4" /> Edit
+                </button>
             @endif
         </x-slot:actions>
     </x-page-header>
@@ -100,9 +107,22 @@
                 </div>
             </dl>
 
-            @if ($transferId && $status !== 'cancelled')
-                <div class="mt-4 pt-4 border-t border-gray-100">
-                    <button wire:click="cancelTransfer" wire:confirm="Cancel this transfer?" class="btn-danger w-full">Cancel transfer</button>
+            @if ($editing)
+                <p class="mt-4 pt-4 border-t border-gray-100 text-xs text-warning-700">
+                    Editing a confirmed transfer. Saving recalculates every line from the salary and approved OT on file now, and is recorded in the activity below.
+                </p>
+            @endif
+
+            @if ($transferId && ! $editing && ($status !== 'cancelled' || $canManage))
+                <div class="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                    @if ($status !== 'cancelled')
+                        <button wire:click="cancelTransfer" wire:confirm="Cancel this transfer?" class="btn-secondary w-full">Cancel transfer</button>
+                    @endif
+                    @if ($status === 'draft' || $canManage)
+                        <button wire:click="deleteTransfer"
+                                wire:confirm="{{ $status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"
+                                class="btn-danger w-full">Delete transfer</button>
+                    @endif
                 </div>
             @endif
         </div>
@@ -328,4 +348,7 @@
             </div>
         </div>
     @endif
+
+    {{-- Recent activity, including admin corrections to a confirmed transfer --}}
+    <x-audit-timeline :type="\App\Models\LabourCostTransfer::class" :id="$transferId" title="Transfer Activity" class="mt-4" />
 </div>

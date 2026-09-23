@@ -38,6 +38,13 @@ class LabourCostTransferForm extends Component
     public array  $lines          = [];
     public string $employeeSearch = '';
 
+    /**
+     * A confirmed transfer unlocked for correction. Only someone holding
+     * hr.compensation.transfers.manage can set it, and every action re-checks
+     * that rather than trusting this flag — it is a public property.
+     */
+    public bool $editing = false;
+
     protected function rules(): array
     {
         return [
@@ -139,7 +146,7 @@ class LabourCostTransferForm extends Component
 
     public function addEmployee(int $employeeId): void
     {
-        if ($this->status !== 'draft') return;
+        if (! $this->canEdit()) return;
 
         $employee = $this->employeeQuery()->find($employeeId);
         if (! $employee) {
@@ -174,7 +181,7 @@ class LabourCostTransferForm extends Component
 
     public function removeLine(int $idx): void
     {
-        if ($this->status !== 'draft') return;
+        if (! $this->canEdit()) return;
 
         unset($this->lines[$idx]);
         $this->lines = array_values($this->lines);
@@ -186,7 +193,7 @@ class LabourCostTransferForm extends Component
     public function updatedLines($value, $key): void
     {
         [$idx, $field] = array_pad(explode('.', $key), 2, null);
-        if (! isset($this->lines[(int) $idx])) return;
+        if (! isset($this->lines[(int) $idx]) || ! $this->canEdit()) return;
 
         // New dates mean a new span: reset the day count to all of it. Typing
         // the days directly is how a rest day inside the span is left out.
@@ -326,6 +333,100 @@ class LabourCostTransferForm extends Component
         $this->redirectRoute('hr.labour-transfers.show', ['id' => $transfer->id]);
     }
 
+    /** Whether this user may correct or delete a transfer past draft. */
+    private function canManage(): bool
+    {
+        return (bool) Auth::user()?->canDo('hr.compensation.transfers.manage');
+    }
+
+    /** A draft, or a confirmed transfer a manager has unlocked. */
+    private function canEdit(): bool
+    {
+        return $this->status === 'draft'
+            || ($this->editing && $this->status === 'confirmed' && $this->canManage());
+    }
+
+    /** Unlock a confirmed transfer for correction. */
+    public function startEditing(): void
+    {
+        $this->authorizeAccess();
+        abort_unless($this->canManage(), 403);
+        if ($this->status !== 'confirmed') return;
+
+        $this->editing = true;
+        $this->repriceAll();
+    }
+
+    /**
+     * Save a correction to a confirmed transfer. It stays confirmed; the lines
+     * are repriced like any save (so a figure reflects the salary and approved
+     * OT on file now), and the before/after is written to the activity trail
+     * because a confirmed transfer has already moved cost in the reports.
+     */
+    public function saveChanges(): void
+    {
+        $this->authorizeAccess();
+        abort_unless($this->canManage(), 403);
+        if (! $this->editing || $this->status !== 'confirmed') return;
+
+        $this->validate();
+        $this->repriceAll();
+
+        $errors = $this->lineErrors();
+        if ($errors) {
+            foreach ($errors as $key => $message) {
+                $this->addError($key, $message);
+            }
+            return;
+        }
+
+        $transfer = LabourCostTransfer::with('lines')->findOrFail($this->transferId);
+        $before   = $this->auditSnapshot($transfer);
+
+        $transfer = $this->persist();
+        $after    = $this->auditSnapshot($transfer->fresh('lines'));
+
+        \App\Services\AuditLogService::log($transfer, 'edited_after_confirm', $after, $before);
+
+        session()->flash('success', 'Changes to ' . $transfer->transfer_number . ' saved. It stays confirmed.');
+        $this->redirectRoute('hr.labour-transfers.show', ['id' => $transfer->id]);
+    }
+
+    /** What an admin correction changed, for the activity trail. */
+    private function auditSnapshot(LabourCostTransfer $t): array
+    {
+        return [
+            'to_outlet_id' => $t->to_outlet_id,
+            'transfer_date' => $t->transfer_date?->toDateString(),
+            'lines' => $t->lines->map(fn ($l) => sprintf(
+                '%s %s–%s %s RM %s',
+                $l->employee_name, $l->date_start->format('d M'), $l->date_end->format('d M'),
+                $l->quantityLabel(), number_format((float) $l->total_amount, 2),
+            ))->all(),
+            'total' => round((float) $t->lines->sum('total_amount'), 2),
+        ];
+    }
+
+    /**
+     * Delete the transfer. A draft is anyone's to throw away; a confirmed or
+     * cancelled one needs hr.compensation.transfers.manage, since a confirmed
+     * transfer has already moved cost between outlets in the reports.
+     */
+    public function deleteTransfer(): void
+    {
+        $this->authorizeAccess();
+        if (! $this->transferId) return;
+
+        $transfer = LabourCostTransfer::findOrFail($this->transferId);
+        abort_unless($transfer->status === 'draft' || $this->canManage(), 403);
+
+        $number = $transfer->transfer_number;
+        $transfer->delete();
+
+        session()->flash('success', 'Labour cost transfer ' . $number . ' deleted.');
+        $this->redirectRoute('hr.labour-transfers');
+    }
+
     public function cancelTransfer(): void
     {
         $this->authorizeAccess();
@@ -463,7 +564,7 @@ class LabourCostTransferForm extends Component
     public function render()
     {
         $employeeResults = collect();
-        if ($this->status === 'draft' && strlen(trim($this->employeeSearch)) >= 2) {
+        if ($this->canEdit() && strlen(trim($this->employeeSearch)) >= 2) {
             $term = '%' . trim($this->employeeSearch) . '%';
             $employeeResults = $this->employeeQuery()
                 ->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('staff_id', 'like', $term))
@@ -500,11 +601,13 @@ class LabourCostTransferForm extends Component
             'total'  => collect($this->lines)->sum(fn ($l) => (float) ($l['total_amount'] ?? 0)),
         ];
 
-        $isDraft   = $this->status === 'draft';
+        // "Editable", really: a draft, or a confirmed transfer unlocked by a manager.
+        $isDraft   = $this->canEdit();
+        $canManage = $this->canManage();
         $pageTitle = $this->transferId ? 'Labour Transfer ' . $this->transfer_number : 'New Labour Cost Transfer';
 
         return view('livewire.hr.labour-cost-transfer-form', compact(
-            'employeeResults', 'outlets', 'summary', 'outletNames', 'totals', 'isDraft'
+            'employeeResults', 'outlets', 'summary', 'outletNames', 'totals', 'isDraft', 'canManage'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 }

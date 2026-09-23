@@ -51,6 +51,25 @@ class LabourCostTransfers extends Component
         return LabourCostTransfer::query()->forPeriod($this->from, $this->to, array_values($ids));
     }
 
+    /**
+     * Same rule as the form: a draft is anyone's to delete, a confirmed or
+     * cancelled transfer needs hr.compensation.transfers.manage. Only
+     * transfers this user can see (forPeriod's outlet scope) are reachable.
+     */
+    public function deleteTransfer(int $id): void
+    {
+        abort_unless(Auth::user()?->canDo('hr.compensation'), 403);
+
+        $transfer = LabourCostTransfer::query()
+            ->forPeriod(null, null, Auth::user()->accessibleOutletIds())
+            ->findOrFail($id);
+
+        abort_unless($transfer->status === 'draft' || Auth::user()->canDo('hr.compensation.transfers.manage'), 403);
+
+        $transfer->delete();
+        session()->flash('success', 'Labour cost transfer ' . $transfer->transfer_number . ' deleted.');
+    }
+
     public function render()
     {
         $transfers = $this->query()
@@ -68,7 +87,9 @@ class LabourCostTransfers extends Component
         $outletNames = Outlet::withoutGlobalScopes()->whereIn('id', array_column($summary, 'outlet_id'))->pluck('name', 'id');
         $outlets     = Outlet::whereIn('id', Auth::user()->accessibleOutletIds())->orderBy('name')->get();
 
-        return view('livewire.hr.labour-cost-transfers', compact('transfers', 'summary', 'outletNames', 'outlets'))
+        $canManage = Auth::user()->canDo('hr.compensation.transfers.manage');
+
+        return view('livewire.hr.labour-cost-transfers', compact('transfers', 'summary', 'outletNames', 'outlets', 'canManage'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Labour Cost Transfer']);
     }
 }

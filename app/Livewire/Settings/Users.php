@@ -143,7 +143,7 @@ class Users extends Component
      * to every Company Admin who has it unticked today.
      */
     public const ROLE_SUGGESTED_ABILITIES = [
-        'Company Admin'      => ['users.manage', 'purchasing.approve', 'purchasing.request', 'purchasing.receive', 'purchasing.invoice', 'purchasing.delete', 'sales.delete', 'hr.clock.delete', 'hr.clock.waive_lateness', 'hr.claims.delete',
+        'Company Admin'      => ['users.manage', 'purchasing.approve', 'purchasing.request', 'purchasing.receive', 'purchasing.invoice', 'purchasing.delete', 'sales.delete', 'hr.clock.delete', 'hr.clock.waive_lateness', 'hr.claims.delete', 'hr.compensation.transfers.manage',
                                 'purchasing.orders.create', 'purchasing.orders.edit', 'purchasing.requests.create',
                                 'purchasing.requests.edit', 'purchasing.transfers.create', 'purchasing.suppliers.manage',
                                 'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',

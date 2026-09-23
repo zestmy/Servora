@@ -382,6 +382,88 @@ class LabourCostTransferTest extends TestCase
             ->assertForbidden();
     }
 
+    // ── Editing and deleting after confirmation ───────────────────────────
+
+    private function confirmedTransfer(): LabourCostTransfer
+    {
+        $this->form()->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-02')
+            ->call('confirm')->assertHasNoErrors();
+
+        return LabourCostTransfer::firstOrFail();
+    }
+
+    private function admin(): User
+    {
+        Permission::findOrCreate('hr.compensation.transfers.manage', 'web');
+
+        return $this->user(['hr.compensation', 'hr.compensation.transfers.manage', 'inventory.view']);
+    }
+
+    public function test_a_company_admin_can_correct_a_confirmed_transfer_and_it_stays_confirmed(): void
+    {
+        $t = $this->confirmedTransfer();
+        $this->assertEquals(200, (float) $t->lines()->sum('total_amount'));
+
+        Livewire::actingAs($this->admin())->test(LabourCostTransferForm::class, ['id' => $t->id])
+            ->call('startEditing')
+            ->assertSet('editing', true)
+            ->set('lines.0.date_end', '2026-09-04')   // 4 days now
+            ->call('saveChanges')
+            ->assertHasNoErrors();
+
+        $t->refresh();
+        $this->assertSame('confirmed', $t->status);
+        $this->assertEquals(400, (float) $t->lines()->sum('total_amount'));
+
+        $this->assertTrue(
+            \Illuminate\Support\Facades\DB::table('audit_logs')
+                ->where('auditable_type', LabourCostTransfer::class)->where('auditable_id', $t->id)
+                ->where('event', 'edited_after_confirm')->exists(),
+            'A correction to a confirmed transfer is on the record.'
+        );
+    }
+
+    public function test_without_the_ability_a_confirmed_transfer_stays_locked(): void
+    {
+        $t = $this->confirmedTransfer();
+
+        $c = Livewire::actingAs($this->hr)->test(LabourCostTransferForm::class, ['id' => $t->id]);
+        $c->call('startEditing')->assertForbidden();
+
+        // Forcing the flag from the browser does not unlock anything.
+        $c = Livewire::actingAs($this->hr)->test(LabourCostTransferForm::class, ['id' => $t->id])
+            ->set('editing', true)
+            ->set('lines.0.date_end', '2026-09-10');
+        $c->call('saveChanges')->assertForbidden();
+        $this->assertEquals(200, (float) $t->lines()->sum('total_amount'));
+
+        Livewire::actingAs($this->hr)->test(LabourCostTransferForm::class, ['id' => $t->id])
+            ->call('deleteTransfer')->assertForbidden();
+        $this->assertNotNull(LabourCostTransfer::find($t->id));
+    }
+
+    public function test_deleting_follows_the_same_rule_and_takes_the_cost_out_of_the_reports(): void
+    {
+        // A draft is anyone's to delete.
+        $this->form()->call('addEmployee', $this->aisyah->id)->call('save');
+        $draft = LabourCostTransfer::firstOrFail();
+        Livewire::actingAs($this->hr)->test(LabourCostTransfers::class)->call('deleteTransfer', $draft->id);
+        $this->assertNull(LabourCostTransfer::find($draft->id));
+
+        $t = $this->confirmedTransfer();
+        Livewire::actingAs($this->hr)->test(LabourCostTransfers::class)->call('deleteTransfer', $t->id)->assertForbidden();
+
+        $this->assertNotEmpty(\App\Services\Hr\LabourCostTransferLedger::byOutlet($this->company->id, '2026-09-01', '2026-09-30'));
+
+        Livewire::actingAs($this->admin())->test(LabourCostTransferForm::class, ['id' => $t->id])
+            ->call('deleteTransfer')
+            ->assertRedirect(route('hr.labour-transfers'));
+
+        $this->assertNull(LabourCostTransfer::find($t->id));
+        $this->assertSame([], \App\Services\Hr\LabourCostTransferLedger::byOutlet($this->company->id, '2026-09-01', '2026-09-30'));
+    }
+
     public function test_the_stock_transfer_pdf_downloads(): void
     {
         $pcs = UnitOfMeasure::create(['name' => 'Pieces', 'abbreviation' => 'pcs', 'type' => 'count', 'base_unit_factor' => 1]);

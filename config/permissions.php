@@ -622,6 +622,12 @@ return [
                     'title' => 'HR — Salary Revisions (Approve)',
                     'help'  => 'Sign off a proposed salary revision, committing it to payroll.',
                 ],
+                'transfers_manage' => [
+                    'name'  => 'hr.compensation.transfers.manage',
+                    'label' => 'Edit & delete confirmed labour transfers',
+                    'title' => 'HR — Labour Cost Transfer (Edit & Delete)',
+                    'help'  => 'Correct or delete a labour cost transfer after it is confirmed. A confirmed transfer has already moved cost between outlets in the labour reports.',
+                ],
             ],
         ],
 
