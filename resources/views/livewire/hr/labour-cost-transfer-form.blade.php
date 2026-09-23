@@ -1,7 +1,7 @@
 <div>
     <x-page-header eyebrow="HR / Labour Cost Transfer"
                    :title="$transferId ? $transfer_number : 'New Labour Cost Transfer'"
-                   subtitle="Charge an outlet for staff lent to it: daily salary for the days worked there, plus approved overtime in the same dates.">
+                   subtitle="Charge an outlet for staff lent to it — by the day, by the hour, or overtime only — plus approved overtime in the same dates.">
         <x-slot:actions>
             <a data-back href="{{ route('hr.labour-transfers') }}" class="btn-ghost">Back</a>
             @if ($transferId)
@@ -89,6 +89,9 @@
                 </div>
                 <div class="flex justify-between"><dt class="text-gray-600">Employees</dt><dd class="font-medium tabular-nums">{{ collect($lines)->pluck('employee_id')->unique()->count() }}</dd></div>
                 <div class="flex justify-between"><dt class="text-gray-600">Days</dt><dd class="font-medium tabular-nums">{{ number_format($totals['days'], 1) }}</dd></div>
+                @if ($totals['hours'] > 0)
+                    <div class="flex justify-between"><dt class="text-gray-600">Hours</dt><dd class="font-medium tabular-nums">{{ number_format($totals['hours'], 2) }}</dd></div>
+                @endif
                 <div class="flex justify-between"><dt class="text-gray-600">Salary</dt><dd class="font-medium tabular-nums">RM {{ number_format($totals['salary'], 2) }}</dd></div>
                 <div class="flex justify-between"><dt class="text-gray-600">Overtime ({{ number_format($totals['ot'], 2) }} h)</dt><dd class="font-medium tabular-nums">RM {{ number_format($totals['ot_amt'], 2) }}</dd></div>
                 <div class="flex justify-between border-t border-gray-100 pt-3">
@@ -109,7 +112,11 @@
     <div class="mt-4 card">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-sm font-semibold text-gray-700">Employees</h3>
-            <p class="text-xs text-gray-600 mt-0.5">Days default to every day in the range — lower them to leave out rest days. Overtime is read from approved claims (settled in payroll) inside the dates.</p>
+            <p class="text-xs text-gray-600 mt-0.5">
+                Choose how each line is costed: <strong class="font-medium text-gray-700">Daily</strong> (days × daily rate — days default to every day in the range, lower them to leave out rest days),
+                <strong class="font-medium text-gray-700">Hourly</strong> (hours × hourly rate, for a few hours' help) or <strong class="font-medium text-gray-700">OT only</strong>.
+                Every basis adds the approved overtime (settled in payroll) inside the dates; an OT claim already on another line or transfer is not counted twice.
+            </p>
         </div>
 
         @if ($isDraft)
@@ -153,8 +160,9 @@
                             <th class="px-4 py-2 text-left">From outlet</th>
                             <th class="px-4 py-2 text-left w-36">Start</th>
                             <th class="px-4 py-2 text-left w-36">End</th>
-                            <th class="px-4 py-2 text-right w-20">Days</th>
-                            <th class="px-4 py-2 text-right">Daily rate</th>
+                            <th class="px-4 py-2 text-left w-32">Basis</th>
+                            <th class="px-4 py-2 text-right w-24">Days / Hrs</th>
+                            <th class="px-4 py-2 text-right">Rate</th>
                             <th class="px-4 py-2 text-right">Salary</th>
                             <th class="px-4 py-2 text-right">OT hrs</th>
                             <th class="px-4 py-2 text-right">OT cost</th>
@@ -169,7 +177,10 @@
                                     <p class="font-medium text-gray-800">{{ $line['employee_name'] }}</p>
                                     @if ($line['staff_id'])<p class="text-xs text-gray-600">{{ $line['staff_id'] }}</p>@endif
                                     @if (! ($line['has_salary'] ?? true))
-                                        <p class="text-xs text-warning-700 mt-0.5">No salary on file — daily rate is 0.</p>
+                                        <p class="text-xs text-warning-700 mt-0.5">No salary on file — rates are 0.</p>
+                                    @endif
+                                    @if (($line['basis'] ?? 'daily') === 'ot_only' && (float) ($line['ot_hours'] ?? 0) <= 0)
+                                        <p class="text-xs text-warning-700 mt-0.5">No untransferred approved OT in these dates.</p>
                                     @endif
                                     @if (! empty($line['overlap']))
                                         <p class="text-xs text-danger-600 mt-0.5">Already on {{ $line['overlap'] }} for some of these dates.</p>
@@ -193,14 +204,43 @@
                                         <span class="text-sm">{{ \Illuminate\Support\Carbon::parse($line['date_end'])->format('d M Y') }}</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2 text-right">
+                                @php $basis = $line['basis'] ?? 'daily'; @endphp
+                                <td class="px-4 py-2">
                                     @if ($isDraft)
-                                        <input type="number" step="0.5" min="0.5" wire:model.blur="lines.{{ $idx }}.days" aria-label="Days" class="input w-full text-right" />
+                                        <select wire:model.live="lines.{{ $idx }}.basis" aria-label="Costing basis" class="input w-full">
+                                            @foreach (\App\Models\LabourCostTransferLine::BASES as $value => $label)
+                                                <option value="{{ $value }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
                                     @else
-                                        <span class="tabular-nums">{{ rtrim(rtrim(number_format((float) $line['days'], 2), '0'), '.') }}</span>
+                                        <span class="text-sm">{{ \App\Models\LabourCostTransferLine::BASES[$basis] ?? $basis }}</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2 text-right tabular-nums text-gray-600" title="From the salary on file and the company's working-days setting.">{{ number_format((float) ($line['daily_rate'] ?? 0), 2) }}</td>
+                                <td class="px-4 py-2 text-right">
+                                    @if ($basis === 'ot_only')
+                                        <span class="text-gray-600">—</span>
+                                    @elseif ($isDraft)
+                                        @if ($basis === 'hourly')
+                                            <input type="number" step="0.25" min="0.25" wire:model.blur="lines.{{ $idx }}.hours" aria-label="Hours" class="input w-full text-right" />
+                                            <span class="block text-xs text-gray-600 mt-0.5">hours</span>
+                                        @else
+                                            <input type="number" step="0.5" min="0.5" wire:model.blur="lines.{{ $idx }}.days" aria-label="Days" class="input w-full text-right" />
+                                            <span class="block text-xs text-gray-600 mt-0.5">days</span>
+                                        @endif
+                                    @else
+                                        <span class="tabular-nums">{{ rtrim(rtrim(number_format((float) ($basis === 'hourly' ? $line['hours'] : $line['days']), 2), '0'), '.') }}</span>
+                                        <span class="text-xs text-gray-600">{{ $basis === 'hourly' ? 'hrs' : 'days' }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-right tabular-nums text-gray-600" title="From the salary on file and the company's working-days and working-hours settings.">
+                                    @if ($basis === 'ot_only')
+                                        —
+                                    @elseif ($basis === 'hourly')
+                                        {{ number_format((float) ($line['hourly_rate'] ?? 0), 2) }}<span class="text-xs"> /hr</span>
+                                    @else
+                                        {{ number_format((float) ($line['daily_rate'] ?? 0), 2) }}<span class="text-xs"> /day</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ number_format((float) ($line['salary_amount'] ?? 0), 2) }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums" title="{{ ($line['ot_claims'] ?? 0) }} approved claim(s)">
                                     {{ number_format((float) ($line['ot_hours'] ?? 0), 2) }}
@@ -222,8 +262,11 @@
                     </tbody>
                     <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold">
                         <tr>
-                            <td colspan="4" class="px-4 py-3 text-right text-gray-600">Total</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ number_format($totals['days'], 1) }}</td>
+                            <td colspan="5" class="px-4 py-3 text-right text-gray-600">Total</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-xs">
+                                @if ($totals['days'] > 0){{ number_format($totals['days'], 1) }} days @endif
+                                @if ($totals['hours'] > 0)<span class="block">{{ number_format($totals['hours'], 2) }} hrs</span>@endif
+                            </td>
                             <td></td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ number_format($totals['salary'], 2) }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ number_format($totals['ot'], 2) }}</td>
@@ -256,6 +299,7 @@
                             <th class="px-4 py-2 text-left">Outlet</th>
                             <th class="px-4 py-2 text-right">Staff sent</th>
                             <th class="px-4 py-2 text-right">Days</th>
+                            <th class="px-4 py-2 text-right">Hours</th>
                             <th class="px-4 py-2 text-right">OT hrs</th>
                             <th class="px-4 py-2 text-right">Salary out</th>
                             <th class="px-4 py-2 text-right">OT out</th>
@@ -269,6 +313,7 @@
                                 <td class="px-4 py-2 font-medium text-gray-800">{{ $outletNames[$row['outlet_id']] ?? '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['staff'] ?: '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['days'] ? number_format($row['days'], 1) : '—' }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $row['hours'] ? number_format($row['hours'], 2) : '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['ot_hours'] ? number_format($row['ot_hours'], 2) : '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['salary_out'] ? number_format($row['salary_out'], 2) : '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['ot_out'] ? number_format($row['ot_out'], 2) : '—' }}</td>

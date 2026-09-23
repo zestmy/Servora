@@ -68,10 +68,13 @@
             <div class="info-card">
                 <h4>Cost Summary</h4>
                 <div class="info-body">
-                    <div class="kv"><div class="k">Staff / Days</div><div class="v">{{ $lines->pluck('employee_id')->unique()->count() }} staff · {{ number_format((float) $lines->sum('days'), 1) }} days</div></div>
+                    <div class="kv"><div class="k">Staff / Time</div><div class="v">{{ $lines->pluck('employee_id')->unique()->count() }} staff · {{ collect([
+                        $lines->sum('days') > 0 ? number_format((float) $lines->sum('days'), 1) . ' days' : null,
+                        $lines->sum('hours') > 0 ? number_format((float) $lines->sum('hours'), 1) . ' hrs' : null,
+                    ])->filter()->join(' + ') ?: 'OT only' }}</div></div>
                     <div class="hours-breakdown">
                         <table class="hours-table">
-                            <tr><td class="type-label">Daily salary</td><td class="type-hours">RM {{ number_format((float) $lines->sum('salary_amount'), 2) }}</td></tr>
+                            <tr><td class="type-label">Salary (days / hours)</td><td class="type-hours">RM {{ number_format((float) $lines->sum('salary_amount'), 2) }}</td></tr>
                             <tr><td class="type-label">Overtime ({{ number_format((float) $lines->sum('ot_hours'), 2) }} hrs)</td><td class="type-hours">RM {{ number_format((float) $lines->sum('ot_amount'), 2) }}</td></tr>
                             <tr class="total"><td class="type-label">Total Transfer</td><td class="type-hours">RM {{ number_format((float) $lines->sum('total_amount'), 2) }}</td></tr>
                         </table>
@@ -86,11 +89,11 @@
         <thead>
             <tr>
                 <th style="width: 3%;">#</th>
-                <th style="width: 21%;">Employee</th>
-                <th style="width: 14%;">From</th>
+                <th style="width: 20%;">Employee</th>
+                <th style="width: 12%;">From</th>
                 <th style="width: 15%;">Dates</th>
-                <th class="num" style="width: 6%;">Days</th>
-                <th class="num" style="width: 8%;">Rate/Day</th>
+                <th class="num" style="width: 8%;">Basis</th>
+                <th class="num" style="width: 9%;">Rate</th>
                 <th class="num" style="width: 9%;">Salary</th>
                 <th class="num" style="width: 6%;">OT Hrs</th>
                 <th class="num" style="width: 8%;">OT Cost</th>
@@ -109,8 +112,16 @@
                     </td>
                     <td style="white-space: nowrap;">{{ $l->fromOutlet?->name ?? '—' }}</td>
                     <td style="white-space: nowrap;">{{ $range($l->date_start, $l->date_end) }}</td>
-                    <td class="num">{{ rtrim(rtrim(number_format((float) $l->days, 2), '0'), '.') }}</td>
-                    <td class="num">{{ number_format((float) $l->daily_rate, 2) }}</td>
+                    <td class="num">{{ $l->quantityLabel() }}</td>
+                    <td class="num">
+                        @if ($l->basis === 'ot_only')
+                            —
+                        @elseif ($l->basis === 'hourly')
+                            {{ number_format((float) $l->hourly_rate, 2) }}<span class="sub">per hour</span>
+                        @else
+                            {{ number_format((float) $l->daily_rate, 2) }}<span class="sub">per day</span>
+                        @endif
+                    </td>
                     <td class="num">{{ number_format((float) $l->salary_amount, 2) }}</td>
                     <td class="num">{{ number_format((float) $l->ot_hours, 2) }}</td>
                     <td class="num">{{ number_format((float) $l->ot_amount, 2) }}</td>
@@ -121,7 +132,12 @@
         <tfoot>
             <tr class="grand">
                 <td colspan="4" class="total-label" style="text-align: right;">Total</td>
-                <td class="num">{{ number_format((float) $lines->sum('days'), 1) }}</td>
+                <td class="num" style="font-size: 8pt;">
+                    {{ collect([
+                        $lines->sum('days') > 0 ? number_format((float) $lines->sum('days'), 1) . ' d' : null,
+                        $lines->sum('hours') > 0 ? number_format((float) $lines->sum('hours'), 1) . ' h' : null,
+                    ])->filter()->join(' + ') ?: '—' }}
+                </td>
                 <td></td>
                 <td class="num">{{ number_format((float) $lines->sum('salary_amount'), 2) }}</td>
                 <td class="num">{{ number_format((float) $lines->sum('ot_hours'), 2) }}</td>
@@ -138,6 +154,7 @@
                 <th style="width: 26%;">Outlet</th>
                 <th class="num">Staff Sent</th>
                 <th class="num">Days</th>
+                <th class="num">Hours</th>
                 <th class="num">OT Hrs</th>
                 <th class="num">Salary Out</th>
                 <th class="num">OT Out</th>
@@ -151,6 +168,7 @@
                     <td style="font-weight: bold;">{{ $outletNames[$row['outlet_id']] ?? '—' }}</td>
                     <td class="num">{{ $row['staff'] ?: '—' }}</td>
                     <td class="num">{{ $row['days'] ? number_format($row['days'], 1) : '—' }}</td>
+                    <td class="num">{{ $row['hours'] ? number_format($row['hours'], 2) : '—' }}</td>
                     <td class="num">{{ $row['ot_hours'] ? number_format($row['ot_hours'], 2) : '—' }}</td>
                     <td class="num">{{ $row['salary_out'] ? number_format($row['salary_out'], 2) : '—' }}</td>
                     <td class="num">{{ $row['ot_out'] ? number_format($row['ot_out'], 2) : '—' }}</td>
@@ -179,7 +197,7 @@
     </div>
 
     <div class="computer-generated-note">
-        Net: + takes the cost on, − hands it off. Daily rate from the salary on file; overtime from approved claims settled in payroll.
+        Net: + takes the cost on, − hands it off. Daily and hourly rates from the salary on file; overtime from approved claims settled in payroll.
         Computer-generated; no signature required.
     </div>
 @endsection

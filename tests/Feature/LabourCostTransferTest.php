@@ -229,6 +229,110 @@ class LabourCostTransferTest extends TestCase
         $this->assertEquals(100, collect($list->viewData('summary'))->firstWhere('outlet_id', $this->events->id)['net']);
     }
 
+    // ── Hourly and OT-only lines ──────────────────────────────────────────
+
+    public function test_an_hourly_line_is_hours_at_the_hourly_rate_plus_overtime(): void
+    {
+        $this->claim($this->aisyah, '2026-09-02', 2);   // 37.50
+
+        $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-02')->set('lines.0.date_end', '2026-09-02')
+            ->set('lines.0.basis', 'hourly')
+            ->set('lines.0.hours', '5')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $line = LabourCostTransfer::firstOrFail()->lines()->firstOrFail();
+        $this->assertSame('hourly', $line->basis);
+        $this->assertEquals(5, (float) $line->hours);
+        $this->assertEquals(0, (float) $line->days);
+        $this->assertEquals(12.5, (float) $line->hourly_rate);
+        $this->assertEquals(62.5, (float) $line->salary_amount);
+        $this->assertEquals(100, (float) $line->total_amount);
+        $this->assertSame('5 hrs', $line->quantityLabel());
+    }
+
+    public function test_an_ot_only_line_moves_the_overtime_and_no_salary(): void
+    {
+        $this->claim($this->aisyah, '2026-09-02', 2);                 // 37.50
+        $this->claim($this->aisyah, '2026-09-03', 1, 'rest_day');     // 25.00
+
+        $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-05')
+            ->set('lines.0.basis', 'ot_only')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $line = LabourCostTransfer::firstOrFail()->lines()->firstOrFail();
+        $this->assertEquals(0, (float) $line->salary_amount);
+        $this->assertEquals(3, (float) $line->ot_hours);
+        $this->assertEquals(62.5, (float) $line->total_amount);
+    }
+
+    public function test_an_ot_only_line_with_no_overtime_is_refused(): void
+    {
+        $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.basis', 'ot_only')
+            ->call('save')
+            ->assertHasErrors('lines.0.basis');
+
+        $this->assertSame(0, LabourCostTransfer::count());
+    }
+
+    public function test_part_day_lines_may_share_dates_but_an_ot_claim_moves_only_once(): void
+    {
+        $this->claim($this->aisyah, '2026-09-02', 2);
+
+        // Afternoon at the event, hourly: carries the evening's OT claim.
+        $this->form()->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-02')->set('lines.0.date_end', '2026-09-02')
+            ->set('lines.0.basis', 'hourly')->set('lines.0.hours', '4')
+            ->call('confirm')->assertHasNoErrors();
+
+        // Another hourly stint the same day elsewhere is fine — without the OT.
+        $second = $this->form((string) $this->branch->id)->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-02')->set('lines.0.date_end', '2026-09-02')
+            ->set('lines.0.basis', 'hourly')->set('lines.0.hours', '2');
+        $this->assertEquals(0, $second->get('lines')[0]['ot_hours'], 'That claim is already on the first transfer.');
+        $second->call('save')->assertHasNoErrors();
+
+        // OT only for that day has nothing left to move.
+        $this->form((string) $this->branch->id)->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-02')->set('lines.0.date_end', '2026-09-02')
+            ->set('lines.0.basis', 'ot_only')
+            ->call('save')->assertHasErrors('lines.0.basis');
+
+        // A whole day on top of part-days is still a double charge.
+        $this->form((string) $this->branch->id)->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-02')->set('lines.0.date_end', '2026-09-02')
+            ->call('save')->assertHasErrors('lines.0.date_start');
+    }
+
+    public function test_on_one_document_an_ot_claim_goes_to_the_first_line_that_can_carry_it(): void
+    {
+        $this->claim($this->aisyah, '2026-09-02', 2);   // 37.50
+
+        $c = $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-02')->set('lines.0.date_end', '2026-09-02')
+            ->set('lines.0.basis', 'hourly')->set('lines.0.hours', '3')
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.1.date_start', '2026-09-02')->set('lines.1.date_end', '2026-09-02')
+            ->set('lines.1.basis', 'hourly')->set('lines.1.hours', '1');
+
+        $this->assertEquals(2, $c->get('lines')[0]['ot_hours']);
+        $this->assertEquals(0, $c->get('lines')[1]['ot_hours']);
+
+        $c->call('save')->assertHasNoErrors();
+        $this->assertEquals(
+            3 * 12.5 + 37.5 + 1 * 12.5,
+            (float) LabourCostTransfer::firstOrFail()->lines()->sum('total_amount')
+        );
+    }
+
     public function test_the_pdf_downloads_and_is_behind_the_pay_gate(): void
     {
         $this->form()->call('addEmployee', $this->aisyah->id)->call('confirm');

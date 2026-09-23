@@ -4,6 +4,7 @@ namespace App\Livewire\Hr;
 
 use App\Models\Employee;
 use App\Models\LabourCostTransfer;
+use App\Models\LabourCostTransferLine;
 use App\Models\Outlet;
 use App\Services\Hr\LabourCostTransferCalculator;
 use App\Traits\ValidatesCompanyOutlet;
@@ -48,7 +49,9 @@ class LabourCostTransferForm extends Component
             'lines'             => 'required|array|min:1',
             'lines.*.date_start' => 'required|date',
             'lines.*.date_end'   => 'required|date|after_or_equal:lines.*.date_start',
-            'lines.*.days'       => 'required|numeric|min:0.5',
+            'lines.*.basis'      => 'required|in:' . implode(',', array_keys(LabourCostTransferLine::BASES)),
+            'lines.*.days'       => 'nullable|numeric|min:0',
+            'lines.*.hours'      => 'nullable|numeric|min:0',
         ];
     }
 
@@ -58,7 +61,6 @@ class LabourCostTransferForm extends Component
             'lines.required'             => 'Add at least one employee.',
             'lines.min'                  => 'Add at least one employee.',
             'lines.*.date_end.after_or_equal' => 'An end date is before its start date.',
-            'lines.*.days.min'           => 'Every line needs at least half a day.',
             'to_outlet_id.required'      => 'Choose the outlet taking on the cost.',
         ];
     }
@@ -98,22 +100,23 @@ class LabourCostTransferForm extends Component
             'from_outlet_name' => $l->fromOutlet?->name ?? '—',
             'date_start'       => $l->date_start->toDateString(),
             'date_end'         => $l->date_end->toDateString(),
+            'basis'            => $l->basis ?: 'daily',
             'days'             => (string) (float) $l->days,
+            'hours'            => (string) (float) $l->hours,
             'daily_rate'       => (float) $l->daily_rate,
+            'hourly_rate'      => (float) $l->hourly_rate,
             'salary_amount'    => (float) $l->salary_amount,
             'ot_hours'         => (float) $l->ot_hours,
             'ot_amount'        => (float) $l->ot_amount,
             'total_amount'     => (float) $l->total_amount,
             'ot_claims'        => count($l->ot_claim_ids ?? []),
-            'has_salary'       => (float) $l->daily_rate > 0,
+            'has_salary'       => (float) $l->daily_rate > 0 || (float) $l->hourly_rate > 0,
             'overlap'          => null,
         ])->all();
 
         // A draft is repriced on open, so it shows what saving would store now.
         if ($this->status === 'draft') {
-            foreach (array_keys($this->lines) as $idx) {
-                $this->reprice($idx);
-            }
+            $this->repriceAll();
         }
     }
 
@@ -160,10 +163,12 @@ class LabourCostTransferForm extends Component
             'from_outlet_name' => $employee->outlet?->name ?? '—',
             'date_start'       => $start,
             'date_end'         => $start,
+            'basis'            => 'daily',
             'days'             => '1',
+            'hours'            => '0',
         ];
 
-        $this->reprice(array_key_last($this->lines));
+        $this->repriceAll();
         $this->employeeSearch = '';
     }
 
@@ -173,6 +178,9 @@ class LabourCostTransferForm extends Component
 
         unset($this->lines[$idx]);
         $this->lines = array_values($this->lines);
+
+        // Its OT claims are free again for the lines after it.
+        $this->repriceAll();
     }
 
     public function updatedLines($value, $key): void
@@ -189,39 +197,76 @@ class LabourCostTransferForm extends Component
             }
         }
 
-        if (in_array($field, ['date_start', 'date_end', 'days'], true)) {
-            $this->reprice((int) $idx);
+        // Switching to hours starts from one working day, not from zero.
+        if ($field === 'basis' && $this->lines[(int) $idx]['basis'] === 'hourly' && (float) ($this->lines[(int) $idx]['hours'] ?? 0) <= 0) {
+            $employee = Employee::withTrashed()->find($this->lines[(int) $idx]['employee_id']);
+            $this->lines[(int) $idx]['hours'] = (string) (float) ($employee?->daily_working_hours ?: 8);
+        }
+
+        if (in_array($field, ['date_start', 'date_end', 'days', 'hours', 'basis'], true)) {
+            // Every line, not just this one: a change here can free or take an
+            // OT claim another line of the same person would otherwise carry.
+            $this->repriceAll();
         }
     }
 
-    /** Refresh one line's preview figures from the server's own numbers. */
-    private function reprice(int $idx): void
+    /**
+     * Refresh every line's preview figures from the server's own numbers, in
+     * order, so an OT claim goes to the first line of that person that can
+     * carry it and to no other.
+     */
+    private function repriceAll(): void
     {
-        $line = $this->lines[$idx] ?? null;
-        if (! $line) return;
+        $usedInDoc = [];
+        foreach (array_keys($this->lines) as $idx) {
+            $this->lines[$idx] = $this->withPrice($this->lines[$idx], $usedInDoc);
+        }
+    }
 
+    /**
+     * One line with its price merged in. $usedInDoc is the OT claims earlier
+     * lines of this document already carry, keyed by employee; it is updated.
+     *
+     * @param  array<int, array<int, int>>  $usedInDoc
+     */
+    private function withPrice(array $line, array &$usedInDoc): array
+    {
         $empty = [
-            'daily_rate' => 0.0, 'salary_amount' => 0.0, 'ot_hours' => 0.0, 'ot_amount' => 0.0,
-            'total_amount' => 0.0, 'ot_claims' => 0, 'has_salary' => true, 'overlap' => null,
+            'daily_rate' => 0.0, 'hourly_rate' => 0.0, 'salary_amount' => 0.0, 'ot_hours' => 0.0, 'ot_amount' => 0.0,
+            'total_amount' => 0.0, 'ot_claims' => 0, 'ot_claim_ids' => [], 'has_salary' => true, 'overlap' => null,
         ];
 
         $employee = Employee::withTrashed()->find($line['employee_id']);
         if (! $employee || empty($line['date_start']) || empty($line['date_end']) || $line['date_end'] < $line['date_start']) {
-            $this->lines[$idx] = array_merge($line, $empty);
-            return;
+            return array_merge($line, $empty);
         }
 
-        $price = $this->calculator()->price($employee, $line['date_start'], $line['date_end'], (float) $line['days']);
-        $clash = LabourCostTransferCalculator::overlapping($employee->id, $line['date_start'], $line['date_end'], $this->transferId);
+        $basis   = $line['basis'] ?? 'daily';
+        $exclude = array_merge(
+            LabourCostTransferCalculator::usedClaimIds($employee->id, $line['date_start'], $line['date_end'], $this->transferId),
+            $usedInDoc[$employee->id] ?? [],
+        );
 
-        $this->lines[$idx] = array_merge($line, [
+        $price = $this->calculator()->price(
+            $employee, $line['date_start'], $line['date_end'],
+            (float) ($line['days'] ?? 0), $basis, (float) ($line['hours'] ?? 0), $exclude,
+        );
+        $usedInDoc[$employee->id] = array_merge($usedInDoc[$employee->id] ?? [], $price['ot_claim_ids']);
+
+        $clash = LabourCostTransferCalculator::overlapping($employee->id, $line['date_start'], $line['date_end'], $this->transferId, $basis);
+
+        return array_merge($line, [
+            'basis'         => $price['basis'],
             'days'          => (string) $price['days'],
+            'hours'         => (string) $price['hours'],
             'daily_rate'    => $price['daily_rate'],
+            'hourly_rate'   => $price['hourly_rate'],
             'salary_amount' => $price['salary_amount'],
             'ot_hours'      => $price['ot_hours'],
             'ot_amount'     => $price['ot_amount'],
             'total_amount'  => $price['total_amount'],
             'ot_claims'     => count($price['ot_claim_ids']),
+            'ot_claim_ids'  => $price['ot_claim_ids'],
             'has_salary'    => $price['has_salary'],
             'overlap'       => $clash ? $clash->transfer?->transfer_number : null,
         ]);
@@ -238,6 +283,7 @@ class LabourCostTransferForm extends Component
         if ($this->status !== 'draft') return;
 
         $this->validate();
+        $this->repriceAll();
 
         $errors = $this->lineErrors();
         if ($errors) {
@@ -259,6 +305,7 @@ class LabourCostTransferForm extends Component
         if ($this->status !== 'draft') return;
 
         $this->validate();
+        $this->repriceAll();
 
         $errors = $this->lineErrors();
         if ($errors) {
@@ -313,18 +360,34 @@ class LabourCostTransferForm extends Component
                 $errors["lines.$idx.employee_id"] = "$who already belongs to the receiving outlet, so there is nothing to transfer.";
             }
 
-            $span = LabourCostTransferCalculator::calendarDays($line['date_start'], $line['date_end']);
-            if ((float) $line['days'] > $span) {
-                $errors["lines.$idx.days"] = "$who: {$line['days']} days is more than the $span in the date range.";
+            $basis = $line['basis'] ?? 'daily';
+            $span  = LabourCostTransferCalculator::calendarDays($line['date_start'], $line['date_end']);
+
+            if ($basis === 'daily') {
+                if ((float) $line['days'] < 0.5) {
+                    $errors["lines.$idx.days"] = "$who: a daily line needs at least half a day.";
+                } elseif ((float) $line['days'] > $span) {
+                    $errors["lines.$idx.days"] = "$who: {$line['days']} days is more than the $span in the date range.";
+                }
+            } elseif ($basis === 'hourly') {
+                if ((float) $line['hours'] <= 0) {
+                    $errors["lines.$idx.hours"] = "$who: enter the hours worked.";
+                } elseif ((float) $line['hours'] > $span * 24) {
+                    $errors["lines.$idx.hours"] = "$who: {$line['hours']} hours is more than the date range holds.";
+                }
+            } elseif ((float) ($line['ot_hours'] ?? 0) <= 0) {
+                $errors["lines.$idx.basis"] = "$who has no approved overtime in these dates that is not already transferred, so an OT-only line would move nothing.";
             }
 
-            if ($clash = LabourCostTransferCalculator::overlapping($employee->id, $line['date_start'], $line['date_end'], $this->transferId)) {
+            if ($clash = LabourCostTransferCalculator::overlapping($employee->id, $line['date_start'], $line['date_end'], $this->transferId, $basis)) {
                 $errors["lines.$idx.date_start"] = "$who is already on {$clash->transfer?->transfer_number} for some of these dates.";
             }
 
-            // Two lines on THIS document for the same person on the same day.
+            // Two lines on THIS document for the same person on the same day,
+            // where one of them moves the whole day.
             foreach ($this->lines as $j => $other) {
                 if ($j <= $idx || (int) $other['employee_id'] !== (int) $line['employee_id']) continue;
+                if (! LabourCostTransferCalculator::basesClash($basis, $other['basis'] ?? 'daily')) continue;
                 if ($other['date_start'] <= $line['date_end'] && $other['date_end'] >= $line['date_start']) {
                     $errors["lines.$j.date_start"] = "$who appears twice on this transfer for overlapping dates.";
                 }
@@ -360,10 +423,19 @@ class LabourCostTransferForm extends Component
 
             $calculator = $this->calculator();
             $transfer->lines()->delete();
+            $usedInDoc  = [];
 
             foreach ($this->lines as $line) {
                 $employee = $this->employeeQuery()->findOrFail($line['employee_id']);
-                $price    = $calculator->price($employee, $line['date_start'], $line['date_end'], (float) $line['days']);
+                $exclude  = array_merge(
+                    LabourCostTransferCalculator::usedClaimIds($employee->id, $line['date_start'], $line['date_end'], $transfer->id),
+                    $usedInDoc[$employee->id] ?? [],
+                );
+                $price = $calculator->price(
+                    $employee, $line['date_start'], $line['date_end'],
+                    (float) ($line['days'] ?? 0), $line['basis'] ?? 'daily', (float) ($line['hours'] ?? 0), $exclude,
+                );
+                $usedInDoc[$employee->id] = array_merge($usedInDoc[$employee->id] ?? [], $price['ot_claim_ids']);
 
                 $transfer->lines()->create([
                     'employee_id'    => $employee->id,
@@ -371,8 +443,11 @@ class LabourCostTransferForm extends Component
                     'from_outlet_id' => $employee->outlet_id,
                     'date_start'     => $line['date_start'],
                     'date_end'       => $line['date_end'],
+                    'basis'          => $price['basis'],
                     'days'           => $price['days'],
+                    'hours'          => $price['hours'],
                     'daily_rate'     => $price['daily_rate'],
+                    'hourly_rate'    => $price['hourly_rate'],
                     'salary_amount'  => $price['salary_amount'],
                     'ot_hours'       => $price['ot_hours'],
                     'ot_amount'      => $price['ot_amount'],
@@ -407,6 +482,7 @@ class LabourCostTransferForm extends Component
             'to_outlet_id'   => (int) $this->to_outlet_id ?: 0,
             'employee_id'    => $l['employee_id'],
             'days'           => (float) $l['days'],
+            'hours'          => (float) ($l['hours'] ?? 0),
             'ot_hours'       => (float) ($l['ot_hours'] ?? 0),
             'salary_amount'  => (float) ($l['salary_amount'] ?? 0),
             'ot_amount'      => (float) ($l['ot_amount'] ?? 0),
@@ -417,6 +493,7 @@ class LabourCostTransferForm extends Component
 
         $totals = [
             'days'   => collect($this->lines)->sum(fn ($l) => (float) $l['days']),
+            'hours'  => collect($this->lines)->sum(fn ($l) => (float) ($l['hours'] ?? 0)),
             'ot'     => collect($this->lines)->sum(fn ($l) => (float) ($l['ot_hours'] ?? 0)),
             'salary' => collect($this->lines)->sum(fn ($l) => (float) ($l['salary_amount'] ?? 0)),
             'ot_amt' => collect($this->lines)->sum(fn ($l) => (float) ($l['ot_amount'] ?? 0)),

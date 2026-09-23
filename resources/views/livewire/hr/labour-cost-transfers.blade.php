@@ -107,6 +107,7 @@
                             <th class="px-4 py-2 text-left">Outlet</th>
                             <th class="px-4 py-2 text-right">Staff sent</th>
                             <th class="px-4 py-2 text-right">Days</th>
+                            <th class="px-4 py-2 text-right">Hours</th>
                             <th class="px-4 py-2 text-right">OT hrs</th>
                             <th class="px-4 py-2 text-right">Sent (RM)</th>
                             <th class="px-4 py-2 text-right">Received (RM)</th>
@@ -119,6 +120,7 @@
                                 <td class="px-4 py-2 font-medium text-gray-800">{{ $outletNames[$row['outlet_id']] ?? '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['staff'] ?: '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['days'] ? number_format($row['days'], 1) : '—' }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $row['hours'] ? number_format($row['hours'], 2) : '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['ot_hours'] ? number_format($row['ot_hours'], 2) : '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['sent'] ? number_format($row['sent'], 2) : '—' }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $row['received'] ? number_format($row['received'], 2) : '—' }}</td>
