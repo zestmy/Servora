@@ -19,6 +19,22 @@ class LabourCostTransferPdfController extends Controller
 {
     public function __invoke(Request $request, int $id)
     {
+        $data = $this->load($request, $id);
+
+        return Pdf::loadView('pdf.labour-cost-transfer', $data)
+            ->setPaper('a4', 'portrait')
+            ->download('Labour-Cost-Transfer-' . $data['transfer']->transfer_number . '.pdf');
+    }
+
+    /**
+     * The transfer, its outlet summary and its company, access-checked.
+     * Shared with LabourCostTransferExcelController so the PDF and the
+     * workbook come from one load and one rule.
+     *
+     * @return array{transfer: LabourCostTransfer, summary: array, outletNames: \Illuminate\Support\Collection, company: ?Company}
+     */
+    protected function load(Request $request, int $id): array
+    {
         $transfer = LabourCostTransfer::with([
             'lines' => fn ($q) => $q->orderBy('id'),
             'lines.fromOutlet', 'lines.employee', 'toOutlet', 'createdBy', 'confirmedBy',
@@ -31,8 +47,6 @@ class LabourCostTransferPdfController extends Controller
         $outletNames = Outlet::withoutGlobalScopes()->whereIn('id', array_column($summary, 'outlet_id'))->pluck('name', 'id');
         $company     = Company::find($request->user()->company_id);
 
-        return Pdf::loadView('pdf.labour-cost-transfer', compact('transfer', 'summary', 'outletNames', 'company'))
-            ->setPaper('a4', 'portrait')
-            ->download('Labour-Cost-Transfer-' . $transfer->transfer_number . '.pdf');
+        return compact('transfer', 'summary', 'outletNames', 'company');
     }
 }

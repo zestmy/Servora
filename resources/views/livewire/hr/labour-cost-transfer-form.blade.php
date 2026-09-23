@@ -8,6 +8,9 @@
                 <a href="{{ route('hr.labour-transfers.pdf', $transferId) }}" class="btn-secondary">
                     <x-icon name="download" class="h-4 w-4" /> PDF
                 </a>
+                <a href="{{ route('hr.labour-transfers.excel', $transferId) }}" class="btn-secondary">
+                    <x-icon name="download" class="h-4 w-4" /> Excel
+                </a>
             @endif
             @if ($status === 'draft')
                 <button wire:click="save" class="btn-secondary">Save draft</button>

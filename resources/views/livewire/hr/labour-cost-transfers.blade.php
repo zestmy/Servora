@@ -84,6 +84,9 @@
                                     <a href="{{ route('hr.labour-transfers.pdf', $t->id) }}" class="icon-btn" aria-label="Download PDF for {{ $t->transfer_number }}" title="Download PDF">
                                         <x-icon name="download" class="h-4 w-4" />
                                     </a>
+                                    <a href="{{ route('hr.labour-transfers.excel', $t->id) }}" class="icon-btn" aria-label="Download Excel for {{ $t->transfer_number }}" title="Download Excel">
+                                        <x-icon name="document" class="h-4 w-4 text-success-700" />
+                                    </a>
                                     @if ($t->status === 'draft' || $canManage)
                                         <button type="button" wire:click="deleteTransfer({{ $t->id }})"
                                                 wire:confirm="{{ $t->status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $t->status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"

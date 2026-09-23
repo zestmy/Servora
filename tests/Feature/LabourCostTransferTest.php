@@ -519,6 +519,54 @@ class LabourCostTransferTest extends TestCase
         $this->assertSame([], \App\Services\Hr\LabourCostTransferLedger::byOutlet($this->company->id, '2026-09-01', '2026-09-30'));
     }
 
+    public function test_a_labour_cost_transfer_downloads_as_a_workbook(): void
+    {
+        $bob = $this->employee('Bob', $this->branch, 5200);   // RM 200 a day, RM 25 an hour
+        $this->claim($bob, '2026-09-03', 2);                  // 2 x 25 x 1.5 = RM 75
+
+        $this->form()
+            ->call('addEmployee', $this->aisyah->id)
+            ->set('lines.0.date_start', '2026-09-01')->set('lines.0.date_end', '2026-09-02')   // RM 200
+            ->call('addEmployee', $bob->id)
+            ->set('lines.1.date_start', '2026-09-03')->set('lines.1.date_end', '2026-09-03')
+            ->set('lines.1.basis', 'hourly')->set('lines.1.hours', '4')                        // RM 100 + 75
+            ->call('confirm')->assertHasNoErrors();
+        $t = LabourCostTransfer::firstOrFail();
+
+        $response = $this->actingAs($this->hr)->get(route('hr.labour-transfers.excel', $t->id));
+        $response->assertOk();
+        $this->assertStringContainsString('Labour-Cost-Transfer-' . $t->transfer_number . '.xlsx', $response->headers->get('content-disposition'));
+
+        $path = tempnam(sys_get_temp_dir(), 'lct') . '.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet();
+        @unlink($path);
+
+        $rows = [];
+        foreach ($sheet->getRowIterator() as $r) {
+            $i = $r->getRowIndex();
+            $key = (string) ($sheet->getCell("B{$i}")->getValue() ?: $sheet->getCell("A{$i}")->getValue());
+            $rows[$key][] = $i;
+        }
+
+        // Employee lines: basis, rate and live totals.
+        $this->assertSame('Hourly rate', $sheet->getCell('G' . $rows['Bob'][0])->getValue());
+        $this->assertEquals(25, $sheet->getCell('J' . $rows['Bob'][0])->getValue());
+        $this->assertEquals(175, $sheet->getCell('N' . $rows['Bob'][0])->getCalculatedValue());
+        $this->assertEquals(375, $sheet->getCell('N' . $rows['TOTAL'][0])->getCalculatedValue());
+
+        // Summary by outlet: live net per outlet, summing to zero.
+        $this->assertEquals(375, $sheet->getCell('O' . $rows['Events'][0])->getCalculatedValue());
+        $this->assertEquals(-200, $sheet->getCell('O' . $rows['Home'][0])->getCalculatedValue());
+        $this->assertEquals(-175, $sheet->getCell('O' . $rows['Branch'][0])->getCalculatedValue());
+        $this->assertEquals(0, $sheet->getCell('O' . $rows['TOTAL'][1])->getCalculatedValue());
+
+        // Same pay gate as the PDF.
+        $this->actingAs($this->user(['inventory.view']))
+            ->get(route('hr.labour-transfers.excel', $t->id))
+            ->assertForbidden();
+    }
+
     public function test_a_stock_transfer_downloads_as_a_workbook(): void
     {
         $kg  = UnitOfMeasure::create(['name' => 'Kilogram', 'abbreviation' => 'kg', 'type' => 'weight', 'base_unit_factor' => 1000]);
