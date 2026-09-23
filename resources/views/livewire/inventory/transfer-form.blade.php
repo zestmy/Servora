@@ -190,37 +190,70 @@
                     </div>
                     <input type="text"
                            wire:model.live.debounce.300ms="itemSearch"
-                           placeholder="Search ingredients to add…"
+                           placeholder="Search Market List, prep items or recipes…"
                            class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500" />
                 </div>
 
-                @if ($ingredientResults->isNotEmpty())
+                @php
+                    $resultGroups = [
+                        ['label' => 'Market List', 'items' => $ingredientResults, 'action' => 'addIngredient'],
+                        ['label' => 'Prep Items',  'items' => $prepResults,       'action' => 'addIngredient'],
+                        ['label' => 'Recipes',     'items' => $recipeResults,     'action' => 'addRecipe'],
+                    ];
+                    $hasResults = $ingredientResults->isNotEmpty() || $prepResults->isNotEmpty() || $recipeResults->isNotEmpty();
+                @endphp
+
+                @if ($hasResults)
                     <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 shadow-sm">
-                        @foreach ($ingredientResults as $ingredient)
-                            <button type="button" wire:click="addIngredient({{ $ingredient->id }})"
-                                    class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-medium text-gray-800 text-sm">{{ $ingredient->name }}</span>
-                                    @if ($ingredient->is_prep)
-                                        <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded">PREP</span>
-                                    @endif
-                                    @if ($ingredient->category)
-                                        <span class="text-xs text-gray-600">· {{ $ingredient->category }}</span>
-                                    @endif
-                                </div>
-                                <div class="text-right text-xs flex-shrink-0 ml-4">
-                                    <span class="text-gray-600">
-                                        RM {{ number_format($ingredient->is_prep ? $ingredient->current_cost : $ingredient->purchase_price, 4) }}
-                                        / {{ $ingredient->baseUom?->abbreviation }}
-                                    </span>
-                                    <span class="ml-2 text-brand-400">+ Add</span>
-                                </div>
-                            </button>
+                        @foreach ($resultGroups as $group)
+                            @if ($group['items']->isNotEmpty())
+                                <p class="px-4 py-1.5 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $group['label'] }}</p>
+                                @foreach ($group['items'] as $item)
+                                    @php
+                                        $isRecipe = $group['action'] === 'addRecipe';
+                                        $cost     = $isRecipe ? $item->cost_per_yield_unit : ($item->is_prep ? $item->current_cost : $item->purchase_price);
+                                        $unit     = $isRecipe ? $item->yieldUom?->abbreviation : $item->baseUom?->abbreviation;
+                                    @endphp
+                                    <button type="button" wire:key="add-{{ $group['action'] }}-{{ $item->id }}"
+                                            wire:click="{{ $group['action'] }}({{ $item->id }})"
+                                            class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-brand-50 transition text-left">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium text-gray-800 text-sm">{{ $item->name }}</span>
+                                            @if (! $isRecipe && $item->is_prep)
+                                                <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded-control">PREP</span>
+                                            @elseif ($isRecipe)
+                                                <span class="badge-brand">RECIPE</span>
+                                            @endif
+                                            @if ($item->category)
+                                                <span class="text-xs text-gray-600">· {{ $item->category }}</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-right text-xs flex-shrink-0 ml-4">
+                                            <span class="text-gray-600">
+                                                RM {{ number_format((float) $cost, 4) }}
+                                                / {{ $unit }}
+                                            </span>
+                                            <span class="ml-2 text-brand-600">+ Add</span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            @endif
                         @endforeach
                     </div>
                 @elseif (strlen($itemSearch) >= 2)
-                    <p class="mt-2 text-sm text-gray-600 text-center py-2">No ingredients found.</p>
+                    <p class="mt-2 text-sm text-gray-600 text-center py-2">Nothing in the Market List, prep items or recipes matches.</p>
                 @endif
+
+                {{-- Anything that is not in the catalogue. --}}
+                <div class="mt-2 flex justify-end">
+                    <button type="button" wire:click="addCustomItem" class="btn-ghost text-sm">
+                        @if (strlen(trim($itemSearch)) >= 2)
+                            + Add "{{ \Illuminate\Support\Str::limit(trim($itemSearch), 40) }}" as a custom item
+                        @else
+                            + Add custom item
+                        @endif
+                    </button>
+                </div>
 
                 <x-input-error :messages="$errors->get('lines')" class="mt-2" />
             </div>
@@ -245,13 +278,25 @@
                     </thead>
                     <tbody>
                         @foreach ($lines as $idx => $line)
-                            <tr class="hover:bg-gray-50 transition group">
+                            <tr wire:key="line-{{ $idx }}-{{ $line['item_type'] ?? 'ingredient' }}-{{ $line['ingredient_id'] ?? $line['recipe_id'] ?? 'c' }}" class="hover:bg-gray-50 transition group">
                                 <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2">
+                                    @php $type = $line['item_type'] ?? 'ingredient'; @endphp
                                     <div class="flex items-center gap-2">
-                                        <span class="font-medium text-gray-800">{{ $line['item_name'] }}</span>
+                                        @if ($type === 'custom' && $isDraft)
+                                            <input type="text" wire:model.blur="lines.{{ $idx }}.custom_name"
+                                                   maxlength="200" placeholder="Item name"
+                                                   aria-label="Custom item name"
+                                                   class="w-full min-w-[10rem] rounded-control border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
+                                        @else
+                                            <span class="font-medium text-gray-800">{{ $line['item_name'] }}</span>
+                                        @endif
                                         @if ($line['is_prep'] ?? false)
-                                            <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded">PREP</span>
+                                            <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded-control">PREP</span>
+                                        @elseif ($type === 'recipe')
+                                            <span class="badge-brand">RECIPE</span>
+                                        @elseif ($type === 'custom')
+                                            <span class="badge-neutral">CUSTOM</span>
                                         @endif
                                     </div>
                                 </td>
@@ -264,9 +309,27 @@
                                         <span class="block text-right tabular-nums">{{ number_format(floatval($line['quantity']), 2) }}</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2 text-gray-500 text-xs">{{ $line['uom_abbr'] }}</td>
+                                <td class="px-4 py-2 text-gray-600 text-xs">
+                                    @if ($type === 'custom' && $isDraft)
+                                        <select wire:model.live="lines.{{ $idx }}.uom_id" aria-label="Unit"
+                                                class="w-full rounded-control border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                            @foreach ($uoms as $uom)
+                                                <option value="{{ $uom->id }}">{{ $uom->abbreviation }}</option>
+                                            @endforeach
+                                        </select>
+                                    @else
+                                        {{ $line['uom_abbr'] }}
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2">
-                                    <span class="block text-right tabular-nums text-gray-600" title="Price comes from purchasing — goods received, supplier invoices and price lists. Not editable here.">{{ number_format(floatval($line['unit_cost']), 4) }}</span>
+                                    @if ($type === 'custom' && $isDraft)
+                                        {{-- No price of record exists for a custom item, so this one is typed. --}}
+                                        <input type="number" step="0.0001" min="0"
+                                               wire:model.blur="lines.{{ $idx }}.unit_cost" aria-label="Unit cost"
+                                               class="w-full text-right rounded-control border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
+                                    @else
+                                        <span class="block text-right tabular-nums text-gray-600" title="{{ $type === 'recipe' ? 'Recipe cost per yield unit. Not editable here.' : ($type === 'custom' ? 'Entered when the transfer was raised.' : 'Price comes from purchasing — goods received, supplier invoices and price lists. Not editable here.') }}">{{ number_format(floatval($line['unit_cost']), 4) }}</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-semibold text-teal-600">
                                     {{ number_format(floatval($line['total_cost']), 2) }}
@@ -274,7 +337,7 @@
                                 @if ($isDraft)
                                     <td class="px-4 py-2 text-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
                                         <button type="button" wire:click="removeLine({{ $idx }})"
-                                                tabindex="-1" aria-label="Remove {{ $line['item_name'] }}"
+                                                tabindex="-1" aria-label="Remove {{ $line['item_name'] ?: 'custom item' }}"
                                             class="text-danger-400 hover:text-danger-600 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -301,7 +364,7 @@
         @else
             <div class="px-6 py-12 text-center text-gray-600">
                 <p class="font-medium">No items added yet</p>
-                <p class="text-xs mt-1">Search for ingredients above to add to this transfer.</p>
+                <p class="text-xs mt-1">Search the Market List, prep items or recipes above, or add a custom item.</p>
             </div>
         @endif
 

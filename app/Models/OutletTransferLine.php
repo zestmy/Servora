@@ -11,7 +11,7 @@ class OutletTransferLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'outlet_transfer_id', 'ingredient_id', 'quantity', 'uom_id', 'unit_cost',
+        'outlet_transfer_id', 'ingredient_id', 'recipe_id', 'custom_name', 'quantity', 'uom_id', 'unit_cost',
     ];
 
     protected $casts = [
@@ -27,6 +27,17 @@ class OutletTransferLine extends Model
     public function ingredient(): BelongsTo
     {
         return $this->belongsTo(Ingredient::class);
+    }
+
+    public function recipe(): BelongsTo
+    {
+        return $this->belongsTo(Recipe::class);
+    }
+
+    /** What the line is called, whichever of the three kinds it is. */
+    public function getItemNameAttribute(): string
+    {
+        return $this->ingredient?->name ?? $this->recipe?->name ?? $this->custom_name ?? '-';
     }
 
     public function uom(): BelongsTo

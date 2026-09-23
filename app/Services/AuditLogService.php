@@ -124,11 +124,13 @@ class AuditLogService
             foreach ($rows as $r) {
                 $ing = (int) ($r['ingredient_id'] ?? 0);
                 $rec = (int) ($r['recipe_id'] ?? 0);
-                $key = $ing ? 'ing:' . $ing : ($rec ? 'rec:' . $rec : null);
+                // A free-text line (a custom transfer item) is identified by its name.
+                $custom = trim((string) ($r['custom_name'] ?? ''));
+                $key = $ing ? 'ing:' . $ing : ($rec ? 'rec:' . $rec : ($custom !== '' ? 'custom:' . mb_strtolower($custom) : null));
                 if ($key === null) continue;
 
                 $map[$key] = [
-                    'item'     => $labels[$key] ?? $key,
+                    'item'     => $labels[$key] ?? ($custom !== '' ? $custom : $key),
                     'quantity' => isset($r['quantity']) ? (float) $r['quantity'] : null,
                     'unit'     => $uoms[(int) ($r['uom_id'] ?? 0)] ?? null,
                 ];

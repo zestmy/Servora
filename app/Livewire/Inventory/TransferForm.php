@@ -5,6 +5,8 @@ namespace App\Livewire\Inventory;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
+use App\Models\Recipe;
+use App\Models\UnitOfMeasure;
 use App\Traits\LocksLineUnitCost;
 use App\Traits\ScopesToActiveOutlet;
 use App\Traits\ValidatesCompanyOutlet;
@@ -25,6 +27,13 @@ class TransferForm extends Component
     public string $status          = 'draft';
     public string $notes           = '';
 
+    /*
+     * A line is one of three kinds (item_type):
+     *   ingredient: a Market List or prep item, the only kind that moves stock on hand
+     *   recipe:     a finished dish, costed at the recipe's cost per yield unit
+     *   custom:     free text for anything not in the catalogue; its unit cost is
+     *               typed, because there is no price of record to take it from
+     */
     public array  $lines      = [];
     public string $itemSearch = '';
 
@@ -46,6 +55,10 @@ class TransferForm extends Component
             'to_outlet_id'      => ['required', 'different:from_outlet_id', $this->outletExistsRule()],
             'lines'             => 'required|array|min:1',
             'lines.*.quantity'  => 'required|numeric|min:0.0001',
+            'lines.*.item_type' => 'required|in:ingredient,recipe,custom',
+            'lines.*.uom_id'    => 'required|exists:units_of_measure,id',
+            'lines.*.custom_name' => 'required_if:lines.*.item_type,custom|nullable|string|max:200',
+            'lines.*.unit_cost' => 'nullable|numeric|min:0',
         ];
     }
 
@@ -56,6 +69,9 @@ class TransferForm extends Component
             'lines.min'               => 'Add at least one item.',
             'lines.*.quantity.min'     => 'Quantity must be greater than zero.',
             'to_outlet_id.different'   => 'Destination outlet must be different from source.',
+            'lines.*.custom_name.required_if' => 'Give every custom item a name.',
+            'lines.*.uom_id.required'  => 'Choose a unit for every item.',
+            'lines.*.unit_cost.min'    => 'Unit cost cannot be negative.',
         ];
     }
 
@@ -64,7 +80,7 @@ class TransferForm extends Component
         $this->transfer_date = now()->toDateString();
 
         if ($id) {
-            $transfer = OutletTransfer::with(['lines.ingredient.baseUom', 'lines.uom'])->findOrFail($id);
+            $transfer = OutletTransfer::with(['lines.ingredient.baseUom', 'lines.recipe', 'lines.uom'])->findOrFail($id);
 
             // Check user can access either the source or destination outlet
             $user = Auth::user();
@@ -80,15 +96,29 @@ class TransferForm extends Component
             $this->status          = $transfer->status;
             $this->notes           = $transfer->notes ?? '';
 
-            $this->lines = $transfer->lines->map(fn ($l) => $this->rememberLineCost([
-                'ingredient_id' => $l->ingredient_id,
-                'item_name'     => $l->ingredient?->name ?? '—',
-                'is_prep'       => (bool) ($l->ingredient?->is_prep ?? false),
-                'uom_id'        => $l->uom_id,
-                'uom_abbr'      => $l->uom?->abbreviation ?? '',
-                'quantity'      => (string) floatval($l->quantity),
-                'total_cost'    => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-            ], floatval($l->unit_cost)))->toArray();
+            $this->lines = $transfer->lines->map(function ($l) {
+                $type = $l->ingredient_id ? 'ingredient' : ($l->recipe_id ? 'recipe' : 'custom');
+                $line = [
+                    'item_type'     => $type,
+                    'ingredient_id' => $l->ingredient_id,
+                    'recipe_id'     => $l->recipe_id,
+                    'custom_name'   => $l->custom_name ?? '',
+                    'item_name'     => $l->item_name,
+                    'is_prep'       => (bool) ($l->ingredient?->is_prep ?? false),
+                    'uom_id'        => $l->uom_id,
+                    'uom_abbr'      => $l->uom?->abbreviation ?? '',
+                    'quantity'      => (string) floatval($l->quantity),
+                    'total_cost'    => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
+                ];
+
+                // A custom line's cost is its own; only catalogue items lock theirs.
+                if ($type === 'custom') {
+                    $line['unit_cost'] = (string) round(floatval($l->unit_cost), 4);
+                    return $line;
+                }
+
+                return $this->rememberLineCost($line, floatval($l->unit_cost));
+            })->toArray();
         } else {
             $this->transfer_number = $this->generateTransferNumber();
 
@@ -104,7 +134,7 @@ class TransferForm extends Component
     public function addIngredient(int $ingredientId): void
     {
         foreach ($this->lines as $line) {
-            if ((int) $line['ingredient_id'] === $ingredientId) {
+            if ($line['item_type'] === 'ingredient' && (int) $line['ingredient_id'] === $ingredientId) {
                 $this->itemSearch = '';
                 return;
             }
@@ -115,7 +145,10 @@ class TransferForm extends Component
         $unitCost = floatval($ingredient->current_cost);
 
         $this->lines[] = $this->rememberLineCost([
+            'item_type'     => 'ingredient',
             'ingredient_id' => $ingredient->id,
+            'recipe_id'     => null,
+            'custom_name'   => '',
             'item_name'     => $ingredient->name,
             'is_prep'       => (bool) $ingredient->is_prep,
             'uom_id'        => $ingredient->base_uom_id,
@@ -123,6 +156,64 @@ class TransferForm extends Component
             'quantity'      => '1',
             'total_cost'    => $unitCost,
         ], $unitCost);
+
+        $this->itemSearch = '';
+    }
+
+    /** A finished dish, moved at what one yield unit of it costs to make. */
+    public function addRecipe(int $recipeId): void
+    {
+        foreach ($this->lines as $line) {
+            if ($line['item_type'] === 'recipe' && (int) $line['recipe_id'] === $recipeId) {
+                $this->itemSearch = '';
+                return;
+            }
+        }
+
+        $recipe = Recipe::with(['yieldUom'])->findOrFail($recipeId);
+
+        $unitCost = floatval($recipe->cost_per_yield_unit);
+
+        $this->lines[] = $this->rememberLineCost([
+            'item_type'     => 'recipe',
+            'ingredient_id' => null,
+            'recipe_id'     => $recipe->id,
+            'custom_name'   => '',
+            'item_name'     => $recipe->name,
+            'is_prep'       => false,
+            'uom_id'        => $recipe->yield_uom_id,
+            'uom_abbr'      => $recipe->yieldUom?->abbreviation ?? '',
+            'quantity'      => '1',
+            'total_cost'    => $unitCost,
+        ], $unitCost);
+
+        $this->itemSearch = '';
+    }
+
+    /**
+     * Anything that is not in the catalogue. Named after whatever was typed in
+     * the search box, since that is usually the thing nobody could find.
+     */
+    public function addCustomItem(): void
+    {
+        $uom = UnitOfMeasure::whereIn('abbreviation', ['pcs', 'pc', 'unit', 'ea'])->orderBy('id')->first()
+            ?? UnitOfMeasure::orderBy('name')->first();
+
+        $name = mb_substr(trim($this->itemSearch), 0, 200);
+
+        $this->lines[] = [
+            'item_type'     => 'custom',
+            'ingredient_id' => null,
+            'recipe_id'     => null,
+            'custom_name'   => $name,
+            'item_name'     => $name,
+            'is_prep'       => false,
+            'uom_id'        => $uom?->id,
+            'uom_abbr'      => $uom?->abbreviation ?? '',
+            'quantity'      => '1',
+            'unit_cost'     => '0',
+            'total_cost'    => 0.0,
+        ];
 
         $this->itemSearch = '';
     }
@@ -136,8 +227,24 @@ class TransferForm extends Component
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
-        if (count($parts) === 2 && in_array($parts[1], ['quantity'])) {
-            $this->recalcLine((int) $parts[0]);
+        if (count($parts) !== 2 || ! isset($this->lines[(int) $parts[0]])) {
+            return;
+        }
+
+        $idx = (int) $parts[0];
+
+        if (in_array($parts[1], ['quantity', 'unit_cost'])) {
+            $this->recalcLine($idx);
+        }
+
+        // Only a custom row may rename itself or change its unit; keep the label in step.
+        if (($this->lines[$idx]['item_type'] ?? '') === 'custom') {
+            if ($parts[1] === 'custom_name') {
+                $this->lines[$idx]['item_name'] = trim((string) $value);
+            }
+            if ($parts[1] === 'uom_id') {
+                $this->lines[$idx]['uom_abbr'] = UnitOfMeasure::find($value)?->abbreviation ?? '';
+            }
         }
     }
 
@@ -188,20 +295,25 @@ class TransferForm extends Component
         // Capture existing lines for the activity trail before replacing them.
         $auditBefore = $isEdit
             ? $transfer->lines()->get()->map(fn ($l) => [
-                'ingredient_id' => $l->ingredient_id, 'uom_id' => $l->uom_id, 'quantity' => (float) $l->quantity,
+                'ingredient_id' => $l->ingredient_id, 'recipe_id' => $l->recipe_id, 'custom_name' => $l->custom_name,
+                'uom_id' => $l->uom_id, 'quantity' => (float) $l->quantity,
             ])->all()
             : [];
 
         $transfer->lines()->delete();
         foreach ($this->lines as $line) {
-            $qty      = floatval($line['quantity']);
-            $unitCost = $this->lockedLineCost($line);
+            $type = $line['item_type'];
 
+            // Exactly one identity per row, whatever else the row arrived
+            // carrying: a custom row with an ingredient_id left on it would
+            // move real stock at a typed price.
             $transfer->lines()->create([
-                'ingredient_id' => $line['ingredient_id'],
+                'ingredient_id' => $type === 'ingredient' ? ($line['ingredient_id'] ?: null) : null,
+                'recipe_id'     => $type === 'recipe' ? ($line['recipe_id'] ?: null) : null,
+                'custom_name'   => $type === 'custom' ? trim((string) $line['custom_name']) : null,
                 'uom_id'        => $line['uom_id'],
-                'quantity'      => $qty,
-                'unit_cost'     => $unitCost,
+                'quantity'      => floatval($line['quantity']),
+                'unit_cost'     => $this->lineUnitCost($line),
             ]);
         }
 
@@ -252,24 +364,55 @@ class TransferForm extends Component
     public function render()
     {
         $ingredientResults = collect();
+        $prepResults       = collect();
+        $recipeResults     = collect();
 
         if (strlen($this->itemSearch) >= 2) {
             $existingIds = collect($this->lines)
+                ->where('item_type', 'ingredient')
                 ->pluck('ingredient_id')
                 ->map(fn ($id) => (int) $id)
                 ->toArray();
 
-            $ingredientResults = Ingredient::with(['baseUom'])
+            $existingRecipeIds = collect($this->lines)
+                ->where('item_type', 'recipe')
+                ->pluck('recipe_id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+
+            $matches = function ($q) {
+                $q->where('name', 'like', '%' . $this->itemSearch . '%')
+                  ->orWhere('code', 'like', '%' . $this->itemSearch . '%');
+            };
+
+            // Market List and prep items are both ingredients, but asked for
+            // separately so a common word cannot crowd prep items out of one
+            // shared limit.
+            $ingredients = fn (bool $isPrep) => Ingredient::with(['baseUom'])
                 ->where('is_active', true)
-                ->where(function ($q) {
-                    $q->where('name', 'like', '%' . $this->itemSearch . '%')
-                      ->orWhere('code', 'like', '%' . $this->itemSearch . '%');
-                })
+                ->where('is_prep', $isPrep)
+                ->where($matches)
                 ->when($existingIds, fn ($q) => $q->whereNotIn('id', $existingIds))
                 ->orderBy('name')
-                ->limit(8)
+                ->limit(6)
+                ->get();
+
+            $ingredientResults = $ingredients(false);
+            $prepResults       = $ingredients(true);
+
+            // Non-prep recipes only: a prep recipe is already listed as its
+            // prep item, and moving it as that item keeps it in stock on hand.
+            $recipeResults = Recipe::with(['yieldUom'])
+                ->where('is_active', true)
+                ->where('is_prep', false)
+                ->where($matches)
+                ->when($existingRecipeIds, fn ($q) => $q->whereNotIn('id', $existingRecipeIds))
+                ->orderBy('name')
+                ->limit(6)
                 ->get();
         }
+
+        $uoms = UnitOfMeasure::orderBy('name')->get(['id', 'name', 'abbreviation']);
 
         /*
          * TWO LISTS, because the two ends of a transfer ask different
@@ -311,7 +454,7 @@ class TransferForm extends Component
         $isDraft   = $this->status === 'draft';
 
         return view('livewire.inventory.transfer-form', compact(
-            'ingredientResults', 'sourceOutlets', 'destinationOutlets', 'totalCost', 'isDraft'
+            'ingredientResults', 'prepResults', 'recipeResults', 'uoms', 'sourceOutlets', 'destinationOutlets', 'totalCost', 'isDraft'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 
@@ -321,8 +464,21 @@ class TransferForm extends Component
             return;
         }
         $qty      = floatval($this->lines[$idx]['quantity'] ?? 0);
-        $unitCost = $this->lockedLineCost($this->lines[$idx]);
+        $unitCost = $this->lineUnitCost($this->lines[$idx]);
         $this->lines[$idx]['total_cost'] = round($qty * $unitCost, 4);
+    }
+
+    /**
+     * Catalogue items take the locked, server-priced cost. A custom item has no
+     * price of record anywhere, so the cost typed on the row is the only one.
+     */
+    private function lineUnitCost(array $line): float
+    {
+        if (($line['item_type'] ?? 'ingredient') === 'custom') {
+            return round(max(0, floatval($line['unit_cost'] ?? 0)), 4);
+        }
+
+        return $this->lockedLineCost($line);
     }
 
     private function generateTransferNumber(): string

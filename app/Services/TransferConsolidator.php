@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Ingredient;
 use App\Models\OutletTransfer;
+use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use Illuminate\Support\Collection;
 
@@ -16,9 +17,11 @@ use Illuminate\Support\Collection;
  * WastageConsolidator gives a range of wastage notes, applied to stock moved
  * between outlets instead of stock thrown out.
  *
- * A transfer line only ever names an ingredient (OutletTransferLine has no
- * recipe_id — a transfer moves raw stock, not a prepped dish) and carries no
- * stored total_cost of its own, so the value is quantity × unit_cost, summed
+ * A transfer line names an ingredient (Market List or prep item), a recipe,
+ * or a free-text custom item. Recipes and custom items file under their own
+ * groups, keyed per unit because there is no conversion table to add them
+ * across units with. A line carries no stored total_cost of its own, so the
+ * value is quantity × unit_cost, summed
  * here the same way TransferSummaryController sums it for the chart and the
  * summary export. Quantities convert through UomService the same way
  * WastageConsolidator does, so a mixed-unit range still adds up correctly.
@@ -41,12 +44,18 @@ class TransferConsolidator
     public function consolidate(Collection $transfers): array
     {
         $ingredients = $this->ingredientsFor($transfers);
+        $recipes     = $this->recipesFor($transfers);
         $uoms        = UnitOfMeasure::all()->keyBy('id');
 
         $items = [];
 
         foreach ($transfers as $transfer) {
             foreach ($transfer->lines as $line) {
+                if (! $line->ingredient_id) {
+                    $this->addNonStockLine($items, $line, $recipes, $uoms);
+                    continue;
+                }
+
                 $ingredient = $ingredients->get($line->ingredient_id);
                 if (! $ingredient) {
                     continue;   // the transfer outlived the item; nothing to file it under
@@ -132,6 +141,59 @@ class TransferConsolidator
         });
 
         return array_values($groups);
+    }
+
+    /**
+     * A recipe or custom line. Neither has per-item unit conversions, so the
+     * unit is part of the key: 2 trays and 3 pcs of the same thing stay two rows.
+     */
+    private function addNonStockLine(array &$items, $line, Collection $recipes, Collection $uoms): void
+    {
+        $uom = $uoms->get((int) $line->uom_id);
+
+        if ($line->recipe_id) {
+            $recipe = $recipes->get($line->recipe_id);
+            if (! $recipe) {
+                return;   // the transfer outlived the recipe
+            }
+            $key      = 'rec:' . $recipe->id . ':' . (int) $line->uom_id;
+            $name     = $recipe->name;
+            $code     = $recipe->code;
+            $category = 'Recipes';
+        } else {
+            $name = trim((string) $line->custom_name);
+            if ($name === '') {
+                return;
+            }
+            $key      = 'custom:' . mb_strtolower($name) . ':' . (int) $line->uom_id;
+            $code     = null;
+            $category = 'Custom items';
+        }
+
+        $items[$key] ??= [
+            'name'     => $name,
+            'code'     => $code,
+            'uom'      => $uom,
+            'uom_abbr' => $uom?->abbreviation ?? '',
+            'quantity' => 0.0,
+            'value'    => 0.0,
+            'lines'    => 0,
+            'category' => $category,
+        ];
+
+        $items[$key]['quantity'] += (float) $line->quantity;
+        $items[$key]['value']    += (float) $line->quantity * (float) $line->unit_cost;
+        $items[$key]['lines']++;
+    }
+
+    /** @param Collection<int, OutletTransfer> $transfers */
+    private function recipesFor(Collection $transfers): Collection
+    {
+        $ids = $transfers->pluck('lines')->flatten()->pluck('recipe_id')->filter()->unique();
+
+        return $ids->isEmpty()
+            ? collect()
+            : Recipe::withTrashed()->whereIn('id', $ids)->get()->keyBy('id');
     }
 
     private function categoryName(Ingredient $ingredient): string
