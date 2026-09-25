@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\EmployeePayComponent;
 use App\Models\Outlet;
 use App\Models\PayComponent;
+use App\Models\ServiceChargePeriod;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\CompensationSummary;
 use Carbon\Carbon;
@@ -24,7 +25,8 @@ use Tests\TestCase;
  *   a working day (or with hours worked).
  *
  *   ATTENDANCE ALLOWANCE — a fixed amount, lost for the whole payroll to any
- *   MC, any Absent mark or any late clock-in.
+ *   MC, any Absent mark, any late clock-in, or lateness noted by hand on a
+ *   service charge pool ending in the period.
  */
 class AttendanceBasedAllowanceTest extends TestCase
 {
@@ -64,10 +66,10 @@ class AttendanceBasedAllowanceTest extends TestCase
 
     private function assign(Employee $e, string $calculation, float $amount, string $name): void
     {
-        $component = PayComponent::withoutGlobalScope(CompanyScope::class)->create([
-            'company_id' => $this->company->id, 'name' => $name,
-            'kind' => 'allowance', 'calculation' => $calculation,
-        ]);
+        $component = PayComponent::withoutGlobalScope(CompanyScope::class)->firstOrCreate(
+            ['company_id' => $this->company->id, 'name' => $name],
+            ['kind' => 'allowance', 'calculation' => $calculation],
+        );
 
         EmployeePayComponent::withoutGlobalScope(CompanyScope::class)->create([
             'company_id' => $this->company->id, 'employee_id' => $e->id,
@@ -261,6 +263,42 @@ class AttendanceBasedAllowanceTest extends TestCase
         $this->clockIn($e, 6, 90, time: '10:30:00');
 
         $this->assertEqualsWithDelta(100.00, $this->line($e, 'Attendance')['amount'], 0.001);
+    }
+
+    private function pool(string $from, string $to, array $manualLate): void
+    {
+        ServiceChargePeriod::withoutGlobalScope(CompanyScope::class)->create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'period_from' => $from, 'period_to' => $to, 'amount' => 5000,
+            'retention_percent' => 0, 'mc_percent' => 0, 'abs_percent' => 0,
+            'manual_late_minutes' => $manualLate,
+        ]);
+    }
+
+    public function test_lateness_noted_on_a_service_charge_pool_forfeits_it(): void
+    {
+        $e     = $this->employee();
+        $other = $this->employee();
+        $this->assign($e, 'attendance_bonus', 100, 'Attendance');
+        $this->assign($other, 'attendance_bonus', 100, 'Attendance');
+        $this->pool('2026-07-01', '2026-07-31', [(string) $e->id => 15, (string) $other->id => 0]);
+
+        $line = $this->line($e, 'Attendance');
+
+        $this->assertSame(0.0, (float) $line['amount']);
+        $this->assertSame('forfeited: 15 min late (service charge)', $line['note']);
+        $this->assertEqualsWithDelta(100.00, $this->line($other, 'Attendance')['amount'], 0.001);
+    }
+
+    /** A pool belongs to the cycle it ends in, so one entry cannot cost two months. */
+    public function test_a_pool_ending_in_another_cycle_does_not_count(): void
+    {
+        $e = $this->employee();
+        $this->assign($e, 'attendance_bonus', 100, 'Attendance');
+        $this->pool('2026-06-15', '2026-07-14', [(string) $e->id => 10]);
+        $this->pool('2026-07-15', '2026-08-14', [(string) $e->id => 10]);
+
+        $this->assertSame('forfeited: 10 min late (service charge)', $this->line($e, 'Attendance')['note']);
     }
 
     public function test_it_is_prorated_for_a_joiner_when_kept(): void

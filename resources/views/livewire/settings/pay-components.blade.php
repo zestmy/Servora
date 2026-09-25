@@ -201,7 +201,7 @@
                         @elseif ($calculation === 'attendance_bonus')
                             <p class="text-[11px] text-gray-600">
                                 Paid in full unless the attendance period has any MC / sick leave, any Absent mark,
-                                or any late clock-in (after grace, not waived). Then it is RM0 for that payroll.
+                                any late clock-in (after grace, not waived), or lateness entered on a service charge pool ending in the period. Then it is RM0 for that payroll.
                             </p>
                         @endif
                         <div class="grid grid-cols-2 gap-3">
