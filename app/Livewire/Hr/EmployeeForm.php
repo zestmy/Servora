@@ -119,6 +119,7 @@ class EmployeeForm extends Component
     public string $docType  = 'application_form';
     public string $docLabel = '';
     public string $f_employment_status      = '';
+    public string $f_employment_type        = ''; // Employee::EMPLOYMENT_TYPES key, '' = not recorded
     public string $f_employment_status_date = '';
     public string $f_outsourcing_provider   = 'experiva'; // 'experiva' | 'others'
     public string $f_outsourcing_company    = '';
@@ -269,6 +270,7 @@ class EmployeeForm extends Component
     public string $returnSection    = '';
     public string $returnEmployment = '';
     public string $returnStatus     = '';
+    public string $returnType       = '';
 
     public function mount(
         ?int $id = null,
@@ -276,6 +278,7 @@ class EmployeeForm extends Component
         ?string $section = null,
         ?string $employment = null,
         ?string $status = null,
+        ?string $type = null,
     ): void {
         // Same reason as Employees::mount() — {id} is a route parameter and
         // reaches us, the four filters are query string and do not. Without
@@ -285,6 +288,7 @@ class EmployeeForm extends Component
         $this->returnSection    = $section    ?? (string) request()->query('section', '');
         $this->returnEmployment = $employment ?? (string) request()->query('employment', '');
         $this->returnStatus     = $status     ?? (string) request()->query('status', '');
+        $this->returnType       = $type       ?? (string) request()->query('type', '');
 
         $this->f_phone_code = $this->defaultPhoneCode();
 
@@ -341,6 +345,7 @@ class EmployeeForm extends Component
         $this->f_emergency_contact_address   = $emp->emergency_contact_address ?? '';
         $this->photoPath = $emp->photo_path;
         $this->f_employment_status      = $emp->employment_status ?? '';
+        $this->f_employment_type        = $emp->employment_type ?? '';
         $this->f_employment_status_date = $emp->employment_status_date?->format('Y-m-d') ?? '';
         $this->f_outsourcing_provider   = ($emp->outsourcing_company && strcasecmp($emp->outsourcing_company, 'Experiva') !== 0) ? 'others' : 'experiva';
         $this->f_outsourcing_company    = $this->f_outsourcing_provider === 'others' ? ($emp->outsourcing_company ?? '') : '';
@@ -604,11 +609,12 @@ class EmployeeForm extends Component
             'f_emergency_contact_phone_alt' => 'nullable|string|max:50',
             'f_emergency_contact_address'   => 'nullable|string|max:255',
             'f_employment_status' => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_STATUSES)),
+            'f_employment_type'   => 'nullable|in:' . implode(',', array_keys(Employee::EMPLOYMENT_TYPES)),
             'f_employment_status_date' => array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
                 ? 'required|date'
                 : 'nullable|date',
             'f_outsourcing_provider' => 'in:experiva,others',
-            'f_outsourcing_company'  => ($this->f_employment_status === 'outsourcing' && $this->f_outsourcing_provider === 'others')
+            'f_outsourcing_company'  => ($this->f_employment_type === Employee::TYPE_OUTSOURCING && $this->f_outsourcing_provider === 'others')
                 ? 'required|string|max:100'
                 : 'nullable|string|max:100',
             'f_food_handler_certified' => 'boolean',
@@ -1014,13 +1020,15 @@ class EmployeeForm extends Component
         if ($this->canEditEmployment()) {
             $data['join_date']         = $this->f_join_date ?: null;
             $data['employment_status'] = $this->f_employment_status ?: null;
+            $data['employment_type']   = $this->f_employment_type ?: null;
 
-            // Date applies to probation/confirmed/extension; company to outsourcing.
+            // Date applies to probation/confirmed/extension; the agent to an
+            // outsourced worker, whatever their status.
             $data['employment_status_date'] = array_key_exists($this->f_employment_status, Employee::EMPLOYMENT_STATUS_DATE_LABELS)
                 ? ($this->f_employment_status_date ?: null)
                 : null;
 
-            $data['outsourcing_company'] = $this->f_employment_status === 'outsourcing'
+            $data['outsourcing_company'] = $this->f_employment_type === Employee::TYPE_OUTSOURCING
                 ? ($this->f_outsourcing_provider === 'others' ? ($this->f_outsourcing_company ?: null) : 'Experiva')
                 : null;
 
@@ -1147,6 +1155,7 @@ class EmployeeForm extends Component
             'section'    => $this->returnSection,
             'employment' => $this->returnEmployment,
             'status'     => $this->returnStatus,
+            'type'       => $this->returnType,
         ], fn ($v) => $v !== '');
 
         if ($params !== []) {

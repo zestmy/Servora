@@ -10,6 +10,7 @@
         'section'    => $sectionFilter !== '' ? $sectionFilter : 'all',
         'employment' => $employmentStatusFilter !== '' ? $employmentStatusFilter : 'all',
         'status'     => $statusFilter !== '' ? $statusFilter : 'all',
+        'type'       => $employmentTypeFilter !== '' ? $employmentTypeFilter : 'all',
     ];
 @endphp
 
@@ -51,7 +52,7 @@
             </h2>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <x-download-link :href="route('hr.employees.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter, 'employment_status' => $employmentStatusFilter])"
+            <x-download-link :href="route('hr.employees.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter, 'employment_status' => $employmentStatusFilter, 'employment_type' => $employmentTypeFilter])"
                     title="Export PDF"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -59,7 +60,7 @@
                 </svg>
                 <span class="hidden sm:inline">PDF</span>
             </x-download-link>
-            <x-download-link :href="route('hr.employees.export-excel', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter, 'employment_status' => $employmentStatusFilter])"
+            <x-download-link :href="route('hr.employees.export-excel', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'status' => $statusFilter, 'employment_status' => $employmentStatusFilter, 'employment_type' => $employmentTypeFilter])"
                     title="Export Excel"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-success-700 border border-success-200 rounded-lg hover:bg-success-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -115,12 +116,17 @@
                 @endforeach
             </select>
             <select wire:model.live="employmentStatusFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="">All Employment</option>
-                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                <option value="">All Employment Status</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                 @endforeach
                 <option value="none">No Status</option>
+            </select>
+            <select wire:model.live="employmentTypeFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Employment Types</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_TYPE_FILTERS as $etValue => $etLabel)
+                    <option value="{{ $etValue }}">{{ $etLabel }}</option>
+                @endforeach
             </select>
             <select wire:model.live="statusFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="active">Active</option>
@@ -463,7 +469,6 @@
                                         'extended_probation' => 'bg-orange-100 text-orange-700',
                                         'partimer'           => 'bg-purple-100 text-purple-700',
                                         'internship'         => 'bg-brand-100 text-brand-700',
-                                        'outsourcing'        => 'bg-blue-100 text-blue-700',
                                         'resigned'           => 'bg-gray-200 text-gray-700',
                                     ];
                                     $probationOverdue = in_array($emp->employment_status, ['probation', 'extended_probation'], true)
@@ -477,6 +482,11 @@
                                 @endif
                             @else
                                 <span class="text-gray-600 text-xs">—</span>
+                            @endif
+                            @if ($emp->employmentTypeLabel())
+                                <div class="text-[10px] mt-0.5 whitespace-nowrap text-gray-600">
+                                    {{ $emp->employmentTypeLabel() }}@if ($emp->isOutsourced() && $emp->outsourcing_company) · {{ $emp->outsourcing_company }}@endif
+                                </div>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-center">
@@ -589,7 +599,7 @@
                 <div class="p-5 space-y-4">
                     <div class="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg">
                         <p class="font-semibold mb-1">Expected columns</p>
-                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Food Handler Expiry, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Halal Training Expiry, Break Minutes@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
+                        <p>Outlet, Employee Name, Designation, Section, Staff ID, E-mail, Phone Number, Join Date, Employment Type, Employment Status, Employment Status Date, Outsourcing Company, Food Handler Certified, Food Handler Cert No, Food Handler Expiry, Typhoid Card, Typhoid Valid From, Typhoid Expired On, Halal Awareness Training, Halal Training Date, Halal Training Expiry, Break Minutes@if ($canViewPay), Service Points Entitlement, Basic Salary, Pay Type@endif</p>
                         <p class="mt-0.5 text-blue-700">("Department" is also accepted as an alias for Section.)</p>
                         {{-- Blank and 0 mean different things here, same as on the employee form. --}}
                         <p class="mt-0.5 text-blue-700">Break Minutes: leave the cell blank to follow the duty roster's rest duration, or enter 0 for no break allowance at all.</p>

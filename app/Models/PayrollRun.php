@@ -107,8 +107,13 @@ class PayrollRun extends Model
      */
     public static function employmentSegments(): array
     {
+        // 'outsourcing' is kept as the key for the outsourced segment even
+        // though it is now an employment TYPE: runs already saved with it must
+        // go on meaning the same people. applyEmploymentStatus() reads it as
+        // the type.
         return [
             self::SEGMENT_EXCLUDE_OUTSOURCING => 'Own staff only (exclude outsourced)',
+            'outsourcing'                     => 'Outsourcing Foreign Workers',
             self::SEGMENT_NONE                => 'No employment status recorded',
         ] + Employee::EMPLOYMENT_STATUSES;
     }
@@ -124,17 +129,9 @@ class PayrollRun extends Model
      */
     public static function applyEmploymentStatus($query, ?string $segment)
     {
-        return match (true) {
-            $segment === null || $segment === '' => $query,
-            $segment === self::SEGMENT_NONE      => $query->whereNull('employment_status'),
-            // Staff with no status recorded are the company's own until
-            // somebody says otherwise, so they belong in "exclude outsourced"
-            // rather than falling out of both halves of the split.
-            $segment === self::SEGMENT_EXCLUDE_OUTSOURCING => $query->where(function ($q) {
-                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
-            }),
-            default => $query->where('employment_status', $segment),
-        };
+        Employee::applyEmploymentFilters($query, $segment, null);
+
+        return $query;
     }
 
     /** The label for whatever segment this run was built for. */

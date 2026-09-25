@@ -200,20 +200,15 @@ class AttendanceExportController extends Controller
         if ($sectionFilter !== '') {
             $query->where('section_id', (int) $sectionFilter);
         }
-        $employmentLabel  = null;
+        // The same helper as the grid, so every download from this screen
+        // holds exactly the people it showed.
         $employmentStatus = (string) $request->input('employment_status', '');
-        if ($employmentStatus === 'none') {
-            $query->whereNull('employment_status');
-            $employmentLabel = 'No Employment Status';
-        } elseif ($employmentStatus === 'exclude_outsourcing') {
-            $query->where(function ($q) {
-                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
-            });
-            $employmentLabel = 'All Exclude Outsourcing';
-        } elseif ($employmentStatus !== '' && isset(Employee::EMPLOYMENT_STATUSES[$employmentStatus])) {
-            $query->where('employment_status', $employmentStatus);
-            $employmentLabel = Employee::EMPLOYMENT_STATUSES[$employmentStatus];
-        }
+        $employmentType   = (string) $request->input('employment_type', '');
+        Employee::applyEmploymentFilters($query, $employmentStatus, $employmentType);
+
+        $employmentLabel = implode(' · ', array_filter(
+            Employee::employmentFilterLabels($employmentStatus, $employmentType),
+        )) ?: null;
 
         $employees = $query->get();
 

@@ -30,6 +30,8 @@ final class OtClaimFilter
         public readonly ?int $outletId = null,
         public readonly string $sortField = 'claim_date',
         public readonly string $sortDirection = 'desc',
+        // Employee::EMPLOYMENT_TYPE_FILTERS key; null = not narrowed.
+        public readonly ?string $employmentType = null,
     ) {}
 
     /** Columns the list can be ordered by. Anything else is ignored. */
@@ -46,19 +48,26 @@ final class OtClaimFilter
         string $outletId,
         string $sortField = 'claim_date',
         string $sortDirection = 'desc',
+        string $employmentType = '',
     ): self {
+        // Also moves a pre-split "outsourcing" status across to the type.
+        [$employmentStatus, $employmentType] = \App\Models\Employee::normaliseEmploymentFilters(
+            $employmentStatus, $employmentType,
+        );
+
         return new self(
             $status ?: null,
             $from ?: null,
             $to ?: null,
             $employeeId !== '' ? (int) $employeeId : null,
             $sectionId !== '' ? (int) $sectionId : null,
-            $employmentStatus !== '' ? $employmentStatus : null,
+            $employmentStatus,
             $outletId !== '' ? (int) $outletId : null,
             // Whitelisted rather than trusted: this reaches orderBy() and
             // arrives from a query string on the export.
             in_array($sortField, self::SORTABLE, true) ? $sortField : 'claim_date',
             strtolower($sortDirection) === 'asc' ? 'asc' : 'desc',
+            $employmentType,
         );
     }
 
@@ -75,6 +84,7 @@ final class OtClaimFilter
             (string) $request->query('outlet', ''),
             (string) $request->query('sort', 'claim_date'),
             (string) $request->query('dir', 'desc'),
+            (string) $request->query('employment_type', ''),
         );
     }
 
@@ -107,6 +117,7 @@ final class OtClaimFilter
             'outlet'     => $this->outletId,
             'sort'       => $this->sortField,
             'dir'        => $this->sortDirection,
+            'employment_type' => $this->employmentType,
         ], fn ($v) => $v !== null && $v !== '');
     }
 
@@ -162,7 +173,7 @@ final class OtClaimFilter
                 $sub->select('id')->from('employees')->where('section_id', $this->sectionId);
             });
         }
-        if ($this->employmentStatus !== null) {
+        if ($this->narrowsEmployment()) {
             $query->whereIn('employee_id', function ($sub) {
                 $sub->select('id')->from('employees');
                 $this->applyEmploymentStatus($sub, 'employment_status');
@@ -172,23 +183,26 @@ final class OtClaimFilter
         return $query;
     }
 
+    /** Whether either employment filter is set. */
+    public function narrowsEmployment(): bool
+    {
+        return $this->employmentStatus !== null || $this->employmentType !== null;
+    }
+
     /**
-     * The employment-status branch, matching the Employees list and the
-     * Attendance grid: "exclude outsourcing" and "none" are synthetic options
-     * rather than stored values.
+     * The employment status AND type narrowing, through the same helper the
+     * Employees list and the Attendance grid use.
      *
      * @param  \Illuminate\Contracts\Database\Query\Builder|Builder  $query
+     * @param  string  $column  the status column, qualified when the query
+     *                          joins employees ("employees.employment_status");
+     *                          the type column is read off the same table.
      */
     public function applyEmploymentStatus($query, string $column = 'employment_status'): void
     {
-        match (true) {
-            $this->employmentStatus === null => null,
-            $this->employmentStatus === 'none' => $query->whereNull($column),
-            $this->employmentStatus === 'exclude_outsourcing' => $query->where(
-                fn ($q) => $q->whereNull($column)->orWhere($column, '!=', 'outsourcing')
-            ),
-            default => $query->where($column, $this->employmentStatus),
-        };
+        $prefix = str_contains($column, '.') ? substr($column, 0, strrpos($column, '.') + 1) : '';
+
+        \App\Models\Employee::applyEmploymentFilters($query, $this->employmentStatus, $this->employmentType, $prefix);
     }
 
     /**
@@ -230,13 +244,9 @@ final class OtClaimFilter
      */
     public function employmentLabel(): ?string
     {
-        return match (true) {
-            $this->employmentStatus === null => null,
-            $this->employmentStatus === 'none' => 'No status recorded',
-            $this->employmentStatus === 'exclude_outsourcing' => 'Own staff only (excluding outsourced)',
-            default => \App\Models\Employee::EMPLOYMENT_STATUSES[$this->employmentStatus]
-                ?? ucfirst($this->employmentStatus),
-        };
+        $labels = \App\Models\Employee::employmentFilterLabels($this->employmentStatus, $this->employmentType);
+
+        return implode(' · ', array_filter($labels)) ?: null;
     }
 
     private function fmt(string $date): string

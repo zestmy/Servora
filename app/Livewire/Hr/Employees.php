@@ -23,6 +23,7 @@ class Employees extends Component
     public string $sectionFilter = '';
     public string $statusFilter     = 'active';
     public string $employmentStatusFilter = ''; // '' all | status key | 'none'
+    public string $employmentTypeFilter   = ''; // '' all | Employee::EMPLOYMENT_TYPE_FILTERS key
 
     // Add / edit lives on its own page — see App\Livewire\Hr\EmployeeForm.
 
@@ -53,6 +54,7 @@ class Employees extends Component
         ?string $section = null,
         ?string $employment = null,
         ?string $status = null,
+        ?string $type = null,
     ): void {
         /*
          * READ OFF THE QUERY STRING, because the arguments above never arrive.
@@ -73,6 +75,7 @@ class Employees extends Component
         $section    ??= request()->query('section');
         $employment ??= request()->query('employment');
         $status     ??= request()->query('status');
+        $type       ??= request()->query('type');
 
         if ($outlet !== null) {
             $this->outletFilter = $outlet === 'all' ? '' : $outlet;
@@ -92,6 +95,18 @@ class Employees extends Component
         if ($status !== null) {
             $this->statusFilter = $status === 'all' ? '' : $status;
         }
+
+        if ($type !== null) {
+            $this->employmentTypeFilter = $type === 'all' ? '' : $type;
+        }
+
+        // An old link or bookmark may still carry outsourcing as a STATUS;
+        // it is a type now, so the dropdowns are moved to say so.
+        [$legacyStatus, $legacyType] = Employee::normaliseEmploymentFilters(
+            $this->employmentStatusFilter, $this->employmentTypeFilter,
+        );
+        $this->employmentStatusFilter = $legacyStatus ?? '';
+        $this->employmentTypeFilter   = $legacyType ?? '';
 
         // Default the outlet filter to the user's active outlet so screens feel
         // consistent with the rest of Servora (they only see their current
@@ -367,6 +382,7 @@ class Employees extends Component
             'status date'            => 'employment_status_date',
             'probation until'        => 'employment_status_date',
             'confirmed on'           => 'employment_status_date',
+            'employment type'        => 'employment_type',
             'outsourcing company'    => 'outsourcing_company',
             'outsourcing provider'   => 'outsourcing_company',
             'food handler'    => 'food_handler_certified',
@@ -583,6 +599,29 @@ class Employees extends Component
                     $errors[] = "Row $rowNum: unknown employment status '" . $data['employment_status'] . "' ignored";
                 }
             }
+            if (array_key_exists('employment_type', $data)) {
+                $typeRaw = mb_strtolower(trim((string) $data['employment_type']));
+                $typeMap = [
+                    'local'                      => 'local',
+                    'local malaysian'            => 'local',
+                    'malaysian'                  => 'local',
+                    'direct hire foreign worker' => 'foreign_direct',
+                    'direct hire'                => 'foreign_direct',
+                    'foreign direct'             => 'foreign_direct',
+                    'foreign'                    => 'foreign_direct',
+                    'outsourcing foreign worker' => 'foreign_outsourcing',
+                    'outsourcing'                => 'foreign_outsourcing',
+                    'outsourced'                 => 'foreign_outsourcing',
+                    'outsource'                  => 'foreign_outsourcing',
+                ];
+                if ($typeRaw === '') {
+                    $payload['employment_type'] = null;
+                } elseif (isset($typeMap[$typeRaw])) {
+                    $payload['employment_type'] = $typeMap[$typeRaw];
+                } else {
+                    $errors[] = "Row $rowNum: unknown employment type '" . $data['employment_type'] . "' ignored";
+                }
+            }
             if (array_key_exists('outsourcing_company', $data)) {
                 $payload['outsourcing_company'] = $data['outsourcing_company'] !== ''
                     ? mb_substr($data['outsourcing_company'], 0, 100)
@@ -703,10 +742,10 @@ class Employees extends Component
         // Break Minutes carries a sample on one row and a blank on the other,
         // because blank and 0 mean different things and the template is where
         // that gets noticed.
-        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Food Handler Expiry', 'Halal Awareness Training', 'Halal Training Date', 'Halal Training Expiry', 'Break Minutes'];
+        $headers = ['Outlet', 'Employee Name', 'Designation', 'Section', 'Staff ID', 'E-mail', 'Phone Number', 'Join Date', 'Employment Type', 'Employment Status', 'Employment Status Date', 'Outsourcing Company', 'Food Handler Certified', 'Food Handler Cert No', 'Typhoid Card', 'Typhoid Valid From', 'Typhoid Expired On', 'Food Handler Expiry', 'Halal Awareness Training', 'Halal Training Date', 'Halal Training Expiry', 'Break Minutes'];
         $sample  = [
-            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', '2028-06-30', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '2029-03-11', '60'],
-            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Probation', '2026-09-01', '', 'No',  '',              '',           'No',  '', '', 'No', '', '', ''],
+            ['Main Kitchen', 'Ali bin Ahmad',  'Kitchen Helper', 'BOH', 'EMP-001', 'ali@example.com',  '+60123456789', '2024-01-15', 'Local Malaysian', 'Confirmed', '2024-07-15', '', 'Yes', 'FHC-2026-0123', '2028-06-30', 'Yes', '2026-01-10', '2029-01-09', 'Yes', '2026-03-12', '2029-03-11', '60'],
+            ['Outlet A',     'Siti Nurhaliza', 'Cashier',        'FOH', 'EMP-002', 'siti@example.com', '+60129876543', '2025-06-01', 'Local Malaysian', 'Probation', '2026-09-01', '', 'No',  '',              '',           'No',  '', '', 'No', '', '', ''],
         ];
 
         // Pay columns only appear in the template for users who may see them.
@@ -789,15 +828,7 @@ class Employees extends Component
          * call site here or anywhere else having to remember to exclude them.
          */
         if ($this->statusFilter === 'deleted') $query->onlyTrashed();
-        if ($this->employmentStatusFilter === 'none') {
-            $query->whereNull('employment_status');
-        } elseif ($this->employmentStatusFilter === 'exclude_outsourcing') {
-            $query->where(function ($q) {
-                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
-            });
-        } elseif ($this->employmentStatusFilter !== '') {
-            $query->where('employment_status', $this->employmentStatusFilter);
-        }
+        Employee::applyEmploymentFilters($query, $this->employmentStatusFilter, $this->employmentTypeFilter);
 
         $canViewPay = $this->canViewPay();
         if (! $canViewPay) {

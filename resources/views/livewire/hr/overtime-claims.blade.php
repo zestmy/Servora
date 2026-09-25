@@ -165,12 +165,18 @@
             </select>
 
             <select wire:model.live="employmentStatusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                <option value="">All Employment</option>
-                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                <option value="">All Employment Status</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                 @endforeach
                 <option value="none">No Status</option>
+            </select>
+
+            <select wire:model.live="employmentTypeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">All Employment Types</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_TYPE_FILTERS as $etValue => $etLabel)
+                    <option value="{{ $etValue }}">{{ $etLabel }}</option>
+                @endforeach
             </select>
 
             <select wire:model.live="employeeFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
@@ -924,11 +930,13 @@
                 outletId: '{{ $outletFilter }}',
                 sectionId: '{{ $pdfSectionId }}',
                 employment: '{{ $pdfEmploymentStatus }}',
+                employmentType: '{{ $pdfEmploymentType }}',
                 employees: @js($allEmployees->where('is_active', true)->map(fn ($e) => [
                     'id'         => (string) $e->id,
                     'name'       => $e->name,
                     'section'    => (string) $e->section_id,
                     'employment' => $e->employment_status,
+                    'type'       => $e->employment_type,
                 ])->values()),
                 /* Section and employment narrow WHO gets printed, so the
                    employee picker has to follow them — otherwise you can ask
@@ -939,11 +947,15 @@
                         (! this.sectionId || e.section === this.sectionId) && this.matchesEmployment(e)
                     );
                 },
+                /* Mirrors Employee::applyEmploymentFilters(). */
                 matchesEmployment(e) {
-                    if (! this.employment) return true;
-                    if (this.employment === 'none') return ! e.employment;
-                    if (this.employment === 'exclude_outsourcing') return e.employment !== 'outsourcing';
-                    return e.employment === this.employment;
+                    const status = ! this.employment
+                        || (this.employment === 'none' ? ! e.employment : e.employment === this.employment);
+                    const type = ! this.employmentType
+                        || (this.employmentType === 'none' ? ! e.type
+                            : this.employmentType === 'exclude_outsourcing' ? e.type !== 'foreign_outsourcing'
+                            : e.type === this.employmentType);
+                    return status && type;
                 },
                 /* Drop a now-hidden selection back to All rather than leaving it
                    selected-but-invisible. */
@@ -955,6 +967,7 @@
                     if (this.outletId)   p.set('outlet', this.outletId);
                     if (this.sectionId)  p.set('section', this.sectionId);
                     if (this.employment) p.set('employment', this.employment);
+                    if (this.employmentType) p.set('employment_type', this.employmentType);
                     return p.toString();
                 },
              }">
@@ -974,15 +987,24 @@
                             </select>
                         </div>
                         <div>
-                            <x-input-label for="pdf_employment" value="Employment" />
+                            <x-input-label for="pdf_employment" value="Employment Status" />
                             <select id="pdf_employment" x-model="employment" x-on:change="syncEmployee()"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
-                                <option value="">All Employment</option>
-                                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                                <option value="">All Employment Status</option>
                                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                                 @endforeach
                                 <option value="none">No Status</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <x-input-label for="pdf_employment_type" value="Employment Type" />
+                            <select id="pdf_employment_type" x-model="employmentType" x-on:change="syncEmployee()"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
+                                <option value="">All Employment Types</option>
+                                @foreach (\App\Models\Employee::EMPLOYMENT_TYPE_FILTERS as $etValue => $etLabel)
+                                    <option value="{{ $etValue }}">{{ $etLabel }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>

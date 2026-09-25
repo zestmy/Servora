@@ -210,13 +210,13 @@ class EmployeeListFilterRoundTripTest extends TestCase
     {
         $c = Livewire::actingAs($this->user)->test(Employees::class, ['outlet' => (string) $this->outlet->id])
             ->set('sectionFilter', (string) $this->kitchen->id)
-            ->set('employmentStatusFilter', 'outsourcing');
+            ->set('employmentTypeFilter', 'foreign_outsourcing');
 
         $html = html_entity_decode($c->html());
 
         $expected = route('hr.employees', [
             'outlet' => (string) $this->outlet->id, 'section' => (string) $this->kitchen->id,
-            'employment' => 'outsourcing', 'status' => 'active',
+            'employment' => 'all', 'status' => 'active', 'type' => 'foreign_outsourcing',
         ]);
 
         // @js() JSON-encodes the URL (slashes and & escaped), so decode what
@@ -229,7 +229,7 @@ class EmployeeListFilterRoundTripTest extends TestCase
         $this->assertSame($expected, json_decode('"' . $m[1] . '"'),
             'The address bar must carry the filters the list is actually using.');
 
-        foreach (['outletFilter', 'sectionFilter', 'employmentStatusFilter', 'statusFilter'] as $prop) {
+        foreach (['outletFilter', 'sectionFilter', 'employmentStatusFilter', 'employmentTypeFilter', 'statusFilter'] as $prop) {
             $this->assertMatchesRegularExpression('/wire:model\.live="' . $prop . '" autocomplete="off"/', $html,
                 "{$prop} must not let the browser restore a value the list is not using.");
         }
@@ -244,7 +244,7 @@ class EmployeeListFilterRoundTripTest extends TestCase
 
         $form = Livewire::actingAs($this->user)->test(EmployeeForm::class, [
             'id' => $agency->id, 'outlet' => (string) $this->outlet->id,
-            'section' => 'all', 'employment' => 'outsourcing', 'status' => 'all',
+            'section' => 'all', 'employment' => 'all', 'status' => 'all', 'type' => 'foreign_outsourcing',
         ]);
 
         $form->call('save')->assertHasNoErrors();
@@ -252,12 +252,12 @@ class EmployeeListFilterRoundTripTest extends TestCase
         $redirect = $form->effects['redirect'] ?? '';
         parse_str((string) parse_url($redirect, PHP_URL_QUERY), $query);
 
-        $this->assertSame('outsourcing', $query['employment'] ?? null,
-            'The employment filter must survive the save — the reported bug.');
+        $this->assertSame('foreign_outsourcing', $query['type'] ?? null,
+            'The employment type filter must survive the save — the reported bug.');
 
         $landed = Livewire::actingAs($this->user)->test(Employees::class, $query);
 
-        $this->assertSame('outsourcing', $landed->get('employmentStatusFilter'));
+        $this->assertSame('foreign_outsourcing', $landed->get('employmentTypeFilter'));
         $this->assertSame(['BBB AGENCY'], $this->listed($landed),
             'Landing on a list of everybody is what was reported.');
     }

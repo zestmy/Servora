@@ -155,7 +155,7 @@ class EmployeeExportController extends Controller
         }
         array_push(
             $headers,
-            'Join Date', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training',
+            'Join Date', 'Employment Type', 'Employment Status', 'Food Handler', 'Cert No', 'Typhoid Card', 'Halal Training',
         );
         if ($canViewPay) {
             $headers[] = 'Service Points';
@@ -241,6 +241,8 @@ class EmployeeExportController extends Controller
             array_push(
                 $values,
                 $emp->join_date?->format('Y-m-d'),
+                $emp->employmentTypeLabel()
+                    . ($emp->isOutsourced() && $emp->outsourcing_company ? ' (' . $emp->outsourcing_company . ')' : ''),
                 $employment,
                 $emp->food_handler_certified ? 'Certified' : 'No',
                 $emp->food_handler_cert_no,
@@ -354,19 +356,15 @@ class EmployeeExportController extends Controller
         if ($status === 'active')   { $query->where('is_active', true);  $filters[] = 'Status: Active'; }
         if ($status === 'inactive') { $query->where('is_active', false); $filters[] = 'Status: Inactive'; }
 
+        // The same helper as the list, so the download holds exactly the
+        // people the screen showed.
         $employmentStatus = (string) $request->input('employment_status', '');
-        if ($employmentStatus === 'none') {
-            $query->whereNull('employment_status');
-            $filters[] = 'Employment: No Status';
-        } elseif ($employmentStatus === 'exclude_outsourcing') {
-            $query->where(function ($q) {
-                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
-            });
-            $filters[] = 'Employment: All Exclude Outsourcing';
-        } elseif ($employmentStatus !== '' && isset(Employee::EMPLOYMENT_STATUSES[$employmentStatus])) {
-            $query->where('employment_status', $employmentStatus);
-            $filters[] = 'Employment: ' . Employee::EMPLOYMENT_STATUSES[$employmentStatus];
-        }
+        $employmentType   = (string) $request->input('employment_type', '');
+        Employee::applyEmploymentFilters($query, $employmentStatus, $employmentType);
+
+        $labels = Employee::employmentFilterLabels($employmentStatus, $employmentType);
+        if ($labels['status']) $filters[] = 'Employment: ' . $labels['status'];
+        if ($labels['type'])   $filters[] = 'Type: ' . $labels['type'];
 
         return [$query->get(), $filters];
     }

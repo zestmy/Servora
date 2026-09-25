@@ -12,7 +12,7 @@
                          // Where the salary is paid, not what it is.
                          'f_bank_name', 'f_bank_account_no', 'f_bank_account_name'],
         'employment' => ['f_outlet_id', 'f_section_id', 'f_staff_id', 'f_designation', 'f_join_date',
-                         'f_employment_status', 'f_employment_status_date', 'f_outsourcing_provider',
+                         'f_employment_status', 'f_employment_status_date', 'f_employment_type', 'f_outsourcing_provider',
                          'f_outsourcing_company', 'f_break_minutes'],
         'pay'        => ['f_basic_salary', 'f_pay_type', 'f_service_points',
                          // Each of these decides what somebody is paid or where
@@ -53,13 +53,13 @@
     $openTab = collect(array_keys($tabs))->first(fn ($t) => $tabErrors[$t] ?? false) ?? 'personal';
 
     /*
-     * Read off the FORM's status rather than the saved employee's, because
-     * f_employment_status is wire:model.live: switching somebody to Outsourcing
+     * Read off the FORM's type and status rather than the saved employee's,
+     * because both are wire:model.live: switching somebody to Outsourcing
      * shuts the statutory section and relabels the salary field there and then,
      * rather than after a save. The saved record answers the same question
      * through Employee::isOutsourced(), which is what the calculation uses.
      */
-    $isOutsourced = $f_employment_status === 'outsourcing';
+    $isOutsourced = $f_employment_type === \App\Models\Employee::TYPE_OUTSOURCING;
     $isIntern     = $f_employment_status === 'internship';
 
     /*
@@ -279,13 +279,21 @@
 
             {{-- Passport and visa.
 
-                 Hidden when the nationality is Malaysian (matches "Malaysia" /
-                 "Malaysian", any case) — local staff need no work permit. Hidden,
-                 not cleared: x-show keeps the inputs in the form, so anything
-                 already on file is saved untouched. Both are optional, and a
-                 blank one is not reported as missing — only a date that is
+                 Shown for the two foreign-worker employment types and hidden for
+                 Local Malaysian — local staff need no work permit. With no type
+                 recorded yet it falls back to the nationality (hidden when it
+                 reads "Malaysia" / "Malaysian", any case), so nothing on file
+                 disappears from somebody whose type has not been set.
+
+                 Hidden, not cleared: x-show keeps the inputs in the form, so
+                 anything already on file is saved untouched. Both are optional,
+                 and a blank one is not reported as missing — only a date that is
                  running out gets a reminder. --}}
-            <div x-data x-show="! /^malaysia/i.test(($wire.f_nationality || '').trim())" x-cloak
+            <div x-data
+                 x-show="$wire.f_employment_type
+                     ? $wire.f_employment_type !== 'local'
+                     : ! /^malaysia/i.test(($wire.f_nationality || '').trim())"
+                 x-cloak
                  class="rounded-surface border border-gray-200 p-4 space-y-3">
                 <div>
                     <h4 class="text-xs font-semibold text-gray-700">Passport &amp; Visa</h4>
@@ -648,7 +656,24 @@
                         <input type="date" wire:model.live="f_employment_status_date" class="mt-1 w-full text-sm rounded-lg border-gray-300" />
                         <x-input-error :messages="$errors->get('f_employment_status_date')" class="mt-1" />
                     </div>
-                @elseif ($f_employment_status === 'outsourcing')
+                @endif
+            </div>
+
+            {{-- Who the person is employed as — independent of the status
+                 above, so an outsourced worker can be on probation, confirmed
+                 or resigned like anybody else. --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Employment Type</label>
+                    <select wire:model.live="f_employment_type" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                        <option value="">— Not recorded —</option>
+                        @foreach (\App\Models\Employee::EMPLOYMENT_TYPES as $etValue => $etLabel)
+                            <option value="{{ $etValue }}">{{ $etLabel }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('f_employment_type')" class="mt-1" />
+                </div>
+                @if ($isOutsourced)
                     <div>
                         <label class="text-xs font-semibold text-gray-600">Outsourcing Company</label>
                         <select wire:model.live="f_outsourcing_provider" class="mt-1 w-full text-sm rounded-lg border-gray-300">

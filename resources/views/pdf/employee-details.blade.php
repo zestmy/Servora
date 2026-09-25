@@ -178,9 +178,14 @@
             <td class="label">Status date</td><td class="value">{!! $show($employee->employment_status_date?->format('d M Y')) !!}</td>
         </tr>
         <tr>
+            <td class="label">Type</td><td class="value">{!! $show($employee->employmentTypeLabel()) !!}</td>
             <td class="label">Active</td><td class="value">{{ $employee->is_active ? 'Yes' : 'No' }}</td>
-            <td class="label">Outsourcing</td><td class="value">{!! $show($employee->outsourcing_company) !!}</td>
         </tr>
+        @if ($employee->isOutsourced())
+            <tr>
+                <td class="label">Outsourcing</td><td class="value" colspan="3">{!! $show($employee->outsourcing_company) !!}</td>
+            </tr>
+        @endif
     @endif
 </table>
 

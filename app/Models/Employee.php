@@ -32,7 +32,7 @@ class Employee extends Model
         'email', 'phone', 'home_address', 'mailing_address', 'is_active',
         'join_date', 'date_of_birth', 'food_handler_certified', 'food_handler_cert_no', 'food_handler_expired_on',
         'typhoid_card', 'typhoid_valid_from', 'typhoid_expired_on',
-        'employment_status', 'employment_status_date', 'outsourcing_company',
+        'employment_status', 'employment_status_date', 'employment_type', 'outsourcing_company',
         'halal_training', 'halal_training_date', 'halal_training_expired_on',
         'service_points_entitlement', 'basic_salary', 'pay_type', 'sort_order',
         'break_minutes', 'ic_number', 'bank_name', 'bank_account_no', 'bank_account_name',
@@ -310,9 +310,121 @@ class Employee extends Model
         'extended_probation' => 'Extended Probation',
         'partimer'           => 'Partimer',
         'internship'         => 'Internship',
-        'outsourcing'        => 'Outsourcing',
         'resigned'           => 'Resigned',
     ];
+
+    /**
+     * WHO the person is employed as — separate from the status, which says
+     * where they stand. An outsourced worker can be probation, confirmed or
+     * resigned like anybody else; before this was split out, "Outsourcing"
+     * was itself a status and a resigned agency head could not be recorded.
+     *
+     * Null means not recorded yet. It is treated as own staff wherever the
+     * split matters, the same way a missing status always was.
+     */
+    public const EMPLOYMENT_TYPES = [
+        'local'               => 'Local Malaysian',
+        'foreign_direct'      => 'Direct Hire Foreign Worker',
+        'foreign_outsourcing' => 'Outsourcing Foreign Worker',
+    ];
+
+    public const TYPE_OUTSOURCING = 'foreign_outsourcing';
+
+    /**
+     * The Employment Type filter's options, in dropdown order. Two are
+     * synthetic rather than stored values: "exclude outsourcing" (own staff,
+     * including anybody with no type yet) and "none".
+     */
+    public const EMPLOYMENT_TYPE_FILTERS = [
+        'exclude_outsourcing' => 'All Exclude Outsourcing',
+    ] + self::EMPLOYMENT_TYPES + [
+        'none' => 'No Type Recorded',
+    ];
+
+    /**
+     * Narrow an employee query by employment status and employment type.
+     *
+     * THE one implementation, shared by the Employees list, the Attendance
+     * grid, overtime claims, payroll segments and every PDF / Excel export —
+     * a screen and its download disagreeing about who is on it is the bug
+     * this exists to prevent.
+     *
+     * Filter values from before the type existed still work: a status of
+     * "outsourcing" or "exclude_outsourcing" (old bookmarks, saved payroll
+     * runs) is read as the matching type.
+     *
+     * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $prefix  table alias for a joined query, e.g. "employees."
+     */
+    public static function applyEmploymentFilters($query, ?string $status, ?string $type, string $prefix = ''): void
+    {
+        [$status, $type] = static::normaliseEmploymentFilters($status, $type);
+
+        $statusCol = $prefix . 'employment_status';
+        $typeCol   = $prefix . 'employment_type';
+
+        match (true) {
+            $status === null   => null,
+            $status === 'none' => $query->whereNull($statusCol),
+            default            => $query->where($statusCol, $status),
+        };
+
+        match (true) {
+            $type === null   => null,
+            $type === 'none' => $query->whereNull($typeCol),
+            $type === 'exclude_outsourcing' => $query->where(
+                fn ($q) => $q->whereNull($typeCol)->orWhere($typeCol, '!=', static::TYPE_OUTSOURCING)
+            ),
+            default => $query->where($typeCol, $type),
+        };
+    }
+
+    /**
+     * The two filters in words, for the header of an export — each null when
+     * it was not narrowed.
+     *
+     * @return array{status: ?string, type: ?string}
+     */
+    public static function employmentFilterLabels(?string $status, ?string $type): array
+    {
+        [$status, $type] = static::normaliseEmploymentFilters($status, $type);
+
+        return [
+            'status' => match (true) {
+                $status === null   => null,
+                $status === 'none' => 'No Employment Status',
+                default            => static::EMPLOYMENT_STATUSES[$status] ?? ucfirst($status),
+            },
+            'type' => $type === null ? null : (static::EMPLOYMENT_TYPE_FILTERS[$type] ?? ucfirst($type)),
+        ];
+    }
+
+    /**
+     * Blank → null, unknown values dropped, and the pre-split status values
+     * moved across to the type.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    public static function normaliseEmploymentFilters(?string $status, ?string $type): array
+    {
+        $status = $status === '' || $status === 'all' ? null : $status;
+        $type   = $type === '' || $type === 'all' ? null : $type;
+
+        if ($status === 'outsourcing') {
+            [$status, $type] = [null, $type ?? static::TYPE_OUTSOURCING];
+        } elseif ($status === 'exclude_outsourcing') {
+            [$status, $type] = [null, $type ?? 'exclude_outsourcing'];
+        }
+
+        if ($status !== null && $status !== 'none' && ! isset(static::EMPLOYMENT_STATUSES[$status])) {
+            $status = null;
+        }
+        if ($type !== null && ! isset(static::EMPLOYMENT_TYPE_FILTERS[$type])) {
+            $type = null;
+        }
+
+        return [$status, $type];
+    }
 
     /**
      * Statuses whose `employment_status_date` is required, and the label the
@@ -533,6 +645,19 @@ class Employee extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        /*
+         * "Outsourcing" is no longer a status. Anything still writing it — an
+         * old import sheet, a script — is moved to the type rather than
+         * saving a status no screen can show or filter.
+         */
+        static::saving(function (self $employee) {
+            if ($employee->employment_status === 'outsourcing') {
+                $employee->employment_status      = null;
+                $employee->employment_status_date = null;
+                $employee->employment_type        = static::TYPE_OUTSOURCING;
+            }
+        });
 
         /*
          * DESTROYING AN EMPLOYEE MUST TAKE THEIR FILES WITH THEM.
@@ -845,7 +970,7 @@ class Employee extends Model
      */
     public function isOutsourced(): bool
     {
-        return $this->employment_status === 'outsourcing';
+        return $this->employment_type === static::TYPE_OUTSOURCING;
     }
 
     /**
@@ -924,6 +1049,11 @@ class Employee extends Model
         return trim(number_format((float) $this->basic_salary, 2) . ' ' . $suffix);
     }
 
+    public function employmentTypeLabel(): ?string
+    {
+        return static::EMPLOYMENT_TYPES[$this->employment_type] ?? null;
+    }
+
     public function employmentStatusLabel(): ?string
     {
         return static::EMPLOYMENT_STATUSES[$this->employment_status] ?? null;
@@ -931,8 +1061,8 @@ class Employee extends Model
 
     /**
      * Secondary line for the employment status: the until/since date for
-     * probation states, the leaving date for a resignation, or the provider
-     * name for outsourcing.
+     * probation states or the leaving date for a resignation. The agent's
+     * name for an outsourced worker belongs to the type, not here.
      */
     public function employmentStatusDetail(): ?string
     {
@@ -943,7 +1073,6 @@ class Employee extends Model
                 ? 'since ' . $this->employment_status_date->format('d M Y') : null,
             'resigned' => $this->employment_status_date
                 ? 'on ' . $this->employment_status_date->format('d M Y') : null,
-            'outsourcing' => $this->outsourcing_company,
             default => null,
         };
     }

@@ -30,7 +30,7 @@
             {{-- The grid only. The service charge distribution downloads from
                  its own panel below: one sheet carrying a day-by-day matrix
                  for the whole outlet AND a payout table left both cramped. --}}
-            <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'employment_status' => $employmentStatusFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')])"
+            <x-download-link :href="route('hr.attendance.export-pdf', ['search' => $search, 'outlet' => $outletFilter, 'section' => $sectionFilter, 'employment_status' => $employmentStatusFilter, 'employment_type' => $employmentTypeFilter, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')])"
                     title="Export the attendance grid as PDF"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -92,12 +92,17 @@
                 @endforeach
             </select>
             <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
-                <option value="">All Employment</option>
-                <option value="exclude_outsourcing">All Exclude Outsourcing</option>
+                <option value="">All Employment Status</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                 @endforeach
                 <option value="none">No Status</option>
+            </select>
+            <select wire:model.live="employmentTypeFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                <option value="">All Employment Types</option>
+                @foreach (\App\Models\Employee::EMPLOYMENT_TYPE_FILTERS as $etValue => $etLabel)
+                    <option value="{{ $etValue }}">{{ $etLabel }}</option>
+                @endforeach
             </select>
 
             {{-- Period picker.
@@ -553,7 +558,7 @@
                     <x-download-link :href="route('hr.attendance.distribution-pdf', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter, 'section' => $sectionFilter,
-                                'search' => $search, 'employment_status' => $employmentStatusFilter,
+                                'search' => $search, 'employment_status' => $employmentStatusFilter, 'employment_type' => $employmentTypeFilter,
                             ])"
                             title="The distribution table on its own sheet"
                             class="px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
@@ -570,7 +575,7 @@
                     <x-download-link :href="route('hr.attendance.distribution-excel', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter, 'section' => $sectionFilter,
-                                'search' => $search, 'employment_status' => $employmentStatusFilter,
+                                'search' => $search, 'employment_status' => $employmentStatusFilter, 'employment_type' => $employmentTypeFilter,
                             ])"
                             title="The distribution as a spreadsheet, with a status column and the pool's arithmetic"
                             class="px-3 py-2 text-sm font-medium text-success-700 border border-success-200 rounded-lg hover:bg-success-50 transition flex items-center gap-1.5">
@@ -585,7 +590,7 @@
                     <x-download-link :href="route('hr.attendance.payout-pdf', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter, 'section' => $sectionFilter,
-                                'search' => $search, 'employment_status' => $employmentStatusFilter,
+                                'search' => $search, 'employment_status' => $employmentStatusFilter, 'employment_type' => $employmentTypeFilter,
                             ])"
                             title="One payout slip per employee"
                             class="px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">

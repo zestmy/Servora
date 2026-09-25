@@ -40,6 +40,7 @@ class OtClaimPdfController extends Controller
             sectionId: (string) $request->input('section', ''),
             employmentStatus: (string) $request->input('employment', ''),
             outletId: (string) $request->input('outlet', ''),
+            employmentType: (string) $request->input('employment_type', ''),
         );
 
         // Same outlet scope as the Livewire component — cross-outlet roles see

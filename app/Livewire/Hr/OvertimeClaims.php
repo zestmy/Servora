@@ -20,7 +20,8 @@ class OvertimeClaims extends Component
     public string $dateTo           = '';
     public string $employeeFilter   = '';
     public string $sectionFilter    = '';
-    public string $employmentStatusFilter = ''; // '' all | status key | 'exclude_outsourcing' | 'none'
+    public string $employmentStatusFilter = ''; // '' all | status key | 'none'
+    public string $employmentTypeFilter   = ''; // '' all | Employee::EMPLOYMENT_TYPE_FILTERS key
     public string $outletFilter     = '';
     public string $quickRange       = 'this_month';
     public string $sortField        = 'claim_date';
@@ -75,7 +76,8 @@ class OvertimeClaims extends Component
     public string $pdfTo         = '';
     public string $pdfEmployeeId = '';
     public string $pdfSectionId  = '';
-    public string $pdfEmploymentStatus = ''; // same synthetic options as the list filter
+    public string $pdfEmploymentStatus = ''; // same options as the list filter
+    public string $pdfEmploymentType   = '';
 
     // Summary PDF modal — any date range, not just a whole month.
     public bool   $showSummaryModal = false;
@@ -231,6 +233,7 @@ class OvertimeClaims extends Component
             $this->outletFilter,
             $this->sortField,
             $this->sortDirection,
+            $this->employmentTypeFilter,
         );
     }
 
@@ -252,6 +255,7 @@ class OvertimeClaims extends Component
             $this->sectionFilter,
             $this->employmentStatusFilter,
             $this->outletFilter,
+            employmentType: $this->employmentTypeFilter,
         );
     }
 
@@ -737,7 +741,7 @@ class OvertimeClaims extends Component
             // Status is intentionally excluded — the cards ARE the status breakdown.
             ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
             ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
-            ->when($this->employmentStatusFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
+            ->when($this->employmentStatusFilter || $this->employmentTypeFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
             ->leftJoin('sections', 'employees.section_id', '=', 'sections.id')
             ->selectRaw("COALESCE(sections.name, 'Unassigned') as section_name,
                 SUM(CASE WHEN overtime_claims.status IN ('submitted', 'approved') THEN overtime_claims.total_ot_hours ELSE 0 END) as total_hours,
@@ -773,7 +777,7 @@ class OvertimeClaims extends Component
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
             ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
             ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
-            ->when($this->employmentStatusFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
+            ->when($this->employmentStatusFilter || $this->employmentTypeFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
             ->where('overtime_claims.status', 'approved')
             ->whereBetween('overtime_claims.claim_date', [$trendFrom, $trendTo])
             ->selectRaw("DATE(DATE_SUB(overtime_claims.claim_date, INTERVAL (WEEKDAY(overtime_claims.claim_date)) DAY)) as week_start,
@@ -816,7 +820,7 @@ class OvertimeClaims extends Component
             ->whereIn('employees.outlet_id', $scopedOutletIds ?: [0])
             ->when($this->employeeFilter, fn ($q) => $q->where('overtime_claims.employee_id', $this->employeeFilter))
             ->when($this->sectionFilter, fn ($q) => $q->where('employees.section_id', (int) $this->sectionFilter))
-            ->when($this->employmentStatusFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
+            ->when($this->employmentStatusFilter || $this->employmentTypeFilter, fn ($q) => $this->applyEmploymentStatus($q, 'employees.employment_status'))
             ->where('overtime_claims.status', 'approved')
             ->whereBetween('overtime_claims.claim_date', [$statsDateFrom, $statsDateTo])
             ->selectRaw("overtime_claims.employee_id,
@@ -868,6 +872,7 @@ class OvertimeClaims extends Component
         // twice is how the two quietly end up disagreeing.
         $this->pdfSectionId         = $this->sectionFilter;
         $this->pdfEmploymentStatus  = $this->employmentStatusFilter;
+        $this->pdfEmploymentType    = $this->employmentTypeFilter;
 
         $this->showPdfModal  = true;
     }
@@ -929,6 +934,7 @@ class OvertimeClaims extends Component
             'outlet'     => $this->outletFilter,
             'section'    => $this->pdfSectionId,
             'employment' => $this->pdfEmploymentStatus,
+            'employment_type' => $this->pdfEmploymentType,
         ], fn ($v) => $v !== '' && $v !== null);
 
         $employeeId = $this->pdfEmployeeId ?: 'all';

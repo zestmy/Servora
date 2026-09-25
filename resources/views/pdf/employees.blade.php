@@ -115,7 +115,6 @@
                     'extended_probation' => 'pill-orange',
                     'partimer'           => 'pill-blue',
                     'internship'         => 'pill-green',
-                    'outsourcing'        => 'pill-blue',
                     'resigned'           => 'pill-gray',
                 ];
             @endphp
@@ -170,6 +169,11 @@
                                 @endif
                             @else
                                 —
+                            @endif
+                            {{-- The type under the status: one column, so the
+                                 sheet does not lose width it cannot spare. --}}
+                            @if ($emp->employmentTypeLabel())
+                                <div class="sub">{{ $emp->employmentTypeLabel() }}@if ($emp->isOutsourced() && $emp->outsourcing_company) · {{ $emp->outsourcing_company }}@endif</div>
                             @endif
                         </td>
                         <td class="c">

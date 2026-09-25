@@ -23,6 +23,7 @@ class AttendanceRecords extends Component
     public string $outletFilter  = '';
     public string $sectionFilter = '';
     public string $employmentStatusFilter = ''; // '' all | status key | 'none'
+    public string $employmentTypeFilter   = ''; // '' all | Employee::EMPLOYMENT_TYPE_FILTERS key
 
     // Period: a calendar month by default, or a custom from–to range
     public string $periodMode = 'month'; // 'month' | 'range'
@@ -970,15 +971,7 @@ class AttendanceRecords extends Component
         if ($this->sectionFilter !== '') {
             $query->where('section_id', (int) $this->sectionFilter);
         }
-        if ($this->employmentStatusFilter === 'none') {
-            $query->whereNull('employment_status');
-        } elseif ($this->employmentStatusFilter === 'exclude_outsourcing') {
-            $query->where(function ($q) {
-                $q->whereNull('employment_status')->orWhere('employment_status', '!=', 'outsourcing');
-            });
-        } elseif ($this->employmentStatusFilter !== '') {
-            $query->where('employment_status', $this->employmentStatusFilter);
-        }
+        Employee::applyEmploymentFilters($query, $this->employmentStatusFilter, $this->employmentTypeFilter);
 
         return $query;
     }
