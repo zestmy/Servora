@@ -93,7 +93,21 @@
 
             {{-- Add Ingredients --}}
             <div class="card p-6">
-                <h3 class="text-sm font-semibold text-gray-700 mb-3">Items</h3>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700">Items</h3>
+
+                    {{-- An outlet's Asset Count sheet is the list the central
+                         unit restocks it against. Offered only to somebody
+                         who may open the asset list. --}}
+                    @if ($availableTemplates->isNotEmpty())
+                        <select wire:model.live="selectedTemplateId" class="input w-auto text-sm py-1.5">
+                            <option value="">Load Template…</option>
+                            @foreach ($availableTemplates as $t)
+                                <option value="{{ $t->id }}">{{ $t->name }} — Asset Count, {{ $t->asset_lines_count }} item{{ $t->asset_lines_count === 1 ? '' : 's' }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                </div>
                 <div class="relative mb-4">
                     <input type="text" wire:model.live.debounce.300ms="ingredientSearch" placeholder="Search ingredients..."
                            class="w-full rounded-lg border-gray-300 text-sm" />
@@ -129,7 +143,15 @@
                             @forelse ($lines as $i => $line)
                                 <tr wire:key="line-{{ $i }}">
                                     <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
-                                    <td class="px-4 py-3 font-medium text-gray-700">{{ $line['ingredient_name'] }}</td>
+                                    <td class="px-4 py-3 font-medium text-gray-700">
+                                        {{ $line['ingredient_name'] }}
+                                        @if (! empty($line['asset_id']))
+                                            <span class="badge-info ml-1">Asset</span>
+                                        @endif
+                                        @error("lines.{$i}.ingredient_id")
+                                            <p class="error-text">{{ $message }}</p>
+                                        @enderror
+                                    </td>
                                     <td class="px-4 py-3">
                                         <input type="number" step="0.01" min="0" wire:model.live.debounce.500ms="lines.{{ $i }}.quantity"
                                                class="w-full text-center rounded-lg border-gray-300 text-sm" />

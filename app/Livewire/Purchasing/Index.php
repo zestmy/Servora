@@ -215,8 +215,18 @@ class Index extends Component
             return;
         }
         if ($sto->status !== 'sent') return;
-        $sto->update(['status' => 'received', 'received_by' => Auth::id()]);
-        session()->flash('success', "STO {$sto->sto_number} received.");
+
+        // Status and asset receipt together: a transfer marked received whose
+        // plates never reached the register is the one outcome worse than
+        // neither happening.
+        $receipt = \Illuminate\Support\Facades\DB::transaction(function () use ($sto) {
+            $sto->update(['status' => 'received', 'received_by' => Auth::id()]);
+
+            return \App\Services\StockTransferService::receiveAssets($sto);
+        });
+
+        session()->flash('success', "STO {$sto->sto_number} received."
+            . ($receipt ? ' Its assets were added to the outlet\'s asset register.' : ''));
     }
 
     public function cancelSto(int $id): void

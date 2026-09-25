@@ -303,6 +303,28 @@ the same shape as the `source` enum that could not hold `'asset'`, code and
 column disagreeing with the column winning at the worst moment. It had never
 been hit because there were no credit notes in production yet.
 
+### Loading an Asset Count sheet onto purchasing documents (2026-09-26)
+
+The purchase request, the purchase order and the stock transfer order can each
+be loaded from an Asset Count form template. The sheet's assets arrive as asset
+lines at the sheet's default quantity, cost off the asset, in the asset's own
+unit. All three pickers use the same gate as the asset picker, `assets.view`.
+Without it a count sheet is not offered and cannot be loaded.
+
+The stock transfer order needed schema for this, because its lines were
+ingredient-only. `stock_transfer_order_lines.ingredient_id` is now nullable
+beside a new `asset_id`, relaxed with `change()` like the purchase order
+lines. A chargeable transfer's invoice carries the asset through the
+`procurement_invoice_lines.asset_id` added in phase two.
+
+**Receiving a transfer posts its assets.** `StockTransferService::receiveAssets()`
+writes one AssetMovement receipt at the receiving outlet, keyed on the new
+`asset_movements.stock_transfer_order_id` so it can never count twice. It is
+valued at the transfer price when the transfer was chargeable, and at the
+asset's own `unit_cost` when it was free. The catalogue cost is not written
+back, because a transfer price is an internal recharge. Ingredient lines are
+untouched: receiving a transfer has never posted food stock.
+
 ## Not in v1
 
 - Depreciation. Value is at cost. `assets` has no `useful_life_months`; adding

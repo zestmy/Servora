@@ -154,7 +154,12 @@
                 @foreach ($invoice->lines as $i => $line)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 text-gray-600">{{ $i + 1 }}</td>
-                        <td class="px-4 py-3 font-medium text-gray-700">{{ $line->ingredient?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-700">
+                            {{ $line->displayName() }}
+                            @if ($line->isAssetItem())
+                                <span class="badge-info ml-1">Asset</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-gray-500">{{ $line->description ?? '' }}</td>
                         <td class="px-4 py-3 text-center tabular-nums">{{ floatval($line->quantity) }}</td>
                         <td class="px-4 py-3 text-center text-gray-500">{{ $line->uom?->abbreviation ?? '' }}</td>

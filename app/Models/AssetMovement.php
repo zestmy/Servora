@@ -23,7 +23,7 @@ class AssetMovement extends Model
 
     protected $fillable = [
         'company_id', 'outlet_id', 'movement_type', 'reference_number', 'supplier_id',
-        'purchase_request_id', 'goods_received_note_id', 'credit_note_id', 'department_id', 'movement_date', 'reason', 'notes',
+        'purchase_request_id', 'goods_received_note_id', 'stock_transfer_order_id', 'credit_note_id', 'department_id', 'movement_date', 'reason', 'notes',
         'total_cost', 'created_by',
     ];
 
@@ -83,6 +83,11 @@ class AssetMovement extends Model
     public function purchaseRequest(): BelongsTo
     {
         return $this->belongsTo(PurchaseRequest::class);
+    }
+
+    public function stockTransferOrder(): BelongsTo
+    {
+        return $this->belongsTo(StockTransferOrder::class);
     }
 
     public function lines(): HasMany

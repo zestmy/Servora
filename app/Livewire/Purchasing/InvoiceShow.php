@@ -124,6 +124,7 @@ class InvoiceShow extends Component
     {
         $this->invoice = ProcurementInvoice::with([
             'lines.ingredient',
+            'lines.asset',
             'lines.uom',
             'supplier',
             'outlet',
