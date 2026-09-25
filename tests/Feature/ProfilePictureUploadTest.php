@@ -97,7 +97,11 @@ class ProfilePictureUploadTest extends TestCase
     {
         $this->user->forceFill(['avatar' => 'avatars/old.jpg'])->save();
 
-        $this->upload(UploadedFile::fake()->image('huge.jpg', 9000, 9000)->size(8192))
+        // The limit is on FILE SIZE (ImageStorageService::uploadRule), and
+        // size() is what the fake reports, so the pixels are kept small. A
+        // real 9000×9000 canvas held ~320 MB in GD and ran the whole suite out
+        // of memory.
+        $this->upload(UploadedFile::fake()->image('huge.jpg', 400, 400)->size(8192))
             ->assertHasErrors('photo');
 
         $this->assertSame('avatars/old.jpg', $this->user->fresh()->avatar);
