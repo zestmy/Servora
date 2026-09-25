@@ -112,6 +112,8 @@ const SCREENS = [
     { path: '/audits/actions' },
     { path: '/audits/templates' },
     { path: '/audits/start' },
+    { path: '/audits/schedules' },
+    { path: '/reports/audit-trend' },
 
     // Settings — every one of these is a list with a header action row, which
     // is the shape that produced most of the bugs this check was written for.

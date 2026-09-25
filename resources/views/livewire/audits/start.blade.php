@@ -17,6 +17,9 @@
         </div>
     @else
         <form wire:submit="start" class="card space-y-5 p-5">
+            @if ($scheduleId)
+                <div class="alert-info">Starting from the schedule. Its next due date rolls forward when you start.</div>
+            @endif
             <div>
                 <label class="label" for="start-template">Audit form</label>
                 <select id="start-template" wire:model="templateId" class="input">

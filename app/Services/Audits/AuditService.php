@@ -5,6 +5,7 @@ namespace App\Services\Audits;
 use App\Models\Audit;
 use App\Models\AuditFinding;
 use App\Models\AuditLine;
+use App\Models\AuditSchedule;
 use App\Models\AuditSection;
 use App\Models\AuditTemplate;
 use App\Models\AuditTemplateItem;
@@ -73,6 +74,35 @@ class AuditService
             }
 
             $this->scores->recalculate($audit);
+
+            return $audit;
+        });
+    }
+
+    /**
+     * Start the audit a schedule says is due, and roll the schedule forward.
+     *
+     * The roll happens at START, not at submit: the point of the schedule is
+     * "has somebody gone", and a draft audit is somebody having gone. A draft
+     * later deleted leaves the schedule advanced; the Schedules screen shows
+     * the last audit so that is visible, and the due date can be edited.
+     */
+    public function startFromSchedule(AuditSchedule $schedule, User $auditor, string $date, array $attrs = []): Audit
+    {
+        $schedule->loadMissing(['template', 'outlet']);
+
+        abort_unless($schedule->template && $schedule->outlet, 422, 'This schedule points at a form or outlet that no longer exists.');
+
+        return DB::transaction(function () use ($schedule, $auditor, $date, $attrs) {
+            $audit = $this->start($schedule->template, $schedule->outlet, $auditor, $date, $attrs + [
+                'audit_schedule_id' => $schedule->id,
+            ]);
+
+            $schedule->forceFill([
+                'last_audit_id'   => $audit->id,
+                'last_started_on' => $date,
+                'next_due_on'     => $schedule->nextDueAfter($schedule->next_due_on),
+            ])->save();
 
             return $audit;
         });

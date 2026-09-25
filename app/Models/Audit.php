@@ -35,7 +35,7 @@ class Audit extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'audit_template_id', 'template_name', 'template_code',
+        'company_id', 'outlet_id', 'audit_template_id', 'audit_schedule_id', 'template_name', 'template_code',
         'alt_language', 'template_version', 'reference_number', 'status', 'audit_date',
         'time_in', 'time_out', 'auditor_id', 'header_values', 'notes',
         'total_points', 'na_points', 'available_points', 'lost_points', 'penalty_points',
@@ -90,6 +90,12 @@ class Audit extends Model
     public function auditor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'auditor_id');
+    }
+
+    /** The recurring plan this audit was started from, when it was. */
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(AuditSchedule::class, 'audit_schedule_id');
     }
 
     public function createdBy(): BelongsTo

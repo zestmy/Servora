@@ -216,6 +216,7 @@
             ['route' => 'clock.staff.leave',     'label' => 'Leave',     'icon' => 'document'],
             ['route' => 'clock.staff.time-off',  'label' => 'Time off',  'icon' => 'bolt'],
             ['route' => 'clock.staff.payslips',  'label' => 'Payslips',  'icon' => 'currency'],
+            ['route' => 'clock.staff.actions',   'label' => 'Audit fixes','icon' => 'shield'],
         ] as $link)
             <a href="{{ route($link['route']) }}" wire:navigate
                class="card flex min-h-[3.5rem] items-center gap-3 px-4 py-3 active:bg-gray-50">

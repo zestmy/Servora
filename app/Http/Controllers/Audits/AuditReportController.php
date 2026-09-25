@@ -12,8 +12,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * The audit report — the summary page, then every finding with its photos
- * and corrective actions, then every line of the form as scored.
+ * The audit report: one page of facts and scores, then only what went wrong.
+ *
+ * Passed and N/A lines are NOT printed. A ROSE form is three hundred items,
+ * and a report that lists all of them runs to nine pages of "OK" in which the
+ * three findings anyone came for are impossible to find. The full checklist
+ * is on screen; the paper is for the score, the sign-off, and the fixes.
  *
  * RENDERED SYNCHRONOUSLY, unlike the SOP handbook. That export is two hundred
  * recipes with full-size plating photos (~500 MB peak); this is one audit with
@@ -27,7 +31,7 @@ class AuditReportController extends Controller
 {
     public function __invoke(int $id, PdfImage $images)
     {
-        $audit = Audit::with(['outlet', 'auditor', 'sections.lines'])->findOrFail($id);
+        $audit = Audit::with(['outlet', 'auditor', 'sections'])->findOrFail($id);
 
         abort_unless(Auth::user()->canAccessOutlet($audit->outlet_id), 403);
         abort_if($audit->isDraft(), 404, 'The report is available once the audit is submitted.');
@@ -54,24 +58,12 @@ class AuditReportController extends Controller
             $signature = 'data:image/png;base64,' . base64_encode(Storage::disk('local')->get($audit->signature_path));
         }
 
-        // Lines grouped by section, parents carrying their children, so the
-        // view can print the form in its own order without re-sorting.
-        $tree = [];
-        foreach ($audit->sections as $section) {
-            $byParent = $section->lines->groupBy(fn ($l) => $l->parent_id ?? 0);
-            $tree[$section->id] = $byParent->get(0, collect())->map(fn ($l) => [
-                'line'     => $l,
-                'children' => $byParent->get($l->id, collect()),
-            ]);
-        }
-
         $pdf = Pdf::loadView('pdf.audit-report', [
             'audit'     => $audit,
             'company'   => $company,
             'findings'  => $findings,
             'thumbs'    => $thumbs,
             'signature' => $signature,
-            'tree'      => $tree,
             'logo'      => $images->logo($company?->logo),
         ])->setPaper('a4', 'portrait');
 

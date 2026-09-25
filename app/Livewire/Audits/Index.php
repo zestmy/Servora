@@ -3,6 +3,7 @@
 namespace App\Livewire\Audits;
 
 use App\Models\Audit;
+use App\Models\AuditSchedule;
 use App\Models\AuditTemplate;
 use App\Traits\HasQuickDateRanges;
 use App\Traits\RemembersListFilters;
@@ -100,7 +101,13 @@ class Index extends Component
             });
         }
 
+        // The due strip. Two counts, not the rows — the Schedule screen has those.
+        $due = AuditSchedule::query();
+        $this->scopeByOutlet($due);
+
         return view('livewire.audits.index', [
+            'overdue'   => (clone $due)->overdue()->count(),
+            'dueSoon'   => (clone $due)->dueSoon()->count(),
             'audits'    => $query->orderByDesc('audit_date')->orderByDesc('id')->paginate(25),
             'outlets'   => $this->filterableOutlets(),
             'templates' => AuditTemplate::ordered()->get(['id', 'name', 'code']),

@@ -76,6 +76,9 @@ at least one action and all of them are verified.
 | `/audits/actions` | `Audits\Actions` — NC summary by outlet → owner designation | `audits.view` |
 | `/audits/templates` | `Audits\Templates` | `audits.manage` |
 | `/audits/templates/{id}` | `Audits\TemplateEdit` — the builder, one section at a time | `audits.manage` |
+| `/audits/schedules` | `Audits\Schedules` — which outlet is due which form, and when | `audits.view` (edits `audits.manage`) |
+| `/reports/audit-trend` | `Reports\Audits\AuditTrend` — score over time per outlet, per section, most-failed items, CSV | `reports.view` + `audits.view` |
+| `/staff/actions` | `Staff\CorrectiveActions` — "Audit fixes" on the PIN-session Staff Portal | staff session |
 
 `Audits\FindingActions` is nested under each finding on the summary.
 
@@ -99,6 +102,28 @@ items transcribed from a printed ROSE form with brand-specific product names
 made generic. Installed on demand from Audit Forms; a company edits it as its
 own. Section totals: 140 (penalty), 282, 248, 157, 20.
 
+## Phase 3: schedules, trend, staff portal
+
+- **`audit_schedules`**: one row per (form, outlet) that recurs, with a
+  frequency and `next_due_on`. Starting an audit from the row (Schedule ▸
+  Start now, or `/audits/start?schedule=`) stamps `audits.audit_schedule_id`
+  and rolls the due date forward **from the due date, not from today**, and
+  keeps rolling until it lands in the future. Changing the form or outlet on
+  the Start screen makes it an ad-hoc audit and leaves the plan alone. The
+  Audits list carries a due strip (overdue / due within 14 days). Nothing is
+  emailed: there is no user notification channel in the product.
+- **Trend report** reads only the cached `score_percent` columns and the
+  findings table, never the lines, and excludes drafts. Month bucketing is done
+  in PHP so it runs on SQLite in tests.
+- **Staff Portal "Audit fixes"** lists the actions owned by the signed-in
+  employee (and the rest of the outlet's for context). They can mark theirs
+  in progress or done with a note and a photo of the fix. **Verify is not
+  offered there** — the two-step close exists so the person who did the work
+  is not the person who signs it off.
+- **The PDF prints only the findings.** Page one is facts, total score,
+  section table and sign-off; the following pages are each NC with its
+  photos and actions. Passed and N/A lines are on screen, not on paper.
+
 ## Decisions
 
 - **Copy, don't reference.** Editing a form must never change a score already
@@ -116,6 +141,10 @@ own. Section totals: 140 (penalty), 282, 248, 157, 20.
   the owner update their actions from the staff portal on the PIN session.
 
 ## Tests
+
+`tests/Feature/AuditPhase3Test.php` — schedules (roll-forward rules, ad-hoc
+guard, due strip, paused rows), trend report (averages, most-failed, gate),
+staff portal (own vs others, done with note and photo, no verify).
 
 `tests/Feature/AuditModuleTest.php` — 17 tests: ROSE install, builder,
 snapshot-on-start, the arithmetic incl. N/A and penalty, NC ↔ finding ↔ photo

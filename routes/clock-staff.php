@@ -184,6 +184,8 @@ $group->group(function () {
         // person looks for things about themselves — the tab bar is full, and
         // a seventh tab would drop the grid to four columns.
         Route::get('/account', \App\Livewire\Clock\Staff\Account::class)->name('clock.staff.account');
+        // Corrective actions from outlet audits that name this employee as owner.
+        Route::get('/actions', \App\Livewire\Staff\CorrectiveActions::class)->name('clock.staff.actions');
 
         /*
          * Learning, on the SAME PIN session as everything else here.

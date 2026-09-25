@@ -207,6 +207,7 @@ final class NavMenu
                 'items' => [
                     ['route' => 'audits.index',     'label' => 'Audits',             'permission' => 'audits.view'],
                     ['route' => 'audits.actions',   'label' => 'Corrective Actions', 'permission' => 'audits.view'],
+                    ['route' => 'audits.schedules', 'label' => 'Schedule',           'permission' => 'audits.view'],
                     ['route' => 'audits.templates', 'label' => 'Audit Forms',        'permission' => 'audits.manage'],
                 ],
             ],
@@ -481,6 +482,7 @@ final class NavMenu
                 'items' => [
                     ['route' => 'audits.index',     'label' => 'Audits',             'permission' => 'audits.view'],
                     ['route' => 'audits.actions',   'label' => 'Corrective Actions', 'permission' => 'audits.view'],
+                    ['route' => 'audits.schedules', 'label' => 'Schedule',           'permission' => 'audits.view'],
                     ['route' => 'audits.templates', 'label' => 'Audit Forms',        'permission' => 'audits.manage'],
                 ],
             ],

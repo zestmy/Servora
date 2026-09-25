@@ -7,6 +7,10 @@
     <x-page-header title="Audits" eyebrow="Outlet Audits"
                    subtitle="Every audit conducted, with its score and what is still open. Not the activity trail — that is Audit Logs under Business Intelligence.">
         <x-slot:actions>
+            <a href="{{ route('audits.schedules') }}" wire:navigate class="btn-secondary">
+                <x-icon name="calendar-days" size="h-4 w-4" />
+                <span class="hidden sm:inline">Schedule</span>
+            </a>
             <a href="{{ route('audits.actions') }}" wire:navigate class="btn-secondary">
                 <x-icon name="clipboard" size="h-4 w-4" />
                 <span class="hidden sm:inline">Corrective actions</span>
@@ -17,6 +21,21 @@
             @endcanDo
         </x-slot:actions>
     </x-page-header>
+
+    @if ($overdue || $dueSoon)
+        <a href="{{ route('audits.schedules', $overdue ? ['filter' => 'overdue'] : []) }}" wire:navigate
+           class="mb-4 flex items-center gap-3 rounded-surface border p-3 text-sm {{ $overdue ? 'border-danger-200 bg-danger-50 text-danger-800' : 'border-warning-200 bg-warning-50 text-warning-800' }}">
+            <x-icon name="calendar-days" size="h-5 w-5" />
+            <span class="min-w-0 flex-1">
+                @if ($overdue)
+                    <strong>{{ $overdue }} scheduled audit{{ $overdue === 1 ? ' is' : 's are' }} overdue</strong>{{ $dueSoon ? ", and {$dueSoon} more due within " . \App\Models\AuditSchedule::SOON_DAYS . ' days' : '' }}.
+                @else
+                    <strong>{{ $dueSoon }} scheduled audit{{ $dueSoon === 1 ? '' : 's' }} due within {{ \App\Models\AuditSchedule::SOON_DAYS }} days</strong>.
+                @endif
+            </span>
+            <span class="font-medium">Schedule <x-icon name="arrow-right" size="h-4 w-4" class="inline" /></span>
+        </a>
+    @endif
 
     <div class="toolbar mb-4">
         <div class="w-full">

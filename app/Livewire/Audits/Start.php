@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Audits;
 
+use App\Models\AuditSchedule;
 use App\Models\AuditTemplate;
 use App\Models\Outlet;
 use App\Services\Audits\AuditService;
@@ -21,6 +22,9 @@ class Start extends Component
     public string $templateId = '';
     public string $auditDate  = '';
     public string $reference  = '';
+
+    /** Set when arriving from the Schedule screen; the schedule rolls forward on start. */
+    public ?int $scheduleId = null;
 
     protected function rules(): array
     {
@@ -50,6 +54,16 @@ class Start extends Component
         if ($templates->count() === 1) {
             $this->templateId = (string) $templates->first()->id;
         }
+
+        if ($id = (int) request('schedule')) {
+            $schedule = AuditSchedule::with('template')->find($id);
+
+            if ($schedule && Auth::user()->canAccessOutlet($schedule->outlet_id) && $schedule->template?->is_active) {
+                $this->scheduleId = $schedule->id;
+                $this->templateId = (string) $schedule->audit_template_id;
+                $this->outlet_id  = $schedule->outlet_id;
+            }
+        }
     }
 
     public function start(AuditService $audits)
@@ -61,10 +75,21 @@ class Start extends Component
         $template = AuditTemplate::active()->findOrFail((int) $this->templateId);
         $outlet   = Outlet::findOrFail($this->resolveOutletId());
 
-        $audit = $audits->start($template, $outlet, Auth::user(), $this->auditDate, [
+        $attrs = [
             'reference_number' => $this->reference ?: null,
             'time_in'          => now()->format('H:i'),
-        ]);
+        ];
+
+        // Only honour the schedule if the form and outlet still match it —
+        // somebody who changed either on this screen is starting an ad-hoc
+        // audit, and the plan should not roll forward for that.
+        $schedule = $this->scheduleId ? AuditSchedule::find($this->scheduleId) : null;
+
+        $audit = $schedule
+            && $schedule->audit_template_id === $template->id
+            && $schedule->outlet_id === $outlet->id
+            ? $audits->startFromSchedule($schedule, Auth::user(), $this->auditDate, $attrs)
+            : $audits->start($template, $outlet, Auth::user(), $this->auditDate, $attrs);
 
         return $this->redirect(route('audits.show', $audit->id), navigate: true);
     }

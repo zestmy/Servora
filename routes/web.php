@@ -28,6 +28,7 @@ use App\Http\Controllers\Audits\AuditSignatureController;
 use App\Livewire\Audits\Actions as AuditActions;
 use App\Livewire\Audits\Conduct as AuditConduct;
 use App\Livewire\Audits\Index as AuditsIndex;
+use App\Livewire\Audits\Schedules as AuditSchedules;
 use App\Livewire\Audits\Start as AuditStart;
 use App\Livewire\Audits\TemplateEdit as AuditTemplateEdit;
 use App\Livewire\Audits\Templates as AuditTemplates;
@@ -268,6 +269,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
      */
     Route::get('/audits', AuditsIndex::class)->name('audits.index')->middleware('can:audits.view');
     Route::get('/audits/actions', AuditActions::class)->name('audits.actions')->middleware('can:audits.view');
+    Route::get('/audits/schedules', AuditSchedules::class)->name('audits.schedules')->middleware('can:audits.view');
     Route::get('/audits/templates', AuditTemplates::class)->name('audits.templates')->middleware('can:audits.manage');
     Route::get('/audits/templates/{id}', AuditTemplateEdit::class)->name('audits.templates.edit')->middleware('can:audits.manage');
     Route::get('/audits/start', AuditStart::class)->name('audits.start')->middleware('can:audits.conduct');
@@ -433,6 +435,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
 
     Route::get('/reports/weekly-wip-review', \App\Livewire\Reports\Management\WeeklyWipReview::class)->name('reports.weekly-wip-review')->middleware('can:reports.view');
     Route::get('/reports/weekly-wip-review/pdf', \App\Http\Controllers\WipReviewPdfController::class)->name('reports.weekly-wip-review.pdf')->middleware('can:reports.view');
+    // Outlet audits over time. Gated on the audit ability as well: the scores
+    // are the QA department's, and Reporting alone does not imply them.
+    Route::get('/reports/audit-trend', \App\Livewire\Reports\Audits\AuditTrend::class)->name('reports.audit-trend')->middleware(['can:reports.view', 'can:audits.view']);
     // No settings.view gate: the index is a list of links, every tile carries
     // the permission its own destination requires, and each of those routes
     // keeps its own middleware. Gating the whole page instead hid a module's
