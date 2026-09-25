@@ -200,6 +200,17 @@ final class NavMenu
                 ],
             ],
             [
+                // Outlet audits (ROSE, halal, pre-opening) — not the activity
+                // trail, which stays under Business Intelligence as Audit Logs.
+                'label' => 'Audits',
+                'icon'  => 'shield',
+                'items' => [
+                    ['route' => 'audits.index',     'label' => 'Audits',             'permission' => 'audits.view'],
+                    ['route' => 'audits.actions',   'label' => 'Corrective Actions', 'permission' => 'audits.view'],
+                    ['route' => 'audits.templates', 'label' => 'Audit Forms',        'permission' => 'audits.manage'],
+                ],
+            ],
+            [
                 'label' => 'Labels',
                 'icon'  => 'tag',
                 'items' => [
@@ -460,6 +471,17 @@ final class NavMenu
                     ['route' => 'assets.records',  'label' => 'Asset Counts',   'permission' => 'assets.view', 'query' => 'tab=counts'],
                     ['route' => 'assets.records',  'label' => 'Receipts',       'permission' => 'assets.view', 'query' => 'tab=receipts'],
                     ['route' => 'assets.records',  'label' => 'Disposals',      'permission' => 'assets.view', 'query' => 'tab=disposals'],
+                ],
+            ],
+            [
+                // Outlet audits (ROSE, halal, pre-opening) — not the activity
+                // trail, which stays under Business Intelligence as Audit Logs.
+                'label' => 'Audits',
+                'icon'  => 'shield',
+                'items' => [
+                    ['route' => 'audits.index',     'label' => 'Audits',             'permission' => 'audits.view'],
+                    ['route' => 'audits.actions',   'label' => 'Corrective Actions', 'permission' => 'audits.view'],
+                    ['route' => 'audits.templates', 'label' => 'Audit Forms',        'permission' => 'audits.manage'],
                 ],
             ],
             [

@@ -406,6 +406,54 @@ return [
             ],
         ],
 
+        /*
+         * Outlet audits — ROSE, halal, pre-opening — NOT the activity trail.
+         * That is `audit.view` under Reporting below. The plural is the whole
+         * difference between the two names, so the labels spell it out.
+         */
+        'audits' => [
+            'label'     => 'Outlet Audits',
+            'group'     => 'operations',
+            'abilities' => [
+                'view' => [
+                    'name'  => 'audits.view',
+                    'label' => 'View (read-only)',
+                    'title' => 'Outlet Audits',
+                    'help'  => 'See audits, scores, findings and corrective actions, and open the PDF report. Read-only on its own.',
+                ],
+                'conduct' => [
+                    'name'  => 'audits.conduct',
+                    'label' => 'Conduct',
+                    'title' => 'Outlet Audits (Conduct)',
+                    'help'  => 'Start an audit, record results and photos, submit it and take the outlet\'s acknowledgement.',
+                ],
+                'manage' => [
+                    'name'  => 'audits.manage',
+                    'label' => 'Build forms',
+                    'title' => 'Outlet Audits (Build Forms)',
+                    'help'  => 'Create and edit audit forms: sections, items, points and header fields.',
+                ],
+                'actions_manage' => [
+                    'name'  => 'audits.actions.manage',
+                    'label' => 'Corrective actions',
+                    'title' => 'Outlet Audits (Corrective Actions)',
+                    'help'  => 'Assign corrective actions to staff, update their progress and verify them.',
+                ],
+                'reopen' => [
+                    'name'  => 'audits.reopen',
+                    'label' => 'Reopen',
+                    'title' => 'Outlet Audits (Reopen)',
+                    'help'  => 'Put a submitted audit back to draft. Clears the outlet\'s acknowledgement.',
+                ],
+                'delete' => [
+                    'name'  => 'audits.delete',
+                    'label' => 'Delete',
+                    'title' => 'Outlet Audits (Delete)',
+                    'help'  => 'Delete an audit or an audit form.',
+                ],
+            ],
+        ],
+
         'labels' => [
             'label'     => 'Food Labels',
             'group'     => 'operations',

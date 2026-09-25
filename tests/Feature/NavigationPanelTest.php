@@ -114,6 +114,10 @@ class NavigationPanelTest extends TestCase
             // What the company owns, beside what it consumes — and before
             // Labels, so the two stock-shaped groups sit together.
             'Assets',
+            // Outlet audits: what the QA department found when they walked
+            // the outlet. Beside Assets and Labels because all three are
+            // things done on the floor rather than at a desk.
+            'Audits',
             'Labels',
             'Sales',
             'HR',

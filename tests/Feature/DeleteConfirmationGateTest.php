@@ -59,6 +59,9 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/purchasing/purchase-request-form.blade.php::removeLine'        => 'unsaved line',
         'livewire/purchasing/receive-form.blade.php::removeLine'                 => 'unsaved line',
         'livewire/purchasing/stock-transfer-form.blade.php::removeLine'          => 'unsaved line',
+        // A header-field row on the audit form builder. Nothing is written
+        // until "Save details"; the row is form state.
+        'livewire/audits/template-edit.blade.php::removeHeaderField'             => 'unsaved header field',
         // A line on a DRAFT subscription invoice being composed. The row is
         // written on Save, and an issued invoice cannot reach this form at
         // all — InvoiceService::updateDraft() refuses anything past draft.

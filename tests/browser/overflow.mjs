@@ -106,6 +106,13 @@ const SCREENS = [
     // label screens predate the list and should be added when next touched.
     { path: '/labels/agents' },
 
+    // Outlet audits. The conduct screen is the one used on a phone with one
+    // hand, so it is measured in every state it has.
+    { path: '/audits' },
+    { path: '/audits/actions' },
+    { path: '/audits/templates' },
+    { path: '/audits/start' },
+
     // Settings — every one of these is a list with a header action row, which
     // is the shape that produced most of the bugs this check was written for.
     { path: '/settings' },

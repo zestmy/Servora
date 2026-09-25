@@ -72,6 +72,9 @@ class CompanyRegistrationService
                 'assets.view', 'assets.manage', 'assets.cost', 'assets.delete',
                 'assets.counts.record', 'assets.counts.delete', 'assets.counts.reopen',
                 'assets.movements.record', 'assets.movements.delete',
+                // Outlet audits, for the same reason.
+                'audits.view', 'audits.conduct', 'audits.manage', 'audits.actions.manage',
+                'audits.reopen', 'audits.delete',
                 'inventory.stock_takes.delete', 'inventory.stock_takes.reopen', 'inventory.wastage.delete', 'inventory.transfers.delete',
                 'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
                 'inventory.stock_takes.record', 'inventory.wastage.record', 'inventory.transfers.record',
@@ -167,6 +170,9 @@ class CompanyRegistrationService
                 'assets.view', 'assets.manage', 'assets.cost', 'assets.delete',
                 'assets.counts.record', 'assets.counts.delete', 'assets.counts.reopen',
                 'assets.movements.record', 'assets.movements.delete',
+                // Outlet audits, for the same reason.
+                'audits.view', 'audits.conduct', 'audits.manage', 'audits.actions.manage',
+                'audits.reopen', 'audits.delete',
                 'inventory.stock_takes.delete', 'inventory.stock_takes.reopen', 'inventory.wastage.delete', 'inventory.transfers.delete',
                 'inventory.staff_meals.delete', 'inventory.prep_items.delete', 'inventory.purchases.delete',
             ]);

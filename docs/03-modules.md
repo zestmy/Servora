@@ -43,6 +43,25 @@ Find the right component to edit fast. Routes are pulled from [routes/web.php](.
 
 ---
 
+## Audits (outlet audits — not the activity trail)
+
+Scored checklist audits (ROSE, halal, pre-opening) conducted on a phone, with non-conformances tracked to corrective actions. Full notes in [audit-module.md](audit-module.md). The activity trail is `Audit/Index` under Reports.
+
+| Component | Route | Purpose |
+|-----------|-------|---------|
+| [Audits/Index](../app/Livewire/Audits/Index.php) | `/audits` | Every audit with cached score % and open-finding count. |
+| [Audits/Start](../app/Livewire/Audits/Start.php) | `/audits/start` | Pick form, outlet, date → copies the form into a draft audit. |
+| [Audits/Conduct](../app/Livewire/Audits/Conduct.php) | `/audits/{id}` | The checklist while a draft (OK / NC / N/A per line, points lost, note, photos; every tap saves); the score card, findings, corrective actions and signature once submitted. |
+| [Audits/Actions](../app/Livewire/Audits/Actions.php) | `/audits/actions` | Corrective-action summary grouped by outlet → owner designation; findings with no action listed first. |
+| [Audits/Templates](../app/Livewire/Audits/Templates.php) | `/audits/templates` | Audit forms; installs the ROSE starter (`Support\Audits\RoseTemplate`). |
+| [Audits/TemplateEdit](../app/Livewire/Audits/TemplateEdit.php) | `/audits/templates/{id}` | Form builder: sections (area / penalty), two-level items, points, header fields. |
+| [Audits/FindingActions](../app/Livewire/Audits/FindingActions.php) | nested | Raise, progress, verify the actions under one finding. |
+| `AuditReportController` | `/audits/{id}/report` | Synchronous PDF: score cards, findings with photos and actions, the full checklist. |
+
+Services: `Services\Audits\AuditService` (start / answer / submit / reopen / acknowledge / close), `AuditScoreService` (the only writer of score columns), `CorrectiveActionService`.
+
+---
+
 ## Auth
 
 | Component | Route | Purpose |

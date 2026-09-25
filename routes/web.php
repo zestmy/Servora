@@ -23,6 +23,14 @@ use App\Livewire\Assets\Index as AssetsIndex;
 use App\Livewire\Assets\MovementForm as AssetMovementForm;
 use App\Livewire\Assets\Records as AssetsRecords;
 use App\Livewire\Assets\Register as AssetsRegister;
+use App\Http\Controllers\Audits\AuditReportController;
+use App\Http\Controllers\Audits\AuditSignatureController;
+use App\Livewire\Audits\Actions as AuditActions;
+use App\Livewire\Audits\Conduct as AuditConduct;
+use App\Livewire\Audits\Index as AuditsIndex;
+use App\Livewire\Audits\Start as AuditStart;
+use App\Livewire\Audits\TemplateEdit as AuditTemplateEdit;
+use App\Livewire\Audits\Templates as AuditTemplates;
 use App\Livewire\Ingredients\Index as IngredientsIndex;
 use App\Livewire\Ingredients\Import as IngredientsImport;
 use App\Livewire\Recipes\Index as RecipesIndex;
@@ -248,6 +256,24 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/assets/counts/{id}', AssetCountForm::class)->name('assets.counts.show')->middleware('can:assets.counts.record');
     Route::get('/assets/movements/create', AssetMovementForm::class)->name('assets.movements.create')->middleware('can:assets.movements.record');
     Route::get('/assets/movements/{id}', AssetMovementForm::class)->name('assets.movements.show')->middleware('can:assets.movements.record');
+
+    /*
+     * Outlet audits — ROSE and its kin. NOT /audit-logs, the activity trail
+     * further down. Literal segments (/actions, /templates, /start) sit above
+     * /audits/{id} for the reason given on the asset routes.
+     *
+     * The conduct screen is gated on audits.view because it is also the
+     * read-only view of a submitted audit; every write on it re-checks
+     * audits.conduct itself.
+     */
+    Route::get('/audits', AuditsIndex::class)->name('audits.index')->middleware('can:audits.view');
+    Route::get('/audits/actions', AuditActions::class)->name('audits.actions')->middleware('can:audits.view');
+    Route::get('/audits/templates', AuditTemplates::class)->name('audits.templates')->middleware('can:audits.manage');
+    Route::get('/audits/templates/{id}', AuditTemplateEdit::class)->name('audits.templates.edit')->middleware('can:audits.manage');
+    Route::get('/audits/start', AuditStart::class)->name('audits.start')->middleware('can:audits.conduct');
+    Route::get('/audits/{id}/report', AuditReportController::class)->name('audits.report')->middleware('can:audits.view');
+    Route::get('/audits/{id}/signature', AuditSignatureController::class)->name('audits.signature')->middleware('can:audits.view');
+    Route::get('/audits/{id}', AuditConduct::class)->name('audits.show')->middleware('can:audits.view');
 
     Route::get('/ingredients', IngredientsIndex::class)->name('ingredients.index')->middleware('can:ingredients.view');
     Route::get('/ingredients/export', [IngredientExportController::class, 'export'])->name('ingredients.export')->middleware('can:ingredients.view');
