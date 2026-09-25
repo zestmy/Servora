@@ -75,6 +75,13 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/ingredients/index.blade.php::removeConversionRow'              => 'unsaved UOM conversion row',
         'livewire/ingredients/index.blade.php::removeSupplierRow'                => 'unsaved supplier row',
         'livewire/hr/service-charge.blade.php::removeServiceChargeFund'           => 'unsaved fund row',
+        'livewire/assets/count-form.blade.php::removeLine'                       => 'unsaved count line',
+        'livewire/assets/movement-form.blade.php::removeLine'                    => 'unsaved line',
+        'livewire/assets/index.blade.php::removeSupplierRow'                     => 'unsaved supplier row',
+        // Only flags the stored image for removal; the file goes on Save.
+        'livewire/assets/index.blade.php::clearImage'                            => 'image removal applied on save',
+        // A line on a transfer being edited; lines are rewritten on Save.
+        'livewire/hr/labour-cost-transfer-form.blade.php::removeLine'            => 'unsaved transfer line',
         'livewire/settings/labour-costs.blade.php::removeAllowance'              => 'unsaved allowance row',
         'livewire/settings/statutory-rates.blade.php::removeBand'                => 'unsaved rate band',
         'livewire/labels/template-designer.blade.php::removeField'               => 'unsaved field on the label design',

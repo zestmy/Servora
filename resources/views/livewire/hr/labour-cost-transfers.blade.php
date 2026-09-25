@@ -89,7 +89,7 @@
                                     </a>
                                     @if ($t->status === 'draft' || $canManage)
                                         <button type="button" wire:click="deleteTransfer({{ $t->id }})"
-                                                wire:confirm="{{ $t->status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $t->status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"
+                                                data-confirm-delete="{{ $t->status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $t->status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"
                                                 class="icon-btn" aria-label="Delete {{ $t->transfer_number }}" title="Delete">
                                             <x-icon name="trash" class="h-4 w-4 text-danger-600" />
                                         </button>

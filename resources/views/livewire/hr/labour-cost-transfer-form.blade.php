@@ -123,7 +123,7 @@
                     @endif
                     @if ($status === 'draft' || $canManage)
                         <button wire:click="deleteTransfer"
-                                wire:confirm="{{ $status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"
+                                data-confirm-delete="{{ $status === 'draft' ? 'Delete this draft? This cannot be undone.' : 'Delete this ' . $status . ' transfer? Its cost comes out of the labour reports. This cannot be undone.' }}"
                                 class="btn-danger w-full">Delete transfer</button>
                     @endif
                 </div>
