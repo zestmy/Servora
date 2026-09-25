@@ -33,6 +33,14 @@ class Schedules extends Component
     public string $notes       = '';
     public bool   $isActive    = true;
 
+    /** The Audits due strip and the reminder email both deep-link to the overdue view. */
+    public function mount(): void
+    {
+        if (in_array(request('filter'), ['active', 'overdue', 'all'], true)) {
+            $this->filter = request('filter');
+        }
+    }
+
     private function requireManage(): void
     {
         abort_unless(Auth::user()?->canDo('audits.manage'), 403);

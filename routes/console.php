@@ -65,3 +65,8 @@ Schedule::command('salary:apply-revisions')->dailyAt('00:15');
 // period onwards but stay on the one they actually worked. Idempotent, so a
 // missed night is caught by the next run.
 Schedule::command('hr:apply-resignations')->dailyAt('00:20');
+
+// Chase overdue scheduled audits and corrective actions. Hourly on purpose:
+// the command itself sends only in the 08:00 hour of each COMPANY's timezone,
+// and the audit_reminders table makes a repeat within the hour a no-op.
+Schedule::command('audits:send-reminders')->hourly()->withoutOverlapping();

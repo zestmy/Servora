@@ -38,6 +38,11 @@ class Actions extends Component
     public function mount(): void
     {
         $this->bootRememberedFilters();
+
+        // A deep link (the reminder email, the due strip) beats the remembered filter.
+        if (in_array(request('status'), ['outstanding', 'overdue', 'unassigned', 'verified', 'all'], true)) {
+            $this->statusFilter = request('status');
+        }
     }
 
     public function resetFilters(): void

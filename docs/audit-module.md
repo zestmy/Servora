@@ -110,8 +110,19 @@ own. Section totals: 140 (penalty), 282, 248, 157, 20.
   and rolls the due date forward **from the due date, not from today**, and
   keeps rolling until it lands in the future. Changing the form or outlet on
   the Start screen makes it an ad-hoc audit and leaves the plan alone. The
-  Audits list carries a due strip (overdue / due within 14 days). Nothing is
-  emailed: there is no user notification channel in the product.
+  Audits list carries a due strip (overdue / due within 14 days).
+- **Email reminders** (`audits:send-reminders`, hourly on the scheduler,
+  `AuditReminderService`). Sends only in the **08:00 hour of each company's
+  timezone**, once per recipient per day (`audit_reminders` unique key), and
+  only to people with something overdue. Two emails: the **auditor digest**
+  (every user holding `audits.conduct`: overdue schedules assigned to them or
+  unassigned at their outlets, overdue corrective actions at their outlets,
+  and findings with no action three days after submission) and the **owner
+  reminder** (an employee with an email and an overdue action, linking to
+  the Staff Portal "Audit fixes"). Each is a queued job that rebuilds the
+  digest at send time, so a fix verified between the run and the worker is
+  not chased. `--force` ignores the hour, `--dry-run` counts, `--company=`
+  narrows. The row on `audit_reminders` is the delivery record.
 - **Trend report** reads only the cached `score_percent` columns and the
   findings table, never the lines, and excludes drafts. Month bucketing is done
   in PHP so it runs on SQLite in tests.
@@ -141,6 +152,10 @@ own. Section totals: 140 (penalty), 282, 248, 157, 20.
   the owner update their actions from the staff portal on the PIN session.
 
 ## Tests
+
+`tests/Feature/AuditReminderTest.php` — who is emailed and what it says,
+once-a-day throttle, the company-hour gate, owners without email, the
+unactioned-finding chase, dry run.
 
 `tests/Feature/AuditPhase3Test.php` — schedules (roll-forward rules, ad-hoc
 guard, due strip, paused rows), trend report (averages, most-failed, gate),
