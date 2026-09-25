@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Hr\AttendanceRecords;
+use App\Livewire\Hr\ServiceCharge;
 use App\Models\AttendanceCode;
 use App\Models\ClockSetting;
 use App\Models\Company;
@@ -150,12 +150,11 @@ class ServiceChargeManualLatenessTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000')
             ->set('scRedistribute', false)
             ->set("scManualLate.{$a->id}", '45')
@@ -183,12 +182,11 @@ class ServiceChargeManualLatenessTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000')
             ->set("scManualLate.{$a->id}", '2.5')
             ->call('saveServiceCharge')
@@ -208,12 +206,11 @@ class ServiceChargeManualLatenessTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $panel = Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000')
             ->set("scManualLate.{$a->id}", '45')
             ->call('saveServiceCharge')
@@ -242,12 +239,11 @@ class ServiceChargeManualLatenessTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $panel = Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000')
             ->set("scSpecial.{$a->id}.amount", '50')
             ->set("scSpecial.{$a->id}.note", 'Till short')
@@ -282,12 +278,11 @@ class ServiceChargeManualLatenessTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $panel = Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000')
             ->set('scFunds', [['name' => 'Outlet Fund', 'points' => '1']])
             ->call('saveServiceCharge')
@@ -319,12 +314,11 @@ class ServiceChargeManualLatenessTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $panel = Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
             ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000')
             ->set('scMcPercent', '5')
             ->call('saveServiceCharge')

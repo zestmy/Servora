@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Hr\AttendanceRecords;
+use App\Livewire\Hr\ServiceCharge;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Outlet;
@@ -80,27 +81,43 @@ class ServiceChargePermissionTest extends TestCase
     }
 
     /** The reported case: an Operations Manager's set of abilities. */
-    public function test_the_service_charge_panel_opens_without_salary_access(): void
+    public function test_the_service_charge_page_opens_without_salary_access(): void
     {
         $user = $this->userWith(['hr.attendance', 'hr.attendance.record', 'hr.attendance.service_charge']);
 
+        $this->actingAs($user)->get(route('hr.service-charge'))->assertOk();
+
         Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
-            ->assertSee('Service Charge')
-            ->set('showServiceCharge', true)
-            ->assertSet('showServiceCharge', true)
+            ->test(ServiceCharge::class)
             ->call('saveServiceCharge')
             ->assertOk();
+
+        // And the grid points the way there.
+        Livewire::actingAs($user)
+            ->test(AttendanceRecords::class)
+            ->assertSee(route('hr.service-charge'));
     }
 
-    /** The other half: the button arrives, the salary column does not. */
-    public function test_salary_stays_hidden_while_the_panel_is_open(): void
+    /**
+     * The ability on its own is enough — the page, like the payout report,
+     * stands on hr.attendance.service_charge alone, and so do its downloads.
+     */
+    public function test_the_service_charge_ability_alone_opens_the_page(): void
+    {
+        $user = $this->userWith(['hr.attendance.service_charge']);
+
+        $this->actingAs($user)->get(route('hr.service-charge'))
+            ->assertOk()
+            ->assertDontSee('href="' . route('hr.attendance') . '"', false);
+    }
+
+    /** The other half: the page arrives, the salary does not. */
+    public function test_salary_stays_hidden_on_the_service_charge_page(): void
     {
         $user = $this->userWith(['hr.attendance', 'hr.attendance.service_charge']);
 
         $html = Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
-            ->set('showServiceCharge', true)
+            ->test(ServiceCharge::class)
             ->html();
 
         $this->assertStringNotContainsString('Basic Salary', $html);
@@ -108,7 +125,7 @@ class ServiceChargePermissionTest extends TestCase
     }
 
     /**
-     * The points ARE loaded for them, which is not a leak but the arithmetic:
+     * The points ARE read for them, which is not a leak but the arithmetic:
      * stripping them would have shown every share as zero and looked like a
      * broken pool rather than a withheld figure.
      */
@@ -116,27 +133,31 @@ class ServiceChargePermissionTest extends TestCase
     {
         $user = $this->userWith(['hr.attendance', 'hr.attendance.service_charge']);
 
-        $employees = Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
-            ->set('showServiceCharge', true)
-            ->viewData('employees');
+        $rows = Livewire::actingAs($user)
+            ->test(ServiceCharge::class)
+            ->viewData('serviceCharge')['rows'];
 
         $this->assertEqualsWithDelta(
             2.5,
-            (float) $employees->first()->service_points_entitlement,
+            (float) collect($rows)->first()['points'],
             0.01,
             'Without service points every share computes as zero.'
         );
     }
 
     /** Attendance alone is not the service charge. */
-    public function test_attendance_alone_does_not_open_the_panel(): void
+    public function test_attendance_alone_does_not_open_the_page(): void
     {
         $user = $this->userWith(['hr.attendance', 'hr.attendance.record']);
 
+        $this->actingAs($user)->get(route('hr.service-charge'))->assertForbidden();
+
         Livewire::actingAs($user)
             ->test(AttendanceRecords::class)
-            ->assertDontSee('Service Charge')
+            ->assertDontSee(route('hr.service-charge'));
+
+        Livewire::actingAs($user)
+            ->test(ServiceCharge::class)
             ->call('saveServiceCharge')
             ->assertForbidden();
     }
@@ -147,12 +168,14 @@ class ServiceChargePermissionTest extends TestCase
      * screen — but the two are separate abilities from here on, and a role
      * created later gets exactly what it was ticked for.
      */
-    public function test_salary_access_alone_does_not_open_the_panel(): void
+    public function test_salary_access_alone_does_not_open_the_page(): void
     {
         $user = $this->userWith(['hr.attendance', 'hr.compensation']);
 
+        $this->actingAs($user)->get(route('hr.service-charge'))->assertForbidden();
+
         Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->call('saveServiceCharge')
             ->assertForbidden();
     }

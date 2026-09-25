@@ -51,7 +51,7 @@
 
         <div class="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-700">
             The charge is deducted from the employee's service charge share on the
-            Attendance Record screen, after the MC and absent percentages, and never
+            Service Charge page, after the MC and absent percentages, and never
             takes a share below zero. One charge per shift, however many times somebody
             taps the button.
             @if ((float) $late_rate_per_minute > 0)

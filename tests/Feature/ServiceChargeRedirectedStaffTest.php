@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Hr\AttendanceRecords;
+use App\Livewire\Hr\ServiceCharge;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Outlet;
@@ -89,10 +90,10 @@ class ServiceChargeRedirectedStaffTest extends TestCase
     /** The panel's own list, which is what the reported bug was about. */
     private function poolNames(): array
     {
-        $c = Livewire::actingAs($this->user)->test(AttendanceRecords::class)
+        $c = Livewire::actingAs($this->user)->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->klcc->id);
 
-        $m = new \ReflectionMethod(AttendanceRecords::class, 'serviceChargeEmployees');
+        $m = new \ReflectionMethod(ServiceCharge::class, 'serviceChargeEmployees');
         $m->setAccessible(true);
 
         return $m->invoke($c->instance())->pluck('name')->sort()->values()->all();
@@ -100,10 +101,10 @@ class ServiceChargeRedirectedStaffTest extends TestCase
 
     private function divisor(): float
     {
-        $c = Livewire::actingAs($this->user)->test(AttendanceRecords::class)
+        $c = Livewire::actingAs($this->user)->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->klcc->id);
 
-        $m = new \ReflectionMethod(AttendanceRecords::class, 'serviceChargeTotalPoints');
+        $m = new \ReflectionMethod(ServiceCharge::class, 'serviceChargeTotalPoints');
         $m->setAccessible(true);
 
         return (float) $m->invoke($c->instance(), []);
@@ -178,9 +179,9 @@ class ServiceChargeRedirectedStaffTest extends TestCase
         $this->employee('TAUFIQ FROM HQ', $this->hq, $this->klcc);
         $this->employee('PLAIN HQ', $this->hq);
 
-        $c = Livewire::actingAs($this->user)->test(AttendanceRecords::class)->set('outletFilter', '');
+        $c = Livewire::actingAs($this->user)->test(ServiceCharge::class)->set('outletFilter', '');
 
-        $m = new \ReflectionMethod(AttendanceRecords::class, 'serviceChargeEmployees');
+        $m = new \ReflectionMethod(ServiceCharge::class, 'serviceChargeEmployees');
         $m->setAccessible(true);
 
         $this->assertCount(3, $m->invoke($c->instance()));

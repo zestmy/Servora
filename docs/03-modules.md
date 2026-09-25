@@ -117,7 +117,7 @@ into `public/images/docs/`.
 and reports coordinates. Every comparison happens server-side in
 [ClockInService](../app/Services/Hr/ClockInService.php); the phone is trusted to observe, never to judge.
 Lateness is measured against the **approved** duty roster and charged per minute against the service charge
-split on the Attendance Record screen. A failed *check* flags a punch for review; only a missing *input*
+split on the HR › Service Charge page. A failed *check* flags a punch for review; only a missing *input*
 refuses one.
 
 ---

@@ -371,7 +371,7 @@ Domain logic lives in `app/Services/`. Before writing new code, check here — m
 **Public methods:**
 - `forPeriod(int $companyId, ?int $outletId, Carbon $from, Carbon $to): array` — keyed by `employee_id`.
 - `reduce(iterable $events): array` — the pure fold, separated so the rule is testable.
-**Used by:** [Hr/AttendanceRecords](../app/Livewire/Hr/AttendanceRecords.php), [AttendanceExportController](../app/Http/Controllers/AttendanceExportController.php) → `ServiceChargePeriod::distribute()`.
+**Used by:** [Hr/ServiceCharge](../app/Livewire/Hr/ServiceCharge.php), [AttendanceExportController](../app/Http/Controllers/AttendanceExportController.php) → `ServiceChargePeriod::distribute()`.
 **Notes:** One charge per shift — the first punch that still counts on each work date wins, so rejecting a punch in review promotes the next one.
 
 ---

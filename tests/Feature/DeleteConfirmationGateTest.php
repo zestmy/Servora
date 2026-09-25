@@ -74,7 +74,7 @@ class DeleteConfirmationGateTest extends TestCase
         'livewire/hr/employee-form.blade.php::removeCertification'               => 'unsaved certification row',
         'livewire/ingredients/index.blade.php::removeConversionRow'              => 'unsaved UOM conversion row',
         'livewire/ingredients/index.blade.php::removeSupplierRow'                => 'unsaved supplier row',
-        'livewire/hr/attendance-records.blade.php::removeServiceChargeFund'      => 'unsaved fund row',
+        'livewire/hr/service-charge.blade.php::removeServiceChargeFund'           => 'unsaved fund row',
         'livewire/settings/labour-costs.blade.php::removeAllowance'              => 'unsaved allowance row',
         'livewire/settings/statutory-rates.blade.php::removeBand'                => 'unsaved rate band',
         'livewire/labels/template-designer.blade.php::removeField'               => 'unsaved field on the label design',

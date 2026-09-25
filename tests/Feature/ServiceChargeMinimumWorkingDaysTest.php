@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Services\Hr\ServiceChargeDistribution;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Livewire\Hr\AttendanceRecords;
+use App\Livewire\Hr\ServiceCharge;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -86,12 +86,11 @@ class ServiceChargeMinimumWorkingDaysTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
             ->set('periodMode', 'range')
             ->set('rangeFrom', $this->from->toDateString())
-            ->set('rangeTo', $this->to->toDateString())
-            ->set('showServiceCharge', true);
+            ->set('rangeTo', $this->to->toDateString());
     }
 
     private function staff(string $name, float $points = 1, string $join = '2025-01-01'): Employee

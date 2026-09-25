@@ -239,6 +239,7 @@ final class NavMenu
                     ['route' => 'hr.shifts',             'label' => 'Shifts',            'permission' => 'roster.settings', 'section' => 'Scheduling'],
 
                     ['route' => 'hr.attendance',         'label' => 'Attendance Record', 'permission' => 'hr.attendance',   'section' => 'Time & Attendance'],
+                    ['route' => 'hr.service-charge',     'label' => 'Service Charge',    'permission' => 'hr.attendance.service_charge', 'section' => 'Time & Attendance'],
                     ['route' => 'hr.clock-ins',          'label' => 'Clock-Ins',         'permission' => 'hr.clock',        'section' => 'Time & Attendance'],
                     ['route' => 'hr.overtime-claims',    'label' => 'Overtime Claims',   'permission' => 'hr.claims',       'section' => 'Time & Attendance'],
                     ['route' => 'hr.leave',              'label' => 'Leave',             'permission' => 'hr.leave',        'section' => 'Time & Attendance'],

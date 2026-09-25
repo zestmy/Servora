@@ -562,11 +562,18 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     // The same document as list-pdf, on the same terms — draft included.
     Route::get('/hr/payroll/{run}/excel', \App\Http\Controllers\PayrollRunExcelController::class)->name('hr.payroll.run-excel')->middleware('can:hr.payroll');
     Route::get('/hr/attendance', \App\Livewire\Hr\AttendanceRecords::class)->name('hr.attendance')->middleware('can:hr.attendance');
+    // The service charge pool, on its own page (it was a panel under the grid).
+    // Its own ability and nothing else — "open the Service Charge page, set
+    // the pool, read the payout report" is what hr.attendance.service_charge
+    // grants, and the payout report already stood on it alone. Its downloads
+    // below take the same single gate, so the page never offers a PDF that 403s.
+    Route::get('/hr/service-charge', \App\Livewire\Hr\ServiceCharge::class)->name('hr.service-charge')->middleware('can:hr.attendance.service_charge');
     Route::get('/hr/attendance/export-pdf', [\App\Http\Controllers\AttendanceExportController::class, 'pdf'])->name('hr.attendance.export-pdf')->middleware('can:hr.attendance');
-    // Payout slips are pay data, so hr.compensation on top of the grid's own gate.
-    Route::get('/hr/attendance/service-charge-payout', [\App\Http\Controllers\AttendanceExportController::class, 'payout'])->name('hr.attendance.payout-pdf')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
-    Route::get('/hr/attendance/service-charge-distribution', [\App\Http\Controllers\AttendanceExportController::class, 'distribution'])->name('hr.attendance.distribution-pdf')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
-    Route::get('/hr/attendance/service-charge-distribution-excel', [\App\Http\Controllers\AttendanceExportController::class, 'distributionExcel'])->name('hr.attendance.distribution-excel')->middleware(['can:hr.attendance', 'can:hr.attendance.service_charge']);
+    // Service charge downloads, linked from the Service Charge page and the
+    // payout report. Same single gate as that page.
+    Route::get('/hr/attendance/service-charge-payout', [\App\Http\Controllers\AttendanceExportController::class, 'payout'])->name('hr.attendance.payout-pdf')->middleware('can:hr.attendance.service_charge');
+    Route::get('/hr/attendance/service-charge-distribution', [\App\Http\Controllers\AttendanceExportController::class, 'distribution'])->name('hr.attendance.distribution-pdf')->middleware('can:hr.attendance.service_charge');
+    Route::get('/hr/attendance/service-charge-distribution-excel', [\App\Http\Controllers\AttendanceExportController::class, 'distributionExcel'])->name('hr.attendance.distribution-excel')->middleware('can:hr.attendance.service_charge');
     // Web clock-in — the staff-facing app lives in routes/clock-staff.php;
     // these are the manager-facing review, policy and enrolment screens.
     Route::get('/hr/clock-ins', \App\Livewire\Hr\ClockEvents::class)->name('hr.clock-ins')->middleware('can:hr.clock');

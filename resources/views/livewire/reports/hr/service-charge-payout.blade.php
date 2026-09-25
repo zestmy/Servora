@@ -37,7 +37,7 @@
         <div class="card p-8 text-center">
             <p class="text-sm text-gray-700">No service charge has been saved yet.</p>
             <p class="text-xs text-gray-500 mt-1">
-                Pools are entered on <a href="{{ route('hr.attendance') }}" class="text-brand-600 hover:underline">Attendance Record</a>,
+                Pools are entered on <a href="{{ route('hr.service-charge') }}" class="text-brand-600 hover:underline">Service Charge</a>,
                 against the exact period they cover.
             </p>
         </div>
@@ -227,7 +227,7 @@
                 not what a filtered grid was showing.
                 Gross = points × RM/point (distributable ÷ total points, rounded down to the nearest ringgit);
                 the remainder stays undistributed.
-                Pools are entered on <a href="{{ route('hr.attendance') }}" class="text-brand-600 hover:underline">Attendance Record</a>.
+                Pools are entered on <a href="{{ route('hr.service-charge') }}" class="text-brand-600 hover:underline">Service Charge</a>.
             </p>
         </div>
 

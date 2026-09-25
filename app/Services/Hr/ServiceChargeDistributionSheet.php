@@ -154,7 +154,7 @@ class ServiceChargeDistributionSheet
             $sheet->setCellValueExplicit(
                 'A3',
                 'NOT CALCULATED — these figures are worked out live and will move if staff, points or '
-                    . 'attendance change. Press Save & Calculate on the attendance record to fix them.',
+                    . 'attendance change. Press Save & Calculate on the Service Charge page to fix them.',
                 DataType::TYPE_STRING
             );
             $sheet->mergeCells('A3:' . $lastCol . '3');

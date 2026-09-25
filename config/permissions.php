@@ -536,7 +536,7 @@ return [
                     'name'  => 'hr.attendance.service_charge',
                     'label' => 'Manage service charge',
                     'title' => 'HR — Service Charge',
-                    'help'  => 'Open the service charge panel, set the pool and distribute it, and read the payout report.',
+                    'help'  => 'Open the Service Charge page, set the pool and distribute it, and read the payout report.',
                 ],
 
                 /*

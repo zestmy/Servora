@@ -239,8 +239,8 @@
         <div class="px-4 py-3 border-t border-gray-100 text-xs text-gray-600">
             {{-- Said plainly rather than left for someone to discover by
                  reconciling two screens that disagree. --}}
-            Service charge is not included here — it is distributed from the attendance grid and is read on
-            <a href="{{ route('hr.attendance') }}" class="text-brand-600 hover:underline">Attendance Record</a>.
+            Service charge is not included here — it is distributed and read on
+            @can('hr.attendance.service_charge')<a href="{{ route('hr.service-charge') }}" class="text-brand-600 hover:underline">Service Charge</a>@else HR › Service Charge @endcan.
         </div>
     </div>
 

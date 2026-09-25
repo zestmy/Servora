@@ -193,7 +193,7 @@
         differ by a few sen. PCB is an annualised estimate, not the LHDN MTD formula.
     @endif
     <br>
-    Service charge is not included — it is distributed from the attendance grid and read on Attendance Record.
+    Service charge is not included — it is distributed and read on HR › Service Charge.
     <br>
     Generated {{ now()->format('d M Y, H:i') }} by {{ $exportedBy }}.
 </div>

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Hr\AttendanceRecords;
+use App\Livewire\Hr\ServiceCharge;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Outlet;
@@ -92,9 +92,8 @@ class ServiceChargeExclusionTest extends TestCase
     private function panel(User $user)
     {
         return Livewire::actingAs($user)
-            ->test(AttendanceRecords::class)
+            ->test(ServiceCharge::class)
             ->set('outletFilter', (string) $this->outlet->id)
-            ->set('showServiceCharge', true)
             ->set('scAmount', '2000');
     }
 
