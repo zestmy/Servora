@@ -451,7 +451,10 @@ class CostSummaryService
             ->join('outlet_transfers', 'outlet_transfers.id', '=', 'outlet_transfer_lines.outlet_transfer_id')
             ->whereBetween('outlet_transfers.transfer_date', [$from, $to])
             ->whereNull('outlet_transfers.deleted_at')
-            ->where('outlet_transfers.status', 'received');
+            ->where('outlet_transfers.status', 'received')
+            // An asset line is crockery or equipment moving at cost — it is
+            // in the asset register, and it is not food cost at either end.
+            ->whereNull('outlet_transfer_lines.asset_id');
 
         if ($direction === 'in') {
             $query->where('outlet_transfers.to_outlet_id', $outletId);

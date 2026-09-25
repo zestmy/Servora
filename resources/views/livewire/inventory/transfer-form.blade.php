@@ -182,9 +182,24 @@
     {{-- Items section --}}
     <div class="mt-4 card">
 
-        <div class="px-6 py-4 border-b border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700">Transfer Items</h3>
-            <p class="text-xs text-gray-600 mt-0.5">{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }}</p>
+        <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700">Transfer Items</h3>
+                <p class="text-xs text-gray-600 mt-0.5">{{ count($lines) }} item{{ count($lines) !== 1 ? 's' : '' }}</p>
+            </div>
+
+            {{-- An Asset Count sheet is the list of what an outlet holds —
+                 what one branch lends or hands over to another. Offered
+                 only on a draft, and only to somebody who may open the
+                 asset list. --}}
+            @if ($availableTemplates->isNotEmpty())
+                <select wire:model.live="selectedTemplateId" class="input w-auto text-sm py-1.5">
+                    <option value="">Load Template…</option>
+                    @foreach ($availableTemplates as $t)
+                        <option value="{{ $t->id }}">{{ $t->name }} — Asset Count, {{ $t->asset_lines_count }} item{{ $t->asset_lines_count === 1 ? '' : 's' }}</option>
+                    @endforeach
+                </select>
+            @endif
         </div>
 
         {{-- Search (draft only) --}}
@@ -286,7 +301,7 @@
                     </thead>
                     <tbody>
                         @foreach ($lines as $idx => $line)
-                            <tr wire:key="line-{{ $idx }}-{{ $line['item_type'] ?? 'ingredient' }}-{{ $line['ingredient_id'] ?? $line['recipe_id'] ?? 'c' }}" class="hover:bg-gray-50 transition group">
+                            <tr wire:key="line-{{ $idx }}-{{ $line['item_type'] ?? 'ingredient' }}-{{ $line['ingredient_id'] ?? $line['recipe_id'] ?? $line['asset_id'] ?? 'c' }}" class="hover:bg-gray-50 transition group">
                                 <td class="px-4 py-2 text-gray-600 text-xs">{{ $idx + 1 }}</td>
                                 <td class="px-4 py-2">
                                     @php $type = $line['item_type'] ?? 'ingredient'; @endphp
@@ -303,6 +318,8 @@
                                             <span class="px-1.5 py-0.5 bg-warning-100 text-warning-700 text-xs font-semibold rounded-control">PREP</span>
                                         @elseif ($type === 'recipe')
                                             <span class="badge-brand">RECIPE</span>
+                                        @elseif ($type === 'asset')
+                                            <span class="badge-info">ASSET</span>
                                         @elseif ($type === 'custom')
                                             <span class="badge-neutral">CUSTOM</span>
                                         @endif
@@ -340,7 +357,12 @@
                                                wire:model.blur="lines.{{ $idx }}.unit_cost" aria-label="Unit cost"
                                                class="w-full text-right rounded-control border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
                                     @else
-                                        <span class="block text-right tabular-nums text-gray-600" title="{{ $type === 'recipe' ? 'Recipe cost per yield unit. Not editable here.' : ($type === 'custom' ? 'Entered when the transfer was raised.' : 'Price comes from purchasing — goods received, supplier invoices and price lists. Not editable here.') }}">{{ number_format(floatval($line['unit_cost']), 4) }}</span>
+                                        <span class="block text-right tabular-nums text-gray-600" title="{{ match ($type) {
+                                            'recipe' => 'Recipe cost per yield unit. Not editable here.',
+                                            'asset'  => 'The asset cost of record. Not editable here.',
+                                            'custom' => 'Entered when the transfer was raised.',
+                                            default  => 'Price comes from purchasing — goods received, supplier invoices and price lists. Not editable here.',
+                                        } }}">{{ number_format(floatval($line['unit_cost']), 4) }}</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-right tabular-nums font-semibold text-teal-600">

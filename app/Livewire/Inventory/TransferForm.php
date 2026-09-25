@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Models\Asset;
+use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\OutletTransfer;
@@ -10,7 +12,9 @@ use App\Models\UnitOfMeasure;
 use App\Traits\LocksLineUnitCost;
 use App\Traits\ScopesToActiveOutlet;
 use App\Traits\ValidatesCompanyOutlet;
+use App\Services\AssetTransferService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class TransferForm extends Component
@@ -28,14 +32,20 @@ class TransferForm extends Component
     public string $notes           = '';
 
     /*
-     * A line is one of three kinds (item_type):
+     * A line is one of four kinds (item_type):
      *   ingredient: a Market List or prep item, the only kind that moves stock on hand
      *   recipe:     a finished dish, costed at the recipe's cost per yield unit
      *   custom:     free text for anything not in the catalogue; its unit cost is
      *               typed, because there is no price of record to take it from
+     *   asset:      crockery, smallwares, equipment — loaded from an Asset Count
+     *               sheet, costed at the asset's own cost; it moves the asset
+     *               register (AssetTransferService), never stock on hand
      */
     public array  $lines      = [];
     public string $itemSearch = '';
+
+    /** The "Load Template…" picker. Loads on change, then resets. */
+    public string $selectedTemplateId = '';
 
     protected function rules(): array
     {
@@ -55,7 +65,8 @@ class TransferForm extends Component
             'to_outlet_id'      => ['required', 'different:from_outlet_id', $this->outletExistsRule()],
             'lines'             => 'required|array|min:1',
             'lines.*.quantity'  => 'required|numeric|min:0.0001',
-            'lines.*.item_type' => 'required|in:ingredient,recipe,custom',
+            'lines.*.item_type' => 'required|in:ingredient,recipe,custom,asset',
+            'lines.*.asset_id'  => 'required_if:lines.*.item_type,asset|nullable|exists:assets,id',
             'lines.*.uom_id'    => 'required|exists:units_of_measure,id',
             'lines.*.custom_name' => 'required_if:lines.*.item_type,custom|nullable|string|max:200',
             'lines.*.unit_cost' => 'nullable|numeric|min:0',
@@ -80,7 +91,7 @@ class TransferForm extends Component
         $this->transfer_date = now()->toDateString();
 
         if ($id) {
-            $transfer = OutletTransfer::with(['lines.ingredient.baseUom', 'lines.recipe', 'lines.uom'])->findOrFail($id);
+            $transfer = OutletTransfer::with(['lines.ingredient.baseUom', 'lines.recipe', 'lines.asset', 'lines.uom'])->findOrFail($id);
 
             // Check user can access either the source or destination outlet
             $user = Auth::user();
@@ -97,11 +108,12 @@ class TransferForm extends Component
             $this->notes           = $transfer->notes ?? '';
 
             $this->lines = $transfer->lines->map(function ($l) {
-                $type = $l->ingredient_id ? 'ingredient' : ($l->recipe_id ? 'recipe' : 'custom');
+                $type = $l->ingredient_id ? 'ingredient' : ($l->recipe_id ? 'recipe' : ($l->asset_id ? 'asset' : 'custom'));
                 $line = [
                     'item_type'     => $type,
                     'ingredient_id' => $l->ingredient_id,
                     'recipe_id'     => $l->recipe_id,
+                    'asset_id'      => $l->asset_id,
                     'custom_name'   => $l->custom_name ?? '',
                     'item_name'     => $l->item_name,
                     'is_prep'       => (bool) ($l->ingredient?->is_prep ?? false),
@@ -148,6 +160,7 @@ class TransferForm extends Component
             'item_type'     => 'ingredient',
             'ingredient_id' => $ingredient->id,
             'recipe_id'     => null,
+            'asset_id'      => null,
             'custom_name'   => '',
             'item_name'     => $ingredient->name,
             'is_prep'       => (bool) $ingredient->is_prep,
@@ -178,6 +191,7 @@ class TransferForm extends Component
             'item_type'     => 'recipe',
             'ingredient_id' => null,
             'recipe_id'     => $recipe->id,
+            'asset_id'      => null,
             'custom_name'   => '',
             'item_name'     => $recipe->name,
             'is_prep'       => false,
@@ -205,6 +219,7 @@ class TransferForm extends Component
             'item_type'     => 'custom',
             'ingredient_id' => null,
             'recipe_id'     => null,
+            'asset_id'      => null,
             'custom_name'   => $name,
             'item_name'     => $name,
             'is_prep'       => false,
@@ -216,6 +231,109 @@ class TransferForm extends Component
         ];
 
         $this->itemSearch = '';
+    }
+
+    // ── Load from template ────────────────────────────────────────────────
+
+    /**
+     * Asset Count sheets are offered only to somebody who may open the asset
+     * list at all — the same gate as the request, order and stock transfer
+     * order pickers.
+     */
+    private function canRequestAssets(): bool
+    {
+        return (bool) Auth::user()?->canDo('assets.view');
+    }
+
+    /**
+     * Forms this transfer can be loaded from: Asset Count sheets. A count
+     * sheet is the list of what an outlet holds, which is what one branch
+     * lends or hands over to another. A sheet with no assets on it would load
+     * as nothing, so it is not offered.
+     */
+    private function availableTemplates(): \Illuminate\Support\Collection
+    {
+        if ($this->status !== 'draft' || ! $this->canRequestAssets()) {
+            return collect();
+        }
+
+        return FormTemplate::ofType('asset_count')->active()->ordered()
+            ->withCount(['lines as asset_lines_count' => fn ($q) => $q->where('item_type', 'asset')])
+            ->get()
+            ->filter(fn ($t) => $t->asset_lines_count > 0)
+            ->values();
+    }
+
+    public function updatedSelectedTemplateId(): void
+    {
+        if ($this->selectedTemplateId) {
+            $this->loadTemplate();
+        }
+    }
+
+    /**
+     * Copy a count sheet's assets onto this transfer, at the sheet's quantity.
+     *
+     * Cost comes off the asset and is locked like every other catalogue line;
+     * the unit is the asset's own. Assets already on the transfer are skipped,
+     * so loading twice is safe.
+     */
+    public function loadTemplate(): void
+    {
+        $templateId = (int) $this->selectedTemplateId;
+        $this->selectedTemplateId = '';
+
+        if (! $templateId || $this->status !== 'draft' || ! $this->canRequestAssets()) {
+            return;
+        }
+
+        $template = FormTemplate::with('lines.asset.uom')
+            ->ofType('asset_count')
+            ->find($templateId);
+
+        if (! $template) {
+            return;
+        }
+
+        $existing = collect($this->lines)->where('item_type', 'asset')
+            ->pluck('asset_id')->map(fn ($id) => (int) $id)->all();
+        $added = 0;
+
+        foreach ($template->lines as $tLine) {
+            if ($tLine->item_type !== 'asset' || ! $tLine->asset) continue;
+            if (in_array((int) $tLine->asset_id, $existing, true)) continue;
+
+            $this->lines[] = $this->assetLine(
+                $tLine->asset,
+                (float) $tLine->default_quantity > 0 ? (float) $tLine->default_quantity : 1.0
+            );
+
+            $existing[] = (int) $tLine->asset_id;
+            $added++;
+        }
+
+        if ($added === 0) {
+            session()->flash('info', 'Every asset on that template is already on this transfer.');
+        }
+    }
+
+    private function assetLine(Asset $asset, float $quantity): array
+    {
+        $unitCost = floatval($asset->unit_cost);
+
+        return $this->rememberLineCost([
+            'item_type'     => 'asset',
+            'ingredient_id' => null,
+            'recipe_id'     => null,
+            'asset_id'      => $asset->id,
+            'custom_name'   => '',
+            'item_name'     => $asset->name,
+            'is_prep'       => false,
+            'uom_id'        => $asset->uom_id,
+            'uom_abbr'      => $asset->uom?->abbreviation ?? '',
+            'quantity'      => (string) round($quantity, 4),
+            'total_cost'    => round($quantity * $unitCost, 4),
+        ], $unitCost);
     }
 
     public function removeLine(int $idx): void
@@ -295,7 +413,7 @@ class TransferForm extends Component
         // Capture existing lines for the activity trail before replacing them.
         $auditBefore = $isEdit
             ? $transfer->lines()->get()->map(fn ($l) => [
-                'ingredient_id' => $l->ingredient_id, 'recipe_id' => $l->recipe_id, 'custom_name' => $l->custom_name,
+                'ingredient_id' => $l->ingredient_id, 'recipe_id' => $l->recipe_id, 'asset_id' => $l->asset_id, 'custom_name' => $l->custom_name,
                 'uom_id' => $l->uom_id, 'quantity' => (float) $l->quantity,
             ])->all()
             : [];
@@ -310,6 +428,7 @@ class TransferForm extends Component
             $transfer->lines()->create([
                 'ingredient_id' => $type === 'ingredient' ? ($line['ingredient_id'] ?: null) : null,
                 'recipe_id'     => $type === 'recipe' ? ($line['recipe_id'] ?: null) : null,
+                'asset_id'      => $type === 'asset' ? ($line['asset_id'] ?: null) : null,
                 'custom_name'   => $type === 'custom' ? trim((string) $line['custom_name']) : null,
                 'uom_id'        => $line['uom_id'],
                 'quantity'      => floatval($line['quantity']),
@@ -332,7 +451,12 @@ class TransferForm extends Component
             return;
         }
 
-        $transfer->update(['status' => 'in_transit']);
+        // Status and register together: plates marked in transit must have
+        // left the source outlet's register, or neither happened.
+        DB::transaction(function () use ($transfer) {
+            $transfer->update(['status' => 'in_transit']);
+            AssetTransferService::dispatch($transfer);
+        });
         $this->status = 'in_transit';
         session()->flash('success', 'Transfer sent — now in transit.');
     }
@@ -344,7 +468,10 @@ class TransferForm extends Component
             return;
         }
 
-        $transfer->update(['status' => 'received']);
+        DB::transaction(function () use ($transfer) {
+            $transfer->update(['status' => 'received']);
+            AssetTransferService::arrive($transfer);
+        });
         $this->status = 'received';
         session()->flash('success', 'Transfer received successfully.');
     }
@@ -356,7 +483,10 @@ class TransferForm extends Component
             return;
         }
 
-        $transfer->update(['status' => 'cancelled']);
+        DB::transaction(function () use ($transfer) {
+            $transfer->update(['status' => 'cancelled']);
+            AssetTransferService::release($transfer);
+        });
         $this->status = 'cancelled';
         session()->flash('success', 'Transfer cancelled.');
     }
@@ -452,9 +582,10 @@ class TransferForm extends Component
         $totalCost = collect($this->lines)->sum(fn ($l) => floatval($l['total_cost']));
         $pageTitle = $this->transferId ? 'Transfer ' . $this->transfer_number : 'New Transfer';
         $isDraft   = $this->status === 'draft';
+        $availableTemplates = $this->availableTemplates();
 
         return view('livewire.inventory.transfer-form', compact(
-            'ingredientResults', 'prepResults', 'recipeResults', 'uoms', 'sourceOutlets', 'destinationOutlets', 'totalCost', 'isDraft'
+            'ingredientResults', 'prepResults', 'recipeResults', 'uoms', 'sourceOutlets', 'destinationOutlets', 'totalCost', 'isDraft', 'availableTemplates'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $pageTitle]);
     }
 

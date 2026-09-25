@@ -23,6 +23,7 @@
     .tag-prep   { color: #92400e; background: #fef3c7; }
     .tag-recipe { color: #115e59; background: #ccfbf1; }
     .tag-custom { color: #334155; background: #e2e8f0; }
+    .tag-asset  { color: #0369a1; background: #e0f2fe; }
 
     .net-pos { color: #b91c1c; font-weight: bold; }
     .net-neg { color: #047857; font-weight: bold; }

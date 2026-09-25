@@ -25,6 +25,10 @@ class OutletTransfer extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new CompanyScope());
+
+        // However a transfer is deleted, the asset register must not keep
+        // plates it says left one outlet or reached another.
+        static::deleted(fn (OutletTransfer $t) => \App\Services\AssetTransferService::release($t));
     }
 
     public function company(): BelongsTo

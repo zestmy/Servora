@@ -23,7 +23,7 @@ class AssetMovement extends Model
 
     protected $fillable = [
         'company_id', 'outlet_id', 'movement_type', 'reference_number', 'supplier_id',
-        'purchase_request_id', 'goods_received_note_id', 'stock_transfer_order_id', 'credit_note_id', 'department_id', 'movement_date', 'reason', 'notes',
+        'purchase_request_id', 'goods_received_note_id', 'stock_transfer_order_id', 'outlet_transfer_id', 'credit_note_id', 'department_id', 'movement_date', 'reason', 'notes',
         'total_cost', 'created_by',
     ];
 
@@ -90,6 +90,11 @@ class AssetMovement extends Model
         return $this->belongsTo(StockTransferOrder::class);
     }
 
+    public function outletTransfer(): BelongsTo
+    {
+        return $this->belongsTo(OutletTransfer::class);
+    }
+
     public function lines(): HasMany
     {
         return $this->hasMany(AssetMovementLine::class);
@@ -128,6 +133,13 @@ class AssetMovement extends Model
 
     public function reasonLabel(): ?string
     {
-        return $this->reason ? (self::REASONS[$this->reason] ?? $this->reason) : null;
+        if (! $this->reason) {
+            return null;
+        }
+
+        // 'transferred' is written by a transfer, never picked by hand, so it
+        // is labelled here rather than offered in the disposal form.
+        return self::REASONS[$this->reason]
+            ?? ($this->reason === \App\Services\AssetTransferService::REASON ? 'Transferred to another outlet' : $this->reason);
     }
 }

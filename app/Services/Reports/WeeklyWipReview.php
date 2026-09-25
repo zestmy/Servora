@@ -266,6 +266,8 @@ class WeeklyWipReview
             ->join('outlet_transfers as t', 't.id', '=', 'l.outlet_transfer_id')
             ->where('t.company_id', $companyId)
             ->whereNull('t.deleted_at')
+            // Asset lines move the asset register, not food cost.
+            ->whereNull('l.asset_id')
             ->whereIn('t.status', ['in_transit', 'received'])
             ->whereBetween('t.transfer_date', $range)
             ->when($outletIds, fn ($q) => $q->where(fn ($w) => $w

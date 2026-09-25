@@ -45,6 +45,7 @@ class TransferConsolidator
     {
         $ingredients = $this->ingredientsFor($transfers);
         $recipes     = $this->recipesFor($transfers);
+        $assets      = $this->assetsFor($transfers);
         $uoms        = UnitOfMeasure::all()->keyBy('id');
 
         $items = [];
@@ -52,7 +53,7 @@ class TransferConsolidator
         foreach ($transfers as $transfer) {
             foreach ($transfer->lines as $line) {
                 if (! $line->ingredient_id) {
-                    $this->addNonStockLine($items, $line, $recipes, $uoms);
+                    $this->addNonStockLine($items, $line, $recipes, $uoms, $assets);
                     continue;
                 }
 
@@ -147,11 +148,20 @@ class TransferConsolidator
      * A recipe or custom line. Neither has per-item unit conversions, so the
      * unit is part of the key: 2 trays and 3 pcs of the same thing stay two rows.
      */
-    private function addNonStockLine(array &$items, $line, Collection $recipes, Collection $uoms): void
+    private function addNonStockLine(array &$items, $line, Collection $recipes, Collection $uoms, ?Collection $assets = null): void
     {
         $uom = $uoms->get((int) $line->uom_id);
 
-        if ($line->recipe_id) {
+        if ($line->asset_id) {
+            $asset = $assets?->get($line->asset_id);
+            if (! $asset) {
+                return;   // the transfer outlived the asset
+            }
+            $key      = 'asset:' . $asset->id;
+            $name     = $asset->name;
+            $code     = $asset->code;
+            $category = 'Assets';
+        } elseif ($line->recipe_id) {
             $recipe = $recipes->get($line->recipe_id);
             if (! $recipe) {
                 return;   // the transfer outlived the recipe
@@ -184,6 +194,16 @@ class TransferConsolidator
         $items[$key]['quantity'] += (float) $line->quantity;
         $items[$key]['value']    += (float) $line->quantity * (float) $line->unit_cost;
         $items[$key]['lines']++;
+    }
+
+    /** @param Collection<int, OutletTransfer> $transfers */
+    private function assetsFor(Collection $transfers): Collection
+    {
+        $ids = $transfers->pluck('lines')->flatten()->pluck('asset_id')->filter()->unique();
+
+        return $ids->isEmpty()
+            ? collect()
+            : \App\Models\Asset::withoutGlobalScopes()->whereIn('id', $ids)->get()->keyBy('id');
     }
 
     /** @param Collection<int, OutletTransfer> $transfers */

@@ -92,6 +92,7 @@ class StockTransferExcelController extends StockTransferPdfController
             $type = match (true) {
                 (bool) $l->ingredient?->is_prep => 'Prep item',
                 (bool) $l->recipe_id            => 'Recipe',
+                (bool) $l->asset_id             => 'Asset',
                 ! $l->ingredient_id             => 'Custom',
                 default                         => 'Market List',
             };
@@ -122,7 +123,7 @@ class StockTransferExcelController extends StockTransferPdfController
         }
 
         $row += 2;
-        $sheet->setCellValue("A{$row}", 'Recipe and custom items are recorded for value only and do not move stock on hand.');
+        $sheet->setCellValue("A{$row}", 'Recipe and custom items are recorded for value only and do not move stock on hand. Assets move the asset register of each outlet.');
         $sheet->getStyle("A{$row}")->getFont()->setItalic(true)->getColor()->setARGB('FF64748B');
 
         return response()->streamDownload(function () use ($spreadsheet) {

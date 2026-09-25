@@ -109,14 +109,21 @@ class AuditLogService
      */
     public static function logItemLineChanges(Model $parent, array $beforeRows, array $afterRows): void
     {
-        $ingIds = $recIds = $uomIds = [];
+        $ingIds = $recIds = $assetIds = $uomIds = [];
         foreach (array_merge($beforeRows, $afterRows) as $r) {
             if (! empty($r['ingredient_id'])) $ingIds[] = (int) $r['ingredient_id'];
             if (! empty($r['recipe_id']))     $recIds[] = (int) $r['recipe_id'];
+            if (! empty($r['asset_id']))      $assetIds[] = (int) $r['asset_id'];
             if (! empty($r['uom_id']))        $uomIds[] = (int) $r['uom_id'];
         }
 
         $labels = self::itemLabels($ingIds, $recIds);
+
+        if ($ids = array_filter(array_unique($assetIds))) {
+            foreach (\App\Models\Asset::whereIn('id', $ids)->pluck('name', 'id') as $id => $name) {
+                $labels['asset:' . $id] = $name;
+            }
+        }
         $uoms   = self::uomLabels($uomIds);
 
         $build = function (array $rows) use ($labels, $uoms) {
@@ -124,9 +131,10 @@ class AuditLogService
             foreach ($rows as $r) {
                 $ing = (int) ($r['ingredient_id'] ?? 0);
                 $rec = (int) ($r['recipe_id'] ?? 0);
+                $ast = (int) ($r['asset_id'] ?? 0);
                 // A free-text line (a custom transfer item) is identified by its name.
                 $custom = trim((string) ($r['custom_name'] ?? ''));
-                $key = $ing ? 'ing:' . $ing : ($rec ? 'rec:' . $rec : ($custom !== '' ? 'custom:' . mb_strtolower($custom) : null));
+                $key = $ing ? 'ing:' . $ing : ($rec ? 'rec:' . $rec : ($ast ? 'asset:' . $ast : ($custom !== '' ? 'custom:' . mb_strtolower($custom) : null)));
                 if ($key === null) continue;
 
                 $map[$key] = [

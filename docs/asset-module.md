@@ -325,11 +325,34 @@ asset's own `unit_cost` when it was free. The catalogue cost is not written
 back, because a transfer price is an internal recharge. Ingredient lines are
 untouched: receiving a transfer has never posted food stock.
 
+### Moving assets between outlets on a transfer (2026-09-26)
+
+Inventory › New Transfer takes asset lines, loaded from an Asset Count sheet
+behind the same `assets.view` gate. An asset line is a fourth kind beside
+ingredient, recipe and custom. Its cost is the asset's `unit_cost`, locked
+through `LocksLineUnitCost` like any catalogue line, and its unit is the
+asset's own.
+
+`AssetTransferService` writes the register entries, tied back by
+`asset_movements.outlet_transfer_id`:
+
+- **Send** writes a disposal at the source outlet, reason `transferred`.
+  Plates in a van are at neither branch, so a count at the source while they
+  travel should not expect them.
+- **Receive** writes a receipt at the destination.
+- **Cancel**, or deleting the transfer by any route, removes both. The delete
+  hook is on the `OutletTransfer` model.
+
+Each entry is keyed on the transfer and the movement type, so repeating a step
+replaces rather than doubles. Asset lines never touch stock on hand, because
+every stock reader keys on `ingredient_id`. They are also excluded from the
+food cost summary and the weekly WIP review, since crockery is not food cost.
+The transfer's own documents still show them: the PDF and Excel tag them
+Asset, and the period detail report files them under "Assets".
+
 ## Not in v1
 
 - Depreciation. Value is at cost. `assets` has no `useful_life_months`; adding
   one plus an acquisition date per receipt line would be the start.
 - Per-unit serial numbers, warranty expiry, service schedules.
-- Asset transfers between outlets (a disposal at one and a receipt at the other
-  works today, but it is two documents and nothing ties them together).
 - Excel exports, and a PDF of the register (the count sheet has one — see above).

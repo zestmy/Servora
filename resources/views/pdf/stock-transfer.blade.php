@@ -84,6 +84,8 @@
                             <span class="tag tag-prep">PREP</span>
                         @elseif ($l->recipe_id)
                             <span class="tag tag-recipe">RECIPE</span>
+                        @elseif ($l->asset_id)
+                            <span class="tag tag-asset">ASSET</span>
                         @elseif (! $l->ingredient_id)
                             <span class="tag tag-custom">CUSTOM</span>
                         @endif
@@ -127,5 +129,6 @@
     <div class="computer-generated-note">
         Unit costs are from purchasing records at the time the transfer was raised; recipes at cost per yield unit.
         Recipe and custom items are recorded for value only and do not move stock on hand.
+        Assets move the asset register of each outlet, not stock on hand.
     </div>
 @endsection

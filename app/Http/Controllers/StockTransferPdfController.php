@@ -35,7 +35,7 @@ class StockTransferPdfController extends Controller
     {
         $transfer = OutletTransfer::with([
             'lines' => fn ($q) => $q->orderBy('id'),
-            'lines.ingredient', 'lines.recipe', 'lines.uom', 'fromOutlet', 'toOutlet', 'createdBy',
+            'lines.ingredient', 'lines.recipe', 'lines.asset', 'lines.uom', 'fromOutlet', 'toOutlet', 'createdBy',
         ])->findOrFail($id);
 
         $user = $request->user();

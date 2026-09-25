@@ -11,7 +11,7 @@ class OutletTransferLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'outlet_transfer_id', 'ingredient_id', 'recipe_id', 'custom_name', 'quantity', 'uom_id', 'unit_cost',
+        'outlet_transfer_id', 'ingredient_id', 'recipe_id', 'asset_id', 'custom_name', 'quantity', 'uom_id', 'unit_cost',
     ];
 
     protected $casts = [
@@ -34,10 +34,21 @@ class OutletTransferLine extends Model
         return $this->belongsTo(Recipe::class);
     }
 
-    /** What the line is called, whichever of the three kinds it is. */
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class);
+    }
+
+    /** An asset line: it moves the asset register, never stock on hand. */
+    public function isAssetItem(): bool
+    {
+        return $this->asset_id !== null;
+    }
+
+    /** What the line is called, whichever of the four kinds it is. */
     public function getItemNameAttribute(): string
     {
-        return $this->ingredient?->name ?? $this->recipe?->name ?? $this->custom_name ?? '-';
+        return $this->ingredient?->name ?? $this->recipe?->name ?? $this->asset?->name ?? $this->custom_name ?? '-';
     }
 
     public function uom(): BelongsTo

@@ -38,6 +38,11 @@ trait LocksLineUnitCost
             return 'recipe:' . (int) ($line['recipe_id'] ?? 0);
         }
 
+        // An asset has one unit, its own, so the id is the whole identity.
+        if (($line['item_type'] ?? 'ingredient') === 'asset') {
+            return 'asset:' . (int) ($line['asset_id'] ?? 0);
+        }
+
         // The UOM is part of the identity: the same ingredient counted in
         // grams and in kilograms is not the same price.
         return 'ingredient:' . (int) ($line['ingredient_id'] ?? 0)
@@ -85,6 +90,12 @@ trait LocksLineUnitCost
             $recipe = Recipe::find($line['recipe_id'] ?? null);
 
             return $recipe ? round((float) $recipe->cost_per_yield_unit, 4) : 0.0;
+        }
+
+        if (($line['item_type'] ?? 'ingredient') === 'asset') {
+            $asset = \App\Models\Asset::find($line['asset_id'] ?? null);
+
+            return $asset ? round((float) $asset->unit_cost, 4) : 0.0;
         }
 
         $ingredient = Ingredient::with(['baseUom', 'recipeUom', 'uomConversions'])
