@@ -184,9 +184,15 @@ class PurchaseRequestForm extends Component
      *
      * QUANTITIES DO carry here, unlike the label sets that import the same
      * templates: a form's default quantity is how much to order or count, which
-     * is exactly what a request line is asking for. Only ingredient lines come
-     * across — a request orders ingredients, and a template's recipe lines have
-     * nothing to buy behind them.
+     * is exactly what a request line is asking for. Ingredient lines and asset
+     * lines both come across — an Asset Count sheet is the list of what an
+     * outlet is meant to hold, which is exactly what a replacement order is
+     * written against. A template's recipe lines have nothing to buy behind
+     * them and are skipped.
+     *
+     * Asset lines are gated the same way as the asset picker: somebody who may
+     * not open the asset list does not get assets on their request by way of
+     * a template either. Those lines are skipped and the summary says so.
      *
      * Items already on the request are skipped rather than duplicated, so
      * loading twice is safe and loading again after the form grew adds only
@@ -204,20 +210,31 @@ class PurchaseRequestForm extends Component
             return;
         }
 
-        $before  = count($this->lines);
-        $skipped = 0;
+        $canRequestAssets = $this->canRequestAssets();
+
+        $before         = count($this->lines);
+        $skippedRecipes = 0;
+        $skippedAssets  = 0;
 
         foreach ($template->lines as $line) {
-            if ($line->item_type !== 'ingredient' || ! $line->ingredient_id) {
-                $skipped++;
+            $countBefore = count($this->lines);
+
+            if ($line->item_type === 'ingredient' && $line->ingredient_id) {
+                $this->addIngredient((int) $line->ingredient_id);
+            } elseif ($line->item_type === 'asset' && $line->asset_id) {
+                if (! $canRequestAssets) {
+                    $skippedAssets++;
+                    continue;
+                }
+
+                $this->addAsset((int) $line->asset_id);
+            } else {
+                $skippedRecipes++;
                 continue;
             }
 
-            $countBefore = count($this->lines);
-            $this->addIngredient((int) $line->ingredient_id);
-
-            // addIngredient() returns quietly on a duplicate, so the quantity is
-            // written only when a line was actually appended.
+            // addIngredient()/addAsset() return quietly on a duplicate, so the
+            // quantity is written only when a line was actually appended.
             if (count($this->lines) > $countBefore && (float) $line->default_quantity > 0) {
                 $this->lines[count($this->lines) - 1]['quantity'] = round((float) $line->default_quantity, 1);
             }
@@ -226,20 +243,39 @@ class PurchaseRequestForm extends Component
         $added = count($this->lines) - $before;
         $this->showTemplateImport = false;
         $this->ingredientSearch   = '';
+        $this->assetSearch        = '';
 
-        session()->flash('success', $this->importSummary($template->name, $added, $skipped));
+        session()->flash('success', $this->importSummary($template->name, $added, $skippedRecipes, $skippedAssets));
     }
 
     /** Says what happened to every line, including the ones that did nothing. */
-    private function importSummary(string $template, int $added, int $skipped): string
+    private function importSummary(string $template, int $added, int $skippedRecipes, int $skippedAssets = 0): string
     {
         $parts = [sprintf('%d item%s added from “%s”', $added, $added === 1 ? '' : 's', $template)];
 
-        if ($skipped) {
-            $parts[] = sprintf('%d skipped — recipes have nothing to order', $skipped);
+        if ($skippedRecipes) {
+            $parts[] = sprintf('%d skipped — recipes have nothing to order', $skippedRecipes);
+        }
+
+        if ($skippedAssets) {
+            $parts[] = sprintf(
+                '%d asset%s skipped — you do not have access to the asset register',
+                $skippedAssets,
+                $skippedAssets === 1 ? '' : 's'
+            );
         }
 
         return implode('. ', $parts) . '.';
+    }
+
+    /**
+     * The asset picker, and asset lines on a loaded template, are offered only
+     * to somebody who may open the asset list at all — the same ability that
+     * gates the module.
+     */
+    private function canRequestAssets(): bool
+    {
+        return (bool) Auth::user()?->canDo('assets.view');
     }
 
     public function addIngredient(int $ingredientId): void
@@ -570,9 +606,10 @@ class PurchaseRequestForm extends Component
                 ->get();
         }
 
-        $assetResults = [];
+        $assetResults     = [];
+        $canRequestAssets = $this->canRequestAssets();
 
-        if (strlen($this->assetSearch) >= 2 && Auth::user()?->canDo('assets.view')) {
+        if (strlen($this->assetSearch) >= 2 && $canRequestAssets) {
             $onRequest = collect($this->lines)->pluck('asset_id')->filter()->map(fn ($id) => (int) $id)->all();
             $term      = '%' . $this->assetSearch . '%';
 
@@ -604,19 +641,24 @@ class PurchaseRequestForm extends Component
         return view('livewire.purchasing.purchase-request-form', [
             'searchResults' => $searchResults,
             'assetResults'  => $assetResults,
-            // The asset picker is offered only to somebody who may open the
-            // asset list at all — the same ability that gates the module.
-            'canRequestAssets' => (bool) Auth::user()?->canDo('assets.view'),
+            'canRequestAssets' => $canRequestAssets,
             'suppliers'     => $suppliers,
             'departments'   => $departments,
             'uoms'          => $uoms,
             'isEditable'    => $isEditable,
             'outlets'       => $outlets,
             // Only forms with something to order on them: a template of nothing
-            // but recipes would load as an empty request.
+            // but recipes would load as an empty request, and so would an Asset
+            // Count sheet for somebody who may not request assets.
             'formTemplates' => \App\Models\FormTemplate::active()->ordered()
-                ->withCount(['lines' => fn ($q) => $q->where('item_type', 'ingredient')])
+                ->withCount([
+                    'lines as ingredient_lines_count' => fn ($q) => $q->where('item_type', 'ingredient'),
+                    'lines as asset_lines_count'      => fn ($q) => $q->where('item_type', 'asset'),
+                ])
                 ->get()
+                ->each(function ($t) use ($canRequestAssets) {
+                    $t->lines_count = $t->ingredient_lines_count + ($canRequestAssets ? $t->asset_lines_count : 0);
+                })
                 ->filter(fn ($t) => $t->lines_count > 0),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => $this->requestId ? 'Edit Purchase Request' : 'New Purchase Request']);
     }

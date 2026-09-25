@@ -156,8 +156,9 @@
                                 <button type="button" wire:click="closeTemplateImport" class="btn-ghost">Cancel</button>
                             </div>
                             <p class="help mt-2">
-                                Items and their default quantities come across. Anything already on this
-                                request is left alone, so loading twice is safe.
+                                Items and their default quantities come across, including the assets on an
+                                Asset Count sheet. Anything already on this request is left alone, so loading
+                                twice is safe.
                             </p>
                         </div>
                     @endif
