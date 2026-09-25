@@ -217,8 +217,10 @@
                 <select wire:model.live="selectedTemplateId"
                         class="text-xs border-gray-300 rounded-lg shadow-sm focus:border-brand-500 focus:ring-brand-500 py-1.5">
                     <option value="">Load Template…</option>
+                    {{-- A count sheet says what it is, so the two "Crockery"
+                         forms in one company can be told apart on this list. --}}
                     @foreach ($availableTemplates as $t)
-                        <option value="{{ $t->id }}">{{ $t->name }}</option>
+                        <option value="{{ $t->id }}">{{ $t->name }}{{ $t->form_type === 'asset_count' ? ' — Asset Count' : '' }}</option>
                     @endforeach
                 </select>
             @endif

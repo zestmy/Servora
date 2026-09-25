@@ -403,18 +403,65 @@ class OrderForm extends Component
 
     // ── Load from template ────────────────────────────────────────────────
 
+    /**
+     * Asset lines on a loaded template are offered only to somebody who may
+     * open the asset list at all — the same ability that gates the module
+     * and the asset picker on a purchase request.
+     */
+    private function canRequestAssets(): bool
+    {
+        return (bool) Auth::user()?->canDo('assets.view');
+    }
+
+    /**
+     * Forms this order can be loaded from.
+     *
+     * Purchase Order forms first, as always. Then Asset Count sheets: a
+     * count sheet is the list of what an outlet is meant to hold, which is
+     * exactly what a replacement order is written against. A sheet with no
+     * assets on it would load as nothing, so it is not offered; nor is any
+     * sheet to somebody who may not request assets.
+     */
+    private function availableTemplates(): \Illuminate\Support\Collection
+    {
+        $orders = FormTemplate::ofType('purchase_order')->active()->ordered()->get();
+
+        if (! $this->canRequestAssets()) {
+            return $orders;
+        }
+
+        $counts = FormTemplate::ofType('asset_count')->active()->ordered()
+            ->withCount(['lines as asset_lines_count' => fn ($q) => $q->where('item_type', 'asset')])
+            ->get()
+            ->filter(fn ($t) => $t->asset_lines_count > 0);
+
+        return $orders->concat($counts);
+    }
+
+    /**
+     * Copy a template's items onto this order.
+     *
+     * Ingredient lines price off the supplier as they always have, and take
+     * the par level over the form's quantity. Asset lines come across the way
+     * a converted request's do — cost off the asset itself, its own unit —
+     * at the quantity written on the count sheet, since an asset has no par
+     * level to prefer. Recipe lines have nothing to buy behind them.
+     */
     public function loadTemplate(): void
     {
         if (! $this->selectedTemplateId) return;
 
         $template = FormTemplate::with([
             'lines.ingredient.baseUom',
+            'lines.asset.uom',
         ])->find((int) $this->selectedTemplateId);
 
         if (! $template) {
             $this->selectedTemplateId = '';
             return;
         }
+
+        $canRequestAssets = $this->canRequestAssets();
 
         // Pre-fill header fields from template (only if not already set)
         if (! $this->supplier_id && $template->supplier_id) {
@@ -427,12 +474,28 @@ class OrderForm extends Component
             $this->department_id = $template->department_id;
         }
 
-        $existing = collect($this->lines)->pluck('ingredient_id')->map(fn ($id) => (int) $id)->toArray();
+        // Keyed the way the lines are told apart, so two assets do not collapse
+        // onto one null ingredient bucket and skip each other.
+        $existing = collect($this->lines)->map(fn ($l) => self::lineKey($l))->all();
         $added = 0;
 
         foreach ($template->lines as $tLine) {
+            if ($tLine->item_type === 'asset') {
+                if (! $canRequestAssets || ! $tLine->asset) continue;
+                if (in_array('asset:' . $tLine->asset_id, $existing, true)) continue;
+
+                $qty  = (float) $tLine->default_quantity > 0 ? (float) $tLine->default_quantity : 1.0;
+                $line = $this->assetLine($tLine->asset, $qty, null);
+                $line['total_cost'] = round($qty * floatval($line['unit_cost']), 4);
+
+                $this->lines[] = $line;
+                $existing[]    = 'asset:' . $tLine->asset_id;
+                $added++;
+                continue;
+            }
+
             if ($tLine->item_type !== 'ingredient' || ! $tLine->ingredient) continue;
-            if (in_array($tLine->ingredient_id, $existing)) continue;
+            if (in_array('ingredient:' . (int) $tLine->ingredient_id, $existing, true)) continue;
 
             [$unitCost, $supplierUomId, $packSize, $sSku, $sProdName] = $this->lookupSupplierInfo($tLine->ingredient_id, $this->supplier_id);
             $parLevel = $this->getParLevel($tLine->ingredient_id);
@@ -459,7 +522,7 @@ class OrderForm extends Component
                 'balance'         => '',
             ];
 
-            $existing[] = $tLine->ingredient_id;
+            $existing[] = 'ingredient:' . (int) $tLine->ingredient_id;
             $added++;
         }
 
@@ -832,7 +895,7 @@ class OrderForm extends Component
             ->toArray();
         $taxAmount          = collect($this->lines)->sum(fn ($l) => floatval($l['tax_amount'] ?? 0));
         $grandTotal         = round($subtotal + $taxAmount, 4);
-        $availableTemplates = FormTemplate::ofType('purchase_order')->active()->ordered()->get();
+        $availableTemplates = $this->availableTemplates();
         $isEditable         = ! $this->orderId || in_array($this->status, ['draft', 'submitted']);
         $requirePoApproval  = $company?->require_po_approval ?? true;
 
