@@ -76,7 +76,7 @@
                             </span>
                             <span class="text-sm font-medium text-gray-800">{{ $a->component?->name ?? 'Removed component' }}</span>
                             <span class="text-sm tabular-nums text-gray-700">
-                                {{ number_format((float) $a->amount, 2) }}{{ $a->component?->calculation === 'percent_basic' ? '% of basic' : '' }}
+                                {{ number_format((float) $a->amount, 2) }}{{ $a->component?->amountSuffix() }}
                             </span>
                             <span class="text-[11px] text-gray-500">
                                 {{ $a->effective_from->format('d M Y') }} →
@@ -168,7 +168,7 @@
                             <dd class="tabular-nums text-gray-800">{{ number_format($thisMonth['basic'], 2) }}</dd>
                         </div>
                         @foreach ($thisMonth['components']->where('kind', 'allowance') as $c)
-                            <div class="flex justify-between"><dt class="text-gray-600 pl-3">{{ $c['name'] }}</dt><dd class="tabular-nums text-gray-800">{{ number_format($c['amount'], 2) }}</dd></div>
+                            <div class="flex justify-between"><dt class="text-gray-600 pl-3">{{ $c['name'] }}@if ($c['note'] ?? null)<span class="block text-[11px] text-gray-500">{{ $c['note'] }}</span>@endif</dt><dd class="tabular-nums text-gray-800">{{ number_format($c['amount'], 2) }}</dd></div>
                         @endforeach
                         <div class="flex justify-between"><dt class="text-gray-600">Overtime ({{ number_format($thisMonth['ot_hours'], 2) }} hrs)</dt><dd class="tabular-nums text-gray-800">{{ number_format($thisMonth['ot_amount'], 2) }}</dd></div>
                         @foreach ($thisMonth['components']->where('kind', 'deduction') as $c)
@@ -333,7 +333,7 @@
                     @php $picked = $components->firstWhere('id', (int) $a_component_id); @endphp
                     <div>
                         <label class="text-xs font-semibold text-gray-600">
-                            {{ $picked?->calculation === 'percent_basic' ? 'Percent of basic salary' : 'Amount' }}
+                            {{ match ($picked?->calculation) { 'percent_basic' => 'Percent of basic salary', 'per_working_day' => 'Amount per working day', default => 'Amount' } }}
                             <span class="text-danger-500">*</span>
                         </label>
                         <input type="number" step="0.01" min="0" wire:model="a_amount" class="mt-1 w-full text-sm rounded-lg border-gray-300"

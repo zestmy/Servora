@@ -290,6 +290,26 @@ class CompensationSummary
             ->pluck('total', 'employee_id');
 
         /*
+         * ATTENDANCE-BASED ALLOWANCES — a meal allowance per working day, an
+         * attendance allowance lost to an MC, an absence or a late arrival.
+         *
+         * THE ATTENDANCE PERIOD, like the hours and days above: both read the
+         * grid, and a company that closes its timesheet on the 20th means the
+         * meal days counted to the 20th. The assignment itself is still dated
+         * against the master period, which is what decides whether it is owed
+         * at all.
+         *
+         * Only queried when somebody on the run has one, so a company that
+         * never set one up pays nothing for it.
+         */
+        $needsAttendanceFacts = $assignments->flatten(1)
+            ->contains(fn ($a) => $a->component?->readsAttendance());
+
+        $attendanceFacts = $needsAttendanceFacts
+            ? AttendanceAllowanceFacts::forEmployees($companyId, $staff->pluck('id')->all(), $attendanceFrom, $attendanceTo)
+            : [];
+
+        /*
          * THE DIVISOR FOR AN INCOMPLETE MONTH — the length of the company's
          * NORMAL wage period for this month, not the length of this run.
          *
@@ -329,7 +349,7 @@ class CompensationSummary
                 ->forMonth($companyId, $staff->pluck('id')->all(), $month->copy()->startOfMonth())
             : collect();
 
-        $rows = $staff->map(function (Employee $employee) use ($assignments, $otHours, $settings, $calculator, $from, $to, $ytd, $hoursByEmployee, $daysByEmployee, $wagePeriodDays, $adjustments) {
+        $rows = $staff->map(function (Employee $employee) use ($assignments, $attendanceFacts, $otHours, $settings, $calculator, $from, $to, $ytd, $hoursByEmployee, $daysByEmployee, $wagePeriodDays, $adjustments) {
             /*
              * BASIC, and what basic_salary means depends on the pay type.
              *
@@ -461,11 +481,39 @@ class CompensationSummary
                     ! $employee->takesPayrollDeductions(),
                     fn ($lines) => $lines->filter(fn ($a) => $a->component->kind !== 'deduction'),
                 )
-                ->map(function ($a) use ($basic, $monthFraction) {
+                ->map(function ($a) use ($basic, $monthFraction, $attendanceFacts, $employee) {
                     $amount = $a->component->resolveAmount((float) $a->amount, $basic);
 
+                    /*
+                     * PER WORKING DAY is not scaled for a part month either:
+                     * it already follows the days worked, and scaling it too
+                     * would take the joiner's missing days off twice.
+                     *
+                     * An ATTENDANCE ALLOWANCE is a fixed monthly one that is
+                     * lost outright, so it scales like any fixed allowance
+                     * when it is kept.
+                     */
                     $scaleable = $a->component->kind === 'allowance'
-                        && $a->component->calculation !== 'percent_basic';
+                        && ! in_array($a->component->calculation, ['percent_basic', 'per_working_day'], true);
+
+                    $facts = $attendanceFacts[$employee->id] ?? AttendanceAllowanceFacts::EMPTY;
+                    $note  = null;
+
+                    if ($a->component->calculation === 'per_working_day') {
+                        $note   = $facts['working_days'] . ' days × ' . number_format($amount, 2);
+                        $amount = round($amount * $facts['working_days'], 2);
+                    } elseif ($a->component->calculation === 'attendance_bonus') {
+                        $reason = AttendanceAllowanceFacts::forfeitReason($facts);
+
+                        // Kept on the payslip at zero rather than dropped, with
+                        // the reason — a missing allowance is a question, one
+                        // reading "forfeited: 1 MC" answers itself.
+                        if ($reason !== null) {
+                            $note      = 'forfeited: ' . $reason;
+                            $amount    = 0.0;
+                            $scaleable = false;
+                        }
+                    }
 
                     return [
                         'name'     => $a->component->name,
@@ -475,6 +523,9 @@ class CompensationSummary
                         // were reduced — a full one sitting beside a scaled one
                         // otherwise looks like an error.
                         'prorated' => $scaleable && $monthFraction < 1.0,
+                        // How an attendance-based line was worked out, or why
+                        // it is zero. Null for every other kind.
+                        'note'     => $note,
                         'taxable'  => (bool) $a->component->is_taxable,
                         'epf'      => (bool) $a->component->epf_applicable,
                         'socso'    => (bool) $a->component->socso_applicable,

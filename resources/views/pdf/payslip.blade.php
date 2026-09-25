@@ -216,6 +216,11 @@
                                     @if ($a['prorated'] ?? false)
                                         <span class="sub">part month</span>
                                     @endif
+                                    {{-- How an attendance-based allowance was
+                                         worked out, or why it is zero. --}}
+                                    @if ($a['note'] ?? null)
+                                        <span class="sub">{{ $a['note'] }}</span>
+                                    @endif
                                 </td>
                                 <td class="amt">{{ number_format((float) ($a['amount'] ?? 0), 2) }}</td>
                             </tr>

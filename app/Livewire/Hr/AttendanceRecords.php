@@ -98,6 +98,7 @@ class AttendanceRecords extends Component
     public string $c_color       = 'slate';
     public string $c_sort        = '';
     public bool   $c_is_active   = true;
+    public bool   $c_working_day = false;
 
     public function mount(): void
     {
@@ -814,6 +815,7 @@ class AttendanceRecords extends Component
         $this->c_color       = $code->color;
         $this->c_sort        = (string) $code->sort_order;
         $this->c_is_active   = $code->is_active;
+        $this->c_working_day = (bool) $code->counts_as_working_day;
     }
 
     public function saveCode(): void
@@ -845,6 +847,8 @@ class AttendanceRecords extends Component
             'color'      => $this->c_color,
             'sort_order' => (int) ($this->c_sort ?: 0),
             'is_active'  => $this->c_is_active,
+            // Read by allowances paid per working day (a meal allowance).
+            'counts_as_working_day' => $this->c_working_day,
         ];
 
         if ($this->editingCodeId) {
@@ -902,6 +906,7 @@ class AttendanceRecords extends Component
         $this->c_color     = 'slate';
         $this->c_sort      = '';
         $this->c_is_active = true;
+        $this->c_working_day = false;
     }
 
     // ── Query & render ─────────────────────────────────────────────────────

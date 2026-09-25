@@ -16,9 +16,19 @@ class PayComponent extends Model
     ];
 
     public const CALCULATIONS = [
-        'fixed'         => 'Fixed amount',
-        'percent_basic' => '% of basic salary',
+        'fixed'            => 'Fixed amount',
+        'percent_basic'    => '% of basic salary',
+        'per_working_day'  => 'Per working day (from attendance)',
+        'attendance_bonus' => 'Fixed, forfeited on MC / absence / lateness',
     ];
+
+    /**
+     * Calculations that read the attendance grid, and so only make sense as
+     * an allowance: a deduction per working day, or one "forfeited" by good
+     * attendance, is not something anybody has asked for and would be easy
+     * to set up by accident.
+     */
+    public const ATTENDANCE_CALCULATIONS = ['per_working_day', 'attendance_bonus'];
 
     protected $fillable = [
         'company_id', 'name', 'description', 'kind', 'calculation',
@@ -65,7 +75,31 @@ class PayComponent extends Model
         return $this->kind === 'deduction';
     }
 
-    /** The signed value this component contributes, given a basic salary. */
+    public function readsAttendance(): bool
+    {
+        return in_array($this->calculation, self::ATTENDANCE_CALCULATIONS, true);
+    }
+
+    /**
+     * What the assigned amount means, for a label beside the figure:
+     * "7.50 per working day", "10.00% of basic".
+     */
+    public function amountSuffix(): string
+    {
+        return match ($this->calculation) {
+            'percent_basic'   => '% of basic',
+            'per_working_day' => ' per working day',
+            default           => '',
+        };
+    }
+
+    /**
+     * The signed value this component contributes, given a basic salary.
+     *
+     * For the attendance calculations this is the RATE — one day's worth, or
+     * the allowance if it is kept. CompensationSummary applies the attendance
+     * to it, because only it has the grid.
+     */
     public function resolveAmount(float $amount, float $basicSalary): float
     {
         $value = $this->calculation === 'percent_basic'

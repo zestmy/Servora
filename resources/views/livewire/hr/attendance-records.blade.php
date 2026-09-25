@@ -1072,11 +1072,18 @@
                                        class="w-full text-sm rounded-lg border-gray-300 shadow-sm" />
                             </div>
                         </div>
-                        <div class="flex items-center justify-between mt-3">
-                            <label class="flex items-center gap-2 text-sm text-gray-600">
-                                <input type="checkbox" wire:model="c_is_active" class="rounded border-gray-300 text-brand-600" />
-                                Active
-                            </label>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+                            <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+                                <label class="flex items-center gap-2 text-sm text-gray-600">
+                                    <input type="checkbox" wire:model="c_is_active" class="rounded border-gray-300 text-brand-600" />
+                                    Active
+                                </label>
+                                {{-- Read by allowances paid per working day, e.g. a meal allowance. --}}
+                                <label class="flex items-center gap-2 text-sm text-gray-600">
+                                    <input type="checkbox" wire:model="c_working_day" class="rounded border-gray-300 text-brand-600" />
+                                    Counts as a working day
+                                </label>
+                            </div>
                             <div class="flex gap-2">
                                 @if ($editingCodeId)
                                     <button wire:click="openCodeCreate"
@@ -1104,6 +1111,9 @@
                                     @if ($code->system_key)
                                         <span class="ml-1 text-[10px] uppercase tracking-wider text-gray-600">built-in</span>
                                     @endif
+                                    @if ($code->counts_as_working_day)
+                                        <span class="ml-1 text-[10px] uppercase tracking-wider text-gray-600">working day</span>
+                                    @endif
                                 </span>
                                 <button wire:click="openCodeEdit({{ $code->id }})"
                                         class="text-xs text-brand-600 hover:text-brand-800">Edit</button>
@@ -1124,6 +1134,7 @@
                     <p class="text-[11px] text-gray-600 mt-2">
                         Built-in codes (Present ✓, Day Off X, Absent ABS) can be relabelled and recoloured but not deleted.
                         Codes already used in records can only be deactivated.
+                        "Working day" codes are what a per-working-day allowance (e.g. meal allowance) counts.
                     </p>
                 </div>
             </div>

@@ -65,8 +65,17 @@ class PayComponents extends Component
                     ->ignore($this->editingId),
             ],
             'description'    => 'nullable|string|max:255',
-            'kind'           => 'required|in:' . implode(',', array_keys(PayComponent::KINDS)),
             'calculation'    => 'required|in:' . implode(',', array_keys(PayComponent::CALCULATIONS)),
+            // Attendance-based calculations are allowances only; see
+            // PayComponent::ATTENDANCE_CALCULATIONS.
+            'kind'           => [
+                'required', 'in:' . implode(',', array_keys(PayComponent::KINDS)),
+                function ($attribute, $value, $fail) {
+                    if ($value === 'deduction' && in_array($this->calculation, PayComponent::ATTENDANCE_CALCULATIONS, true)) {
+                        $fail('This calculation is for allowances only.');
+                    }
+                },
+            ],
             'default_amount' => 'nullable|numeric|min:0',
             'sort_order'     => 'required|integer|min:0|max:9999',
         ];

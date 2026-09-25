@@ -504,9 +504,7 @@ class ServiceChargePeriod extends Model
             $latePenalties = $row->withManualLateness($latePenalties);
         }
 
-        $mcCodeIds = $codes->filter(fn ($c) => in_array(strtoupper(trim($c->code)), ['MC', 'SL'], true)
-                || stripos($c->label, 'sick') !== false)
-            ->pluck('id')->all();
+        $mcCodeIds = $codes->filter(fn ($c) => $c->isMedicalLeave())->pluck('id')->all();
         $absentId = $codes->firstWhere('system_key', 'absent')?->id;
 
         // Days actually worked, for the qualifying minimum below. Counted

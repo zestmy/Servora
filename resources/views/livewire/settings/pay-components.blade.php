@@ -185,7 +185,7 @@
                             </div>
                             <div>
                                 <label class="text-xs font-semibold text-gray-600">Calculation <span class="text-danger-500">*</span></label>
-                                <select wire:model="calculation" class="mt-1 w-full text-sm rounded-lg border-gray-300">
+                                <select wire:model.live="calculation" class="mt-1 w-full text-sm rounded-lg border-gray-300">
                                     @foreach (\App\Models\PayComponent::CALCULATIONS as $v => $l)
                                         <option value="{{ $v }}">{{ $l }}</option>
                                     @endforeach
@@ -193,6 +193,17 @@
                                 <x-input-error :messages="$errors->get('calculation')" class="mt-1" />
                             </div>
                         </div>
+                        @if ($calculation === 'per_working_day')
+                            <p class="text-[11px] text-gray-600">
+                                Amount × days in the attendance period marked with a code that counts as a working day
+                                (set on each attendance code), or with hours worked. E.g. meal allowance RM7.50 a day.
+                            </p>
+                        @elseif ($calculation === 'attendance_bonus')
+                            <p class="text-[11px] text-gray-600">
+                                Paid in full unless the attendance period has any MC / sick leave, any Absent mark,
+                                or any late clock-in (after grace, not waived). Then it is RM0 for that payroll.
+                            </p>
+                        @endif
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="text-xs font-semibold text-gray-600">Default amount</label>

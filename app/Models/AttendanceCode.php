@@ -9,13 +9,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AttendanceCode extends Model
 {
     protected $fillable = [
-        'company_id', 'code', 'label', 'color', 'system_key', 'sort_order', 'is_active',
+        'company_id', 'code', 'label', 'color', 'system_key', 'counts_as_working_day',
+        'sort_order', 'is_active',
     ];
 
     protected $casts = [
-        'is_active'  => 'boolean',
-        'sort_order' => 'integer',
+        'is_active'             => 'boolean',
+        'counts_as_working_day' => 'boolean',
+        'sort_order'            => 'integer',
     ];
+
+    /**
+     * Default codes, besides Present, that are a day at work for an allowance
+     * paid per working day. See the migration that added the flag.
+     */
+    public const DEFAULT_WORKING_DAY_CODES = ['OS', 'TR', 'MTG'];
 
     /**
      * Fixed color palette. Each entry carries the Tailwind classes for the
@@ -93,10 +101,26 @@ class AttendanceCode extends Model
                 'label'      => $label,
                 'color'      => $color,
                 'system_key' => $systemKey,
+                'counts_as_working_day' => $systemKey === 'present'
+                    || in_array($code, static::DEFAULT_WORKING_DAY_CODES, true),
                 'sort_order' => ($i + 1) * 10,
                 'is_active'  => true,
             ]);
         }
+    }
+
+    /**
+     * Whether this mark is medical leave — MC for the service charge
+     * deduction and for forfeiting an attendance allowance.
+     *
+     * Matched on the code or the label because codes are per-company: the
+     * default legend calls it SL, plenty of companies call it MC, and a label
+     * saying "sick" catches the rest.
+     */
+    public function isMedicalLeave(): bool
+    {
+        return in_array(strtoupper(trim($this->code)), ['MC', 'SL'], true)
+            || stripos($this->label, 'sick') !== false;
     }
 
     /** Tailwind classes / hex pair for this code's color (slate fallback). */
