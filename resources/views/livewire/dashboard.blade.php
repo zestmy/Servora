@@ -90,6 +90,7 @@
              work somebody has to do this week, not a number to reflect on. --}}
         @if ($dashboardType !== 'system')
             @include('livewire.dashboard.partials.corrective-actions')
+            @include('livewire.dashboard.partials.audit-trend')
         @endif
 
         @if ($dashboardType === 'system')

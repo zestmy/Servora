@@ -78,7 +78,13 @@ users get a **Corrective actions** card above the role figures
 awaiting verification, findings with no action, verified in the selected
 period, and the owners carrying the most open work — every figure a link
 into the Corrective Actions filter that lists it. Off the page when there is
-nothing to say. Reopening clears the due date; resubmitting
+nothing to say. Below it, an **Audit scores** card
+(`Dashboard::auditScoreTrend()`, partial `dashboard/partials/audit-trend`):
+per outlet, worst first, the latest submitted audit's score and outcome, the
+change against the previous one and a sparkline of the last eight, with the
+average and pass rate over the last twelve months and a link to the full
+trend report. Twelve months rather than the dashboard period, because a
+trend needs more than one point. Reopening clears the due date; resubmitting
 re-derives it from the new outcome.
 
 Sections with nothing applicable are skipped. `audits.outcome`,

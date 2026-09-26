@@ -138,6 +138,7 @@ class Dashboard extends Component
         if (! $user->isSystemRole() && $user->canDo('audits.view')) {
             $data['alerts']            = array_merge($data['alerts'] ?? [], $this->auditAlerts());
             $data['correctiveActions'] = $this->correctiveActionSummary();
+            $data['auditTrend']        = $this->auditScoreTrend();
         }
 
         $data['roleName']      = $roleName;
@@ -292,6 +293,65 @@ class Dashboard extends Component
             'unactioned'  => $unactioned,
             'verified'    => $verified,
             'owners'      => $owners,
+        ];
+    }
+
+    /** How far back the score trend card looks. A trend needs history; a month has none. */
+    private const TREND_MONTHS = 12;
+
+    /** Points per outlet sparkline. */
+    private const TREND_POINTS = 8;
+
+    /**
+     * The audit score trend card: per outlet, the latest submitted audit's
+     * score and outcome, the change against the one before, and a sparkline
+     * of its last few scores; over all of them, the average and the pass
+     * rate. Cached columns only, drafts excluded, last twelve months rather
+     * than the dashboard period because a trend needs more than one point.
+     *
+     * @return array{months:int, count:int, average:?float, passRate:?int, outlets:\Illuminate\Support\Collection}|null
+     */
+    private function auditScoreTrend(): ?array
+    {
+        $query = \App\Models\Audit::query()
+            ->with('outlet')
+            ->where('status', '!=', \App\Models\Audit::STATUS_DRAFT)
+            ->whereNotNull('score_percent')
+            ->whereDate('audit_date', '>=', now()->subMonths(self::TREND_MONTHS)->toDateString());
+        $this->scopeByOutletFilter($query, $this->outletFilter);
+
+        $audits = $query->orderBy('audit_date')->orderBy('id')
+            ->get(['id', 'outlet_id', 'audit_date', 'score_percent', 'outcome', 'template_code', 'template_name']);
+
+        if ($audits->isEmpty()) {
+            return null;
+        }
+
+        $outlets = $audits->groupBy('outlet_id')->map(function ($rows) {
+            $latest = $rows->last();
+            $prev   = $rows->count() > 1 ? $rows[$rows->count() - 2] : null;
+
+            return [
+                'id'       => $latest->id,
+                'name'     => $latest->outlet?->name ?? '—',
+                'latest'   => (float) $latest->score_percent,
+                'latestOn' => $latest->audit_date,
+                'outcome'  => $latest->outcome,
+                'label'    => $latest->outcomeLabel(),
+                'delta'    => $prev ? round((float) $latest->score_percent - (float) $prev->score_percent, 1) : null,
+                'series'   => $rows->pluck('score_percent')->map(fn ($v) => (float) $v)->take(-self::TREND_POINTS)->values()->all(),
+                'count'    => $rows->count(),
+            ];
+        })->sortBy(fn ($o) => [$o['latest'], $o['name']])->values();
+
+        $scores = $audits->pluck('score_percent')->map(fn ($v) => (float) $v);
+
+        return [
+            'months'   => self::TREND_MONTHS,
+            'count'    => $audits->count(),
+            'average'  => round($scores->avg(), 1),
+            'passRate' => (int) round($audits->where('outcome', \App\Models\Audit::OUTCOME_PASS)->count() / $audits->count() * 100),
+            'outlets'  => $outlets,
         ];
     }
 
