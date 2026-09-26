@@ -99,6 +99,9 @@ class RoseTemplate
     public static function headerFields(): array
     {
         return [
+            // "Checked by / Juru Audit" on the printed form: an appointed auditor,
+            // not one of the outlet's staff — see AuditTemplate::HEADER_TYPES.
+            ['key' => 'auditor',        'label' => 'Auditor',                          'type' => 'auditor',  'required' => false],
             ['key' => 'shift_officer',  'label' => 'Shift Officer on duty',            'type' => 'employee', 'required' => false],
             ['key' => 'team_on_duty',   'label' => 'Team on duty (headcount)',         'type' => 'number',   'required' => false],
             ['key' => 'muslim_staff',   'label' => 'Malaysian Muslim staff on duty',   'type' => 'number',   'required' => false],

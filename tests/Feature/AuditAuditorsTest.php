@@ -135,6 +135,32 @@ class AuditAuditorsTest extends TestCase
         $this->assertSame('Syuhada', $saved['value']);
     }
 
+    public function test_the_rose_starter_carries_an_auditor_field_and_installed_forms_are_given_one(): void
+    {
+        $fresh = \App\Support\Audits\RoseTemplate::install($this->company, $this->user);
+
+        $this->assertSame('auditor', $fresh->headerFieldList()[0]['type']);
+        $this->assertSame('Auditor', $fresh->headerFieldList()[0]['label']);
+
+        // A ROSE form installed before the field existed, with a field of its own.
+        $old = AuditTemplate::create([
+            'company_id' => $this->company->id, 'name' => 'Old ROSE', 'code' => 'ROSE',
+            'header_fields' => [['key' => 'area_manager', 'label' => 'Area Manager', 'type' => 'text', 'required' => false]],
+        ]);
+
+        $migration = require database_path('migrations/2026_09_26_000008_add_auditor_field_to_installed_rose_forms.php');
+        $migration->up();
+        $migration->up();   // idempotent
+
+        $fields = $old->fresh()->headerFieldList();
+        $this->assertCount(2, $fields);
+        $this->assertSame('auditor', $fields[0]['type']);
+        $this->assertSame('area_manager', $fields[1]['key'], "The company's own field is kept, after the new one.");
+
+        // The freshly installed form already had one and was not given a second.
+        $this->assertCount(1, collect($fresh->fresh()->headerFieldList())->where('type', 'auditor'));
+    }
+
     public function test_only_form_builders_reach_the_auditor_settings(): void
     {
         $viewer = User::factory()->create(['company_id' => $this->company->id, 'outlet_id' => $this->outlet->id]);
