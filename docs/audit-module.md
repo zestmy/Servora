@@ -193,9 +193,12 @@ a later reassignment or departure never rewrites a past audit.
   in progress or done with a note and a photo of the fix. **Verify is not
   offered there** — the two-step close exists so the person who did the work
   is not the person who signs it off.
-- **The PDF prints only the findings.** Page one is facts, total score,
-  section table and sign-off; the following pages are each NC with its
-  photos and actions. Passed and N/A lines are on screen, not on paper.
+- **The PDF prints only the findings.** Page one is facts, outcome, total
+  score, section table and sign-off, then a **score history** block: this
+  outlet's audits of the same form over the last twelve months, oldest first
+  and ending with this one, each with score, change and outcome and a bar
+  (`AuditReportController::history()`); the following pages are each NC with
+  its photos and actions. Passed and N/A lines are on screen, not on paper.
 
 ## Decisions
 

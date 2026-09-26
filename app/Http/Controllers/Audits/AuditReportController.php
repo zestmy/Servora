@@ -65,10 +65,66 @@ class AuditReportController extends Controller
             'thumbs'    => $thumbs,
             'signature' => $signature,
             'logo'      => $images->logo($company?->logo),
+            'history'   => self::history($audit),
         ])->setPaper('a4', 'portrait');
 
         $name = trim(($audit->template_code ?: 'Audit') . '-' . ($audit->outlet?->code ?: $audit->outlet?->name) . '-' . $audit->audit_date->format('Ymd'));
 
         return $pdf->stream(preg_replace('/[^A-Za-z0-9._-]+/', '-', $name) . '.pdf');
+    }
+
+    /** How far back the score history on the report looks. */
+    public const HISTORY_MONTHS = 12;
+
+    /** Rows on the history block, this audit included. */
+    public const HISTORY_ROWS = 8;
+
+    /**
+     * This outlet's recent audits of the same form, oldest first, this one
+     * last — each with its score, outcome and the change against the one
+     * before it. Same form only: a ROSE score and a pre-opening score are
+     * not on the same scale. Drafts are excluded; so are audits dated after
+     * this one, because a report is about the day it was written.
+     *
+     * @return \Illuminate\Support\Collection<int, array{id:int, date:\Carbon\Carbon, score:float, outcome:?string, label:?string, delta:?float, current:bool}>
+     */
+    public static function history(Audit $audit): \Illuminate\Support\Collection
+    {
+        if (! $audit->audit_template_id) {
+            return collect();
+        }
+
+        $rows = Audit::withoutGlobalScopes()
+            ->where('company_id', $audit->company_id)
+            ->where('outlet_id', $audit->outlet_id)
+            ->where('audit_template_id', $audit->audit_template_id)
+            ->where('status', '!=', Audit::STATUS_DRAFT)
+            ->whereNotNull('score_percent')
+            ->whereNull('deleted_at')
+            ->whereDate('audit_date', '>=', $audit->audit_date->copy()->subMonths(self::HISTORY_MONTHS)->toDateString())
+            ->where(fn ($q) => $q->whereDate('audit_date', '<', $audit->audit_date->toDateString())
+                ->orWhere(fn ($w) => $w->whereDate('audit_date', $audit->audit_date->toDateString())->where('id', '<=', $audit->id)))
+            ->orderBy('audit_date')->orderBy('id')
+            ->get(['id', 'audit_date', 'score_percent', 'outcome'])
+            ->take(-self::HISTORY_ROWS)
+            ->values();
+
+        $previous = null;
+
+        return $rows->map(function (Audit $row) use (&$previous, $audit) {
+            $score = (float) $row->score_percent;
+            $entry = [
+                'id'      => $row->id,
+                'date'    => $row->audit_date,
+                'score'   => $score,
+                'outcome' => $row->outcome,
+                'label'   => $row->outcomeLabel(),
+                'delta'   => $previous === null ? null : round($score - $previous, 1),
+                'current' => $row->id === $audit->id,
+            ];
+            $previous = $score;
+
+            return $entry;
+        });
     }
 }

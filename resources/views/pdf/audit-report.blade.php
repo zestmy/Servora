@@ -172,6 +172,50 @@
         </tr>
     </table>
 
+    {{-- Score history: this outlet, this form, the last twelve months. Bars
+         drawn with widths rather than a chart — dompdf runs no script, and a
+         table the reader can also read is the honest version of a chart. --}}
+    @if (isset($history) && $history->count() > 1)
+        <div class="section-header" style="margin-top: 12px;">Score history — {{ $audit->outlet?->name }}, {{ $audit->template_code ?: $audit->template_name }}, last {{ \App\Http\Controllers\Audits\AuditReportController::HISTORY_MONTHS }} months</div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
+            <thead>
+                <tr>
+                    <th style="{{ $head }} width: 16%;">Audit</th>
+                    <th style="{{ $head }} width: 12%; text-align: right;">Score</th>
+                    <th style="{{ $head }} width: 12%; text-align: right;">Change</th>
+                    <th style="{{ $head }} width: 18%;">Outcome</th>
+                    <th style="{{ $head }}">&nbsp;</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($history as $h)
+                    @php
+                        $bar = ['pass' => '#15803d', 'conditional' => '#b45309', 'fail' => '#b91c1c'][$h['outcome']] ?? '#475569';
+                    @endphp
+                    <tr style="{{ $h['current'] ? 'background: #f8fafc; font-weight: bold;' : '' }}">
+                        <td style="{{ $cell }}">{{ $h['date']->format('d M Y') }}{{ $h['current'] ? ' (this audit)' : '' }}</td>
+                        <td style="{{ $cell }} text-align: right; color: {{ $colour($h['score']) }};">{{ number_format($h['score'], 1) }}%</td>
+                        <td style="{{ $cell }} text-align: right; color: {{ $h['delta'] === null ? '#475569' : ($h['delta'] > 0 ? '#15803d' : ($h['delta'] < 0 ? '#b91c1c' : '#334155')) }};">
+                            {{ $h['delta'] === null ? '—' : (($h['delta'] > 0 ? '+' : '') . number_format($h['delta'], 1)) }}
+                        </td>
+                        <td style="{{ $cell }} color: {{ $bar }};">{{ $h['label'] ?? '—' }}</td>
+                        <td style="{{ $cell }} padding: 5px 8px;">
+                            <div style="width: 100%; height: 9px; background: #f1f5f9;">
+                                <div style="width: {{ max(1, min(100, (int) round($h['score']))) }}%; height: 9px; background: {{ $bar }};"></div>
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @php $first = $history->first(); $last = $history->last(); $trend = round($last['score'] - $first['score'], 1); @endphp
+        <p style="font-size: 8.5pt; color: #475569; margin: 0;">
+            {{ $history->count() }} audits since {{ $first['date']->format('d M Y') }}:
+            {{ $trend > 0 ? 'up ' . number_format($trend, 1) : ($trend < 0 ? 'down ' . number_format(abs($trend), 1) : 'unchanged') }} points overall,
+            {{ $history->where('outcome', 'pass')->count() }} passed.
+        </p>
+    @endif
+
     {{-- ── Page 2+: the non-conformances ────────────────────────────── --}}
     @if ($findings->isNotEmpty())
         <div style="page-break-before: always;"></div>
