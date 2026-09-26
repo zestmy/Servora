@@ -136,7 +136,8 @@ class Dashboard extends Component
         // dashboard this is: a re-audit owed is not a role's concern, it is
         // whoever-can-see-audits' concern.
         if (! $user->isSystemRole() && $user->canDo('audits.view')) {
-            $data['alerts'] = array_merge($data['alerts'] ?? [], $this->auditAlerts());
+            $data['alerts']            = array_merge($data['alerts'] ?? [], $this->auditAlerts());
+            $data['correctiveActions'] = $this->correctiveActionSummary();
         }
 
         $data['roleName']      = $roleName;
@@ -228,6 +229,70 @@ class Dashboard extends Component
         }
 
         return $rows;
+    }
+
+    /**
+     * The corrective-actions card: what is outstanding, by state; what is
+     * overdue; findings nobody has taken up; what got verified in the
+     * selected period; and who is carrying the most open work. Counts only —
+     * the Corrective Actions screen has the rows.
+     *
+     * @return array{outstanding:int, open:int, in_progress:int, done:int, overdue:int, unactioned:int, verified:int, owners:\Illuminate\Support\Collection}|null
+     */
+    private function correctiveActionSummary(): ?array
+    {
+        $base = fn () => tap(\App\Models\CorrectiveAction::query(), fn ($q) => $this->scopeByOutletFilter($q, $this->outletFilter));
+
+        $byStatus = $base()->outstanding()
+            ->get(['status'])
+            ->countBy('status');
+
+        $outstanding = (int) $byStatus->sum();
+
+        $overdue = $base()->overdue()->count();
+
+        $verified = $base()
+            ->where('status', \App\Models\CorrectiveAction::STATUS_VERIFIED)
+            ->whereBetween('verified_at', [$this->window->start, $this->window->end])
+            ->count();
+
+        $unactioned = \App\Models\AuditFinding::query()
+            ->doesntHave('actions')
+            ->whereHas('audit', fn ($a) => $a->where('status', '!=', \App\Models\Audit::STATUS_DRAFT));
+        $this->scopeByOutletFilter($unactioned, $this->outletFilter);
+        $unactioned = $unactioned->count();
+
+        if ($outstanding === 0 && $overdue === 0 && $unactioned === 0 && $verified === 0) {
+            return null;   // nothing to say: the card stays off the page
+        }
+
+        // Who is carrying the open work. Grouped in PHP, not SQL, so the same
+        // code runs on SQLite in tests; the outstanding set is small.
+        $owners = $base()->outstanding()
+            ->with('owner')
+            ->get(['id', 'owner_employee_id', 'status', 'due_date'])
+            ->groupBy(fn ($a) => $a->owner_employee_id ?? 0)
+            ->map(fn ($rows, $ownerId) => [
+                'id'          => (int) $ownerId,
+                'name'        => $rows->first()->owner?->name ?? 'No owner yet',
+                'designation' => $rows->first()->owner?->designation,
+                'count'       => $rows->count(),
+                'overdue'     => $rows->filter(fn ($a) => $a->isOverdue())->count(),
+            ])
+            ->sortByDesc(fn ($o) => [$o['overdue'], $o['count']])
+            ->take(5)
+            ->values();
+
+        return [
+            'outstanding' => $outstanding,
+            'open'        => (int) ($byStatus['open'] ?? 0),
+            'in_progress' => (int) ($byStatus['in_progress'] ?? 0),
+            'done'        => (int) ($byStatus['done'] ?? 0),
+            'overdue'     => $overdue,
+            'unactioned'  => $unactioned,
+            'verified'    => $verified,
+            'owners'      => $owners,
+        ];
     }
 
     // ── Shared query helpers ───────────────────────────────────────────────

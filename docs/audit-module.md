@@ -71,7 +71,14 @@ beside the recurring schedules (sorted by due date, counted in Overdue), and
 the auditor's daily digest lists re-audits due within 7 days or overdue,
 and the dashboard's "Needs attention" card lists every outstanding re-audit
 with its due date (plus overdue scheduled audits and corrective actions)
-for anyone holding `audits.view` — `Dashboard::auditAlerts()`. Reopening clears the due date; resubmitting
+for anyone holding `audits.view` — `Dashboard::auditAlerts()`. The same
+users get a **Corrective actions** card above the role figures
+(`Dashboard::correctiveActionSummary()`, partial
+`dashboard/partials/corrective-actions`): outstanding by state, overdue,
+awaiting verification, findings with no action, verified in the selected
+period, and the owners carrying the most open work — every figure a link
+into the Corrective Actions filter that lists it. Off the page when there is
+nothing to say. Reopening clears the due date; resubmitting
 re-derives it from the new outcome.
 
 Sections with nothing applicable are skipped. `audits.outcome`,

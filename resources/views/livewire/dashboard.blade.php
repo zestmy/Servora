@@ -86,6 +86,12 @@
     </div>
 
     <div wire:loading.remove wire:target="period,outletFilter">
+        {{-- Audit follow-through, above the role's own figures: it is the
+             work somebody has to do this week, not a number to reflect on. --}}
+        @if ($dashboardType !== 'system')
+            @include('livewire.dashboard.partials.corrective-actions')
+        @endif
+
         @if ($dashboardType === 'system')
             @include('livewire.dashboard.system')
         @elseif ($dashboardType === 'business')
