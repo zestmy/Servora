@@ -50,7 +50,8 @@
     <meta name="theme-color" content="#0b1f3b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="{{ $brandName }} Training">
+    {{-- The home-screen label. Short on purpose: iOS truncates around twelve characters. --}}
+    <meta name="apple-mobile-web-app-title" content="Learn SOP">
     <link rel="apple-touch-icon" href="{{ brand_asset('lms-app/apple-touch-icon.png') }}">
 
     <link rel="preconnect" href="https://fonts.bunny.net">

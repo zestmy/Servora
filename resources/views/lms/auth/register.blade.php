@@ -11,7 +11,7 @@
          apple-touch-icon for the icon — without it the tile is a grey letter. --}}
     <link rel="manifest" href="{{ brand_asset('lms-manifest.json') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="{{ $company->brand_name ?? $company->name }} Training">
+    <meta name="apple-mobile-web-app-title" content="Learn SOP">
     <link rel="apple-touch-icon" href="{{ brand_asset('lms-app/apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />

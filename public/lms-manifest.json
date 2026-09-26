@@ -1,6 +1,6 @@
 {
-    "name": "Training Portal",
-    "short_name": "Training",
+    "name": "Learn SOP",
+    "short_name": "Learn SOP",
     "description": "SOP Training Portal powered by Servora",
     "start_url": "/lms/",
     "display": "standalone",
