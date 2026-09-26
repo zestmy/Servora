@@ -132,6 +132,13 @@ class Dashboard extends Component
                                                                                                           : $this->managerDashboard($user),
         };
 
+        // Audit work due goes into the same "Needs attention" card whichever
+        // dashboard this is: a re-audit owed is not a role's concern, it is
+        // whoever-can-see-audits' concern.
+        if (! $user->isSystemRole() && $user->canDo('audits.view')) {
+            $data['alerts'] = array_merge($data['alerts'] ?? [], $this->auditAlerts());
+        }
+
         $data['roleName']      = $roleName;
         $data['dashboardType'] = $data['dashboardType'] ?? 'default';
         $data['filterOutlets'] = $this->filterableOutlets();
@@ -143,6 +150,84 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', $data)
             ->layout('layouts.app', ['title' => 'Dashboard']);
+    }
+
+    // ── Audits ─────────────────────────────────────────────────────────────
+
+    /** Re-audit rows are listed one by one up to this many; the rest become "and N more". */
+    private const REAUDIT_ROWS = 5;
+
+    /**
+     * Rows for the "Needs attention" card: every outstanding re-audit with
+     * its due date, then one row each for overdue scheduled audits and
+     * overdue corrective actions. Scoped like everything else on the page,
+     * including the outlet filter.
+     *
+     * @return array<int, array{type:string, message:string, action?:string, href?:string}>
+     */
+    private function auditAlerts(): array
+    {
+        $rows = [];
+
+        $reaudits = \App\Models\Audit::with('outlet')->reauditOutstanding();
+        $this->scopeByOutletFilter($reaudits, $this->outletFilter);
+        $reaudits = $reaudits->orderBy('reaudit_due_on')->get();
+
+        foreach ($reaudits->take(self::REAUDIT_ROWS) as $audit) {
+            $overdue = $audit->isReauditOverdue();
+            $rows[]  = [
+                'type'    => $overdue ? 'alert' : 'warning',
+                'message' => sprintf(
+                    'Re-audit of %s (%s) %s %s — conditional pass on %s at %s%%.',
+                    $audit->outlet?->name ?? 'outlet',
+                    $audit->template_code ?: $audit->template_name,
+                    $overdue ? 'was due' : 'due',
+                    $audit->reaudit_due_on->format('d M Y'),
+                    $audit->audit_date->format('d M Y'),
+                    number_format((float) $audit->score_percent, 1)
+                ),
+                'action'  => 'Start re-audit',
+                'href'    => route('audits.start', ['reaudit' => $audit->id]),
+            ];
+        }
+
+        if ($reaudits->count() > self::REAUDIT_ROWS) {
+            $more   = $reaudits->count() - self::REAUDIT_ROWS;
+            $rows[] = [
+                'type'    => 'warning',
+                'message' => "…and {$more} more re-audit" . ($more === 1 ? '' : 's') . ' waiting.',
+                'action'  => 'See all',
+                'href'    => route('audits.index'),
+            ];
+        }
+
+        $schedules = \App\Models\AuditSchedule::query()->overdue();
+        $this->scopeByOutletFilter($schedules, $this->outletFilter);
+        $n = $schedules->count();
+
+        if ($n) {
+            $rows[] = [
+                'type'    => 'alert',
+                'message' => "{$n} scheduled audit" . ($n === 1 ? ' is' : 's are') . ' overdue.',
+                'action'  => 'Schedule',
+                'href'    => route('audits.schedules', ['filter' => 'overdue']),
+            ];
+        }
+
+        $actions = \App\Models\CorrectiveAction::query()->overdue();
+        $this->scopeByOutletFilter($actions, $this->outletFilter);
+        $n = $actions->count();
+
+        if ($n) {
+            $rows[] = [
+                'type'    => 'alert',
+                'message' => "{$n} corrective action" . ($n === 1 ? ' is' : 's are') . ' overdue.',
+                'action'  => 'Review',
+                'href'    => route('audits.actions', ['status' => 'overdue']),
+            ];
+        }
+
+        return $rows;
     }
 
     // ── Shared query helpers ───────────────────────────────────────────────
