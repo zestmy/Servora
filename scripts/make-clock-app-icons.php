@@ -6,7 +6,7 @@
  *
  * Drawn rather than shipped as binary so the shape stays editable in the repo
  * and there is no opaque asset nobody can regenerate. Companion to
- * make-label-app-icons.php.
+ * make-app-icons.php.
  *
  *   php scripts/make-clock-app-icons.php
  */

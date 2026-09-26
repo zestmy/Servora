@@ -44,13 +44,14 @@
     @endphp
 
     <title>{{ $title ?? 'Training Portal' }} | {{ $brandName }}</title>
-    <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
-    <link rel="manifest" href="{{ asset('lms-manifest.json') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('lms-app/icon-192.png') }}">
+    {{-- brand_asset: the ?v= moves when the manifest does, so browsers refetch it. --}}
+    <link rel="manifest" href="{{ brand_asset('lms-manifest.json') }}">
     <meta name="theme-color" content="#0b1f3b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="{{ $brandName }} Training">
-    <link rel="apple-touch-icon" href="{{ brand_asset('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ brand_asset('lms-app/apple-touch-icon.png') }}">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />

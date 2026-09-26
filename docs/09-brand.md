@@ -70,7 +70,8 @@ migrate a surface when you are already editing that file.
 | `servora-maskable-512.png` | Derived. Android maskable: full-bleed plate, glyph inside the safe zone. |
 | `clock-app/staff-portal.png` | Staff Portal app icon (STAFF). |
 | `clock-app/kiosk.png` | Clock-in kiosk app icon (KIOSK). |
-| `labels-app/label-icon.png` | Labels app icon (LABEL). Source for the sizes `scripts/make-label-app-icons.php` derives. |
+| `labels-app/label-icon.png` | Labels app icon (LABEL). Source for the sizes `php scripts/make-app-icons.php labels-app label-icon.png` derives. |
+| `lms-app/lms-icon.png` | LMS / SOP Library app icon (LMS). Sizes via `php scripts/make-app-icons.php lms-app lms-icon.png`. |
 
 All three lockups are 300 × 60; the icon is 300 × 300. Layouts size them by
 height (`h-8`, `h-11`) with width auto, so the aspect carries itself.

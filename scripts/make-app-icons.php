@@ -1,9 +1,9 @@
 <?php
 
 /**
- * Derives the Labels PWA icons from the supplied app icon.
+ * Derives a staff app's PWA icons from the designer's app icon.
  *
- * The artwork is NOT drawn here any more — public/labels-app/label-icon.png is
+ * The artwork is NOT drawn here — the source PNG in the app's public folder is
  * the designer's file and the source of truth, the same arrangement as
  * make-favicons.php has for the Servora icon. This only produces the sizes the
  * manifest and iOS ask for, and the maskable variant:
@@ -13,21 +13,31 @@
  *   icon-maskable-512.png        Android crops it to a shape of its own, so
  *                                the plate bleeds to the edges and the whole
  *                                icon sits inset inside the safe zone — the
- *                                LABEL wordmark near its lower edge would be
- *                                cut off by a circle mask otherwise
+ *                                wordmark near its lower edge would be cut off
+ *                                by a circle mask otherwise
  *
- * Re-run it after replacing the artwork, and bump the version in
- * Labels\StaffAppController::serviceWorker(), which caches the icons outright:
+ * Re-run it after replacing the artwork:
  *
- *   php scripts/make-label-app-icons.php
+ *   php scripts/make-app-icons.php labels-app label-icon.png
+ *   php scripts/make-app-icons.php lms-app lms-icon.png
+ *
+ * The Labels service worker caches its icons outright, so after changing those
+ * bump the version in Labels\StaffAppController::serviceWorker() as well.
  */
 
+if ($argc !== 3) {
+    fwrite(STDERR, "Usage: php scripts/make-app-icons.php <public-folder> <source.png>
+");
+    exit(1);
+}
+
 $root = dirname(__DIR__);
-$out  = $root . '/public/labels-app';
-$src  = $out . '/label-icon.png';
+$out  = $root . '/public/' . trim($argv[1], '/');
+$src  = $out . '/' . $argv[2];
 
 if (! is_file($src)) {
-    fwrite(STDERR, "Missing source icon: $src\n");
+    fwrite(STDERR, "Missing source icon: $src
+");
     exit(1);
 }
 
