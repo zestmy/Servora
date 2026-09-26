@@ -9,6 +9,7 @@
 
 ## Done
 <!-- Completed tasks, most recent first -->
+- 2026-09-27 — **Fix: SOP Library link from the Staff Portal 500'd on production.** The LMS layout's "Back to Staff Portal" link (plus the LMS sign-out and stale-session redirects) called `route('clock.staff.*')` without `companySlug`; in production those routes are bound to `{companySlug}.<domain>` and the LMS routes don't run the subdomain middleware that defaults it. New `StaffHandoffController::staffUrl()` passes the slug. Not reproducible in tests (no APP_DOMAIN locally) — verified against production's routes.
 - 2026-09-27 — **LMS home-screen name is "Learn SOP".** `apple-mobile-web-app-title` on the LMS layout and login/register pages, and `name`/`short_name` in `lms-manifest.json` (was "<Company> Training" / "Training").
 - 2026-09-27 — **LMS icon on iOS Add to Home Screen.** The LMS login/register pages had no `apple-touch-icon` (only the signed-in layout did), so iOS drew a grey letter tile. Added it with the manifest and web-app title. Also `public/apple-touch-icon.png` (Servora icon, from `make-favicons.php`) as iOS's root fallback for any page without the tag.
 - 2026-09-27 — **Maintenance page copy.** `errors/503.blade.php` (the deploy-time `artisan down` snapshot) now reads "We're 86'd for a Moment" / off the menu while we plate up new features / back on the pass shortly / we'll call your order, auto-refreshes. Hint text raised from gray-400 (2.54:1) to gray-500.

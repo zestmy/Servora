@@ -257,7 +257,7 @@
                     <div x-show="userOpen" @click.away="userOpen = false" x-cloak
                          class="absolute bottom-full left-0 mb-1 w-full bg-gray-800 rounded-lg border border-gray-700 py-1 shadow-lg">
                         @if (session(\App\Http\Controllers\Lms\StaffHandoffController::SESSION_KEY))
-                            <a href="{{ route('clock.staff.home') }}"
+                            <a href="{{ \App\Http\Controllers\Lms\StaffHandoffController::staffUrl('clock.staff.home') }}"
                                class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition">
                                 Back to Staff Portal
                             </a>

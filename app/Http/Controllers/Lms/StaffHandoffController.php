@@ -38,6 +38,27 @@ class StaffHandoffController extends Controller
     /** Session key: the employee whose staff session opened the LMS one. */
     public const SESSION_KEY = 'lms_via_staff';
 
+    /**
+     * A URL into the Staff Portal, from an LMS page.
+     *
+     * In production the staff routes are bound to {companySlug}.<domain>, and
+     * only a request that passed the subdomain middleware has that parameter
+     * defaulted — the LMS's authenticated routes do not, so a bare
+     * route('clock.staff.home') there throws. The slug is passed explicitly,
+     * taken from the company whose LMS this is. Locally there is no domain,
+     * so the parameter is left off rather than trailing as a query string.
+     */
+    public static function staffUrl(string $name, ?string $companySlug = null): string
+    {
+        $slug = $companySlug
+            ?? \Illuminate\Support\Facades\Auth::guard('lms')->user()?->company?->slug
+            ?? session('lms_company_slug');
+
+        return config('app.domain') && $slug
+            ? route($name, ['companySlug' => $slug])
+            : route($name);
+    }
+
     public function __invoke(StaffSession $staff): RedirectResponse
     {
         // The route sits behind clock.staff.auth, so this is never null here.

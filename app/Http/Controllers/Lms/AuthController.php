@@ -155,7 +155,7 @@ class AuthController extends Controller
             Auth::guard('lms')->logout();
             $request->session()->regenerateToken();
 
-            return redirect()->route('clock.staff.home');
+            return redirect()->to(StaffHandoffController::staffUrl('clock.staff.home', $company?->slug));
         }
 
         Auth::guard('lms')->logout();

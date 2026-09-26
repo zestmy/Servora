@@ -26,11 +26,14 @@ class LmsAuthenticate
             $employee = $staff->employee($staff->companyId());
 
             if (! $employee || $employee->id !== (int) $viaStaff) {
+                // Resolved before logout, which takes the company with it.
+                $slug = Auth::guard('lms')->user()?->company?->slug;
+
                 Auth::guard('lms')->logout();
                 $request->session()->forget(StaffHandoffController::SESSION_KEY);
-                $request->session()->put(ClockStaffAuthenticate::INTENDED_KEY, route('clock.staff.lms'));
+                $request->session()->put(ClockStaffAuthenticate::INTENDED_KEY, StaffHandoffController::staffUrl('clock.staff.lms', $slug));
 
-                return redirect()->route('clock.staff.login');
+                return redirect()->to(StaffHandoffController::staffUrl('clock.staff.login', $slug));
             }
         }
 
