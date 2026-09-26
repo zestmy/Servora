@@ -135,21 +135,33 @@ class OrderForm extends Component
      * save path do not each need to know which kind they are holding — the
      * ingredient-only fields are simply empty. Cost comes off the asset
      * itself: there is no supplier price list for a stand mixer.
+     *
+     * Tax is the asset's own tax class (or the company default) unless the
+     * caller passes the rate a saved line was already ordered at — reopening
+     * an order must not re-tax it because the catalogue changed since.
      */
-    private function assetLine(?\App\Models\Asset $asset, float $quantity, ?int $uomId): array
+    private function assetLine(?\App\Models\Asset $asset, float $quantity, ?int $uomId, ?float $unitCost = null, TaxRate|false|null $taxRate = false): array
     {
+        if ($taxRate === false) {
+            $taxRate = $asset?->effectiveTaxRate(Auth::user()->company);
+        }
+
+        $unitCost  = $unitCost ?? floatval($asset?->unit_cost ?? 0);
+        $totalCost = round($quantity * $unitCost, 4);
+        $taxPct    = floatval($taxRate?->rate ?? 0);
+
         return [
             'ingredient_id'          => null,
             'asset_id'               => $asset?->id,
             'ingredient_name'        => $asset?->name ?? '—',
             'quantity'               => (string) $quantity,
             'uom_id'                 => $uomId ?: $asset?->uom_id,
-            'unit_cost'              => (string) floatval($asset?->unit_cost ?? 0),
-            'total_cost'             => 0,
-            'tax_rate_id'            => null,
-            'tax_label'              => null,
-            'tax_rate_pct'           => 0,
-            'tax_amount'             => 0,
+            'unit_cost'              => (string) $unitCost,
+            'total_cost'             => $totalCost,
+            'tax_rate_id'            => $taxRate?->id,
+            'tax_label'              => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
+            'tax_rate_pct'           => $taxPct,
+            'tax_amount'             => $taxPct > 0 ? round($totalCost * ($taxPct / 100), 4) : 0,
             'pack_size'              => 1,
             'pack_info'              => '',
             'par_level'              => '0',
@@ -320,12 +332,12 @@ class OrderForm extends Component
              * with them on the next save.
              */
             if ($l->isAssetItem()) {
-                return array_merge(
-                    $this->assetLine($l->asset, (float) $l->quantity, $l->uom_id),
-                    [
-                        'unit_cost'  => (string) floatval($l->unit_cost),
-                        'total_cost' => round(floatval($l->quantity) * floatval($l->unit_cost), 4),
-                    ]
+                return $this->assetLine(
+                    $l->asset,
+                    (float) $l->quantity,
+                    $l->uom_id,
+                    floatval($l->unit_cost),
+                    $l->tax_rate_id ? TaxRate::find($l->tax_rate_id) : null
                 );
             }
 
@@ -485,10 +497,7 @@ class OrderForm extends Component
                 if (in_array('asset:' . $tLine->asset_id, $existing, true)) continue;
 
                 $qty  = (float) $tLine->default_quantity > 0 ? (float) $tLine->default_quantity : 1.0;
-                $line = $this->assetLine($tLine->asset, $qty, null);
-                $line['total_cost'] = round($qty * floatval($line['unit_cost']), 4);
-
-                $this->lines[] = $line;
+                $this->lines[] = $this->assetLine($tLine->asset, $qty, null);
                 $existing[]    = 'asset:' . $tLine->asset_id;
                 $added++;
                 continue;

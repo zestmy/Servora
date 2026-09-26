@@ -49,6 +49,7 @@ class Index extends Component
     public ?int   $asset_category_id = null;
     public ?int   $uom_id            = null;
     public string $unit_cost         = '0';
+    public ?int   $tax_rate_id       = null;
     public string $brand             = '';
     public string $model             = '';
     public bool   $is_active         = true;
@@ -89,6 +90,7 @@ class Index extends Component
             'asset_category_id' => 'nullable|exists:asset_categories,id',
             'uom_id'            => 'required|exists:units_of_measure,id',
             'unit_cost'         => 'required|numeric|min:0',
+            'tax_rate_id'       => 'nullable|exists:tax_rates,id',
             'brand'             => 'nullable|string|max:120',
             'model'             => 'nullable|string|max:120',
             'remark'            => 'nullable|string',
@@ -206,6 +208,7 @@ class Index extends Component
         $this->asset_category_id = $asset->asset_category_id;
         $this->uom_id            = $asset->uom_id;
         $this->unit_cost         = (string) floatval($asset->unit_cost);
+        $this->tax_rate_id       = $asset->tax_rate_id;
         $this->brand             = $asset->brand ?? '';
         $this->model             = $asset->model ?? '';
         $this->is_active         = (bool) $asset->is_active;
@@ -317,6 +320,7 @@ class Index extends Component
             'asset_category_id' => $this->asset_category_id ?: null,
             'uom_id'            => $this->uom_id,
             'unit_cost'         => floatval($this->unit_cost),
+            'tax_rate_id'       => $this->tax_rate_id ?: null,
             'brand'             => $this->brand ?: null,
             'model'             => $this->model ?: null,
             'is_active'         => $this->is_active,
@@ -418,7 +422,7 @@ class Index extends Component
     {
         $this->reset([
             'editingId', 'name', 'code', 'asset_category_id', 'uom_id',
-            'unit_cost', 'brand', 'model', 'remark', 'supplierLinks',
+            'unit_cost', 'tax_rate_id', 'brand', 'model', 'remark', 'supplierLinks',
             'image', 'imagePath', 'removeImage',
         ]);
         $this->is_active = true;
@@ -605,6 +609,7 @@ class Index extends Component
             'categories' => AssetCategory::withCount('assets')->ordered()->get(),
             'rootCategories' => AssetCategory::roots()->ordered()->get(),
             'uoms'       => UnitOfMeasure::orderBy('name')->get(),
+            'taxRates'   => \App\Models\TaxRate::active()->orderBy('name')->get(),
             'suppliers'  => Supplier::selectable(
                 collect($this->supplierLinks)->pluck('supplier_id')->all()
             )->orderBy('name')->get(),

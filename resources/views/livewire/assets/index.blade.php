@@ -430,6 +430,18 @@
                                 </div>
 
                                 <div>
+                                    <label class="label" for="asset-tax">Tax class</label>
+                                    <select id="asset-tax" wire:model="tax_rate_id" class="input">
+                                        <option value="">Default (company rate)</option>
+                                        @foreach ($taxRates as $tr)
+                                            <option value="{{ $tr->id }}">{{ $tr->name }} {{ rtrim(rtrim(number_format($tr->rate, 2), '0'), '.') }}%{{ $tr->is_inclusive ? ' (Inclusive)' : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="help">Applied when this asset is put on a purchase request or order.</p>
+                                    @error('tax_rate_id') <p class="error-text">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div>
                                     <label class="label" for="asset-brand">Brand</label>
                                     <input id="asset-brand" type="text" wire:model="brand" class="input" />
                                 </div>

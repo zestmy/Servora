@@ -30,7 +30,7 @@ class Asset extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'asset_category_id', 'uom_id',
-        'unit_cost', 'brand', 'model', 'image_path', 'is_active', 'remark',
+        'unit_cost', 'tax_rate_id', 'brand', 'model', 'image_path', 'is_active', 'remark',
     ];
 
     protected $casts = [
@@ -76,6 +76,25 @@ class Asset extends Model
     public function uom(): BelongsTo
     {
         return $this->belongsTo(UnitOfMeasure::class, 'uom_id');
+    }
+
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
+    }
+
+    /**
+     * The rate an order line for this asset is taxed at: its own, or the
+     * company default, or none. The same rule Ingredient uses, so an asset and
+     * an ingredient on one purchase order are taxed by the same logic.
+     */
+    public function effectiveTaxRate(?Company $company = null): ?TaxRate
+    {
+        if ($this->tax_rate_id) {
+            return $this->taxRate;
+        }
+
+        return TaxRate::defaultForCompany($company);
     }
 
     public function suppliers(): BelongsToMany

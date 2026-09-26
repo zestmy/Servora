@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Assets\MovementForm;
+use App\Livewire\Purchasing\OrderForm;
 use App\Livewire\Purchasing\PurchaseRequestForm;
 use App\Models\Asset;
 use App\Models\CentralPurchasingUnit;
@@ -13,6 +14,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use App\Models\PurchaseRequestLine;
 use App\Models\Supplier;
+use App\Models\TaxRate;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Services\PurchaseRequestService;
@@ -112,6 +114,44 @@ class AssetPurchaseRequestTest extends TestCase
         $this->assertSame(2.0, (float) $line->quantity);
         $this->assertTrue($line->isAssetItem());
         $this->assertSame('STAND MIXER', $line->displayName());
+    }
+
+    /**
+     * An asset is taxed like an ingredient: its own tax class, else the
+     * company default. It used to go on every request and order at no tax,
+     * because an asset had nowhere to record a rate.
+     */
+    public function test_an_asset_line_carries_the_assets_tax_class(): void
+    {
+        $sst = TaxRate::create([
+            'company_id' => $this->company->id, 'country_code' => 'MY', 'name' => 'SST',
+            'rate' => 8, 'is_inclusive' => false, 'is_default' => false, 'is_active' => true,
+        ]);
+        $mixer = $this->asset('STAND MIXER', 1000);
+        $mixer->update(['tax_rate_id' => $sst->id]);
+
+        Livewire::test(PurchaseRequestForm::class)
+            ->call('addAsset', $mixer->id)
+            ->assertSet('lines.0.tax_rate_id', $sst->id)
+            ->assertSet('lines.0.tax_label', 'SST 8%')
+            ->call('save', 'submit')
+            ->assertHasNoErrors();
+
+        $this->assertSame($sst->id, (int) PurchaseRequestLine::firstOrFail()->tax_rate_id);
+    }
+
+    public function test_an_asset_without_a_tax_class_takes_the_company_default(): void
+    {
+        $this->company->update(['default_tax_country' => 'MY']);
+        $default = TaxRate::create([
+            'company_id' => $this->company->id, 'country_code' => 'MY', 'name' => 'SST',
+            'rate' => 6, 'is_inclusive' => false, 'is_default' => true, 'is_active' => true,
+        ]);
+        $mixer = $this->asset('STAND MIXER', 1000);
+
+        Livewire::test(PurchaseRequestForm::class)
+            ->call('addAsset', $mixer->id)
+            ->assertSet('lines.0.tax_rate_id', $default->id);
     }
 
     public function test_the_same_asset_is_not_added_twice(): void

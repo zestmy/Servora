@@ -126,7 +126,7 @@ class PurchaseRequestForm extends Component
         foreach ($pr->lines as $line) {
             $taxRate = $line->tax_rate_id
                 ? \App\Models\TaxRate::find($line->tax_rate_id)
-                : $line->ingredient?->effectiveTaxRate(Auth::user()->company);
+                : ($line->asset ?? $line->ingredient)?->effectiveTaxRate(Auth::user()->company);
             $this->lines[] = [
                 'ingredient_id'        => $line->ingredient_id,
                 'asset_id'             => $line->asset_id,
@@ -335,8 +335,10 @@ class PurchaseRequestForm extends Component
      * set to 'asset' so that skip is a decision the code states rather than a
      * side effect a reader has to reconstruct.
      *
-     * No par level and no tax rate: an asset has neither. Its UOM is its own,
-     * because an asset is bought in the unit it is counted in.
+     * No par level — an asset has none. Its tax rate is the asset's own tax
+     * class, falling back to the company default, the same rule an ingredient
+     * line follows. Its UOM is its own, because an asset is bought in the unit
+     * it is counted in.
      */
     public function addAsset(int $assetId): void
     {
@@ -355,6 +357,7 @@ class PurchaseRequestForm extends Component
         }
 
         $preferred = $asset->preferredSupplier();
+        $taxRate   = $asset->effectiveTaxRate(Auth::user()->company);
 
         $this->lines[] = [
             'ingredient_id'         => null,
@@ -369,8 +372,8 @@ class PurchaseRequestForm extends Component
             'kitchen_id'            => null,
             'par_level'             => 0,
             'notes'                 => '',
-            'tax_rate_id'           => null,
-            'tax_label'             => null,
+            'tax_rate_id'           => $taxRate?->id,
+            'tax_label'             => $taxRate ? ($taxRate->name . ' ' . rtrim(rtrim(number_format($taxRate->rate, 2), '0'), '.') . '%') : null,
             'est_price'             => \App\Services\RequestPriceEstimator::estimate(
                 null,
                 $asset->id,

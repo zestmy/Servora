@@ -353,7 +353,7 @@ class PurchaseRequestService
      */
     public static function consolidationPreviewWithCosts(array $purchaseRequestIds): array
     {
-        $prs = PurchaseRequest::with('lines.ingredient.taxRate', 'lines.asset', 'lines.preferredSupplier', 'lines.uom', 'outlet')
+        $prs = PurchaseRequest::with('lines.ingredient.taxRate', 'lines.asset.taxRate', 'lines.preferredSupplier', 'lines.uom', 'outlet')
             ->whereIn('id', $purchaseRequestIds)
             ->where('status', PurchaseRequest::STATUS_APPROVED)
             ->get();
@@ -431,13 +431,22 @@ class PurchaseRequestService
                     $isAsset = (bool) $line->asset_id;
 
                     // An asset prices off its own supplier link, falling back
-                    // to the catalogue cost, and carries no tax rate — the
-                    // request never captured one for it.
+                    // to the catalogue cost, and is taxed by its own tax class
+                    // (or the company default) just as an ingredient is.
                     $unitCost = $isAsset
                         ? ($assetCostLookup[$line->asset_id][$supplierId] ?? floatval($line->asset?->unit_cost ?? 0))
                         : ($costLookup[$line->ingredient_id][$supplierId] ?? floatval($line->ingredient?->purchase_price ?? 0));
 
-                    $tax = $isAsset ? null : ($taxLookup[$line->ingredient_id] ?? null);
+                    if ($isAsset) {
+                        $tr  = $line->asset?->tax_rate_id ? $line->asset->taxRate : $defaultTax;
+                        $tax = $tr ? [
+                            'id'    => $tr->id,
+                            'label' => $tr->name . ' ' . rtrim(rtrim(number_format($tr->rate, 2), '0'), '.') . '%',
+                            'rate'  => floatval($tr->rate),
+                        ] : null;
+                    } else {
+                        $tax = $taxLookup[$line->ingredient_id] ?? null;
+                    }
                     $totalCost = round(floatval($line->quantity) * $unitCost, 4);
 
                     $groups[$supplierId]['lines'][] = [
