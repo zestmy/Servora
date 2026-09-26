@@ -6,6 +6,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $company->brand_name ?? $company->name }} — Training Portal Login</title>
     <link rel="icon" type="image/png" href="{{ brand_asset('lms-app/icon-192.png') }}">
+    {{-- The same install tags as layouts/lms. This is the page people are ON
+         when they add the portal to a home screen, and iOS reads nothing but
+         apple-touch-icon for the icon — without it the tile is a grey letter. --}}
+    <link rel="manifest" href="{{ brand_asset('lms-manifest.json') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="{{ $company->brand_name ?? $company->name }} Training">
+    <link rel="apple-touch-icon" href="{{ brand_asset('lms-app/apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])

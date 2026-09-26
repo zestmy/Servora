@@ -10,6 +10,7 @@
  *
  *   favicon.ico              16/32/48, for browsers that fetch /favicon.ico
  *                            without reading the <link> tags
+ *   apple-touch-icon.png     iOS's fallback for pages with no tag of their own
  *   servora-maskable-512.png Android's maskable icon, which is cropped to a
  *                            shape the OS chooses, so the background has to
  *                            bleed to the edges and the glyph has to sit
@@ -80,6 +81,13 @@ writeIco(
     [16 => pngBytes(scaled($icon, 16)), 32 => pngBytes(scaled($icon, 32)), 48 => pngBytes(scaled($icon, 48))],
     $root . '/public/favicon.ico',
 );
+
+/**
+ * /apple-touch-icon.png — what iOS fetches from the site root when a page
+ * carries no apple-touch-icon tag of its own. Without it "Add to Home Screen"
+ * on such a page draws a grey tile with the first letter of the title.
+ */
+imagepng(scaled($icon, 180), $root . '/public/apple-touch-icon.png');
 
 /**
  * The maskable icon.
