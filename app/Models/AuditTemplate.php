@@ -19,8 +19,24 @@ class AuditTemplate extends Model
 {
     use SoftDeletes;
 
-    /** Header field types the builder offers. `employee` picks from the outlet's staff. */
-    public const HEADER_TYPES = ['text', 'number', 'time', 'textarea', 'employee'];
+    /**
+     * Header field types the builder offers.
+     *
+     * Two people-pickers, on purpose: `employee` lists the AUDITED OUTLET's
+     * staff (the shift officer on duty), `auditor` lists the company's
+     * APPOINTED AUDITORS (Settings ▸ Appointed Auditors) — the QA person from
+     * head office who is at every outlet and on none of their rosters.
+     */
+    public const HEADER_TYPES = ['text', 'number', 'time', 'textarea', 'employee', 'auditor'];
+
+    public const HEADER_TYPE_LABELS = [
+        'text'     => 'Text',
+        'number'   => 'Number',
+        'time'     => 'Time',
+        'textarea' => 'Notes',
+        'employee' => 'Outlet employee',
+        'auditor'  => 'Appointed auditor',
+    ];
 
     protected $fillable = [
         'company_id', 'name', 'code', 'description', 'alt_language', 'is_active',

@@ -107,6 +107,16 @@
                                     <option value="{{ $e->name }}">{{ $e->name }}{{ $e->designation ? ' · ' . $e->designation : '' }}</option>
                                 @endforeach
                             </select>
+                        @elseif ($field['type'] === 'auditor')
+                            <select wire:model.live="headerValues.{{ $field['key'] }}" class="input" @disabled(! $isDraft || ! $canConduct)>
+                                <option value="">—</option>
+                                @foreach ($appointedAuditors as $e)
+                                    <option value="{{ $e->name }}">{{ $e->name }}{{ $e->designation ? ' · ' . $e->designation : '' }}</option>
+                                @endforeach
+                                @if ($appointedAuditors->isEmpty())
+                                    <option value="" disabled>No appointed auditors yet — Settings ▸ Appointed Auditors</option>
+                                @endif
+                            </select>
                         @elseif ($field['type'] === 'textarea')
                             <textarea wire:model.blur="headerValues.{{ $field['key'] }}" rows="2" class="input" @disabled(! $isDraft || ! $canConduct)></textarea>
                         @else

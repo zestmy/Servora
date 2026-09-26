@@ -209,6 +209,7 @@ final class NavMenu
                     ['route' => 'audits.actions',   'label' => 'Corrective Actions', 'permission' => 'audits.view'],
                     ['route' => 'audits.schedules', 'label' => 'Schedule',           'permission' => 'audits.view'],
                     ['route' => 'audits.templates', 'label' => 'Audit Forms',        'permission' => 'audits.manage'],
+                    ['route' => 'audits.auditors',  'label' => 'Appointed Auditors', 'permission' => 'audits.manage'],
                 ],
             ],
             [
@@ -484,6 +485,7 @@ final class NavMenu
                     ['route' => 'audits.actions',   'label' => 'Corrective Actions', 'permission' => 'audits.view'],
                     ['route' => 'audits.schedules', 'label' => 'Schedule',           'permission' => 'audits.view'],
                     ['route' => 'audits.templates', 'label' => 'Audit Forms',        'permission' => 'audits.manage'],
+                    ['route' => 'audits.auditors',  'label' => 'Appointed Auditors', 'permission' => 'audits.manage'],
                 ],
             ],
             [

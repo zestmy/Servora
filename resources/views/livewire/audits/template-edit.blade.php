@@ -50,7 +50,7 @@
                         <span class="label">Header fields</span>
                         <button type="button" wire:click="addHeaderField" class="btn-ghost text-xs">+ Field</button>
                     </div>
-                    <p class="help mb-2">Filled in at the top of every audit — shift officer on duty, headcount, area manager.</p>
+                    <p class="help mb-2">Filled in at the top of every audit — shift officer on duty, headcount, area manager. “Outlet employee” offers the audited outlet's staff; “Appointed auditor” offers the company's auditor list from <a href="{{ route('audits.auditors') }}" wire:navigate class="text-brand-700 underline">Settings ▸ Appointed Auditors</a>.</p>
 
                     <div class="space-y-2">
                         @foreach ($headerFields as $i => $field)
@@ -59,9 +59,9 @@
                                     <input type="text" wire:model="headerFields.{{ $i }}.label" class="input" placeholder="Label" />
                                     @error("headerFields.{$i}.label") <p class="error-text">{{ $message }}</p> @enderror
                                 </div>
-                                <select wire:model="headerFields.{{ $i }}.type" class="input w-36">
+                                <select wire:model="headerFields.{{ $i }}.type" class="input w-44">
                                     @foreach ($headerTypes as $type)
-                                        <option value="{{ $type }}">{{ ucfirst($type) }}</option>
+                                        <option value="{{ $type }}">{{ \App\Models\AuditTemplate::HEADER_TYPE_LABELS[$type] ?? ucfirst($type) }}</option>
                                     @endforeach
                                 </select>
                                 <label class="inline-flex h-11 items-center gap-1.5 text-xs text-gray-600">

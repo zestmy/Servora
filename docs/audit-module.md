@@ -76,6 +76,7 @@ at least one action and all of them are verified.
 | `/audits/actions` | `Audits\Actions` — NC summary by outlet → owner designation | `audits.view` |
 | `/audits/templates` | `Audits\Templates` | `audits.manage` |
 | `/audits/templates/{id}` | `Audits\TemplateEdit` — the builder, one section at a time | `audits.manage` |
+| `/audits/auditors` | `Audits\Auditors` — Settings: the company's appointed auditors, also a tile under Settings ▸ Outlet Audits | `audits.manage` |
 | `/audits/schedules` | `Audits\Schedules` — which outlet is due which form, and when | `audits.view` (edits `audits.manage`) |
 | `/reports/audit-trend` | `Reports\Audits\AuditTrend` — score over time per outlet, per section, most-failed items, CSV | `reports.view` + `audits.view` |
 | `/staff/actions` | `Staff\CorrectiveActions` — "Audit fixes" on the PIN-session Staff Portal | staff session |
@@ -101,6 +102,18 @@ nearest stock-take / training / reporting abilities, granted to founders in
 items transcribed from a printed ROSE form with brand-specific product names
 made generic. Installed on demand from Audit Forms; a company edits it as its
 own. Section totals: 140 (penalty), 282, 248, 157, 20.
+
+### Header fields
+
+A form's header is a list of typed fields filled at the top of every audit.
+Types: `text`, `number`, `time`, `textarea`, and two people-pickers that are
+deliberately separate: **`employee`** offers the AUDITED OUTLET's active
+staff (the shift officer on duty), **`auditor`** offers the company's
+APPOINTED AUDITORS — `audit_auditors`, maintained under Settings ▸ Outlet
+Audits ▸ Appointed Auditors (`/audits/auditors`, `audits.manage`). A QA
+auditor from head office is on no outlet's roster, which is why the first
+list cannot serve. Both store the chosen NAME on `audits.header_values`, so
+a later reassignment or departure never rewrites a past audit.
 
 ## Phase 3: schedules, trend, staff portal
 
@@ -152,6 +165,9 @@ own. Section totals: 140 (penalty), 282, 248, 157, 20.
   the owner update their actions from the staff portal on the PIN session.
 
 ## Tests
+
+`tests/Feature/AuditAuditorsTest.php` — appoint/remove, the builder offering
+the type, the two pickers offering different people, the gate.
 
 `tests/Feature/AuditReminderTest.php` — who is emailed and what it says,
 once-a-day throttle, the company-hour gate, owners without email, the

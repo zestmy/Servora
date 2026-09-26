@@ -26,6 +26,7 @@ use App\Livewire\Assets\Register as AssetsRegister;
 use App\Http\Controllers\Audits\AuditReportController;
 use App\Http\Controllers\Audits\AuditSignatureController;
 use App\Livewire\Audits\Actions as AuditActions;
+use App\Livewire\Audits\Auditors as AuditAuditors;
 use App\Livewire\Audits\Conduct as AuditConduct;
 use App\Livewire\Audits\Index as AuditsIndex;
 use App\Livewire\Audits\Schedules as AuditSchedules;
@@ -270,6 +271,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/audits', AuditsIndex::class)->name('audits.index')->middleware('can:audits.view');
     Route::get('/audits/actions', AuditActions::class)->name('audits.actions')->middleware('can:audits.view');
     Route::get('/audits/schedules', AuditSchedules::class)->name('audits.schedules')->middleware('can:audits.view');
+    Route::get('/audits/auditors', AuditAuditors::class)->name('audits.auditors')->middleware('can:audits.manage');
     Route::get('/audits/templates', AuditTemplates::class)->name('audits.templates')->middleware('can:audits.manage');
     Route::get('/audits/templates/{id}', AuditTemplateEdit::class)->name('audits.templates.edit')->middleware('can:audits.manage');
     Route::get('/audits/start', AuditStart::class)->name('audits.start')->middleware('can:audits.conduct');

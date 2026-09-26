@@ -3,6 +3,7 @@
 namespace App\Livewire\Audits;
 
 use App\Models\Audit;
+use App\Models\AuditAuditor;
 use App\Models\AuditFinding;
 use App\Models\AuditFindingPhoto;
 use App\Models\AuditLine;
@@ -410,6 +411,7 @@ class Conduct extends Component
             'photosByLine' => $photosByLine,
             'findings'     => $findings,
             'employees'    => $employees,
+            'appointedAuditors' => AuditAuditor::employeesFor((int) $audit->company_id),
             'isDraft'      => $audit->isDraft(),
             'canConduct'   => Auth::user()->canDo('audits.conduct'),
             'canActions'   => Auth::user()->canDo('audits.actions.manage'),

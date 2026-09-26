@@ -113,6 +113,7 @@ const SCREENS = [
     { path: '/audits/templates' },
     { path: '/audits/start' },
     { path: '/audits/schedules' },
+    { path: '/audits/auditors' },
     { path: '/reports/audit-trend' },
 
     // Settings — every one of these is a list with a header action row, which
