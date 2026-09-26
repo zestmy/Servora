@@ -104,6 +104,10 @@
         </div>
     </div>
 
+    {{-- Teleported to body: layouts.app animates the page wrapper with a
+         transform, which makes position:fixed relative to the content column
+         rather than the viewport — a short page then clips the dialog. --}}
+    <template x-teleport="body">
     <div x-data="{}" x-show="$wire.showForm" x-cloak class="fixed inset-0 z-50">
         <div class="fixed inset-0 bg-gray-900/50" @click="$wire.set('showForm', false)"></div>
         <div class="fixed inset-0 overflow-y-auto">
@@ -172,4 +176,5 @@
         </div>
         </div>
     </div>
+    </template>
 </div>
