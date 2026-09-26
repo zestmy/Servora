@@ -44,6 +44,28 @@ Per section: `available = total − N/A`, `score = available − lost`,
 divide. Cached on `audits` and `audit_sections`; nothing else writes those
 columns.
 
+### The outcome: pass / conditional pass / fail (`AuditScoreService::evaluate`)
+
+A percentage alone misreads a ROSE audit — the 14 critical items cost 10
+points each against a 707-point pool, so an outlet can fail five and still
+score 93%. The outcome is a judgement over three things, under rules kept on
+the form (`audit_templates.outcome_rules`) and **copied onto each audit at
+start** so tightening the rules never re-grades an audit already signed for:
+
+| Rule (default) | Pass | Conditional |
+|---|---|---|
+| Total score | ≥ 90% | ≥ 80% |
+| Major NCs (NC in a penalty section) | 0 | ≤ 1 |
+| Every area section | ≥ 80% | ≥ 70% |
+
+Fail if any conditional threshold is missed; pass if every pass threshold is
+met; conditional in between, with a re-audit due in `reaudit_days` (30).
+Sections with nothing applicable are skipped. `audits.outcome`,
+`major_count` and `outcome_reasons` (the rules that decided it, in words)
+are cached with the score; a draft carries a projection. Shown on the
+audit summary, the score strip, the list (filterable), the PDF and the trend
+report's pass rate. Rules are edited under Form details in the builder.
+
 ## Status flow
 
 ```
@@ -165,6 +187,10 @@ a later reassignment or departure never rewrites a past audit.
   the owner update their actions from the staff portal on the PIN session.
 
 ## Tests
+
+`tests/Feature/AuditOutcomeTest.php` — clean pass, one major → conditional,
+two majors → fail, weak area → conditional then fail, totals between the
+bars, rules frozen at start, builder validation, list filter.
 
 `tests/Feature/AuditAuditorsTest.php` — appoint/remove, the builder offering
 the type, the two pickers offering different people, the gate.

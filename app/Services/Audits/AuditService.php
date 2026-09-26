@@ -58,6 +58,7 @@ class AuditService
                 'header_values'            => collect($template->headerFieldList())
                     ->map(fn ($f) => $f + ['value' => null])->all(),
                 'requires_acknowledgement' => $template->requires_acknowledgement,
+                'outcome_rules'            => $template->outcomeRules(),
                 'created_by'               => $auditor->id,
             ], $attrs));
 

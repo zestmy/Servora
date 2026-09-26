@@ -47,10 +47,21 @@
             </div>
         </div>
     @else
-        <div class="mb-4 grid gap-3 sm:grid-cols-3">
-            <div class="card p-4"><p class="stat-label">Audits</p><p class="stat-value">{{ $audits->count() }}</p></div>
+        <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="card p-4"><p class="stat-label">Audits</p><p class="stat-value">{{ $audits->count() }}</p><p class="stat-meta">{{ $byOutlet->count() }} outlet{{ $byOutlet->count() === 1 ? '' : 's' }}</p></div>
             <div class="card p-4"><p class="stat-label">Average score</p><p class="stat-value">{{ $average !== null ? number_format($average, 1) . '%' : '—' }}</p></div>
-            <div class="card p-4"><p class="stat-label">Outlets</p><p class="stat-value">{{ $byOutlet->count() }}</p></div>
+            <div class="card p-4">
+                <p class="stat-label">Pass rate</p>
+                <p class="stat-value {{ $audits->count() && $outcomeCounts['pass'] / $audits->count() >= 0.8 ? 'text-success-700' : '' }}">
+                    {{ $audits->count() ? round($outcomeCounts['pass'] / $audits->count() * 100) . '%' : '—' }}
+                </p>
+                <p class="stat-meta">{{ $outcomeCounts['pass'] }} pass · {{ $outcomeCounts['conditional'] }} conditional · {{ $outcomeCounts['fail'] }} fail</p>
+            </div>
+            <div class="card p-4">
+                <p class="stat-label">Failed</p>
+                <p class="stat-value {{ $outcomeCounts['fail'] ? 'text-danger-700' : 'text-success-700' }}">{{ $outcomeCounts['fail'] }}</p>
+                <p class="stat-meta">audits below the conditional bar</p>
+            </div>
         </div>
 
         {{-- Score over time --}}
@@ -88,12 +99,13 @@
             <div class="card overflow-hidden">
                 <div class="border-b border-gray-100 px-4 py-3"><x-card-title>By outlet</x-card-title></div>
                 <div class="overflow-x-auto">
-                    <table class="table-surface min-w-[560px]">
+                    <table class="table-surface min-w-[680px]">
                         <thead>
                             <tr>
                                 <th class="px-4 py-2 text-left">Outlet</th>
                                 <th class="px-4 py-2 text-right w-16">Audits</th>
                                 <th class="px-4 py-2 text-right w-24">Latest</th>
+                                <th class="px-4 py-2 text-left w-32">Outcome</th>
                                 <th class="px-4 py-2 text-right w-20">Change</th>
                                 <th class="px-4 py-2 text-right w-20">Avg</th>
                                 <th class="px-4 py-2 text-right w-24">Trend</th>
@@ -110,6 +122,18 @@
                                     </td>
                                     <td class="px-4 py-2 text-right tabular-nums text-gray-700">{{ $o['count'] }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums font-semibold {{ ['good' => 'text-success-700', 'fair' => 'text-warning-700', 'poor' => 'text-danger-700', 'none' => 'text-gray-500'][$band] }}">{{ number_format($o['latest'], 1) }}%</td>
+                                    <td class="px-4 py-2">
+                                        @if ($o['latestOutcome'])
+                                            <span @class([
+                                                'badge-success' => $o['latestOutcome'] === 'pass',
+                                                'badge-warning' => $o['latestOutcome'] === 'conditional',
+                                                'badge-danger'  => $o['latestOutcome'] === 'fail',
+                                            ])>{{ $o['latestOutcomeLabel'] }}</span>
+                                            <span class="block text-[11px] text-gray-600">{{ $o['passes'] }}/{{ $o['count'] }} passed</span>
+                                        @else
+                                            <span class="text-gray-500">—</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-2 text-right tabular-nums {{ $o['delta'] === null ? 'text-gray-500' : ($o['delta'] > 0 ? 'text-success-700' : ($o['delta'] < 0 ? 'text-danger-700' : 'text-gray-600')) }}">
                                         {{ $o['delta'] === null ? '—' : ($o['delta'] > 0 ? '+' : '') . number_format($o['delta'], 1) }}
                                     </td>

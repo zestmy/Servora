@@ -27,6 +27,16 @@ class Audit extends Model
     public const STATUS_ACKNOWLEDGED = 'acknowledged';
     public const STATUS_CLOSED       = 'closed';
 
+    public const OUTCOME_PASS        = 'pass';
+    public const OUTCOME_CONDITIONAL = 'conditional';
+    public const OUTCOME_FAIL        = 'fail';
+
+    public const OUTCOMES = [
+        self::OUTCOME_PASS        => 'Pass',
+        self::OUTCOME_CONDITIONAL => 'Conditional pass',
+        self::OUTCOME_FAIL        => 'Fail',
+    ];
+
     public const STATUSES = [
         self::STATUS_DRAFT        => 'Draft',
         self::STATUS_SUBMITTED    => 'Submitted',
@@ -39,7 +49,7 @@ class Audit extends Model
         'alt_language', 'template_version', 'reference_number', 'status', 'audit_date',
         'time_in', 'time_out', 'auditor_id', 'header_values', 'notes',
         'total_points', 'na_points', 'available_points', 'lost_points', 'penalty_points',
-        'score_points', 'score_percent', 'finding_count',
+        'score_points', 'score_percent', 'finding_count', 'outcome', 'major_count', 'outcome_rules', 'outcome_reasons',
         'submitted_at', 'requires_acknowledgement', 'acknowledged_at', 'acknowledged_by_name',
         'acknowledged_by_position', 'signature_path', 'closed_at', 'created_by',
     ];
@@ -55,6 +65,9 @@ class Audit extends Model
         'score_points'             => 'integer',
         'score_percent'            => 'decimal:2',
         'finding_count'            => 'integer',
+        'major_count'              => 'integer',
+        'outcome_rules'            => 'array',
+        'outcome_reasons'          => 'array',
         'requires_acknowledgement' => 'boolean',
         'submitted_at'             => 'datetime',
         'acknowledged_at'          => 'datetime',
@@ -146,6 +159,17 @@ class Audit extends Model
     public function isClosed(): bool
     {
         return $this->status === self::STATUS_CLOSED;
+    }
+
+    public function outcomeLabel(): ?string
+    {
+        return $this->outcome ? (self::OUTCOMES[$this->outcome] ?? ucfirst($this->outcome)) : null;
+    }
+
+    /** The rules this audit is graded under — its own snapshot, else the defaults. */
+    public function outcomeRules(): array
+    {
+        return array_replace(\App\Services\Audits\AuditScoreService::DEFAULT_RULES, $this->outcome_rules ?? []);
     }
 
     public function statusLabel(): string

@@ -40,7 +40,7 @@ class AuditTemplate extends Model
 
     protected $fillable = [
         'company_id', 'name', 'code', 'description', 'alt_language', 'is_active',
-        'version', 'header_fields', 'requires_acknowledgement', 'created_by',
+        'version', 'header_fields', 'outcome_rules', 'requires_acknowledgement', 'created_by',
     ];
 
     protected $casts = [
@@ -48,6 +48,7 @@ class AuditTemplate extends Model
         'requires_acknowledgement' => 'boolean',
         'version'                  => 'integer',
         'header_fields'            => 'array',
+        'outcome_rules'            => 'array',
     ];
 
     // A template created with only a name is a usable template: the column
@@ -92,6 +93,15 @@ class AuditTemplate extends Model
     public function scopeOrdered(Builder $q): Builder
     {
         return $q->orderBy('name');
+    }
+
+    /**
+     * The pass / conditional / fail thresholds for audits started from this
+     * form: whatever was set, over the defaults. See AuditScoreService.
+     */
+    public function outcomeRules(): array
+    {
+        return array_replace(\App\Services\Audits\AuditScoreService::DEFAULT_RULES, $this->outcome_rules ?? []);
     }
 
     /** Header field definitions, always as a clean list. */

@@ -75,6 +75,26 @@
                     </div>
                 </div>
 
+                <div>
+                    <span class="label">Pass / conditional / fail</span>
+                    <p class="help mb-2">
+                        Three tests, because a percentage alone misreads a form like ROSE: critical items cost so little of the pool
+                        that an outlet can fail five and still score 93%. An audit <strong>fails</strong> if it misses any conditional
+                        threshold, <strong>passes</strong> if it meets every pass threshold, and is a <strong>conditional pass</strong>
+                        in between. Audits already started keep the rules they were started under.
+                    </p>
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($ruleLabels as $key => $label)
+                            <div wire:key="rule-{{ $key }}">
+                                <label class="label text-xs" for="rule-{{ $key }}">{{ $label }}</label>
+                                <input id="rule-{{ $key }}" type="number" min="0" max="{{ $key === 'reaudit_days' ? 365 : (str_contains($key, 'percent') ? 100 : 99) }}"
+                                       wire:model="outcomeRules.{{ $key }}" class="input" placeholder="{{ $ruleDefaults[$key] }}" />
+                                @error("outcomeRules.{$key}") <p class="error-text">{{ $message }}</p> @enderror
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
                 <div class="flex justify-end">
                     <button type="submit" class="btn-primary">Save details</button>
                 </div>

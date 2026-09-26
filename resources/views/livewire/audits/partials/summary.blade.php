@@ -4,6 +4,39 @@
     $penalties = $audit->sections->filter(fn ($s) => $s->isPenalty());
 @endphp
 
+{{-- The verdict, before the numbers: it is the one thing the outlet manager
+     reads, and the reasons say which rule decided it. --}}
+@if ($audit->outcome)
+    @php $rules = $audit->outcomeRules(); @endphp
+    <div @class([
+        'mb-3 rounded-surface border p-4',
+        'border-success-200 bg-success-50' => $audit->outcome === 'pass',
+        'border-warning-200 bg-warning-50' => $audit->outcome === 'conditional',
+        'border-danger-200 bg-danger-50'   => $audit->outcome === 'fail',
+    ])>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="text-xs font-medium uppercase tracking-wider {{ $audit->outcome === 'pass' ? 'text-success-800' : ($audit->outcome === 'conditional' ? 'text-warning-800' : 'text-danger-800') }}">Outcome</p>
+                <p class="text-2xl font-semibold {{ $audit->outcome === 'pass' ? 'text-success-800' : ($audit->outcome === 'conditional' ? 'text-warning-800' : 'text-danger-800') }}">{{ $audit->outcomeLabel() }}</p>
+            </div>
+            <p class="text-xs {{ $audit->outcome === 'pass' ? 'text-success-800' : ($audit->outcome === 'conditional' ? 'text-warning-800' : 'text-danger-800') }}">
+                Pass: ≥{{ $rules['pass_percent'] }}%, ≤{{ $rules['max_major_pass'] }} major, every area ≥{{ $rules['section_pass_percent'] }}% ·
+                Conditional: ≥{{ $rules['conditional_percent'] }}%, ≤{{ $rules['max_major_conditional'] }} major, every area ≥{{ $rules['section_conditional_percent'] }}%
+            </p>
+        </div>
+        @if ($audit->outcome_reasons)
+            <ul class="mt-2 list-disc space-y-0.5 pl-5 text-sm {{ $audit->outcome === 'conditional' ? 'text-warning-800' : 'text-danger-800' }}">
+                @foreach ($audit->outcome_reasons as $reason)
+                    <li>{{ $reason }}</li>
+                @endforeach
+            </ul>
+        @endif
+        @if ($audit->outcome === 'conditional')
+            <p class="mt-2 text-sm text-warning-800">Re-audit within {{ $rules['reaudit_days'] }} days.</p>
+        @endif
+    </div>
+@endif
+
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <div class="card p-4 sm:col-span-2 lg:col-span-1">
         <p class="stat-label">Total score</p>

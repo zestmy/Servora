@@ -69,13 +69,19 @@
                     <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
             </select>
+            <select wire:model.live="outcomeFilter" class="input sm:w-44">
+                <option value="">Any outcome</option>
+                @foreach ($outcomes as $key => $label)
+                    <option value="{{ $key }}">{{ $label }}</option>
+                @endforeach
+            </select>
             <button wire:click="resetFilters" class="btn-ghost">Reset</button>
         </div>
     </div>
 
     <div class="card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="table-surface min-w-[760px]">
+            <table class="table-surface min-w-[880px]">
                 <thead>
                     <tr>
                         <th class="px-4 py-3 text-left w-28">Date</th>
@@ -83,6 +89,7 @@
                         <th class="px-4 py-3 text-left">Form</th>
                         <th class="px-4 py-3 text-left w-40">Auditor</th>
                         <th class="px-4 py-3 text-right w-24">Score</th>
+                        <th class="px-4 py-3 text-left w-36">Outcome</th>
                         <th class="px-4 py-3 text-right w-28">Open NC</th>
                         <th class="px-4 py-3 text-left w-32">Status</th>
                         <th class="px-4 py-3 w-12"></th>
@@ -109,6 +116,17 @@
                                 {{ ['good' => 'text-success-700', 'fair' => 'text-warning-700', 'poor' => 'text-danger-700', 'none' => 'text-gray-500'][$band] }}">
                                 {{ $audit->isDraft() ? '—' : ($audit->score_percent !== null ? number_format($audit->score_percent, 1) . '%' : '—') }}
                             </td>
+                            <td class="px-4 py-3">
+                                @if (! $audit->isDraft() && $audit->outcome)
+                                    <span @class([
+                                        'badge-success' => $audit->outcome === 'pass',
+                                        'badge-warning' => $audit->outcome === 'conditional',
+                                        'badge-danger'  => $audit->outcome === 'fail',
+                                    ])>{{ $audit->outcomeLabel() }}</span>
+                                @else
+                                    <span class="text-gray-500">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-right tabular-nums {{ $audit->open_findings_count ? 'text-danger-700 font-medium' : 'text-gray-600' }}">
                                 {{ $audit->isDraft() ? '—' : $audit->open_findings_count }}
                             </td>
@@ -131,7 +149,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-12">
+                            <td colspan="9" class="px-4 py-12">
                                 <div class="empty-state">
                                     <p class="empty-title">No audits yet</p>
                                     <p class="empty-body">

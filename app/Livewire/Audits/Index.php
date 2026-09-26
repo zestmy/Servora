@@ -25,12 +25,13 @@ class Index extends Component
     public string $outletFilter   = '';
     public string $templateFilter = '';
     public string $statusFilter   = '';
+    public string $outcomeFilter  = '';
     public string $dateFrom       = '';
     public string $dateTo         = '';
 
     protected function rememberedFilters(): array
     {
-        return ['outletFilter', 'templateFilter', 'statusFilter', 'quickRange', 'dateFrom', 'dateTo'];
+        return ['outletFilter', 'templateFilter', 'statusFilter', 'outcomeFilter', 'quickRange', 'dateFrom', 'dateTo'];
     }
 
     protected function defaultQuickRange(): string
@@ -48,12 +49,13 @@ class Index extends Component
     public function updatedOutletFilter(): void   { $this->resetPage(); }
     public function updatedTemplateFilter(): void { $this->resetPage(); }
     public function updatedStatusFilter(): void   { $this->resetPage(); }
+    public function updatedOutcomeFilter(): void  { $this->resetPage(); }
     public function updatedDateFrom(): void       { $this->quickRange = ''; $this->resetPage(); }
     public function updatedDateTo(): void         { $this->quickRange = ''; $this->resetPage(); }
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'outletFilter', 'templateFilter', 'statusFilter']);
+        $this->reset(['search', 'outletFilter', 'templateFilter', 'statusFilter', 'outcomeFilter']);
         $this->setQuickRange($this->defaultQuickRange());
     }
 
@@ -86,6 +88,9 @@ class Index extends Component
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
         }
+        if ($this->outcomeFilter) {
+            $query->where('status', '!=', Audit::STATUS_DRAFT)->where('outcome', $this->outcomeFilter);
+        }
         if ($this->dateFrom) {
             $query->whereDate('audit_date', '>=', $this->dateFrom);
         }
@@ -112,6 +117,7 @@ class Index extends Component
             'outlets'   => $this->filterableOutlets(),
             'templates' => AuditTemplate::ordered()->get(['id', 'name', 'code']),
             'statuses'  => Audit::STATUSES,
+            'outcomes'  => Audit::OUTCOMES,
             'quickRangeOptions' => static::quickRangeOptions(),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Audits']);
     }

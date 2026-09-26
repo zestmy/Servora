@@ -77,10 +77,10 @@ class AuditTrend extends Component
         $audits = $this->audits();
 
         return $this->exportCsvDownload('audit-trend.csv',
-            ['Date', 'Outlet', 'Form', 'Score %', 'Available', 'Lost', 'Penalty', 'Findings', 'Status'],
+            ['Date', 'Outlet', 'Form', 'Score %', 'Outcome', 'Major NCs', 'Available', 'Lost', 'Penalty', 'Findings', 'Status'],
             $audits->map(fn ($a) => [
                 $a->audit_date->toDateString(), $a->outlet?->name, $a->template_code ?: $a->template_name,
-                $a->score_percent, $a->available_points, $a->lost_points, $a->penalty_points, $a->finding_count, $a->status,
+                $a->score_percent, $a->outcomeLabel(), $a->major_count, $a->available_points, $a->lost_points, $a->penalty_points, $a->finding_count, $a->status,
             ])->all()
         );
     }
@@ -100,6 +100,9 @@ class AuditTrend extends Component
                 'outlet'  => $latest->outlet?->name ?? '—',
                 'count'   => $rows->count(),
                 'latest'  => (float) $latest->score_percent,
+                'latestOutcome' => $latest->outcome,
+                'latestOutcomeLabel' => $latest->outcomeLabel(),
+                'passes'  => $rows->where('outcome', 'pass')->count(),
                 'latestOn' => $latest->audit_date,
                 'latestId' => $latest->id,
                 'average' => round($scores->avg(), 1),
@@ -163,6 +166,11 @@ class AuditTrend extends Component
             'sections'   => $sections,
             'mostFailed' => $mostFailed,
             'average'    => $all->isNotEmpty() ? round($all->avg(), 1) : null,
+            'outcomeCounts' => [
+                'pass'        => $audits->where('outcome', 'pass')->count(),
+                'conditional' => $audits->where('outcome', 'conditional')->count(),
+                'fail'        => $audits->where('outcome', 'fail')->count(),
+            ],
             'outlets'    => $this->filterableOutlets(),
             'templates'  => AuditTemplate::ordered()->get(['id', 'name', 'code']),
             'quickRangeOptions' => static::quickRangeOptions(),

@@ -39,6 +39,9 @@ class TemplateEdit extends Component
     /** @var array<int, array{key:string,label:string,type:string,required:bool}> */
     public array $headerFields = [];
 
+    /** @var array<string, int|string> pass / conditional / fail thresholds */
+    public array $outcomeRules = [];
+
     // Section being edited
     public string $sectionName = '';
     public string $sectionNameAlt = '';
@@ -59,6 +62,7 @@ class TemplateEdit extends Component
         $this->altLanguage = $template->alt_language ?? '';
         $this->requiresAcknowledgement = $template->requires_acknowledgement;
         $this->headerFields = $template->headerFieldList();
+        $this->outcomeRules = $template->outcomeRules();
 
         $this->sectionId = $template->sections->first()?->id;
         $this->loadSection();
@@ -94,8 +98,18 @@ class TemplateEdit extends Component
             'altLanguage' => 'nullable|string|max:40',
             'headerFields.*.label' => 'required|string|max:80',
             'headerFields.*.type'  => 'in:' . implode(',', AuditTemplate::HEADER_TYPES),
+            'outcomeRules.pass_percent'                => 'required|integer|min:0|max:100',
+            'outcomeRules.conditional_percent'         => 'required|integer|min:0|max:100|lte:outcomeRules.pass_percent',
+            'outcomeRules.section_pass_percent'        => 'required|integer|min:0|max:100',
+            'outcomeRules.section_conditional_percent' => 'required|integer|min:0|max:100|lte:outcomeRules.section_pass_percent',
+            'outcomeRules.max_major_pass'              => 'required|integer|min:0|max:99',
+            'outcomeRules.max_major_conditional'       => 'required|integer|min:0|max:99|gte:outcomeRules.max_major_pass',
+            'outcomeRules.reaudit_days'                => 'required|integer|min:1|max:365',
         ], [
             'headerFields.*.label.required' => 'Every header field needs a label.',
+            'outcomeRules.conditional_percent.lte'         => 'The conditional threshold cannot be above the pass threshold.',
+            'outcomeRules.section_conditional_percent.lte' => 'The conditional section floor cannot be above the pass floor.',
+            'outcomeRules.max_major_conditional.gte'       => 'A conditional pass must allow at least as many majors as a pass.',
         ]);
 
         $fields = collect($this->headerFields)->map(fn ($f, $i) => [
@@ -112,6 +126,9 @@ class TemplateEdit extends Component
             'alt_language'             => $this->altLanguage ?: null,
             'requires_acknowledgement' => $this->requiresAcknowledgement,
             'header_fields'            => $fields,
+            'outcome_rules'            => collect($this->outcomeRules)
+                ->only(array_keys(\App\Services\Audits\AuditScoreService::DEFAULT_RULES))
+                ->map(fn ($v) => (int) $v)->all(),
         ]);
 
         $this->headerFields = $fields;
@@ -428,6 +445,8 @@ class TemplateEdit extends Component
             'sections'      => $template->sections,
             'sectionPoints' => $sectionPoints,
             'headerTypes'   => AuditTemplate::HEADER_TYPES,
+            'ruleLabels'    => \App\Services\Audits\AuditScoreService::RULE_LABELS,
+            'ruleDefaults'  => \App\Services\Audits\AuditScoreService::DEFAULT_RULES,
             'itemTypes'     => AuditTemplateItem::TYPES,
             'infoTypes'     => AuditTemplateItem::INFO_TYPES,
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Audit Form']);

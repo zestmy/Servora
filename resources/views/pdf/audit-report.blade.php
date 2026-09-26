@@ -58,6 +58,33 @@
         @endif
     </table>
 
+    @if ($audit->outcome)
+        @php
+            $oc = ['pass' => ['#15803d', '#f0fdf4'], 'conditional' => ['#b45309', '#fffbeb'], 'fail' => ['#b91c1c', '#fef2f2']][$audit->outcome];
+            $rules = $audit->outcomeRules();
+        @endphp
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+            <tr>
+                <td style="padding: 10px 12px; border: 2px solid {{ $oc[0] }}; background: {{ $oc[1] }};">
+                    <div style="font-size: 8pt; color: {{ $oc[0] }}; text-transform: uppercase; letter-spacing: 0.5px;">Outcome</div>
+                    <div style="font-size: 18pt; font-weight: bold; color: {{ $oc[0] }};">{{ strtoupper($audit->outcomeLabel()) }}</div>
+                    @if ($audit->outcome_reasons)
+                        <ul style="margin: 4px 0 0 14px; padding: 0; font-size: 9pt; color: {{ $oc[0] }};">
+                            @foreach ($audit->outcome_reasons as $reason)<li>{{ $reason }}</li>@endforeach
+                        </ul>
+                    @endif
+                    @if ($audit->outcome === 'conditional')
+                        <div style="font-size: 9pt; color: {{ $oc[0] }}; margin-top: 4px;">Re-audit within {{ $rules['reaudit_days'] }} days.</div>
+                    @endif
+                    <div style="font-size: 7.5pt; color: #475569; margin-top: 6px;">
+                        Pass: total ≥ {{ $rules['pass_percent'] }}%, major NCs ≤ {{ $rules['max_major_pass'] }}, every area ≥ {{ $rules['section_pass_percent'] }}%.
+                        Conditional: total ≥ {{ $rules['conditional_percent'] }}%, major NCs ≤ {{ $rules['max_major_conditional'] }}, every area ≥ {{ $rules['section_conditional_percent'] }}%. Otherwise fail.
+                    </div>
+                </td>
+            </tr>
+        </table>
+    @endif
+
     {{-- Total score, large --}}
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
         <tr>

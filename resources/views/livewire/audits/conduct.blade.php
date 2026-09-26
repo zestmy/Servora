@@ -45,6 +45,14 @@
                     <p class="text-lg font-semibold tabular-nums leading-tight {{ $bands[$band] }}">
                         {{ $pct === null ? '—' : number_format($pct, 1) . '%' }}
                     </p>
+                    @if ($audit->outcome)
+                        <span @class([
+                            'mt-0.5 inline-block',
+                            'badge-success' => $audit->outcome === 'pass',
+                            'badge-warning' => $audit->outcome === 'conditional',
+                            'badge-danger'  => $audit->outcome === 'fail',
+                        ])>{{ $isDraft ? 'Heading for: ' : '' }}{{ $audit->outcomeLabel() }}</span>
+                    @endif
                 </div>
                 <div class="min-w-0 flex-1 overflow-x-auto">
                     <div class="flex items-center gap-1">
