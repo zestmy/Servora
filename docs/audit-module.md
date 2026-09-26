@@ -66,8 +66,9 @@ the original in `reaudit_of_id` — set up front by "Start re-audit" on the
 summary (`/audits/start?reaudit=`), or at submit for an ordinary later audit
 of the same form at the same outlet. A re-audit is satisfied once a
 submitted follow-up names it; until then the Audits list carries a strip
-and a "Re-audit due" filter, and the auditor's daily digest lists re-audits
-due within 7 days or overdue. Reopening clears the due date; resubmitting
+and a "Re-audit due" filter, the Schedule page lists it as a "Re-audit" row
+beside the recurring schedules (sorted by due date, counted in Overdue), and
+the auditor's daily digest lists re-audits due within 7 days or overdue. Reopening clears the due date; resubmitting
 re-derives it from the new outcome.
 
 Sections with nothing applicable are skipped. `audits.outcome`,

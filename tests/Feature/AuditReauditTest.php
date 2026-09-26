@@ -196,6 +196,33 @@ class AuditReauditTest extends TestCase
         Mail::assertSent(AuditorReminderMail::class, 1);
     }
 
+    public function test_the_schedule_page_lists_the_reaudit_beside_recurring_schedules(): void
+    {
+        $conditional = $this->submitted('2026-08-20', ['Pests']);   // re-audit due 19 Sep: overdue
+
+        \App\Models\AuditSchedule::create([
+            'company_id' => $this->company->id, 'audit_template_id' => $this->template->id,
+            'outlet_id' => $this->outlet->id, 'frequency' => 'quarterly', 'next_due_on' => '2026-12-01',
+        ]);
+
+        Livewire::test(\App\Livewire\Audits\Schedules::class)
+            ->assertSee('Re-audit')
+            ->assertSee('19 Sep 2026')
+            ->assertSee('Start re-audit')
+            ->assertSee('01 Dec 2026')          // the recurring schedule's row
+            ->assertSee('Overdue (1)')
+            ->set('filter', 'overdue')
+            ->assertSee('Re-audit')
+            ->assertDontSee('01 Dec 2026');     // the schedule is not overdue; only the re-audit is
+
+        // Settled: the row leaves the page.
+        $this->submitted('2026-09-26', []);
+
+        Livewire::test(\App\Livewire\Audits\Schedules::class)
+            ->assertDontSee('Start re-audit')
+            ->assertSee('01 Dec 2026');
+    }
+
     public function test_a_reaudit_more_than_a_week_away_is_not_chased_yet(): void
     {
         $this->submitted('2026-09-20', ['Pests']);   // due 20 Oct

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Audits;
 
+use App\Models\Audit;
 use App\Models\AuditSchedule;
 use App\Models\AuditTemplate;
 use App\Models\User;
@@ -164,7 +165,31 @@ class Schedules extends Component
 
         $schedules = $query->orderBy('next_due_on')->get();
 
+        /*
+         * Re-audits owed by conditional passes sit in the same list, because
+         * "what is due at which outlet" is one question. They are not
+         * schedules — they have no frequency and roll nothing forward — so
+         * they are rows of their own kind, settled by submitting the follow-up.
+         */
+        $reauditQuery = Audit::with(['outlet', 'auditor'])->reauditOutstanding();
+        $this->scopeByOutlet($reauditQuery);
+
+        if ($this->filter === 'overdue') {
+            $reauditQuery->whereDate('reaudit_due_on', '<', now()->toDateString());
+        }
+
+        $reaudits = $reauditQuery->orderBy('reaudit_due_on')->get();
+
+        $rows = $schedules->map(fn ($s) => ['kind' => 'schedule', 'due' => $s->next_due_on, 'row' => $s])
+            ->concat($reaudits->map(fn ($a) => ['kind' => 'reaudit', 'due' => $a->reaudit_due_on, 'row' => $a]))
+            ->sortBy(fn ($r) => $r['due']->toDateString() . ($r['kind'] === 'reaudit' ? '-0' : '-1'))
+            ->values();
+
+        $overdueSchedules = AuditSchedule::query()->tap(fn ($q) => $this->scopeByOutlet($q))->overdue()->count();
+        $overdueReaudits  = Audit::query()->tap(fn ($q) => $this->scopeByOutlet($q))->reauditOverdue()->count();
+
         return view('livewire.audits.schedules', [
+            'rows'        => $rows,
             'schedules'   => $schedules,
             'templates'   => AuditTemplate::active()->ordered()->get(['id', 'name', 'code']),
             'outlets'     => \App\Models\Outlet::whereIn('id', $this->availableOutletIds())->orderBy('name')->get(['id', 'name']),
@@ -172,7 +197,8 @@ class Schedules extends Component
             'frequencies' => AuditSchedule::FREQUENCIES,
             'canManage'   => Auth::user()->canDo('audits.manage'),
             'canConduct'  => Auth::user()->canDo('audits.conduct'),
-            'overdueCount' => (clone $query)->count() ? AuditSchedule::query()->tap(fn ($q) => $this->scopeByOutlet($q))->overdue()->count() : 0,
+            'overdueCount' => $overdueSchedules + $overdueReaudits,
+            'reauditCount' => $reaudits->count(),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Audit Schedule']);
     }
 }
