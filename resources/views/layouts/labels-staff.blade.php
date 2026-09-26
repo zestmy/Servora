@@ -30,8 +30,8 @@
     <meta name="apple-mobile-web-app-title" content="Labels">
     <link rel="manifest" href="{{ route('labels.staff.manifest') }}">
     {{-- iOS ignores the manifest's icons and uses this one. --}}
-    <link rel="apple-touch-icon" href="{{ asset('labels-app/apple-touch-icon.png') }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('labels-app/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ brand_asset('labels-app/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ brand_asset('labels-app/icon-192.png') }}">
     <title>{{ $title ?? 'Labels' }} | {{ $brandName }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles

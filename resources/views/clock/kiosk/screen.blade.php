@@ -54,8 +54,8 @@
          "Add to Home Screen" on an iPad uses a screenshot of the page — which
          for this screen is a photograph of whoever was standing in front of
          the camera when somebody installed it. --}}
-    <link rel="apple-touch-icon" href="{{ asset('clock-app/staff-portal.png') }}">
-    <link rel="icon" type="image/png" href="{{ asset('clock-app/staff-portal.png') }}">
+    <link rel="apple-touch-icon" href="{{ brand_asset('clock-app/kiosk.png') }}">
+    <link rel="icon" type="image/png" href="{{ brand_asset('clock-app/kiosk.png') }}">
     <title>Clock Kiosk | {{ $outlet?->name ?? $brandName }}</title>
     @vite(['resources/css/app.css', 'resources/js/kiosk.js'])
     <style>

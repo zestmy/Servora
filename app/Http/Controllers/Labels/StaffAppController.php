@@ -41,13 +41,13 @@ class StaffAppController extends Controller
             'theme_color'      => '#0962ef',
             'icons'            => [
                 [
-                    'src'   => asset('labels-app/icon-192.png'),
+                    'src'   => brand_asset('labels-app/icon-192.png'),
                     'sizes' => '192x192',
                     'type'  => 'image/png',
                     'purpose' => 'any',
                 ],
                 [
-                    'src'   => asset('labels-app/icon-512.png'),
+                    'src'   => brand_asset('labels-app/icon-512.png'),
                     'sizes' => '512x512',
                     'type'  => 'image/png',
                     'purpose' => 'any',
@@ -55,7 +55,7 @@ class StaffAppController extends Controller
                 [
                     // Android crops icons to its own shape; this one has the
                     // glyph inside the safe zone so it survives the crop.
-                    'src'     => asset('labels-app/icon-maskable-512.png'),
+                    'src'     => brand_asset('labels-app/icon-maskable-512.png'),
                     'sizes'   => '512x512',
                     'type'    => 'image/png',
                     'purpose' => 'maskable',
@@ -85,10 +85,11 @@ class StaffAppController extends Controller
         // icons outright, so an installed app keeps serving the old ones
         // until the cache name moves and `activate` deletes the previous key.
         // v2: icons redrawn in brand teal (they were pre-rebrand indigo).
-        $version = 'v2';
+        // v3: replaced with the designer's LABEL app icon.
+        $version = 'v3';
         $icons   = json_encode([
-            asset('labels-app/icon-192.png'),
-            asset('labels-app/icon-512.png'),
+            brand_asset('labels-app/icon-192.png'),
+            brand_asset('labels-app/icon-512.png'),
         ], JSON_UNESCAPED_SLASHES);
 
         $offline = addcslashes(

@@ -64,10 +64,13 @@ migrate a surface when you are already editing that file.
 | `images/servora-logo-black.png` | Blue gradient mark, dark wordmark. **Light backgrounds.** |
 | `images/servora-logo-white.png` | Blue mark, white wordmark. **Dark backgrounds** — it is invisible on white, which is correct, not a broken file. |
 | `images/servora-logo-blue.png` | All-blue lockup, for light backgrounds where the dark version reads too heavy. |
-| `images/servora-icon.png` | App icon — white mark on the blue plate. |
+| `images/servora-icon.png` | App icon — blue mark in a white disc on the blue plate, SERVORA wordmark beneath. |
 | `favicon.png` | The app icon again, at the path browsers and the manifests point to. |
 | `favicon.ico` | Derived. Packs 16/32/48. |
 | `servora-maskable-512.png` | Derived. Android maskable: full-bleed plate, glyph inside the safe zone. |
+| `clock-app/staff-portal.png` | Staff Portal app icon (STAFF). |
+| `clock-app/kiosk.png` | Clock-in kiosk app icon (KIOSK). |
+| `labels-app/label-icon.png` | Labels app icon (LABEL). Source for the sizes `scripts/make-label-app-icons.php` derives. |
 
 All three lockups are 300 × 60; the icon is 300 × 300. Layouts size them by
 height (`h-8`, `h-11`) with width auto, so the aspect carries itself.

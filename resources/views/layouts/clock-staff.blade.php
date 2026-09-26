@@ -25,7 +25,7 @@
      * own strokes. This is drawn as an app icon — square, its own background,
      * legible at 48px — which is a different job from a logo.
      */
-    $appIcon      = asset('clock-app/staff-portal.png');
+    $appIcon      = brand_asset('clock-app/staff-portal.png');
 
     /*
      * How much noise the clock may make, resolved from the company on the

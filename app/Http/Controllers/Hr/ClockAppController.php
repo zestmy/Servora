@@ -70,7 +70,7 @@ class ClockAppController extends Controller
              */
             'icons'            => [
                 [
-                    'src'     => asset('clock-app/staff-portal.png'),
+                    'src'     => brand_asset('clock-app/staff-portal.png'),
                     'sizes'   => 'any',
                     'type'    => 'image/png',
                     'purpose' => 'any',
@@ -115,14 +115,13 @@ class ClockAppController extends Controller
             'orientation' => 'landscape',
             'background_color' => '#0b1220',
             'theme_color'      => '#0962ef',
-            // The same tile as the Staff Portal, and deliberately so — see the
-            // note on that manifest for why it is not the tenant's logo. The
-            // two apps sit on different devices (a phone, a counter tablet)
-            // and are told apart by their NAME on the label under the icon,
-            // which is what a launcher shows for two icons that look alike.
+            // Its own KIOSK tile rather than the Staff Portal's — see the note
+            // on that manifest for why it is not the tenant's logo. Not
+            // maskable for the same reason: the KIOSK wordmark sits near the
+            // lower edge and a circle mask would take it off.
             'icons'            => [
                 [
-                    'src'     => asset('clock-app/staff-portal.png'),
+                    'src'     => brand_asset('clock-app/kiosk.png'),
                     'sizes'   => 'any',
                     'type'    => 'image/png',
                     'purpose' => 'any',
