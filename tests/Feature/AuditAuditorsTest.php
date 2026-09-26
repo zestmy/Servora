@@ -161,6 +161,33 @@ class AuditAuditorsTest extends TestCase
         $this->assertCount(1, collect($fresh->fresh()->headerFieldList())->where('type', 'auditor'));
     }
 
+    public function test_a_rose_form_with_its_own_auditor_fields_has_them_converted_and_the_generic_one_dropped(): void
+    {
+        $custom = AuditTemplate::create([
+            'company_id' => $this->company->id, 'name' => 'Customised ROSE', 'code' => 'ROSE',
+            'header_fields' => [
+                ['key' => 'auditor',       'label' => 'Auditor',                  'type' => 'auditor',  'required' => false],
+                ['key' => 'shift_officer', 'label' => 'Management on duty (FOH)', 'type' => 'employee', 'required' => false],
+                ['key' => '1st_auditor',   'label' => '1st Auditor',              'type' => 'employee', 'required' => false],
+                ['key' => '2nd_auditor',   'label' => '2nd Auditor',              'type' => 'employee', 'required' => false],
+            ],
+        ]);
+        $plain = \App\Support\Audits\RoseTemplate::install($this->company, $this->user);
+
+        $migration = require database_path('migrations/2026_09_26_000009_convert_rose_auditor_fields_to_appointed_auditors.php');
+        $migration->up();
+        $migration->up();   // idempotent
+
+        $fields = collect($custom->fresh()->headerFieldList());
+        $this->assertSame(['shift_officer', '1st_auditor', '2nd_auditor'], $fields->pluck('key')->all(), 'Generic field dropped, own fields kept in place.');
+        $this->assertSame('employee', $fields->firstWhere('key', 'shift_officer')['type'], 'A manager-on-duty field is not an auditor field.');
+        $this->assertSame('auditor', $fields->firstWhere('key', '1st_auditor')['type']);
+        $this->assertSame('auditor', $fields->firstWhere('key', '2nd_auditor')['type']);
+
+        // A form with only the starter's generic field keeps it.
+        $this->assertSame('auditor', $plain->fresh()->headerFieldList()[0]['key']);
+    }
+
     public function test_only_form_builders_reach_the_auditor_settings(): void
     {
         $viewer = User::factory()->create(['company_id' => $this->company->id, 'outlet_id' => $this->outlet->id]);
