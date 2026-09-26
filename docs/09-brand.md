@@ -61,7 +61,7 @@ migrate a surface when you are already editing that file.
 
 | File | What it is |
 |------|------------|
-| `images/servora-logo-black.png` | Dark mark and wordmark. **Light backgrounds.** |
+| `images/servora-logo-black.png` | Blue gradient mark, dark wordmark. **Light backgrounds.** |
 | `images/servora-logo-white.png` | Blue mark, white wordmark. **Dark backgrounds** — it is invisible on white, which is correct, not a broken file. |
 | `images/servora-logo-blue.png` | All-blue lockup, for light backgrounds where the dark version reads too heavy. |
 | `images/servora-icon.png` | App icon — white mark on the blue plate. |
