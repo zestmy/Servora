@@ -274,6 +274,22 @@
                                             @if ($action->isVerified()) by {{ $action->verifiedBy?->name }} on {{ $action->verified_at?->format('d M Y') }} @endif
                                         </div>
                                         @if ($action->completion_note)<div style="font-size: 8pt; color: #334155;">“{{ $action->completion_note }}”</div>@endif
+                                        @php $ev = $action->photos->where('kind', 'evidence'); $ve = $action->photos->where('kind', 'verification'); @endphp
+                                        @if ($ev->isNotEmpty() || $ve->isNotEmpty())
+                                            <div style="margin-top: 4px;">
+                                                @foreach ($ev as $p)
+                                                    @if (isset($actionThumbs[$p->id]))<img src="{{ $actionThumbs[$p->id] }}" style="width: 72px; height: auto; margin: 0 3px 3px 0; border: 1px solid #e5e7eb; vertical-align: top;" alt="">@endif
+                                                @endforeach
+                                                @foreach ($ve as $p)
+                                                    @if (isset($actionThumbs[$p->id]))<img src="{{ $actionThumbs[$p->id] }}" style="width: 72px; height: auto; margin: 0 3px 3px 0; border: 2px solid #15803d; vertical-align: top;" alt="">@endif
+                                                @endforeach
+                                                <div style="font-size: 7.5pt; color: #475569;">
+                                                    @if ($ev->isNotEmpty()) {{ $ev->count() }} photo{{ $ev->count() === 1 ? '' : 's' }} of the fix @endif
+                                                    @if ($ev->isNotEmpty() && $ve->isNotEmpty()) · @endif
+                                                    @if ($ve->isNotEmpty())<span style="color: #15803d;">{{ $ve->count() }} verification photo{{ $ve->count() === 1 ? '' : 's' }} (green border)</span>@endif
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @empty
                                     <div style="margin-top: 3px; font-size: 9pt; color: #b45309;">No action raised yet</div>

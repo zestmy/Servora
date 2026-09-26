@@ -2,12 +2,10 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\PurgesStoredFiles;
 use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * What the outlet is doing about a finding, and who owns it.
@@ -19,8 +17,6 @@ use Illuminate\Support\Facades\Storage;
  */
 class CorrectiveAction extends Model
 {
-    use PurgesStoredFiles;
-
     public const STATUS_OPEN        = 'open';
     public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_DONE        = 'done';
@@ -35,7 +31,7 @@ class CorrectiveAction extends Model
 
     protected $fillable = [
         'company_id', 'outlet_id', 'audit_finding_id', 'owner_employee_id', 'description',
-        'due_date', 'status', 'completed_at', 'completion_note', 'evidence_path',
+        'due_date', 'status', 'completed_at', 'completion_note',
         'verified_by', 'verified_at', 'verification_note', 'created_by',
     ];
 
@@ -49,7 +45,8 @@ class CorrectiveAction extends Model
     {
         static::addGlobalScope(new CompanyScope());
 
-        static::deleted(fn (self $action) => $action->purgeOwnedFile('evidence_path'));
+        // Photos are files; the rows would cascade but the files would not.
+        static::deleting(fn (self $action) => $action->photos()->get()->each->delete());
 
         // The finding's own status is a summary of its actions, so every
         // change to an action re-derives it — including the last one going.
@@ -112,8 +109,20 @@ class CorrectiveAction extends Model
         return self::STATUSES[$this->status] ?? ucfirst($this->status);
     }
 
-    public function evidenceUrl(): ?string
+    public function photos(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->evidence_path ? Storage::disk('public')->url($this->evidence_path) : null;
+        return $this->hasMany(CorrectiveActionPhoto::class)->orderBy('id');
+    }
+
+    /** The owner's photographs of the fix. */
+    public function evidencePhotos(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->photos()->where('kind', CorrectiveActionPhoto::KIND_EVIDENCE);
+    }
+
+    /** The auditor's photographs from verifying it. */
+    public function verificationPhotos(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->photos()->where('kind', CorrectiveActionPhoto::KIND_VERIFICATION);
     }
 }

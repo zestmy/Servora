@@ -34,8 +34,11 @@ class FindingActions extends Component
     /** @var array<int, string> action id => note typed before a status change */
     public array $notes = [];
 
-    /** @var array<int, mixed> action id => pending evidence upload */
+    /** @var array<int, mixed> action id => pending photo of the fix (owner's evidence) */
     public array $evidence = [];
+
+    /** @var array<int, mixed> action id => pending verification photo (the auditor's) */
+    public array $verification = [];
 
     public function mount(int $findingId): void
     {
@@ -139,11 +142,20 @@ class FindingActions extends Component
 
     public function updatedEvidence($value, $key): void
     {
+        $this->storePhoto((int) $key, 'evidence', \App\Models\CorrectiveActionPhoto::KIND_EVIDENCE);
+    }
+
+    public function updatedVerification($value, $key): void
+    {
+        $this->storePhoto((int) $key, 'verification', \App\Models\CorrectiveActionPhoto::KIND_VERIFICATION);
+    }
+
+    private function storePhoto(int $id, string $property, string $kind): void
+    {
         $this->requireManage();
 
-        $id   = (int) $key;
-        $file = $this->keepPreviewableUpload($this->evidence[$id] ?? null, "evidence.{$id}");
-        unset($this->evidence[$id]);
+        $file = $this->keepPreviewableUpload($this->{$property}[$id] ?? null, "{$property}.{$id}");
+        unset($this->{$property}[$id]);
 
         if (! $file) return;
 
@@ -152,12 +164,21 @@ class FindingActions extends Component
                 'photo.mimes' => ImageStorageService::uploadMessage(),
                 'photo.max'   => 'The photo may not be larger than 8 MB.',
             ])->validate();
-        } catch (ValidationException $e) {
-            $this->addError("evidence.{$id}", $e->validator->errors()->first());
-            return;
-        }
 
-        app(CorrectiveActionService::class)->attachEvidence($this->action($id), $file);
+            app(CorrectiveActionService::class)->attachPhoto($this->action($id), $file, $kind, Auth::user());
+        } catch (ValidationException $e) {
+            $this->addError("{$property}.{$id}", $e->validator->errors()->first());
+        }
+    }
+
+    public function removePhoto(int $photoId, CorrectiveActionService $actions): void
+    {
+        $this->requireManage();
+
+        $photo = \App\Models\CorrectiveActionPhoto::whereHas('action', fn ($q) => $q->where('audit_finding_id', $this->findingId))
+            ->findOrFail($photoId);
+
+        $actions->removePhoto($photo);
     }
 
     public function delete(int $id, CorrectiveActionService $actions): void
@@ -169,7 +190,7 @@ class FindingActions extends Component
 
     public function render()
     {
-        $finding = AuditFinding::with(['actions.owner', 'actions.verifiedBy'])->findOrFail($this->findingId);
+        $finding = AuditFinding::with(['actions.owner', 'actions.verifiedBy', 'actions.photos'])->findOrFail($this->findingId);
 
         return view('livewire.audits.finding-actions', [
             'finding'   => $finding,

@@ -83,7 +83,22 @@ class CorrectiveActions extends StaffComponent
             return;
         }
 
-        app(CorrectiveActionService::class)->attachEvidence($action, $file);
+        try {
+            app(CorrectiveActionService::class)->attachPhoto($action, $file, \App\Models\CorrectiveActionPhoto::KIND_EVIDENCE, $this->staff());
+        } catch (ValidationException $e) {
+            $this->addError("evidence.{$id}", $e->validator->errors()->first());
+        }
+    }
+
+    /** Only the owner's own evidence photos, and only while the action is not yet verified. */
+    public function removePhoto(int $photoId): void
+    {
+        $photo = \App\Models\CorrectiveActionPhoto::where('kind', \App\Models\CorrectiveActionPhoto::KIND_EVIDENCE)->findOrFail($photoId);
+        $action = $this->mine((int) $photo->corrective_action_id);
+
+        abort_if($action->isVerified(), 403);
+
+        app(CorrectiveActionService::class)->removePhoto($photo);
     }
 
     public function render()
@@ -91,7 +106,7 @@ class CorrectiveActions extends StaffComponent
         $employee = $this->staff();
 
         $base = CorrectiveAction::withoutGlobalScopes()
-            ->with(['finding.audit', 'owner'])
+            ->with(['finding.audit', 'owner', 'photos'])
             ->where('company_id', $employee->company_id);
 
         $mine = (clone $base)

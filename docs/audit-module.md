@@ -15,7 +15,7 @@ this module is plural: `audits`, `audits.*`, `App\Livewire\Audits`.
 | Form | `audit_templates` → `audit_template_sections` → `audit_template_items` | The definition. Items are a two-level tree (heading → lettered sub-items); points live on leaves. |
 | Audit | `audits` → `audit_sections` → `audit_lines` | A **copy** of the form taken when the audit starts, plus what the auditor found. The form is never read again. |
 | Findings | `audit_findings` → `audit_finding_photos` | One per line marked NC. Created the moment the line is tapped, while still a draft, so photos have something to attach to; deleted if the tap is undone. |
-| Actions | `corrective_actions` | What the outlet is doing about a finding and who owns it (an `Employee`). |
+| Actions | `corrective_actions` → `corrective_action_photos` | What the outlet is doing about a finding and who owns it (an `Employee`). Photos are of two kinds: `evidence` (the owner's, of the fix) and `verification` (the auditor's), up to six each, kept apart so neither side can overwrite the other's. |
 
 Findings and actions carry their own `company_id` / `outlet_id` so the
 Corrective Actions summary never joins through audit lines.

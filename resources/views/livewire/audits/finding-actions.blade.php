@@ -36,10 +36,36 @@
                         ])>{{ $action->statusLabel() }}</span>
                     </div>
 
-                    @if ($action->evidence_path)
-                        <a href="{{ $action->evidenceUrl() }}" target="_blank" class="mt-2 block h-16 w-16 overflow-hidden rounded-control border border-gray-200">
-                            <img src="{{ $action->evidenceUrl() }}" alt="Evidence" class="h-full w-full object-cover" loading="lazy" />
-                        </a>
+                    @php
+                        $evidence     = $action->photos->where('kind', 'evidence');
+                        $verification = $action->photos->where('kind', 'verification');
+                    @endphp
+                    @if ($evidence->isNotEmpty() || $verification->isNotEmpty())
+                        <div class="mt-2 flex flex-wrap gap-4">
+                            @foreach (['evidence' => ['Photos of the fix', $evidence], 'verification' => ['Verification photos', $verification]] as $kind => [$title, $set])
+                                @if ($set->isNotEmpty())
+                                    <div>
+                                        <p class="mb-1 text-[11px] font-medium uppercase tracking-wider {{ $kind === 'verification' ? 'text-success-700' : 'text-gray-600' }}">{{ $title }}</p>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            @foreach ($set as $photo)
+                                                <div wire:key="cap-{{ $photo->id }}" class="relative">
+                                                    <a href="{{ $photo->url() }}" target="_blank" class="block h-16 w-16 overflow-hidden rounded-control border {{ $kind === 'verification' ? 'border-success-300' : 'border-gray-200' }}">
+                                                        <img src="{{ $photo->url() }}" alt="" class="h-full w-full object-cover" loading="lazy" />
+                                                    </a>
+                                                    @if ($canManage && ! $action->isVerified())
+                                                        <button type="button" wire:click="removePhoto({{ $photo->id }})"
+                                                                data-confirm-delete="Remove this photo from the corrective action. It is deleted from storage."
+                                                                class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white shadow" aria-label="Remove photo">
+                                                            <x-icon name="close" size="h-3 w-3" />
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
                     @endif
 
                     @if ($canManage)
@@ -62,11 +88,20 @@
                                     <button type="button" wire:click="setStatus({{ $action->id }}, 'done')" class="btn-secondary text-xs">Mark done</button>
                                 @endif
                                 <button type="button" wire:click="verify({{ $action->id }})" class="btn-primary text-xs">Verify</button>
-                                <label class="btn-ghost cursor-pointer text-xs">
-                                    <input type="file" accept="image/*" capture="environment" class="sr-only" wire:model="evidence.{{ $action->id }}" />
-                                    <span wire:loading.remove wire:target="evidence.{{ $action->id }}">{{ $action->evidence_path ? 'Replace photo' : '+ Photo of fix' }}</span>
-                                    <span wire:loading wire:target="evidence.{{ $action->id }}">Uploading…</span>
-                                </label>
+                                @if ($evidence->count() < \App\Models\CorrectiveActionPhoto::MAX_PER_KIND)
+                                    <label class="btn-ghost cursor-pointer text-xs">
+                                        <input type="file" accept="image/*" capture="environment" class="sr-only" wire:model="evidence.{{ $action->id }}" />
+                                        <span wire:loading.remove wire:target="evidence.{{ $action->id }}">+ Photo of fix</span>
+                                        <span wire:loading wire:target="evidence.{{ $action->id }}">Uploading…</span>
+                                    </label>
+                                @endif
+                                @if ($verification->count() < \App\Models\CorrectiveActionPhoto::MAX_PER_KIND)
+                                    <label class="btn-ghost cursor-pointer text-xs text-success-700">
+                                        <input type="file" accept="image/*" capture="environment" class="sr-only" wire:model="verification.{{ $action->id }}" />
+                                        <span wire:loading.remove wire:target="verification.{{ $action->id }}">+ Verification photo</span>
+                                        <span wire:loading wire:target="verification.{{ $action->id }}">Uploading…</span>
+                                    </label>
+                                @endif
                                 @if ($action->status === 'open')
                                     <button type="button" wire:click="delete({{ $action->id }})" class="icon-btn icon-btn-danger" title="Remove"
                                             data-confirm-delete="Remove this corrective action. The finding stays open.">
@@ -75,10 +110,18 @@
                                 @endif
                             @else
                                 <button type="button" wire:click="unverify({{ $action->id }})" class="btn-ghost text-xs">Un-verify</button>
+                                @if ($verification->count() < \App\Models\CorrectiveActionPhoto::MAX_PER_KIND)
+                                    <label class="btn-ghost cursor-pointer text-xs text-success-700">
+                                        <input type="file" accept="image/*" capture="environment" class="sr-only" wire:model="verification.{{ $action->id }}" />
+                                        <span wire:loading.remove wire:target="verification.{{ $action->id }}">+ Verification photo</span>
+                                        <span wire:loading wire:target="verification.{{ $action->id }}">Uploading…</span>
+                                    </label>
+                                @endif
                             @endif
                         </div>
                         @error('owner.' . $action->id) <p class="error-text">{{ $message }}</p> @enderror
                         @error('evidence.' . $action->id) <p class="error-text">{{ $message }}</p> @enderror
+                        @error('verification.' . $action->id) <p class="error-text">{{ $message }}</p> @enderror
                     @endif
                 </li>
             @endforeach

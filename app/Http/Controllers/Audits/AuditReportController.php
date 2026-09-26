@@ -38,17 +38,25 @@ class AuditReportController extends Controller
 
         $company = Company::find($audit->company_id);
 
-        $findings = AuditFinding::with(['photos', 'actions.owner', 'actions.verifiedBy', 'line'])
+        $findings = AuditFinding::with(['photos', 'actions.owner', 'actions.verifiedBy', 'actions.photos', 'line'])
             ->where('audit_id', $audit->id)
             ->get()
             ->sortBy(fn ($f) => $f->line?->sort_order ?? 0)
             ->groupBy('section_name');
 
         $thumbs = [];
+        $actionThumbs = [];
         foreach ($findings->flatten(1) as $finding) {
             foreach ($finding->photos as $photo) {
                 if ($uri = $images->thumb($photo->file_path)) {
                     $thumbs[$photo->id] = $uri;
+                }
+            }
+            foreach ($finding->actions as $action) {
+                foreach ($action->photos as $photo) {
+                    if ($uri = $images->thumb($photo->file_path)) {
+                        $actionThumbs[$photo->id] = $uri;
+                    }
                 }
             }
         }
@@ -63,6 +71,7 @@ class AuditReportController extends Controller
             'company'   => $company,
             'findings'  => $findings,
             'thumbs'    => $thumbs,
+            'actionThumbs' => $actionThumbs,
             'signature' => $signature,
             'logo'      => $images->logo($company?->logo),
             'history'   => self::history($audit),

@@ -4,6 +4,7 @@ namespace App\Services\Audits;
 
 use App\Models\AuditFinding;
 use App\Models\CorrectiveAction;
+use App\Models\CorrectiveActionPhoto;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\ImageStorageService;
@@ -129,22 +130,34 @@ class CorrectiveActionService
         return $action;
     }
 
-    /** A photo of the fix, stored the same way as the finding's photos. */
-    public function attachEvidence(CorrectiveAction $action, $upload): CorrectiveAction
+    /**
+     * A photograph on the action: the owner's evidence of the fix, or the
+     * auditor's verification. Stored the same way as the finding's photos,
+     * capped per kind so a phone gallery cannot be emptied into one action.
+     *
+     * @param  User|Employee|null  $by  who took it — a web user or a Staff Portal employee
+     */
+    public function attachPhoto(CorrectiveAction $action, $upload, string $kind, $by = null): CorrectiveActionPhoto
     {
-        $replaced = $action->evidence_path;
+        abort_unless(in_array($kind, [CorrectiveActionPhoto::KIND_EVIDENCE, CorrectiveActionPhoto::KIND_VERIFICATION], true), 422);
 
-        $action->forceFill([
-            'evidence_path' => ImageStorageService::storeCompressed(
-                $upload, 'audit-photos/' . $action->company_id . '/evidence', 'public'
-            ),
-        ])->save();
-
-        if ($replaced) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($replaced);
+        if ($action->photos()->where('kind', $kind)->count() >= CorrectiveActionPhoto::MAX_PER_KIND) {
+            throw ValidationException::withMessages(['photo' => CorrectiveActionPhoto::MAX_PER_KIND . ' photos is the limit.']);
         }
 
-        return $action;
+        return $action->photos()->create([
+            'kind'                    => $kind,
+            'file_path'               => ImageStorageService::storeCompressed(
+                $upload, 'audit-photos/' . $action->company_id . '/' . $kind, 'public'
+            ),
+            'uploaded_by'             => $by instanceof User ? $by->id : null,
+            'uploaded_by_employee_id' => $by instanceof Employee ? $by->id : null,
+        ]);
+    }
+
+    public function removePhoto(CorrectiveActionPhoto $photo): void
+    {
+        $photo->delete();
     }
 
     public function delete(CorrectiveAction $action): void
