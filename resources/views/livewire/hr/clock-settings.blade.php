@@ -429,6 +429,40 @@
                     </span>
                 </span>
             </label>
+
+            {{-- The kiosk QR. Lives with the kiosk settings because the kiosk is
+                 what shows it, even though it is the PHONE that scans. --}}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                <div class="sm:col-span-2">
+                    <label for="qr_mode" class="block text-xs font-medium text-gray-600 mb-1">Phone clock-in by kiosk QR</label>
+                    <select id="qr_mode" wire:model.live="qr_mode" class="w-full rounded-lg border-gray-300 text-sm">
+                        @foreach (\App\Models\ClockSetting::QR_MODES as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('qr_mode') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                    <p class="mt-1 text-[11px] text-gray-500">
+                        The kiosk shows a QR that changes every few seconds. Scanning it proves the phone is
+                        at the counter, so it replaces the GPS check — the selfie is still taken. A photo of
+                        the code sent to somebody who is not there is out of date before they can use it.
+                        Staff allowed to clock in anywhere never need it, and if an outlet's kiosk is offline
+                        its staff clock in by location as usual.
+                    </p>
+                </div>
+                @if ($qr_mode !== \App\Models\ClockSetting::QR_OFF)
+                    <div>
+                        <label for="qr_rotate_seconds" class="block text-xs font-medium text-gray-600 mb-1">New code every (seconds)</label>
+                        <input id="qr_rotate_seconds" type="number"
+                               min="{{ \App\Models\ClockSetting::QR_ROTATE_MIN }}" max="{{ \App\Models\ClockSetting::QR_ROTATE_MAX }}"
+                               wire:model="qr_rotate_seconds" class="w-full rounded-lg border-gray-300 text-sm">
+                        @error('qr_rotate_seconds') <p class="text-xs text-danger-600 mt-1">{{ $message }}</p> @enderror
+                        <p class="mt-1 text-[11px] text-gray-500">
+                            Shorter is harder to share. A scan is accepted until the code after it expires,
+                            so staff always have at least this long to finish the selfie.
+                        </p>
+                    </div>
+                @endif
+            </div>
         </div>
 
         <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">

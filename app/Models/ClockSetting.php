@@ -23,6 +23,7 @@ class ClockSetting extends Model
         'kiosk_face_threshold', 'kiosk_face_margin', 'kiosk_cooldown_minutes',
         'kiosk_allow_pin',
         'auto_approve_flags', 'sound_mode',
+        'qr_mode', 'qr_rotate_seconds',
     ];
 
     protected $casts = [
@@ -47,6 +48,8 @@ class ClockSetting extends Model
         'kiosk_allow_pin'           => 'boolean',
         'auto_approve_flags'        => 'array',
         'sound_mode'                => 'string',
+        'qr_mode'                   => 'string',
+        'qr_rotate_seconds'         => 'integer',
     ];
 
     /**
@@ -180,6 +183,44 @@ class ClockSetting extends Model
         return array_key_exists((string) $this->sound_mode, self::SOUND_MODES)
             ? (string) $this->sound_mode
             : 'full';
+    }
+
+    /**
+     * Whether a phone punch scans the QR the outlet kiosk shows.
+     *
+     *   off       the kiosk shows no code; phones clock in as they always did.
+     *   allowed   a scan may stand in for the GPS fix, and lets a phone punch
+     *             at an outlet that otherwise only takes its kiosk.
+     *   required  a phone punch at an outlet whose kiosk is up must scan it.
+     *
+     * Who is exempt, and when, is KioskQrPolicy's to say — not this.
+     */
+    public const QR_OFF      = 'off';
+    public const QR_ALLOWED  = 'allowed';
+    public const QR_REQUIRED = 'required';
+
+    public const QR_MODES = [
+        self::QR_OFF      => 'Off — phones clock in by location as before',
+        self::QR_ALLOWED  => 'Allowed — scanning the kiosk QR replaces the location check',
+        self::QR_REQUIRED => 'Required — phones must scan the kiosk QR',
+    ];
+
+    /** Bounds on the rotation, in seconds. */
+    public const QR_ROTATE_MIN = 10;
+    public const QR_ROTATE_MAX = 300;
+
+    /** The mode, never an unknown string — an empty column is `off`. */
+    public function qrMode(): string
+    {
+        return array_key_exists((string) $this->qr_mode, self::QR_MODES)
+            ? (string) $this->qr_mode
+            : self::QR_OFF;
+    }
+
+    /** Seconds each kiosk code lives, clamped to what the screen can sensibly show. */
+    public function qrRotateSeconds(): int
+    {
+        return max(self::QR_ROTATE_MIN, min(self::QR_ROTATE_MAX, (int) ($this->qr_rotate_seconds ?: 30)));
     }
 
         /** RM charged for one late minute, or null when lateness is free. */

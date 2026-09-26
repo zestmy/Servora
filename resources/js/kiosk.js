@@ -218,6 +218,69 @@ async function api(url, body) {
     return { ok: response.ok, data };
 }
 
+/* ── Phone clock-in QR ────────────────────────────────────────────────────
+ *
+ * The code staff scan with the Staff Portal to clock in on their own phone.
+ * It rotates on the server's schedule (KioskQrToken), and the next one is
+ * fetched on the boundary the server names — so every kiosk in the company
+ * turns over together and the timer bar under the code counts down to
+ * something real rather than to a guess.
+ *
+ * Its own loop rather than riding on the heartbeat: the heartbeat is once a
+ * minute and the code can live for ten seconds.
+ */
+
+async function refreshQr() {
+    const panel = el('kiosk-qr');
+
+    if (! panel || ! endpoint('qr')) return;
+
+    let next = PING_MS;
+
+    try {
+        const { ok, data } = await api(endpoint('qr'));
+
+        if (ok && data?.enabled && data.image) {
+            el('kiosk-qr-img').src = data.image;
+            panel.classList.remove('hidden');
+            drainQrTimer(data.expires_in, data.rotate_seconds);
+
+            // A beat past the boundary, so the server is already on the new
+            // window when it is asked.
+            next = Math.max(1, Number(data.expires_in) || 1) * 1000 + 300;
+        } else {
+            // Switched off, or not answering sensibly: take the code down
+            // and look again at heartbeat pace.
+            panel.classList.add('hidden');
+        }
+    } catch (error) {
+        // A network blip. Leave the last code up — it may still be good —
+        // and try again soon rather than at heartbeat pace.
+        next = 5000;
+    }
+
+    setTimeout(refreshQr, next);
+}
+
+function drainQrTimer(expiresIn, rotateSeconds) {
+    const bar = el('kiosk-qr-timer');
+
+    if (! bar) return;
+
+    const remaining = Math.max(0, Number(expiresIn) || 0);
+    const whole     = Math.max(1, Number(rotateSeconds) || remaining || 1);
+
+    bar.style.transition = 'none';
+    bar.style.width = `${Math.min(100, (remaining / whole) * 100)}%`;
+
+    // Force the starting width to land before the transition is set,
+    // otherwise the browser folds the two into one and nothing animates.
+    void bar.offsetWidth;
+
+    bar.style.transition = `width ${remaining}s linear`;
+    bar.style.width = '0%';
+}
+
 /* ── Screens ──────────────────────────────────────────────────────────── */
 
 const PANELS = ['idle', 'confirm', 'pin', 'result', 'enrolcode', 'enrol'];
@@ -1550,6 +1613,8 @@ async function boot() {
     setInterval(() => {
         api(endpoint('ping')).catch(() => {});
     }, PING_MS);
+
+    refreshQr();
 }
 
 if (document.readyState === 'loading') {

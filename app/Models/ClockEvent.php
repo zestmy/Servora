@@ -45,9 +45,16 @@ class ClockEvent extends Model
     public const SOURCE_BYOD   = 'byod';
     public const SOURCE_MANUAL = 'manual';
 
+    /**
+     * Somebody's own phone that proved where it was by scanning the QR on the
+     * outlet kiosk, rather than by GPS. clock_device_id names that kiosk.
+     */
+    public const SOURCE_QR     = 'qr';
+
     public const SOURCE_LABELS = [
         self::SOURCE_KIOSK  => 'Outlet kiosk',
         self::SOURCE_BYOD   => 'Own device',
+        self::SOURCE_QR     => 'Own device, kiosk QR',
         self::SOURCE_MANUAL => 'Entered by manager',
     ];
 
@@ -89,6 +96,9 @@ class ClockEvent extends Model
         'face_ambiguous'     => 'Face matched more than one person',
         'byod_when_kiosk_up' => 'Used own device while the kiosk was online',
         'kiosk_down'         => 'Kiosk was offline',
+        // Only reachable on a break: the company requires the kiosk QR, and a
+        // break is never refused for a missing check (see ClockInService).
+        'no_qr'              => 'Kiosk QR not scanned',
     ];
 
     /**
@@ -142,7 +152,7 @@ class ClockEvent extends Model
         'location' => [
             'label' => 'Where it happened',
             'note'  => 'Staff already excused from the geofence never raise these — set “can clock in anywhere” on the employee instead.',
-            'flags' => ['outside_geofence', 'no_location', 'weak_location', 'no_outlet_fence', 'byod_when_kiosk_up', 'kiosk_down'],
+            'flags' => ['outside_geofence', 'no_location', 'weak_location', 'no_outlet_fence', 'byod_when_kiosk_up', 'kiosk_down', 'no_qr'],
         ],
         'shape' => [
             'label' => 'How the day is shaped',
@@ -349,6 +359,13 @@ class ClockEvent extends Model
                 : 'At ' . ($this->outlet?->name ?? 'the outlet') . ' (kiosk)';
         }
 
+        // The same answer, arrived at from the other side of the counter: the
+        // phone read a code only that kiosk was showing, within seconds.
+        if ($this->fromKioskQr()) {
+            return 'At ' . ($this->outlet?->name ?? 'the outlet') . ' — scanned '
+                . ($this->device?->name ?? 'the kiosk') . ' QR';
+        }
+
         // A resolved street address is the better answer, so it wins when the
         // company has switched reverse geocoding on and one came back.
         if (filled($this->address)) {
@@ -397,7 +414,7 @@ class ClockEvent extends Model
         // device it came from is the answer, and locationLabel() already gives
         // it. Returning "no location recorded" here would read as a gap in the
         // evidence rather than a stronger kind of it.
-        if ($this->fromKiosk()) {
+        if ($this->fromKiosk() || $this->fromKioskQr()) {
             return null;
         }
 
@@ -472,6 +489,10 @@ class ClockEvent extends Model
      */
     public function sourceDetail(): string
     {
+        if ($this->fromKioskQr()) {
+            return 'Own device — scanned ' . ($this->device?->name ?? 'kiosk') . ' QR';
+        }
+
         if ($this->source !== self::SOURCE_KIOSK) {
             return $this->sourceLabel();
         }
@@ -484,6 +505,12 @@ class ClockEvent extends Model
     public function fromKiosk(): bool
     {
         return $this->source === self::SOURCE_KIOSK;
+    }
+
+    /** A phone punch whose location was proven by the kiosk's QR. */
+    public function fromKioskQr(): bool
+    {
+        return $this->source === self::SOURCE_QR;
     }
 
     /** Human label for the punch type, for lists and the review queue. */

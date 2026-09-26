@@ -28,6 +28,7 @@
     },
     "dependencies": {
         "@tailwindcss/typography": "^0.5.19",
-        "@vladmandic/face-api": "^1.7.15"
+        "@vladmandic/face-api": "^1.7.15",
+        "jsqr": "^1.4.0"
     }
 }

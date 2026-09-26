@@ -283,6 +283,13 @@
            the person is clocked in. Red would read as failure and have them
            standing there tapping again. */
         .kiosk-result-flagged { background-color: #78350f !important; }
+        /* ── Phone clock-in QR ──────────────────────────────────────────
+           Only while the kiosk is waiting. A code left up over a keypad or a
+           result card is a code somebody scans while the tablet is busy
+           telling the last person something. */
+        .kiosk-qr { position: absolute; top: 4.5rem; right: 1.25rem; z-index: 20; }
+        .kiosk-shell:not([data-mode="idle"]) .kiosk-qr { display: none; }
+        @media (orientation: portrait) { .kiosk-qr { top: 4rem; right: 1rem; } }
     </style>
 </head>
 <body class="h-full bg-gray-900 text-white antialiased overflow-hidden">
@@ -291,6 +298,8 @@
      data-identify="{{ route('clock.kiosk.identify') }}"
      data-punch="{{ route('clock.kiosk.punch') }}"
      data-ping="{{ route('clock.kiosk.ping') }}"
+     {{-- The rotating code phones scan to clock in; see KioskQrToken. --}}
+     data-qr="{{ route('clock.kiosk.qr') }}"
      {{-- Whether there is a fallback to fall back TO. The server refuses a PIN
           punch outright when this is off — see KioskController::fromPin() —
           so this only stops the screen offering a door that is already shut. --}}
@@ -348,6 +357,21 @@
             class="absolute inset-0 z-40 grid place-items-center bg-gray-950/95 px-6 text-center">
         <span class="text-base text-gray-300">Starting camera…</span>
     </button>
+
+    {{-- Hidden until kiosk.js has a code to show — the company may have the
+         QR switched off, and an empty white card is worse than none. White
+         because a QR must be dark on light: drawn on this screen's black it
+         reads inverted and phones will not find it. --}}
+    <div id="kiosk-qr" class="kiosk-qr hidden w-44 rounded-surface bg-white p-3 text-center shadow-e4">
+        <img id="kiosk-qr-img" alt="QR code for clocking in on your phone" class="mx-auto aspect-square w-full">
+        <p class="mt-1.5 text-xs font-semibold text-gray-900">Clock in on your phone</p>
+        <p class="text-[11px] text-gray-600">Scan in the Staff Portal</p>
+        {{-- Drains to the next rotation, so nobody photographs a code that is
+             about to die and wonders why it was refused. --}}
+        <div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-200">
+            <div id="kiosk-qr-timer" class="h-full rounded-full bg-brand-600" style="width: 100%;"></div>
+        </div>
+    </div>
 
     <header class="kiosk-header flex items-center justify-between gap-3 px-5 py-3">
         <div class="flex items-center gap-3 min-w-0">

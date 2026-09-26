@@ -20,6 +20,7 @@
  * puts it in front of a manager.
  */
 
+import jsQR from 'jsqr';
 import { beepError, beepSuccess, playFailureSound, playSuccessSound, unlockSound } from './beep.js';
 import { looksLikeFace } from './face-geometry.js';
 import { GEO_GRANTED_KEY, startHeartbeat } from './heartbeat.js';
@@ -349,6 +350,23 @@ export class ClockCamera {
         this.video = video;
 
         if (this.stream) this.paint();
+    }
+
+    /**
+     * Switch between the front and rear camera, keeping this object.
+     *
+     * The kiosk-QR scan needs the rear lens for a few seconds in the middle of
+     * a punch and then hands back to the front one for the face. Unlike
+     * flipCamera() this does not remember the choice — the person did not
+     * ask for the rear camera, the scan did.
+     */
+    async useFacing(facing) {
+        if (this.facing === facing && this.stream) return;
+
+        this.stop();
+        this.facing = facing;
+
+        await this.start();
     }
 
     /** Put the current stream on the current element and get it moving. */
@@ -1339,6 +1357,102 @@ function paintProgress(count) {
     }
 }
 
+/* ── Kiosk QR ─────────────────────────────────────────────────────────────
+ *
+ * Where the company asks for it, a phone punch begins by scanning the code on
+ * the outlet kiosk — proof of being at the counter that replaces the GPS fix.
+ * The code rotates every few seconds (KioskQrToken), so a photo of it sent to
+ * somebody at home is stale before they open it.
+ */
+
+/** Long enough to walk to the counter; short enough not to leave the lens on. */
+const QR_SCAN_TIMEOUT_MS = 60000;
+
+/**
+ * The kiosk code inside whatever the QR said.
+ *
+ * The kiosk shows a LINK carrying ?kq=, so the phone's own camera app opens
+ * the right page too. A bare code is accepted as well; anything else — a
+ * menu QR on the wall behind the kiosk — is not ours and is ignored.
+ */
+function readKioskCode(text) {
+    try {
+        const code = new URL(text).searchParams.get('kq');
+
+        if (code) return code;
+    } catch (error) {
+        // Not a URL; try it as a bare code.
+    }
+
+    return /^k1\.\d+\.\d+\.\d+\.[0-9a-f]+$/.test(text) ? text : null;
+}
+
+/**
+ * Look for the kiosk's code on the rear camera, then hand back to the front.
+ *
+ * @returns {Promise<{code: ?string, outcome: 'scanned'|'skip'|'cancel'|'timeout'}>}
+ */
+async function scanKioskQr(optional) {
+    const camera  = screen.camera;
+    const overlay = el('clock-qr-overlay');
+    const back    = camera.facing;
+
+    let outcome = null;
+
+    const onClick = (event) => {
+        if (event.target.closest('[data-clock-qr-skip]'))   outcome = 'skip';
+        if (event.target.closest('[data-clock-qr-cancel]')) outcome = 'cancel';
+    };
+
+    overlay?.classList.remove('hidden');
+    overlay?.querySelector('[data-clock-qr-skip]')?.classList.toggle('hidden', ! optional);
+    overlay?.addEventListener('click', onClick);
+
+    try {
+        setStatus('Starting the back camera…');
+        await camera.useFacing(FACING_ENVIRONMENT);
+        setStatus('Point your phone at the QR code on the kiosk.');
+
+        // Downscaled before decoding: a 640px frame reads a code across a
+        // counter perfectly well and costs a fraction of a full-size one.
+        const canvas   = document.createElement('canvas');
+        const context  = canvas.getContext('2d', { willReadFrequently: true });
+        const deadline = Date.now() + QR_SCAN_TIMEOUT_MS;
+
+        while (! outcome && Date.now() < deadline) {
+            const video = camera.video;
+
+            if (video?.videoWidth) {
+                const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+
+                canvas.width  = Math.round(video.videoWidth * scale);
+                canvas.height = Math.round(video.videoHeight * scale);
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+                const found = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: 'dontInvert' });
+                const code  = found ? readKioskCode(found.data) : null;
+
+                if (code) {
+                    beepSuccess();
+
+                    return { code, outcome: 'scanned' };
+                }
+            }
+
+            await sleep(150);
+        }
+
+        return { code: null, outcome: outcome ?? 'timeout' };
+    } finally {
+        overlay?.removeEventListener('click', onClick);
+        overlay?.classList.add('hidden');
+
+        // Back to whichever lens the face step uses on this device.
+        await camera.useFacing(back).catch(() => {});
+    }
+}
+
 /**
  * Capture, locate, and hand the observations to Livewire.
  *
@@ -1351,9 +1465,37 @@ async function performPunch(wire, intent = 'shift') {
     screen.busy = true;
 
     try {
-        // Requested first and awaited last: the GPS fix is the slowest part
-        // and has no reason to queue behind the camera work.
-        const positionPromise = currentPosition();
+        // The kiosk code first, when this punch needs one. Read from the page
+        // at the moment of pressing, because the requirement can change with
+        // the kiosk going up or down between renders.
+        const qrNode = document.getElementById('clock-qr');
+        const qrNeed = qrNode?.dataset.need || 'none';
+        let qr       = qrNode?.dataset.token || null;
+
+        if (qrNeed !== 'none' && ! qr) {
+            if (! screen.camera?.stream) {
+                setStatus('Start the camera first, then tap again.');
+
+                return;
+            }
+
+            const scan = await scanKioskQr(qrNeed === 'optional');
+
+            if (scan.code) {
+                qr = scan.code;
+            } else if (scan.outcome !== 'skip') {
+                setStatus(scan.outcome === 'timeout'
+                    ? 'No kiosk QR found. Tap to try again.'
+                    : '');
+
+                return;
+            }
+        }
+
+        // Requested before the face and awaited after it: the GPS fix is the
+        // slowest part and has no reason to queue behind the camera work. Not
+        // asked for at all when the kiosk code has already answered "where".
+        const positionPromise = qr ? Promise.resolve(null) : currentPosition();
 
         let face = null;
 
@@ -1408,6 +1550,7 @@ async function performPunch(wire, intent = 'shift') {
             // photo than a shrug.
             selfie:     face?.selfie ?? (screen.camera?.stream ? screen.camera.still() : null),
             device:     navigator.userAgentData?.platform ?? null,
+            qr,
         }, intent);
 
         setStatus('');

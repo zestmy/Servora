@@ -120,6 +120,8 @@ $group->group(function () {
         Route::post('/kiosk/identify', [KioskController::class, 'identify'])->name('clock.kiosk.identify');
         Route::post('/kiosk/punch', [KioskController::class, 'punch'])->name('clock.kiosk.punch');
         Route::post('/kiosk/ping', [KioskController::class, 'ping'])->name('clock.kiosk.ping');
+        // The rotating QR phones scan to clock in. See KioskQrToken.
+        Route::post('/kiosk/qr', [KioskController::class, 'qr'])->name('clock.kiosk.qr');
 
         /*
          * Enrolment. Same header authentication as the rest, plus a window on

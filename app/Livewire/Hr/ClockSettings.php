@@ -73,6 +73,11 @@ class ClockSettings extends Component
      */
     public string $sound_mode = 'full';
 
+    /** Phone clock-in by scanning the kiosk's rotating QR. See KioskQrPolicy. */
+    public string $qr_mode = 'off';
+
+    public int $qr_rotate_seconds = 30;
+
     /**
      * The flags that DO send a punch to a manager.
      *
@@ -119,6 +124,8 @@ class ClockSettings extends Component
         $this->kiosk_cooldown_minutes = (string) $settings->kiosk_cooldown_minutes;
 
         $this->sound_mode = $settings->soundMode();
+        $this->qr_mode = $settings->qrMode();
+        $this->qr_rotate_seconds = $settings->qrRotateSeconds();
 
         $this->reviewFlags = array_values(array_diff(
             self::policyFlags(),
@@ -159,6 +166,9 @@ class ClockSettings extends Component
             'kiosk_cooldown_minutes' => ['required', 'integer', 'min:0', 'max:120'],
 
             'sound_mode'    => ['required', 'in:' . implode(',', array_keys(ClockSetting::SOUND_MODES))],
+
+            'qr_mode'           => ['required', 'in:' . implode(',', array_keys(ClockSetting::QR_MODES))],
+            'qr_rotate_seconds' => ['required', 'integer', 'min:' . ClockSetting::QR_ROTATE_MIN, 'max:' . ClockSetting::QR_ROTATE_MAX],
 
             'reviewFlags'   => ['array'],
             'reviewFlags.*' => ['string', 'in:' . implode(',', self::policyFlags())],
@@ -224,6 +234,8 @@ class ClockSettings extends Component
              * their answer stands even when it happens to match the default.
              */
             'sound_mode' => $this->sound_mode,
+            'qr_mode'           => $this->qr_mode,
+            'qr_rotate_seconds' => $this->qr_rotate_seconds,
             'auto_approve_flags' => array_values(array_diff(
                 self::policyFlags(),
                 $this->reviewFlags,

@@ -15,6 +15,7 @@ use App\Services\Hr\ClockDeviceService;
 use App\Services\Hr\ClockInException;
 use App\Services\Hr\ClockInService;
 use App\Services\Hr\FaceIdentifier;
+use App\Services\Hr\KioskQrToken;
 use App\Services\Hr\PunchState;
 use App\Services\Staff\StaffSession;
 use Illuminate\Http\JsonResponse;
@@ -187,6 +188,35 @@ class KioskController extends Controller
         // route exists so that an idle kiosk still counts as online, and it
         // deliberately does nothing else.
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * The code this kiosk should be showing right now, for phones to scan.
+     *
+     * The QR is a LINK to the staff punch screen carrying the code, so a phone
+     * whose owner points the camera app at it — rather than the scanner inside
+     * the Staff Portal — still lands in the right place holding it.
+     *
+     * `enabled: false` when the company has the QR switched off, which is how
+     * a kiosk left open for weeks takes the code down without a reload.
+     */
+    public function qr(KioskQrToken $tokens): JsonResponse
+    {
+        $device = $this->device();
+
+        if (ClockSetting::forCompany($device->company_id)->qrMode() === ClockSetting::QR_OFF) {
+            return response()->json(['enabled' => false]);
+        }
+
+        $code = $tokens->issue($device);
+        $url  = route('clock.staff.punch', ['kq' => $code['token']]);
+
+        return response()->json([
+            'enabled'        => true,
+            'image'          => app(\App\Services\Labels\LabelQrService::class)->encode($url),
+            'expires_in'     => $code['expires_in'],
+            'rotate_seconds' => $code['rotate_seconds'],
+        ]);
     }
 
     /* ── Enrolment ───────────────────────────────────────────────────── */

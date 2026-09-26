@@ -76,6 +76,8 @@ class ClockInService
         private FaceMatcher $faces,
         private OwnDevicePolicy $ownDevice,
         private PunchState $state,
+        private KioskQrPolicy $qrPolicy,
+        private KioskQrToken $qrTokens,
     ) {
     }
 
@@ -85,7 +87,7 @@ class ClockInService
      *     descriptor?: mixed, selfie?: ?string, reason?: ?string,
      *     device_label?: ?string, user_agent?: ?string, ip?: ?string,
      *     source?: ?string, device?: ?ClockDevice, identification?: ?string,
-     *     face_distance?: mixed,
+     *     face_distance?: mixed, qr_token?: ?string,
      * }  $input  Raw observations from the device. Every value is untrusted
      *            EXCEPT `device`, `identification` and `face_distance`, which
      *            the kiosk middleware and controller resolved from a token this
@@ -119,6 +121,28 @@ class ClockInService
         $settings = ClockSetting::forCompany($employee->company_id);
 
         $flags = [];
+
+        /*
+         * The kiosk QR, for a phone punch. Settled before anything else is
+         * asked of the person, for the same reason the own-device check is:
+         * a refusal that was knowable up front must not arrive after a GPS
+         * fix and a face.
+         *
+         * A verified code turns the punch into SOURCE_QR — the kiosk it came
+         * from is recorded, and its location stands in for the geofence below.
+         * Like `device`, the source is derived from something this server
+         * minted and checked, never from a field the phone sent.
+         */
+        $qrKiosk = null;
+
+        if (! $device) {
+            $qrKiosk = $this->assessKioskQr($employee, $outlet, $settings, $input, $flags, $this->isBreak($type));
+
+            if ($qrKiosk) {
+                $source = ClockEvent::SOURCE_QR;
+                $device = $qrKiosk;
+            }
+        }
 
         $shift = $this->shifts->resolve($employee, $at, $type);
 
@@ -158,6 +182,7 @@ class ClockInService
         // minute. Everything is still recorded; nothing is enforced.
         $lenient = $this->isBreak($type);
         $isKiosk = $source === ClockEvent::SOURCE_KIOSK;
+        $isQr    = $source === ClockEvent::SOURCE_QR;
 
         /*
          * FIRST, ahead of the location and face checks, because it is the only
@@ -167,11 +192,13 @@ class ClockInService
          * punches, is thirty seconds spent to arrive at a refusal that was
          * knowable before they pressed the button.
          */
-        if (! $isKiosk) {
+        // A phone that scanned the kiosk's code has, in effect, used the kiosk:
+        // it is exactly the door an outlet that prefers its tablet wants used.
+        if (! $isKiosk && ! $isQr) {
             $this->assessOwnDevice($employee, $outlet, $settings, $flags, $lenient);
         }
 
-        $location = $isKiosk
+        $location = ($isKiosk || $isQr)
             ? $this->kioskLocation()
             : $this->assessLocation($employee, $input, $outlet, $settings, $flags, $lenient);
 
@@ -443,6 +470,64 @@ class ClockInService
             'latitude' => null, 'longitude' => null, 'accuracy' => null,
             'distance' => null, 'within'   => true,
         ];
+    }
+
+    /**
+     * The kiosk QR on a phone punch: the kiosk it proves, or null.
+     *
+     * A code that was sent is always checked, and a bad one is refused rather
+     * than ignored — somebody who scanned a stale code believes they clocked
+     * in the right way, and quietly falling back to GPS would record a punch
+     * they did not mean to make, from wherever they happen to be standing.
+     *
+     * A break is the exception to both halves, as it is to every other check
+     * here: a bad or missing code on a break is recorded and flagged, never
+     * refused, because refusing the END of a break leaves an overrun charge
+     * running that the person can do nothing about.
+     */
+    private function assessKioskQr(
+        Employee $employee,
+        Outlet $outlet,
+        ClockSetting $settings,
+        array $input,
+        array &$flags,
+        bool $lenient,
+    ): ?ClockDevice {
+        $token = is_string($input['qr_token'] ?? null) ? trim($input['qr_token']) : '';
+
+        // Off means off: the kiosks show no code, so any token is left over
+        // from before the switch and proves nothing today.
+        if ($settings->qrMode() === ClockSetting::QR_OFF) {
+            return null;
+        }
+
+        if ($token !== '') {
+            try {
+                return $this->qrTokens->verify($token, $employee, $outlet);
+            } catch (ClockInException $e) {
+                if (! $lenient) {
+                    throw $e;
+                }
+                // Falls through: judged as if nothing had been scanned.
+            }
+        }
+
+        $decision = $this->qrPolicy->decide($employee, $outlet, $settings);
+
+        if ($decision['need'] !== KioskQrPolicy::REQUIRED) {
+            return null;
+        }
+
+        if ($lenient) {
+            $flags[] = 'no_qr';
+
+            return null;
+        }
+
+        throw new ClockInException(sprintf(
+            'Scan the QR code on the %s to clock in.',
+            $decision['kiosk']?->name ?? 'kiosk',
+        ));
     }
 
     /**

@@ -188,6 +188,34 @@
         </div>
     @endif
 
+    {{-- ── Kiosk QR ───────────────────────────────────────────────────────
+         What clock.js reads when the button is pressed: whether this punch
+         must scan the kiosk's code first (KioskQrPolicy — the same answer
+         ClockInService will reach), and a code that arrived in the URL
+         because the phone's own camera app opened the kiosk's link. Outside
+         the wire:ignore block on purpose, so each render keeps it current. --}}
+    <div id="clock-qr" class="hidden" data-need="{{ $qrNeed }}" data-token="{{ $qrToken }}"></div>
+
+    @if ($qrNeed !== \App\Services\Hr\KioskQrPolicy::NONE)
+        <div class="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 mb-3 flex items-start gap-3">
+            <x-icon name="device" class="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
+            @if ($qrToken !== '')
+                <p class="text-sm text-brand-900">
+                    <span class="font-semibold">Kiosk code scanned.</span>
+                    Tap the button below and look at your phone.
+                </p>
+            @else
+                <p class="text-sm text-brand-900">
+                    <span class="font-semibold">Scan the QR on the {{ $qrKiosk?->name ?? 'kiosk' }}.</span>
+                    Tap the button, point your phone at the kiosk screen, then look at your phone.
+                    @if ($qrNeed === \App\Services\Hr\KioskQrPolicy::OPTIONAL)
+                        <span class="text-brand-800">Or skip it and clock in by location.</span>
+                    @endif
+                </p>
+            @endif
+        </div>
+    @endif
+
     {{-- ── Camera ────────────────────────────────────────────────────────
          wire:ignore is load-bearing, not tidiness. Every punch re-renders
          this component, and a morph that touches the <video> drops its
@@ -220,6 +248,25 @@
                          stroke-linecap="round" transform="rotate(-90 100 130)"
                          style="opacity: 0; transition: opacity .2s, stroke-dashoffset .12s linear;"></ellipse>
             </svg>
+        </div>
+
+        {{-- The kiosk-QR scanner, over the same preview. clock.js shows it
+             while the rear camera looks for the code, and reveals Skip only
+             when the scan is optional for this person. --}}
+        <div id="clock-qr-overlay"
+             class="hidden absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-4 text-center">
+            <div class="aspect-square h-[55%] rounded-2xl border-4 border-white/85 shadow-[0_0_0_9999px_rgba(17,24,39,0.35)]"></div>
+            <p class="text-sm font-semibold text-white drop-shadow">Point at the QR code on the kiosk</p>
+            <div class="flex gap-2">
+                <button type="button" data-clock-qr-cancel
+                        class="min-h-[44px] rounded-full bg-gray-900/75 px-4 text-xs font-medium text-white active:bg-gray-900">
+                    Cancel
+                </button>
+                <button type="button" data-clock-qr-skip
+                        class="hidden min-h-[44px] rounded-full bg-white/90 px-4 text-xs font-semibold text-gray-900 active:bg-white">
+                    Skip — use location
+                </button>
+            </div>
         </div>
 
         <button type="button" data-clock-flip

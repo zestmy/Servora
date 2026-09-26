@@ -7,6 +7,7 @@ use App\Models\ClockSetting;
 use App\Scopes\CompanyScope;
 use App\Services\Hr\ClockInException;
 use App\Services\Hr\ClockInService;
+use App\Services\Hr\KioskQrPolicy;
 use App\Services\Hr\OwnDevicePolicy;
 use App\Services\Hr\PunchState;
 use App\Services\Hr\ShiftResolver;
@@ -46,6 +47,27 @@ class Punch extends StaffComponent
      */
     #[Locked]
     public bool $showResult = false;
+
+    /**
+     * A kiosk code that arrived in the URL.
+     *
+     * The kiosk's QR is a link to this page, so somebody who points the
+     * phone's own camera app at it — rather than the scanner on this screen —
+     * lands here holding the code already. Kept until it is used once, so a
+     * refused punch can be retried without scanning again while the code is
+     * still fresh; the service decides whether it still is.
+     */
+    #[Locked]
+    public string $qrToken = '';
+
+    public function mount(): void
+    {
+        $code = request()->query('kq');
+
+        if (is_string($code) && strlen($code) <= 200) {
+            $this->qrToken = $code;
+        }
+    }
 
     /** Tapped Done, or the notice timed itself out. */
     public function dismissResult(): void
@@ -89,6 +111,10 @@ class Punch extends StaffComponent
                 'longitude'    => $payload['longitude'] ?? null,
                 'accuracy'     => $payload['accuracy']  ?? null,
                 'descriptor'   => $payload['descriptor'] ?? null,
+                // Scanned on this screen, or carried in from the URL.
+                'qr_token'     => is_string($payload['qr'] ?? null) && $payload['qr'] !== ''
+                    ? $payload['qr']
+                    : ($this->qrToken ?: null),
                 'selfie'       => is_string($payload['selfie'] ?? null) ? $payload['selfie'] : null,
                 'reason'       => $this->reason,
                 'device_label' => is_string($payload['device'] ?? null) ? $payload['device'] : null,
@@ -111,6 +137,7 @@ class Punch extends StaffComponent
         $this->lastEventId   = $event->id;
         $this->showResult    = true;
         $this->reason        = '';
+        $this->qrToken       = '';
         $this->shiftResolved = false;
 
         /*
@@ -199,6 +226,21 @@ class Punch extends StaffComponent
         }
 
         return app(OwnDevicePolicy::class)->decide($this->staff(), $outlet);
+    }
+
+    /**
+     * Whether this punch needs the kiosk's QR — asked of the same object
+     * ClockInService asks, for the reason ownDevice() gives above.
+     *
+     * @return array{need: string, kiosk: ?\App\Models\ClockDevice}
+     */
+    public function kioskQr(): array
+    {
+        $outlet = $this->staff()->outlet;
+
+        return $outlet
+            ? app(KioskQrPolicy::class)->decide($this->staff(), $outlet)
+            : ['need' => KioskQrPolicy::NONE, 'kiosk' => null];
     }
 
     /**
@@ -293,6 +335,7 @@ class Punch extends StaffComponent
             : null;
 
         $ownDevice = $this->ownDevice();
+        $kioskQr   = $this->kioskQr();
 
         return view('livewire.clock.staff.punch', [
             'settings'  => ClockSetting::forCompany($this->staff()->company_id),
@@ -303,7 +346,13 @@ class Punch extends StaffComponent
             // reason box is dropped rather than left there asking daily for a
             // fact that was settled once on their employee record.
             'canClockAnywhere' => $this->staff()->canClockAnywhere(),
-            'kioskOnly'     => $ownDevice['status'] === OwnDevicePolicy::REFUSED,
+            // An outlet that refuses phones still takes one that scans its
+            // kiosk's code — so "go to the tablet" is only the answer when the
+            // company has not switched the QR on.
+            'kioskOnly'     => $ownDevice['status'] === OwnDevicePolicy::REFUSED
+                && $kioskQr['need'] === KioskQrPolicy::NONE,
+            'qrNeed'        => $kioskQr['need'],
+            'qrKiosk'       => $kioskQr['kiosk'],
             'kioskDown'     => $ownDevice['status'] === OwnDevicePolicy::KIOSK_DOWN,
             'kiosk'         => $ownDevice['kiosk'],
             'shift'     => $this->shift(),
