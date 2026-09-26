@@ -12,6 +12,22 @@ use Illuminate\Support\Facades\Auth;
 
 class RecipeCostPdfController extends Controller
 {
+    /**
+     * Headroom for the multi-recipe renders, raised per request.
+     *
+     * dompdf holds a frame per DOM node until the end, so the unfiltered "All
+     * Recipe Costs" export measured ~345 MB and 27 s on production (Sept 2026)
+     * and died at the default 256M — a PHP fatal, so a bare 500 with nothing
+     * in laravel.log. A single category needs a few MB.
+     *
+     * The same ceiling as SopPdfController, for the same reason: a 2 GB box
+     * with five php-fpm children cannot give one request more than this. If
+     * the catalogue grows past it, this export goes through the queue the way
+     * GenerateSopExport does rather than getting a bigger number here. A limit
+     * is a ceiling, not a reservation, so small exports pay nothing for it.
+     */
+    private const RENDER_MEMORY = '512M';
+
     public function single(int $id)
     {
         $recipe = Recipe::with([
@@ -170,6 +186,8 @@ class RecipeCostPdfController extends Controller
 
     private function generateAllPdf(Request $request, bool $isPrep)
     {
+        ini_set('memory_limit', self::RENDER_MEMORY);
+
         $label = $isPrep ? 'Prep Item' : 'Recipe';
 
         $query = Recipe::with([
@@ -212,6 +230,8 @@ class RecipeCostPdfController extends Controller
 
     private function generateSummaryPdf(Request $request, bool $isPrep)
     {
+        ini_set('memory_limit', self::RENDER_MEMORY);
+
         $label = $isPrep ? 'Prep Item' : 'Recipe';
 
         $query = Recipe::with([
