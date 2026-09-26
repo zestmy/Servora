@@ -4,12 +4,17 @@ namespace App\Livewire\Audits;
 
 use App\Models\AuditFinding;
 use App\Models\CorrectiveAction;
+use App\Models\CorrectiveActionPhoto;
 use App\Models\Employee;
 use App\Services\Audits\CorrectiveActionService;
+use App\Services\ImageStorageService;
+use App\Traits\RejectsUnpreviewableUploads;
 use App\Traits\RemembersListFilters;
 use App\Traits\ScopesToActiveOutlet;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Every non-conformance across the outlets and what is being done about it,
@@ -22,13 +27,19 @@ use Livewire\Component;
  */
 class Actions extends Component
 {
-    use ScopesToActiveOutlet, RemembersListFilters;
+    use ScopesToActiveOutlet, RemembersListFilters, WithFileUploads, RejectsUnpreviewableUploads;
 
     public string $outletFilter = '';
     public string $statusFilter = 'outstanding';   // outstanding | overdue | unassigned | verified | all
     public string $ownerFilter  = '';
     public string $severityFilter = '';
     public string $search       = '';
+
+    /** @var array<int, mixed> action id => pending photo of the fix */
+    public array $evidence = [];
+
+    /** @var array<int, mixed> action id => pending verification photo */
+    public array $verification = [];
 
     protected function rememberedFilters(): array
     {
@@ -63,6 +74,38 @@ class Actions extends Component
         $actions->verify($this->action($id), Auth::user());
     }
 
+    public function updatedEvidence($value, $key): void
+    {
+        $this->storePhoto((int) $key, 'evidence', CorrectiveActionPhoto::KIND_EVIDENCE);
+    }
+
+    public function updatedVerification($value, $key): void
+    {
+        $this->storePhoto((int) $key, 'verification', CorrectiveActionPhoto::KIND_VERIFICATION);
+    }
+
+    /** Same rules as the finding card: previewable, under 8 MB, six per kind. */
+    private function storePhoto(int $id, string $property, string $kind): void
+    {
+        abort_unless(Auth::user()?->canDo('audits.actions.manage'), 403);
+
+        $file = $this->keepPreviewableUpload($this->{$property}[$id] ?? null, "{$property}.{$id}");
+        unset($this->{$property}[$id]);
+
+        if (! $file) return;
+
+        try {
+            validator(['photo' => $file], ['photo' => ImageStorageService::uploadRule(8192)], [
+                'photo.mimes' => ImageStorageService::uploadMessage(),
+                'photo.max'   => 'The photo may not be larger than 8 MB.',
+            ])->validate();
+
+            app(CorrectiveActionService::class)->attachPhoto($this->action($id), $file, $kind, Auth::user());
+        } catch (ValidationException $e) {
+            $this->addError("{$property}.{$id}", $e->validator->errors()->first());
+        }
+    }
+
     private function action(int $id): CorrectiveAction
     {
         $action = CorrectiveAction::findOrFail($id);
@@ -76,7 +119,7 @@ class Actions extends Component
         $outletIds = $this->availableOutletIds();
 
         $actions = CorrectiveAction::query()
-            ->with(['owner', 'finding.audit', 'outlet'])
+            ->with(['owner', 'finding.audit', 'outlet', 'photos'])
             ->when($outletIds, fn ($q) => $q->whereIn('outlet_id', $outletIds))
             ->when($this->outletFilter, fn ($q) => $q->where('outlet_id', (int) $this->outletFilter))
             ->when($this->ownerFilter, fn ($q) => $q->where('owner_employee_id', (int) $this->ownerFilter))

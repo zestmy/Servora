@@ -102,6 +102,25 @@ class CorrectiveActionPhotosTest extends TestCase
         }
     }
 
+    public function test_photos_can_be_added_and_are_shown_on_the_corrective_actions_page(): void
+    {
+        $svc = app(CorrectiveActionService::class);
+        $svc->attachPhoto($this->action, UploadedFile::fake()->image('fixed.jpg'), CorrectiveActionPhoto::KIND_EVIDENCE, $this->chef);
+
+        $page = Livewire::test(\App\Livewire\Audits\Actions::class)
+            ->assertSee('Fix the seal')
+            ->assertSee('+ Verification photo')
+            ->set("verification.{$this->action->id}", UploadedFile::fake()->image('seen.jpg'))
+            ->assertHasNoErrors();
+
+        $this->assertSame(1, $this->action->verificationPhotos()->count());
+        $this->assertSame(1, $this->action->evidencePhotos()->count());
+
+        $html = $page->html();
+        $this->assertStringContainsString($this->action->evidencePhotos()->first()->url(), $html);
+        $this->assertStringContainsString($this->action->verificationPhotos()->first()->url(), $html);
+    }
+
     public function test_the_owner_cannot_add_a_verification_photo_or_remove_one(): void
     {
         $verification = app(CorrectiveActionService::class)->attachPhoto($this->action, UploadedFile::fake()->image('v.jpg'), CorrectiveActionPhoto::KIND_VERIFICATION, $this->auditor);

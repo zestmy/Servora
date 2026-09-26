@@ -122,7 +122,7 @@ at least one action and all of them are verified.
 | `/audits/start` | `Audits\Start` | `audits.conduct` |
 | `/audits/{id}` | `Audits\Conduct` — the checklist while a draft, the record after | `audits.view` (every write re-checks `audits.conduct`) |
 | `/audits/{id}/report` | `AuditReportController` — synchronous dompdf, finding photos as 160px thumbs | `audits.view` |
-| `/audits/actions` | `Audits\Actions` — NC summary by outlet → owner designation | `audits.view` |
+| `/audits/actions` | `Audits\Actions` — NC summary by outlet → owner designation, with each action's fix and verification photos and upload controls | `audits.view` |
 | `/audits/templates` | `Audits\Templates` | `audits.manage` |
 | `/audits/templates/{id}` | `Audits\TemplateEdit` — the builder, one section at a time | `audits.manage` |
 | `/audits/auditors` | `Audits\Auditors` — Settings: the company's appointed auditors, also a tile under Settings ▸ Outlet Audits | `audits.manage` |

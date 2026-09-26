@@ -138,6 +138,52 @@
                                             @endif
                                         </div>
                                     </div>
+
+                                    @php
+                                        $evidence     = $action->photos->where('kind', 'evidence');
+                                        $verification = $action->photos->where('kind', 'verification');
+                                        $max          = \App\Models\CorrectiveActionPhoto::MAX_PER_KIND;
+                                    @endphp
+                                    @if ($evidence->isNotEmpty() || $verification->isNotEmpty() || $canManage)
+                                        <div class="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
+                                            @foreach (['evidence' => ['Fix', $evidence], 'verification' => ['Verification', $verification]] as $kind => [$title, $set])
+                                                @if ($set->isNotEmpty())
+                                                    <div>
+                                                        <p class="mb-1 text-[11px] font-medium uppercase tracking-wider {{ $kind === 'verification' ? 'text-success-700' : 'text-gray-600' }}">{{ $title }}</p>
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            @foreach ($set as $photo)
+                                                                <a href="{{ $photo->url() }}" target="_blank" wire:key="ap-{{ $photo->id }}"
+                                                                   class="block h-12 w-12 overflow-hidden rounded-control border {{ $kind === 'verification' ? 'border-success-300' : 'border-gray-200' }}">
+                                                                    <img src="{{ $photo->url() }}" alt="" class="h-full w-full object-cover" loading="lazy" />
+                                                                </a>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+
+                                            @if ($canManage)
+                                                <div class="flex flex-wrap gap-1">
+                                                    @if (! $action->isVerified() && $evidence->count() < $max)
+                                                        <label class="btn-ghost cursor-pointer text-xs">
+                                                            <input type="file" accept="image/*" capture="environment" class="sr-only" wire:model="evidence.{{ $action->id }}" />
+                                                            <span wire:loading.remove wire:target="evidence.{{ $action->id }}">+ Photo of fix</span>
+                                                            <span wire:loading wire:target="evidence.{{ $action->id }}">Uploading…</span>
+                                                        </label>
+                                                    @endif
+                                                    @if ($verification->count() < $max)
+                                                        <label class="btn-ghost cursor-pointer text-xs text-success-700">
+                                                            <input type="file" accept="image/*" capture="environment" class="sr-only" wire:model="verification.{{ $action->id }}" />
+                                                            <span wire:loading.remove wire:target="verification.{{ $action->id }}">+ Verification photo</span>
+                                                            <span wire:loading wire:target="verification.{{ $action->id }}">Uploading…</span>
+                                                        </label>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('evidence.' . $action->id) <p class="error-text">{{ $message }}</p> @enderror
+                                        @error('verification.' . $action->id) <p class="error-text">{{ $message }}</p> @enderror
+                                    @endif
                                 </li>
                             @endforeach
                         </ul>
