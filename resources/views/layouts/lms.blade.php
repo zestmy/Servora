@@ -248,11 +248,18 @@
                         </div>
                         <div class="flex-1 text-left overflow-hidden">
                             <p class="text-sm font-medium text-white truncate">{{ Auth::guard('lms')->user()->name }}</p>
-                            <p class="text-xs text-gray-400 truncate">{{ Auth::guard('lms')->user()->email }}</p>
+                            {{-- An account opened from the Staff Portal may have no email. --}}
+                            <p class="text-xs text-gray-400 truncate">{{ Auth::guard('lms')->user()->email ?? 'Signed in with staff PIN' }}</p>
                         </div>
                     </button>
                     <div x-show="userOpen" @click.away="userOpen = false" x-cloak
                          class="absolute bottom-full left-0 mb-1 w-full bg-gray-800 rounded-lg border border-gray-700 py-1 shadow-lg">
+                        @if (session(\App\Http\Controllers\Lms\StaffHandoffController::SESSION_KEY))
+                            <a href="{{ route('clock.staff.home') }}"
+                               class="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 transition">
+                                Back to Staff Portal
+                            </a>
+                        @endif
                         <form method="POST" action="{{ route('lms.logout') }}">
                             @csrf
                             <button type="submit" class="w-full text-left px-4 py-2 text-sm text-danger-400 hover:bg-gray-700 hover:text-danger-300 transition">

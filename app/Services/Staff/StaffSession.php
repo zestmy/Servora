@@ -57,6 +57,12 @@ class StaffSession
     public function signOut(): void
     {
         Session::forget(static::KEY);
+
+        // An SOP library session opened FROM this one ends with it. It was
+        // only ever as good as the PIN behind it.
+        if (Session::pull(\App\Http\Controllers\Lms\StaffHandoffController::SESSION_KEY)) {
+            \Illuminate\Support\Facades\Auth::guard('lms')->logout();
+        }
         Session::regenerate();
     }
 
@@ -85,6 +91,13 @@ class StaffSession
             ->where('id', $data['employee_id'])
             ->where('is_active', true)
             ->first();
+
+        // Deleted or deactivated since the session opened. Checked before the
+        // fingerprint below, which would otherwise be called on null — a 500
+        // on every staff screen instead of "sign in again".
+        if (! $employee) {
+            return null;
+        }
 
         /*
          * Validate against the credential that actually opened the session.

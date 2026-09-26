@@ -186,6 +186,10 @@ $group->group(function () {
         Route::get('/account', \App\Livewire\Clock\Staff\Account::class)->name('clock.staff.account');
         // Corrective actions from outlet audits that name this employee as owner.
         Route::get('/actions', \App\Livewire\Staff\CorrectiveActions::class)->name('clock.staff.actions');
+        // The SOP library, opened on this staff session rather than a separate
+        // LMS login. Signs the employee in to the `lms` guard and hands over.
+        Route::get('/sop-library', \App\Http\Controllers\Lms\StaffHandoffController::class)
+            ->name('clock.staff.lms');
 
         /*
          * Learning, on the SAME PIN session as everything else here.

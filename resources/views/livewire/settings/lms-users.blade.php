@@ -273,7 +273,12 @@
                         @foreach ($users as $user)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-3 font-medium text-gray-800">{{ $user->name }}</td>
-                                <td class="px-4 py-3 text-gray-600">{{ $user->email }}</td>
+                                <td class="px-4 py-3 text-gray-600">
+                                    {{ $user->email ?? '—' }}
+                                    @if ($user->employee_id)
+                                        <span class="badge-info ml-1">Staff PIN</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-gray-600">{{ $user->phone ?? '—' }}</td>
                                 <td class="px-4 py-3 text-gray-600">
                                     @php

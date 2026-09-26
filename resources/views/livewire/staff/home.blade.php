@@ -8,6 +8,10 @@
 --}}
 <div class="space-y-3">
 
+    @if (session('error'))
+        <div class="alert-danger" role="alert">{{ session('error') }}</div>
+    @endif
+
     {{-- ── Greeting ──
          Face and FULL name, before anything transactional. The same shared
          avatar as the account screen and the boards: photo over initials, so
@@ -217,8 +221,12 @@
             ['route' => 'clock.staff.time-off',  'label' => 'Time off',  'icon' => 'bolt'],
             ['route' => 'clock.staff.payslips',  'label' => 'Payslips',  'icon' => 'currency'],
             ['route' => 'clock.staff.actions',   'label' => 'Audit fixes','icon' => 'shield'],
+            // Leaves the Staff Portal for the LMS, a different layout — so a
+            // full page load, not wire:navigate, which would try to morph one
+            // into the other.
+            ['route' => 'clock.staff.lms',       'label' => 'SOP Library','icon' => 'book-open', 'external' => true],
         ] as $link)
-            <a href="{{ route($link['route']) }}" wire:navigate
+            <a href="{{ route($link['route']) }}" @unless ($link['external'] ?? false) wire:navigate @endunless
                class="card flex min-h-[3.5rem] items-center gap-3 px-4 py-3 active:bg-gray-50">
                 <x-icon :name="$link['icon']" size="h-5 w-5" class="shrink-0 text-brand-600" />
                 <span class="text-sm font-medium text-gray-900">{{ $link['label'] }}</span>

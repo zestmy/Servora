@@ -12,7 +12,7 @@ class LmsUser extends Authenticatable
     use SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'outlet_id', 'name', 'email', 'password',
+        'company_id', 'outlet_id', 'employee_id', 'name', 'email', 'password',
         'phone', 'status', 'approved_by', 'approved_at',
     ];
 
@@ -34,6 +34,16 @@ class LmsUser extends Authenticatable
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    /**
+     * The employee this account belongs to, when it was opened from the Staff
+     * Portal. Such an account may have no password: the staff PIN is how it
+     * signs in — see Lms\StaffHandoffController.
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     /** Outlets this trainee may see SOPs for (managed in Settings > Training Portal). */

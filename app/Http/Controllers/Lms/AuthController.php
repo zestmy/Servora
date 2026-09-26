@@ -145,6 +145,19 @@ class AuthController extends Controller
         $lmsUser = Auth::guard('lms')->user();
         $company = $lmsUser?->company;
 
+        /*
+         * Opened from the Staff Portal: sign out of the LMS only, and go back.
+         * The two share a session on the company subdomain, so invalidating it
+         * as below would sign the employee out of the Staff Portal as well —
+         * out of their clock-in, for having closed the SOP library.
+         */
+        if ($request->session()->pull(StaffHandoffController::SESSION_KEY)) {
+            Auth::guard('lms')->logout();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('clock.staff.home');
+        }
+
         Auth::guard('lms')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

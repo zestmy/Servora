@@ -68,6 +68,17 @@
                     </button>
                 </form>
 
+                {{-- Staff already have a PIN for clock-in; it opens the SOP
+                     library too, with no LMS account to register first. The
+                     slug is passed explicitly because on the path-based login
+                     (servora.com.my/lms/{slug}) no subdomain has set it. --}}
+                <div class="mt-4">
+                    <a href="{{ route('clock.staff.lms', ['companySlug' => $company->slug]) }}"
+                       class="btn-secondary w-full justify-center">
+                        Sign in with staff PIN
+                    </a>
+                </div>
+
                 <div class="mt-6 text-center">
                     <p class="text-sm text-gray-500">
                         Don't have an account?
