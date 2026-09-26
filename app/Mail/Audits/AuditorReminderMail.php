@@ -18,7 +18,7 @@ class AuditorReminderMail extends Mailable
     use Queueable, SerializesModels;
 
     /**
-     * @param array{user:\App\Models\User, schedules:\Illuminate\Support\Collection, actions:\Illuminate\Support\Collection, unactioned:\Illuminate\Support\Collection} $digest
+     * @param array{user:\App\Models\User, schedules:\Illuminate\Support\Collection, actions:\Illuminate\Support\Collection, unactioned:\Illuminate\Support\Collection, reaudits?:\Illuminate\Support\Collection} $digest
      */
     public function __construct(public array $digest, public string $brandName)
     {
@@ -37,6 +37,9 @@ class AuditorReminderMail extends Mailable
         if ($n = $this->digest['unactioned']->count()) {
             $parts[] = $n . ' finding' . ($n === 1 ? '' : 's') . ' with no action';
         }
+        if ($n = ($this->digest['reaudits'] ?? collect())->count()) {
+            $parts[] = $n . ' re-audit' . ($n === 1 ? '' : 's') . ' due';
+        }
 
         return new Envelope(subject: 'Audits: ' . implode(', ', $parts) . ' — ' . $this->brandName);
     }
@@ -50,10 +53,12 @@ class AuditorReminderMail extends Mailable
                 'schedules'     => $this->digest['schedules'],
                 'actions'       => $this->digest['actions'],
                 'unactioned'    => $this->digest['unactioned'],
+                'reaudits'      => $this->digest['reaudits'] ?? collect(),
                 'brandName'     => $this->brandName,
                 'schedulesUrl'  => route('audits.schedules', ['filter' => 'overdue']),
                 'actionsUrl'    => route('audits.actions', ['status' => 'overdue']),
                 'unactionedUrl' => route('audits.actions', ['status' => 'unassigned']),
+                'reauditsUrl'   => route('audits.index'),
             ],
         );
     }

@@ -50,6 +50,7 @@ class Audit extends Model
         'time_in', 'time_out', 'auditor_id', 'header_values', 'notes',
         'total_points', 'na_points', 'available_points', 'lost_points', 'penalty_points',
         'score_points', 'score_percent', 'finding_count', 'outcome', 'major_count', 'outcome_rules', 'outcome_reasons',
+        'reaudit_due_on', 'reaudit_of_id',
         'submitted_at', 'requires_acknowledgement', 'acknowledged_at', 'acknowledged_by_name',
         'acknowledged_by_position', 'signature_path', 'closed_at', 'created_by',
     ];
@@ -68,6 +69,7 @@ class Audit extends Model
         'major_count'              => 'integer',
         'outcome_rules'            => 'array',
         'outcome_reasons'          => 'array',
+        'reaudit_due_on'           => 'date',
         'requires_acknowledgement' => 'boolean',
         'submitted_at'             => 'datetime',
         'acknowledged_at'          => 'datetime',
@@ -129,6 +131,51 @@ class Audit extends Model
     public function findings(): HasMany
     {
         return $this->hasMany(AuditFinding::class);
+    }
+
+    /** The conditional-pass audit this one is the re-audit of, if it is one. */
+    public function reauditOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reaudit_of_id');
+    }
+
+    /** Follow-ups that name this audit. */
+    public function reaudits(): HasMany
+    {
+        return $this->hasMany(self::class, 'reaudit_of_id');
+    }
+
+    /** The submitted follow-up, when there is one. */
+    public function completedReaudit(): ?self
+    {
+        return $this->reaudits()->where('status', '!=', self::STATUS_DRAFT)->orderBy('audit_date')->first();
+    }
+
+    /** Conditional passes still waiting for their re-audit. */
+    public function scopeReauditOutstanding(Builder $q): Builder
+    {
+        return $q->where('status', '!=', self::STATUS_DRAFT)
+            ->where('outcome', self::OUTCOME_CONDITIONAL)
+            ->whereNotNull('reaudit_due_on')
+            ->whereDoesntHave('reaudits', fn ($r) => $r->where('status', '!=', self::STATUS_DRAFT));
+    }
+
+    public function scopeReauditOverdue(Builder $q): Builder
+    {
+        return $q->reauditOutstanding()->whereDate('reaudit_due_on', '<', now()->toDateString());
+    }
+
+    public function needsReaudit(): bool
+    {
+        return $this->outcome === self::OUTCOME_CONDITIONAL
+            && $this->reaudit_due_on !== null
+            && ! $this->isDraft()
+            && ! $this->reaudits()->where('status', '!=', self::STATUS_DRAFT)->exists();
+    }
+
+    public function isReauditOverdue(): bool
+    {
+        return $this->needsReaudit() && $this->reaudit_due_on->lt(\Carbon\Carbon::today());
     }
 
     // ── Scopes ───────────────────────────────────────────────────────────

@@ -31,8 +31,33 @@
                 @endforeach
             </ul>
         @endif
-        @if ($audit->outcome === 'conditional')
+        @if ($audit->outcome === 'conditional' && $audit->reaudit_due_on)
+            @php $followUp = $audit->completedReaudit(); @endphp
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-warning-200 pt-3">
+                @if ($followUp)
+                    <p class="text-sm text-warning-800">
+                        Re-audited on
+                        <a href="{{ route('audits.show', $followUp->id) }}" wire:navigate class="font-medium underline">{{ $followUp->audit_date->format('d M Y') }}</a>
+                        — {{ $followUp->outcomeLabel() ?? $followUp->statusLabel() }}{{ $followUp->score_percent !== null ? ' · ' . number_format($followUp->score_percent, 1) . '%' : '' }}.
+                    </p>
+                @else
+                    <p class="text-sm {{ $audit->isReauditOverdue() ? 'font-semibold text-danger-700' : 'text-warning-800' }}">
+                        Re-audit due by {{ $audit->reaudit_due_on->format('d M Y') }}
+                        ({{ $audit->reaudit_due_on->isPast() && ! $audit->reaudit_due_on->isToday() ? 'overdue, was ' : '' }}{{ $audit->reaudit_due_on->diffForHumans() }}).
+                    </p>
+                    @if ($canConduct && $audit->audit_template_id)
+                        <a href="{{ route('audits.start', ['reaudit' => $audit->id]) }}" wire:navigate class="btn-primary text-xs">Start re-audit</a>
+                    @endif
+                @endif
+            </div>
+        @elseif ($audit->outcome === 'conditional')
             <p class="mt-2 text-sm text-warning-800">Re-audit within {{ $rules['reaudit_days'] }} days.</p>
+        @endif
+        @if ($audit->reaudit_of_id && $audit->reauditOf)
+            <p class="mt-2 text-xs {{ $audit->outcome === 'pass' ? 'text-success-800' : ($audit->outcome === 'conditional' ? 'text-warning-800' : 'text-danger-800') }}">
+                Re-audit of the conditional pass on
+                <a href="{{ route('audits.show', $audit->reaudit_of_id) }}" wire:navigate class="font-medium underline">{{ $audit->reauditOf->audit_date->format('d M Y') }}</a>.
+            </p>
         @endif
     </div>
 @endif

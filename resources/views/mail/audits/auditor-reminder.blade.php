@@ -17,6 +17,22 @@ Hello {{ $name }},
 <x-mail::button :url="$schedulesUrl">Open the schedule</x-mail::button>
 @endif
 
+@if ($reaudits->isNotEmpty())
+## {{ $reaudits->count() }} re-audit{{ $reaudits->count() === 1 ? '' : 's' }} due
+
+Conditional passes whose follow-up visit is due within {{ \App\Services\Audits\AuditReminderService::REAUDIT_SOON_DAYS }} days, or overdue.
+
+<x-mail::table>
+| Outlet | Form | Audited | Scored | Re-audit due |
+|:--|:--|:--|:--|:--|
+@foreach ($reaudits as $a)
+| {{ $a->outlet?->name }} | {{ $a->template_code ?: $a->template_name }} | {{ $a->audit_date->format('d M Y') }} | {{ $a->score_percent !== null ? number_format($a->score_percent, 1) . '%' : '—' }} | {{ $a->reaudit_due_on->format('d M Y') }}{{ $a->reaudit_due_on->isPast() && ! $a->reaudit_due_on->isToday() ? ' (overdue)' : '' }} |
+@endforeach
+</x-mail::table>
+
+<x-mail::button :url="$reauditsUrl">Open the audits</x-mail::button>
+@endif
+
 @if ($actions->isNotEmpty())
 ## {{ $actions->count() }} corrective action{{ $actions->count() === 1 ? '' : 's' }} overdue
 

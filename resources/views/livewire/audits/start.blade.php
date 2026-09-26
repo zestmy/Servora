@@ -20,6 +20,9 @@
             @if ($scheduleId)
                 <div class="alert-info">Starting from the schedule. Its next due date rolls forward when you start.</div>
             @endif
+            @if ($reauditOfId)
+                <div class="alert-info">This is the re-audit of a conditional pass. Submitting it settles that audit's re-audit.</div>
+            @endif
             <div>
                 <label class="label" for="start-template">Audit form</label>
                 <select id="start-template" wire:model="templateId" class="input">

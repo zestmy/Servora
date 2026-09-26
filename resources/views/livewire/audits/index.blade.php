@@ -22,6 +22,21 @@
         </x-slot:actions>
     </x-page-header>
 
+    @if ($reauditDue)
+        <button type="button" wire:click="$set('outcomeFilter', 'reaudit_due')"
+                class="mb-3 flex w-full items-center gap-3 rounded-surface border p-3 text-left text-sm {{ $reauditOverdue ? 'border-danger-200 bg-danger-50 text-danger-800' : 'border-warning-200 bg-warning-50 text-warning-800' }}">
+            <x-icon name="shield" size="h-5 w-5" />
+            <span class="min-w-0 flex-1">
+                @if ($reauditOverdue)
+                    <strong>{{ $reauditOverdue }} re-audit{{ $reauditOverdue === 1 ? ' is' : 's are' }} overdue</strong>{{ $reauditDue > $reauditOverdue ? ', ' . ($reauditDue - $reauditOverdue) . ' more due' : '' }} — conditional passes still waiting for their follow-up.
+                @else
+                    <strong>{{ $reauditDue }} conditional pass{{ $reauditDue === 1 ? '' : 'es' }} waiting for a re-audit</strong>.
+                @endif
+            </span>
+            <span class="font-medium">Show <x-icon name="arrow-right" size="h-4 w-4" class="inline" /></span>
+        </button>
+    @endif
+
     @if ($overdue || $dueSoon)
         <a href="{{ route('audits.schedules', $overdue ? ['filter' => 'overdue'] : []) }}" wire:navigate
            class="mb-4 flex items-center gap-3 rounded-surface border p-3 text-sm {{ $overdue ? 'border-danger-200 bg-danger-50 text-danger-800' : 'border-warning-200 bg-warning-50 text-warning-800' }}">
@@ -74,6 +89,7 @@
                 @foreach ($outcomes as $key => $label)
                     <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
+                <option value="reaudit_due">Re-audit due</option>
             </select>
             <button wire:click="resetFilters" class="btn-ghost">Reset</button>
         </div>
@@ -123,6 +139,11 @@
                                         'badge-warning' => $audit->outcome === 'conditional',
                                         'badge-danger'  => $audit->outcome === 'fail',
                                     ])>{{ $audit->outcomeLabel() }}</span>
+                                    @if ($audit->outcome === 'conditional' && $audit->reaudit_due_on && $audit->needsReaudit())
+                                        <span class="block text-[11px] tabular-nums {{ $audit->isReauditOverdue() ? 'font-medium text-danger-700' : 'text-gray-600' }}">
+                                            re-audit by {{ $audit->reaudit_due_on->format('d M') }}
+                                        </span>
+                                    @endif
                                 @else
                                     <span class="text-gray-500">—</span>
                                 @endif

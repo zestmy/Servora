@@ -26,6 +26,9 @@ class Start extends Component
     /** Set when arriving from the Schedule screen; the schedule rolls forward on start. */
     public ?int $scheduleId = null;
 
+    /** Set when arriving from a conditional pass's "Start re-audit"; the new audit answers it. */
+    public ?int $reauditOfId = null;
+
     protected function rules(): array
     {
         return [
@@ -55,6 +58,16 @@ class Start extends Component
             $this->templateId = (string) $templates->first()->id;
         }
 
+        if ($id = (int) request('reaudit')) {
+            $prior = \App\Models\Audit::with('template')->find($id);
+
+            if ($prior && Auth::user()->canAccessOutlet($prior->outlet_id) && $prior->template?->is_active) {
+                $this->reauditOfId = $prior->id;
+                $this->templateId  = (string) $prior->audit_template_id;
+                $this->outlet_id   = $prior->outlet_id;
+            }
+        }
+
         if ($id = (int) request('schedule')) {
             $schedule = AuditSchedule::with('template')->find($id);
 
@@ -75,9 +88,15 @@ class Start extends Component
         $template = AuditTemplate::active()->findOrFail((int) $this->templateId);
         $outlet   = Outlet::findOrFail($this->resolveOutletId());
 
+        $prior = $this->reauditOfId ? \App\Models\Audit::find($this->reauditOfId) : null;
+
         $attrs = [
             'reference_number' => $this->reference ?: null,
             'time_in'          => now()->format('H:i'),
+            // Only if it is still the same form at the same outlet; otherwise
+            // this is an ordinary audit and the link would be a lie.
+            'reaudit_of_id'    => $prior && $prior->audit_template_id === $template->id && $prior->outlet_id === $outlet->id
+                ? $prior->id : null,
         ];
 
         // Only honour the schedule if the form and outlet still match it —

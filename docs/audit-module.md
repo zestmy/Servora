@@ -60,6 +60,16 @@ start** so tightening the rules never re-grades an audit already signed for:
 
 Fail if any conditional threshold is missed; pass if every pass threshold is
 met; conditional in between, with a re-audit due in `reaudit_days` (30).
+**A conditional pass is a promise to come back.** At submit,
+`audits.reaudit_due_on` = audit date + `reaudit_days`. The follow-up names
+the original in `reaudit_of_id` — set up front by "Start re-audit" on the
+summary (`/audits/start?reaudit=`), or at submit for an ordinary later audit
+of the same form at the same outlet. A re-audit is satisfied once a
+submitted follow-up names it; until then the Audits list carries a strip
+and a "Re-audit due" filter, and the auditor's daily digest lists re-audits
+due within 7 days or overdue. Reopening clears the due date; resubmitting
+re-derives it from the new outcome.
+
 Sections with nothing applicable are skipped. `audits.outcome`,
 `major_count` and `outcome_reasons` (the rules that decided it, in words)
 are cached with the score; a draft carries a projection. Shown on the
@@ -187,6 +197,11 @@ a later reassignment or departure never rewrites a past audit.
   the owner update their actions from the staff portal on the PIN session.
 
 ## Tests
+
+`tests/Feature/AuditReauditTest.php` — due date on a conditional pass,
+the button-linked follow-up, an ordinary later audit counting (same outlet
+only), reopen clearing it, list strip and filter, digest chasing within a
+week and stopping once done.
 
 `tests/Feature/AuditOutcomeTest.php` — clean pass, one major → conditional,
 two majors → fail, weak area → conditional then fail, totals between the

@@ -3,6 +3,7 @@
 namespace App\Services\Audits;
 
 use App\Jobs\SendAuditReminder;
+use App\Models\Audit;
 use App\Models\AuditFinding;
 use App\Models\AuditReminder;
 use App\Models\AuditSchedule;
@@ -42,6 +43,9 @@ class AuditReminderService
 
     /** Findings with no action are chased after this many days. */
     public const UNACTIONED_AFTER_DAYS = 3;
+
+    /** A re-audit is mentioned from this many days before it is due. */
+    public const REAUDIT_SOON_DAYS = 7;
 
     /** @return array{auditors:int, owners:int, skipped:string|null} */
     public function sendForCompany(Company $company, bool $force = false, bool $dryRun = false): array
@@ -104,6 +108,14 @@ class AuditReminderService
             ->orderBy('due_date')
             ->get();
 
+        $reaudits = Audit::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $company->id)
+            ->reauditOutstanding()
+            ->whereDate('reaudit_due_on', '<=', now()->addDays(self::REAUDIT_SOON_DAYS)->toDateString())
+            ->with(['outlet'])
+            ->orderBy('reaudit_due_on')
+            ->get();
+
         $unactioned = AuditFinding::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $company->id)
             ->where('status', AuditFinding::STATUS_OPEN)
@@ -114,7 +126,7 @@ class AuditReminderService
             ->orderBy('id')
             ->get();
 
-        return $auditors->map(function (User $user) use ($schedules, $actions, $unactioned) {
+        return $auditors->map(function (User $user) use ($schedules, $actions, $unactioned, $reaudits) {
             $outletIds = $user->accessibleOutletIds();
             $reach     = fn ($row) => in_array((int) $row->outlet_id, $outletIds, true);
 
@@ -124,9 +136,10 @@ class AuditReminderService
                     || ($s->assigned_user_id === null && $reach($s)))->values(),
                 'actions'    => $actions->filter($reach)->values(),
                 'unactioned' => $unactioned->filter($reach)->values(),
+                'reaudits'   => $reaudits->filter($reach)->values(),
             ];
 
-            return $mine['schedules']->isEmpty() && $mine['actions']->isEmpty() && $mine['unactioned']->isEmpty()
+            return $mine['schedules']->isEmpty() && $mine['actions']->isEmpty() && $mine['unactioned']->isEmpty() && $mine['reaudits']->isEmpty()
                 ? null
                 : $mine;
         })->filter()->values();
@@ -163,7 +176,7 @@ class AuditReminderService
         }
 
         $summary = $isAuditor
-            ? ['schedules' => $digest['schedules']->count(), 'actions' => $digest['actions']->count(), 'unactioned' => $digest['unactioned']->count()]
+            ? ['schedules' => $digest['schedules']->count(), 'actions' => $digest['actions']->count(), 'unactioned' => $digest['unactioned']->count(), 'reaudits' => $digest['reaudits']->count()]
             : ['actions' => $digest['actions']->count()];
 
         if ($dryRun) {

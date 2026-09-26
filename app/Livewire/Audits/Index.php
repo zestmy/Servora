@@ -88,7 +88,9 @@ class Index extends Component
         if ($this->statusFilter) {
             $query->where('status', $this->statusFilter);
         }
-        if ($this->outcomeFilter) {
+        if ($this->outcomeFilter === 'reaudit_due') {
+            $query->reauditOutstanding();
+        } elseif ($this->outcomeFilter) {
             $query->where('status', '!=', Audit::STATUS_DRAFT)->where('outcome', $this->outcomeFilter);
         }
         if ($this->dateFrom) {
@@ -110,9 +112,15 @@ class Index extends Component
         $due = AuditSchedule::query();
         $this->scopeByOutlet($due);
 
+        // Conditional passes waiting for their re-audit, in the same strip.
+        $reaudit = Audit::query();
+        $this->scopeByOutlet($reaudit);
+
         return view('livewire.audits.index', [
             'overdue'   => (clone $due)->overdue()->count(),
             'dueSoon'   => (clone $due)->dueSoon()->count(),
+            'reauditOverdue' => (clone $reaudit)->reauditOverdue()->count(),
+            'reauditDue'     => (clone $reaudit)->reauditOutstanding()->count(),
             'audits'    => $query->orderByDesc('audit_date')->orderByDesc('id')->paginate(25),
             'outlets'   => $this->filterableOutlets(),
             'templates' => AuditTemplate::ordered()->get(['id', 'name', 'code']),

@@ -320,12 +320,45 @@ class AuditService
 
         $this->scores->recalculate($audit);
 
+        // A conditional pass is a promise to come back; the date is the
+        // audit's own, plus the form's window, under the rules it was
+        // started with.
+        $reauditDue = $audit->outcome === Audit::OUTCOME_CONDITIONAL
+            ? $audit->audit_date->copy()->addDays((int) $audit->outcomeRules()['reaudit_days'])->toDateString()
+            : null;
+
         $audit->forceFill([
-            'status'       => Audit::STATUS_SUBMITTED,
-            'submitted_at' => now(),
+            'status'         => Audit::STATUS_SUBMITTED,
+            'submitted_at'   => now(),
+            'reaudit_due_on' => $reauditDue,
+            'reaudit_of_id'  => $audit->reaudit_of_id ?? $this->reauditCandidate($audit)?->id,
         ])->save();
 
         return $audit;
+    }
+
+    /**
+     * The conditional audit this submission answers, when it was not started
+     * from the "Start re-audit" button: the most recent conditional pass of
+     * the same form at the same outlet, dated before this one, still waiting.
+     * A re-audit conducted the ordinary way should count as one.
+     */
+    private function reauditCandidate(Audit $audit): ?Audit
+    {
+        if (! $audit->audit_template_id) {
+            return null;
+        }
+
+        return Audit::withoutGlobalScopes()
+            ->where('company_id', $audit->company_id)
+            ->where('outlet_id', $audit->outlet_id)
+            ->where('audit_template_id', $audit->audit_template_id)
+            ->whereKeyNot($audit->id)
+            ->whereDate('audit_date', '<=', $audit->audit_date->toDateString())
+            ->reauditOutstanding()
+            ->orderByDesc('audit_date')
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
@@ -349,6 +382,7 @@ class AuditService
             'acknowledged_by_position' => null,
             'signature_path'           => null,
             'closed_at'                => null,
+            'reaudit_due_on'           => null,   // re-derived from the outcome on resubmit
         ])->save();
 
         if ($signature) {
