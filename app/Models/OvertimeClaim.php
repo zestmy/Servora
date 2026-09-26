@@ -14,7 +14,7 @@ class OvertimeClaim extends Model
     protected $fillable = [
         'company_id', 'outlet_id', 'submitted_by', 'employee_id',
         'claim_date', 'ot_time_start', 'ot_time_end', 'total_ot_hours',
-        'ot_type', 'reason', 'status', 'settlement',
+        'ot_type', 'ot_hourly_rate', 'reason', 'status', 'settlement',
         'is_split_shift', 'split_shift_ack_by', 'split_shift_ack_at',
         'approved_by', 'approved_at', 'rejected_reason',
         'source', 'roster_entry_id',
@@ -24,6 +24,7 @@ class OvertimeClaim extends Model
     protected $casts = [
         'claim_date'     => 'date',
         'total_ot_hours' => 'decimal:2',
+        'ot_hourly_rate' => 'decimal:2',
         'approved_at'    => 'datetime',
         'paid_at'        => 'datetime',
         'hours_taken_off' => 'decimal:2',
@@ -124,14 +125,63 @@ class OvertimeClaim extends Model
         return $this->source === 'roster';
     }
 
+    /** The statutory types, priced as hourly rate × a multiplier. */
+    public const STANDARD_TYPES = [
+        'normal_day'     => 'Normal Day',
+        'public_holiday' => 'Public Holiday',
+        'rest_day'       => 'Rest Day',
+    ];
+
     public function otTypeLabel(): string
     {
-        return match ($this->ot_type) {
-            'normal_day'     => 'Normal Day',
-            'public_holiday' => 'Public Holiday',
-            'rest_day'       => 'Rest Day',
-            default          => ucfirst($this->ot_type),
-        };
+        return static::typeLabels($this->company_id)[$this->ot_type]
+            ?? ucfirst(str_replace('_', ' ', (string) $this->ot_type));
+    }
+
+    /**
+     * Whether this claim is a custom type with its own fixed hourly rate.
+     *
+     * Priced as hours × ot_hourly_rate (the rate copied on when the claim was
+     * saved) wherever OT is costed — payroll, labour cost transfers, the
+     * weekly review — instead of hourly rate × multiplier, and without
+     * needing a salary on record.
+     */
+    public function hasFixedRate(): bool
+    {
+        return OvertimeRateType::idFromKey($this->ot_type) !== null;
+    }
+
+    /**
+     * Every type a company's claims can carry, key => label: the statutory
+     * three, then its custom types — inactive ones included, because old
+     * claims still carry them and must still read properly.
+     *
+     * Cached per company for the request: this is asked once per claim on a
+     * list. OvertimeRateType flushes it whenever a type is saved.
+     *
+     * @return array<string, string>
+     */
+    public static function typeLabels(?int $companyId): array
+    {
+        if ($companyId === null) {
+            return self::STANDARD_TYPES;
+        }
+
+        return self::$typeLabelCache[$companyId] ??= self::STANDARD_TYPES + OvertimeRateType::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->ordered()
+            ->get()
+            ->mapWithKeys(fn ($t) => [$t->key() => $t->name])
+            ->all();
+    }
+
+    /** @var array<int, array<string, string>> */
+    private static array $typeLabelCache = [];
+
+    /** Forget cached labels, for a request that has just changed the types. */
+    public static function flushTypeLabels(): void
+    {
+        self::$typeLabelCache = [];
     }
 
     // ── Duplicate claims ──

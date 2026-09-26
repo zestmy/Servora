@@ -29,11 +29,6 @@ class OtClaimSummaryPdfController extends Controller
         // old month-only modal keep working.
         [$from, $to] = $this->resolvePeriod($request);
 
-        $otTypeLabels = [
-            'normal_day'     => 'Normal Day',
-            'rest_day'       => 'Rest Day',
-            'public_holiday' => 'Public Holiday',
-        ];
 
         /*
          * Approved, PAYABLE claims for the period — filtered on the EMPLOYEE's
@@ -58,6 +53,21 @@ class OtClaimSummaryPdfController extends Controller
             ->whereBetween('overtime_claims.claim_date', [$from, $to])
             ->select('overtime_claims.*')
             ->get();
+
+        // One column per type: the statutory three always (the sheet's
+        // familiar shape), then each custom rate type that actually has
+        // claims in the period — a retired rate must not add an empty column.
+        $allTypeLabels = OvertimeClaim::typeLabels($user->company_id);
+        $otTypeLabels  = [
+            'normal_day'     => 'Normal Day',
+            'rest_day'       => 'Rest Day',
+            'public_holiday' => 'Public Holiday',
+        ];
+        foreach ($claims->pluck('ot_type')->unique()->sort() as $key) {
+            if (! isset($otTypeLabels[$key])) {
+                $otTypeLabels[$key] = $allTypeLabels[$key] ?? ucfirst(str_replace('_', ' ', $key));
+            }
+        }
 
         // Build per-employee summary, sorted by employee name
         // rows = [ { employee, byType: [{ ot_type, label, hours }], totalHours } ]

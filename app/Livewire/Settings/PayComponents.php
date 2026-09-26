@@ -4,6 +4,7 @@ namespace App\Livewire\Settings;
 
 use App\Models\CompensationSetting;
 use App\Models\EmployeePayComponent;
+use App\Models\OvertimeRateType;
 use App\Models\PayComponent;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -42,6 +43,11 @@ class PayComponents extends Component
     public string $daily_hours        = '';
     /** Day the pay cycle opens. 1 = calendar months, 26 = 26th to the 25th. */
     public string $cycle_start_day    = '1';
+
+    // Custom OT rate types — a named OT type with its own RM/hour.
+    public ?int   $rateTypeId     = null;
+    public string $rateTypeName   = '';
+    public string $rateTypeRate   = '';
 
     public function mount(): void
     {
@@ -194,15 +200,98 @@ class PayComponents extends Component
         session()->flash('success', 'Overtime rates and pay cycle saved.');
     }
 
+    // ── Custom OT rates ───────────────────────────────────────────────────
+
+    public function editRateType(int $id): void
+    {
+        $type = OvertimeRateType::findOrFail($id);
+
+        $this->rateTypeId   = $type->id;
+        $this->rateTypeName = $type->name;
+        $this->rateTypeRate = number_format((float) $type->hourly_rate, 2, '.', '');
+        $this->resetValidation(['rateTypeName', 'rateTypeRate']);
+    }
+
+    public function cancelRateType(): void
+    {
+        $this->rateTypeId   = null;
+        $this->rateTypeName = '';
+        $this->rateTypeRate = '';
+        $this->resetValidation(['rateTypeName', 'rateTypeRate']);
+    }
+
+    public function saveRateType(): void
+    {
+        $this->validate([
+            'rateTypeName' => [
+                'required', 'string', 'max:60',
+                Rule::unique('overtime_rate_types', 'name')
+                    ->where('company_id', Auth::user()->company_id)
+                    ->ignore($this->rateTypeId),
+            ],
+            'rateTypeRate' => 'required|numeric|min:0.01|max:9999.99',
+        ], [
+            'rateTypeName.unique' => 'There is already an OT type with this name.',
+        ], [
+            'rateTypeName' => 'name',
+            'rateTypeRate' => 'rate per hour',
+        ]);
+
+        $data = [
+            'name'        => trim($this->rateTypeName),
+            'hourly_rate' => round((float) $this->rateTypeRate, 2),
+        ];
+
+        if ($this->rateTypeId) {
+            // Claims already made keep the rate copied onto them; only new
+            // claims pick up a changed rate.
+            OvertimeRateType::findOrFail($this->rateTypeId)->update($data);
+            session()->flash('success', 'OT type updated. Claims already made keep the rate they were saved with.');
+        } else {
+            OvertimeRateType::create($data + [
+                'company_id' => Auth::user()->company_id,
+                'sort_order' => (int) OvertimeRateType::max('sort_order') + 10,
+            ]);
+            session()->flash('success', 'OT type added. It can now be chosen on an OT claim.');
+        }
+
+        $this->cancelRateType();
+    }
+
+    public function toggleRateType(int $id): void
+    {
+        $type = OvertimeRateType::findOrFail($id);
+        $type->update(['is_active' => ! $type->is_active]);
+    }
+
+    public function deleteRateType(int $id): void
+    {
+        $type = OvertimeRateType::findOrFail($id);
+
+        // A claim's ot_type points at it, and the name is how that claim is
+        // read back on every list and PDF; deactivating keeps that.
+        if ($type->claimsCount() > 0) {
+            session()->flash('error', 'This OT type is used on claims — deactivate it instead.');
+            return;
+        }
+
+        $type->delete();
+        if ($this->rateTypeId === $id) {
+            $this->cancelRateType();
+        }
+        session()->flash('success', 'OT type deleted.');
+    }
+
     public function render()
     {
         $components = PayComponent::ordered()->get();
+        $rateTypes  = OvertimeRateType::ordered()->get();
 
         $usage = EmployeePayComponent::selectRaw('pay_component_id, count(*) as total')
             ->groupBy('pay_component_id')
             ->pluck('total', 'pay_component_id');
 
-        return view('livewire.settings.pay-components', compact('components', 'usage'))
+        return view('livewire.settings.pay-components', compact('components', 'usage', 'rateTypes'))
             ->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Pay Components']);
     }
 

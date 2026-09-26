@@ -93,7 +93,10 @@ class OvertimeClaims extends Component
             'ot_time_start'  => 'required|date_format:H:i',
             'ot_time_end'    => 'required|date_format:H:i',
             'total_ot_hours' => 'required|numeric|min:0.25|max:24',
-            'ot_type'        => 'required|in:normal_day,public_holiday,rest_day',
+            // The statutory three, or one of this company's ACTIVE custom
+            // types — a retired one can still be read on old claims but not
+            // chosen for a new one.
+            'ot_type'        => ['required', \Illuminate\Validation\Rule::in(array_keys($this->otTypeOptions()))],
             'reason'         => 'required|string|max:500',
         ];
     }
@@ -381,6 +384,10 @@ class OvertimeClaims extends Component
             'ot_time_end'   => $this->ot_time_end,
             'total_ot_hours' => floatval($this->total_ot_hours),
             'ot_type'       => $this->ot_type,
+            // A custom type's rate, COPIED onto the claim: changing the type's
+            // rate later reprices new claims, not this one. Null for the
+            // statutory types, which are priced off the employee's salary.
+            'ot_hourly_rate' => $this->customRateFor($this->ot_type),
             'reason'        => $this->reason,
             'status'        => $action === 'submit' ? 'submitted' : 'draft',
             // Who used the override and when. A bypass on a gate that guards
@@ -598,6 +605,31 @@ class OvertimeClaims extends Component
 
     // ── Render ──
 
+    /**
+     * What the OT Type dropdown offers: the statutory three, then this
+     * company's active custom types with their rate in the label.
+     *
+     * @return array<string, string>
+     */
+    public function otTypeOptions(): array
+    {
+        return OvertimeClaim::STANDARD_TYPES + \App\Models\OvertimeRateType::where('is_active', true)
+            ->ordered()
+            ->get()
+            ->mapWithKeys(fn ($t) => [$t->key() => $t->optionLabel()])
+            ->all();
+    }
+
+    /** The current rate of a custom OT type, or null for a statutory one. */
+    protected function customRateFor(string $otType): ?float
+    {
+        $id = \App\Models\OvertimeRateType::idFromKey($otType);
+
+        return $id !== null
+            ? (float) \App\Models\OvertimeRateType::whereKey($id)->value('hourly_rate')
+            : null;
+    }
+
     public function render()
     {
         $user = Auth::user();
@@ -791,6 +823,7 @@ class OvertimeClaims extends Component
         $trendNormalDay  = [];
         $trendPublicHol  = [];
         $trendRestDay    = [];
+        $trendCustom     = [];
 
         foreach ($trendWeeks as [$ws, $we]) {
             $trendLabels[]    = \Carbon\Carbon::parse($ws)->format('d M');
@@ -798,14 +831,19 @@ class OvertimeClaims extends Component
             $trendNormalDay[] = round((float) ($rows['normal_day']?->hours ?? 0), 2);
             $trendPublicHol[] = round((float) ($rows['public_holiday']?->hours ?? 0), 2);
             $trendRestDay[]   = round((float) ($rows['rest_day']?->hours ?? 0), 2);
+            // Every custom rate type as one series: the chart is about how
+            // much OT, and a legend entry per rate would crowd it out.
+            $trendCustom[]    = round((float) $rows
+                ->filter(fn ($r, $type) => \App\Models\OvertimeRateType::idFromKey((string) $type) !== null)
+                ->sum('hours'), 2);
         }
 
         // Week-on-week stats
-        $thisWeekHours = $trendNormalDay[11] + $trendPublicHol[11] + $trendRestDay[11];
-        $lastWeekHours = $trendNormalDay[10] + $trendPublicHol[10] + $trendRestDay[10];
+        $thisWeekHours = $trendNormalDay[11] + $trendPublicHol[11] + $trendRestDay[11] + $trendCustom[11];
+        $lastWeekHours = $trendNormalDay[10] + $trendPublicHol[10] + $trendRestDay[10] + $trendCustom[10];
         $wowChange     = $lastWeekHours > 0 ? round(($thisWeekHours - $lastWeekHours) / $lastWeekHours * 100, 1) : null;
 
-        $weekTotals = array_map(fn ($i) => $trendNormalDay[$i] + $trendPublicHol[$i] + $trendRestDay[$i], range(0, 11));
+        $weekTotals = array_map(fn ($i) => $trendNormalDay[$i] + $trendPublicHol[$i] + $trendRestDay[$i] + $trendCustom[$i], range(0, 11));
         $peakWeekHours = max($weekTotals) ?: 0;
         $peakWeekLabel = $peakWeekHours > 0 ? $trendLabels[array_search($peakWeekHours, $weekTotals)] : null;
         $avgWeekHours  = count(array_filter($weekTotals)) > 0
@@ -846,6 +884,8 @@ class OvertimeClaims extends Component
             'normal'  => $trendNormalDay,
             'holiday' => $trendPublicHol,
             'rest'    => $trendRestDay,
+            // Null when no week has any, so the legend only shows it when used.
+            'custom'  => array_sum($trendCustom) > 0 ? $trendCustom : null,
         ];
 
         return view('livewire.hr.overtime-claims', compact(

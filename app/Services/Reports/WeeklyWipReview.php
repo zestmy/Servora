@@ -512,7 +512,7 @@ class WeeklyWipReview
         $claims = $outlets(OvertimeClaim::withoutGlobalScopes()->where('company_id', $companyId)->whereNull('deleted_at'))
             ->whereIn('status', ['submitted', 'approved'])
             ->whereBetween('claim_date', $range)
-            ->get(['id', 'outlet_id', 'employee_id', 'claim_date', 'total_ot_hours', 'hours_taken_off', 'ot_type', 'status', 'settlement']);
+            ->get(['id', 'outlet_id', 'employee_id', 'claim_date', 'total_ot_hours', 'hours_taken_off', 'ot_type', 'ot_hourly_rate', 'status', 'settlement']);
 
         $settings = CompensationSetting::forCompany($companyId);
 
@@ -548,12 +548,16 @@ class WeeklyWipReview
                 $employee->daily_working_hours !== null ? (float) $employee->daily_working_hours : null,
             ) : null;
 
-            if ($rate === null) {
+            // A custom OT type carries its own rate, so it is priced even for
+            // somebody with no salary on record.
+            if ($rate === null && ! $claim->hasFixedRate()) {
                 $unpriced[$w]++;
                 continue;
             }
 
-            $cost = max(0.0, $hours - (float) $claim->hours_taken_off) * $rate * $settings->multiplierFor((string) $claim->ot_type);
+            $cost = $claim->hasFixedRate()
+                ? max(0.0, $hours - (float) $claim->hours_taken_off) * (float) $claim->ot_hourly_rate
+                : max(0.0, $hours - (float) $claim->hours_taken_off) * $rate * $settings->multiplierFor((string) $claim->ot_type);
             $totals['ot_cost'][$w] += $cost;
             $add($byOutlet, (int) $claim->outlet_id, 'ot_cost', $w, $cost);
             $add($bySection, $sectionKey, 'ot_cost', $w, $cost);

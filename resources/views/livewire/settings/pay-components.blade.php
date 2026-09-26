@@ -90,6 +90,63 @@
         </form>
     </div>
 
+    {{-- Custom OT types: a named type with its own RM/hour, chosen on an OT
+         claim beside Normal Day / Rest Day / Public Holiday. Not a multiplier —
+         it does not depend on the employee's salary at all. --}}
+    <div class="card p-5 mb-4">
+        <h3 class="text-sm font-semibold text-gray-700">Custom OT rates</h3>
+        <p class="text-xs text-gray-500 mt-1">
+            An OT type with its own fixed rate per hour — e.g. <span class="font-medium">Part Time</span> at RM15/hour.
+            It appears in the OT Type list on an overtime claim and is paid as hours × this rate, whatever the
+            employee's salary. Each claim keeps the rate it was saved with, so changing a rate here only affects new claims.
+        </p>
+
+        <form wire:submit.prevent="saveRateType" class="mt-4 flex flex-wrap items-start gap-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-600">OT type name</label>
+                <input type="text" maxlength="60" wire:model="rateTypeName" placeholder="e.g. Part Time"
+                       class="mt-1 w-56 text-sm rounded-lg border-gray-300" />
+                <x-input-error :messages="$errors->get('rateTypeName')" class="mt-1" />
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600">Rate (RM / hour)</label>
+                <input type="number" step="0.01" min="0" wire:model="rateTypeRate" placeholder="15.00"
+                       class="mt-1 w-32 text-sm rounded-lg border-gray-300" />
+                <x-input-error :messages="$errors->get('rateTypeRate')" class="mt-1" />
+            </div>
+            <div class="flex gap-2 pt-5">
+                <button type="submit" class="btn-primary">{{ $rateTypeId ? 'Update' : 'Add OT type' }}</button>
+                @if ($rateTypeId)
+                    <button type="button" wire:click="cancelRateType" class="btn-secondary">Cancel</button>
+                @endif
+            </div>
+        </form>
+
+        @if ($rateTypes->isNotEmpty())
+            <div class="mt-4 border border-gray-100 rounded-surface divide-y divide-gray-50">
+                @foreach ($rateTypes as $rt)
+                    <div wire:key="ot-rate-{{ $rt->id }}" class="flex flex-wrap items-center gap-3 px-3 py-2 {{ $rt->is_active ? '' : 'opacity-60' }}">
+                        <span class="text-sm font-medium text-gray-800">{{ $rt->name }}</span>
+                        <span class="text-sm tabular-nums text-gray-700">RM{{ number_format((float) $rt->hourly_rate, 2) }}/h</span>
+                        @unless ($rt->is_active)
+                            <span class="text-[11px] text-gray-600">inactive</span>
+                        @endunless
+                        <div class="ml-auto flex items-center gap-3">
+                            <button type="button" wire:click="editRateType({{ $rt->id }})" class="text-xs text-brand-600 hover:text-brand-800">Edit</button>
+                            <button type="button" wire:click="toggleRateType({{ $rt->id }})"
+                                    class="text-xs {{ $rt->is_active ? 'text-warning-600 hover:text-warning-800' : 'text-success-600 hover:text-success-800' }}">
+                                {{ $rt->is_active ? 'Deactivate' : 'Activate' }}
+                            </button>
+                            <button type="button" wire:click="deleteRateType({{ $rt->id }})"
+                                    data-confirm-delete="Delete the OT type {{ $rt->name }}?"
+                                    class="text-xs text-danger-600 hover:text-danger-700">Delete</button>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </div>
+
     <div class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="table-surface min-w-[860px]">

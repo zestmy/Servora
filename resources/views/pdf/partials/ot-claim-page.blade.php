@@ -78,11 +78,8 @@
                 <div class="kv"><div class="k">Total Claims</div><div class="v">{{ $claims->count() }}</div></div>
 
                 @php
-                    $typeLabels = [
-                        'normal_day'     => 'Normal Day',
-                        'public_holiday' => 'Public Holiday',
-                        'rest_day'       => 'Rest Day',
-                    ];
+                    // The statutory three and this company's custom rate types.
+                    $typeLabels = \App\Models\OvertimeClaim::typeLabels($claims->first()?->company_id);
                 @endphp
                 <div class="hours-breakdown">
                     <div class="bt-label">Hours by OT Type</div>
@@ -181,12 +178,10 @@
                 <td class="center">{{ substr($claim->ot_time_end, 0, 5) }}</td>
                 <td class="center" style="font-weight: bold;">{{ number_format($claim->total_ot_hours, 2) }}</td>
                 <td>
-                    {{ match($claim->ot_type) {
-                        'normal_day'     => 'Normal Day',
-                        'public_holiday' => 'Public Holiday',
-                        'rest_day'       => 'Rest Day',
-                        default          => ucfirst(str_replace('_', ' ', $claim->ot_type)),
-                    } }}
+                    {{ $claim->otTypeLabel() }}
+                    @if ($claim->hasFixedRate() && $claim->ot_hourly_rate !== null)
+                        <span style="color: #666; font-size: 8pt;">(RM{{ number_format((float) $claim->ot_hourly_rate, 2) }}/h)</span>
+                    @endif
                 </td>
                 @if (($hoursBySettlement['time_off'] ?? 0) > 0)
                     <td style="font-size: 8pt; {{ $claim->settlement === 'time_off' ? 'color: #0843a0; font-weight: 600;' : 'color: #666;' }}">

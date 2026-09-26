@@ -374,6 +374,13 @@
                                     borderRadius: 3,
                                     stack: 'ot',
                                 },
+                                ...(data.custom ? [{
+                                    label: 'Custom rate',
+                                    data: data.custom,
+                                    backgroundColor: 'rgba(124,58,237,0.7)',
+                                    borderRadius: 3,
+                                    stack: 'ot',
+                                }] : []),
                             ],
                         },
                         options: {
@@ -579,10 +586,13 @@
                                     {{ match($claim->ot_type) {
                                         'public_holiday' => 'bg-danger-50 text-danger-600',
                                         'rest_day'       => 'bg-warning-50 text-warning-600',
-                                        default          => 'bg-gray-100 text-gray-600',
+                                        default          => $claim->hasFixedRate() ? 'bg-brand-50 text-brand-700' : 'bg-gray-100 text-gray-600',
                                     } }}">
                                     {{ $claim->otTypeLabel() }}
                                 </span>
+                                @if ($claim->hasFixedRate() && $claim->ot_hourly_rate !== null)
+                                    <span class="block text-[10px] text-gray-500 mt-0.5">RM{{ number_format((float) $claim->ot_hourly_rate, 2) }}/h</span>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-gray-600 max-w-[200px] truncate" title="{{ $claim->reason }}">
                                 {{ $claim->reason }}
@@ -731,9 +741,9 @@
                             <x-input-label for="ot_type" value="OT Type *" />
                             <select id="ot_type" wire:model="ot_type"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
-                                <option value="normal_day">Normal Day</option>
-                                <option value="public_holiday">Public Holiday</option>
-                                <option value="rest_day">Rest Day</option>
+                                @foreach ($this->otTypeOptions() as $typeKey => $typeLabel)
+                                    <option value="{{ $typeKey }}">{{ $typeLabel }}</option>
+                                @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('ot_type')" class="mt-1" />
                         </div>

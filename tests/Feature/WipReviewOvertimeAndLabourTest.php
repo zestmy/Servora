@@ -172,6 +172,45 @@ class WipReviewOvertimeAndLabourTest extends TestCase
         $this->assertEquals(75, $klcc['ot_cost']['current']);
     }
 
+    /**
+     * A custom OT type ("Part Time", RM15/hour) is costed at the rate copied
+     * onto the claim — not hourly rate × multiplier — and is costed even for
+     * somebody with no salary on record, who has no hourly rate at all.
+     */
+    public function test_a_custom_rate_ot_type_is_costed_at_its_own_rate(): void
+    {
+        $this->canSeePay();
+
+        $type = \App\Models\OvertimeRateType::withoutGlobalScope(\App\Scopes\CompanyScope::class)->create([
+            'company_id' => $this->company->id, 'name' => 'Part Time', 'hourly_rate' => 15,
+        ]);
+        $unsalaried = Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+            'name' => 'PART TIMER', 'is_active' => true, 'join_date' => '2025-01-01',
+            'basic_salary' => null, 'pay_type' => 'hourly',
+        ]);
+
+        $this->claim('2026-09-09', 4);                                          // normal day: RM75
+        foreach ([[$this->aisyah, '2026-09-10'], [$unsalaried, '2026-09-11']] as [$who, $date]) {
+            OvertimeClaim::create([
+                'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id,
+                'employee_id' => $who->id, 'submitted_by' => $this->user->id,
+                'claim_date' => $date, 'ot_time_start' => '18:00', 'ot_time_end' => '22:00',
+                'total_ot_hours' => 4, 'hours_taken_off' => 0,
+                'ot_type' => $type->key(), 'ot_hourly_rate' => 15,
+                'reason' => 'Part-time shift', 'status' => 'approved',
+                'settlement' => OvertimeClaim::SETTLE_PAYROLL,
+            ]);                                                                 // 4 h × RM15 = RM60 each
+        }
+
+        $report = $this->report();
+
+        $this->assertEquals(12, $this->kpi($report, 'ot_hours')['current']);
+        $this->assertEquals(195, $this->kpi($report, 'ot_cost')['current'],
+            'RM75 normal day + RM60 + RM60 at the Part Time rate, the unsalaried one included.');
+        $this->assertEquals(195, collect($report['outlets'])->firstWhere('name', 'KLCC')['ot_cost']['current']);
+    }
+
     public function test_overtime_cost_and_labour_stay_hidden_without_pay_access(): void
     {
         $this->claim('2026-09-09', 4);

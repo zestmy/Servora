@@ -87,7 +87,10 @@ class LabourCostTransferCalculator
         foreach ($claims as $claim) {
             $h         = (float) $claim->total_ot_hours;
             $otHours  += $h;
-            $otAmount += $h * $hourlyRate * $this->settings->multiplierFor((string) $claim->ot_type);
+            // A custom OT type is its own rate, not a multiple of this one.
+            $otAmount += $claim->hasFixedRate()
+                ? $h * (float) $claim->ot_hourly_rate
+                : $h * $hourlyRate * $this->settings->multiplierFor((string) $claim->ot_type);
         }
 
         $salaryAmount = round(match ($basis) {
@@ -124,7 +127,7 @@ class LabourCostTransferCalculator
             ->whereDate('claim_date', '>=', Carbon::parse($start)->toDateString())
             ->whereDate('claim_date', '<=', Carbon::parse($end)->toDateString())
             ->orderBy('claim_date')
-            ->get(['id', 'claim_date', 'total_ot_hours', 'ot_type']);
+            ->get(['id', 'claim_date', 'total_ot_hours', 'ot_type', 'ot_hourly_rate']);
     }
 
     /**

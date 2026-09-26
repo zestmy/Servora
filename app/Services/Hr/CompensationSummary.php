@@ -236,7 +236,11 @@ class CompensationSummary
             // of overtime is either paid or taken off, never both — this
             // subtraction is the only thing preventing the double count, and
             // it is why time-off approval writes hours_taken_off onto the claim.
-            ->selectRaw('employee_id, ot_type, SUM(total_ot_hours - hours_taken_off) as hours')
+            // fixed_amount prices a custom OT type (its own RM/hour, copied
+            // onto each claim) — summed per claim, because a type's rate may
+            // have changed between two of its claims. Zero for the statutory
+            // types, which are priced off the hourly rate below instead.
+            ->selectRaw('employee_id, ot_type, SUM(total_ot_hours - hours_taken_off) as hours, SUM((total_ot_hours - hours_taken_off) * COALESCE(ot_hourly_rate, 0)) as fixed_amount')
             ->groupBy('employee_id', 'ot_type')
             ->get()
             ->groupBy('employee_id');
@@ -548,8 +552,18 @@ class CompensationSummary
 
             foreach ($otRows as $row) {
                 $hours = round((float) $row->hours, 2);
-                $amount = $rate !== null ? round($hours * $rate * $settings->multiplierFor($row->ot_type), 2) : null;
-                $otByType[$row->ot_type] = ['hours' => $hours, 'amount' => $amount];
+
+                // A custom type carries its own rate and does not need a
+                // salary to be priced; the statutory ones do.
+                $amount = \App\Models\OvertimeRateType::idFromKey($row->ot_type) !== null
+                    ? round((float) $row->fixed_amount, 2)
+                    : ($rate !== null ? round($hours * $rate * $settings->multiplierFor($row->ot_type), 2) : null);
+
+                $otByType[$row->ot_type] = [
+                    'hours'  => $hours,
+                    'amount' => $amount,
+                    'label'  => \App\Models\OvertimeClaim::typeLabels($employee->company_id)[$row->ot_type] ?? $row->ot_type,
+                ];
                 $otTotal += $amount ?? 0;
             }
 
@@ -648,7 +662,8 @@ class CompensationSummary
                 'adjustments_total' => round($adjWages + $adjNet, 2),
                 // Salary is unknown, so the OT figure would be a guess. Flagged
                 // rather than silently reported as zero.
-                'ot_unrated'  => $rate === null && $otRows->isNotEmpty(),
+                'ot_unrated'  => $rate === null
+                    && $otRows->contains(fn ($row) => \App\Models\OvertimeRateType::idFromKey($row->ot_type) === null),
                 'epf_wages'   => $epfWages,
                 'socso_wages' => $socsoWages,
                 'taxable_pay' => $taxablePay,
