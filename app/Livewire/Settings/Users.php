@@ -377,6 +377,17 @@ class Users extends Component
             ? $this->company_id
             : $currentUser->company_id;
 
+        // A new login or a linked one both take a seat on the plan.
+        if (! $this->editingId && $companyId) {
+            try {
+                app(\App\Services\Entitlements::class)
+                    ->assertCanAdd(\App\Models\Company::findOrFail($companyId), 'users');
+            } catch (\App\Exceptions\LimitReachedException $e) {
+                $this->addError('email', $e->getMessage());
+                return;
+            }
+        }
+
         if (! $this->editingId && $companyId) {
             $existing = User::where('email', $this->email)->first();
             if ($existing) {

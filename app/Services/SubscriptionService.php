@@ -220,13 +220,6 @@ class SubscriptionService
 
     private function getCurrentCount(Company $company, string $metric): int
     {
-        return match ($metric) {
-            'outlets'     => $company->outlets()->count(),
-            'users'       => $company->users()->count(),
-            'recipes'     => $company->recipes()->count(),
-            'ingredients' => $company->ingredients()->count(),
-            'lms_users'   => \App\Models\LmsUser::where('company_id', $company->id)->count(),
-            default       => 0,
-        };
+        return app(UsageTrackingService::class)->count($company, $metric);
     }
 }

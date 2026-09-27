@@ -18,7 +18,7 @@ class TrialExpired extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Your Servora trial has ended — subscribe to keep your data');
+        return new Envelope(subject: 'Your Servora trial has ended — you are now on the Free plan');
     }
 
     public function content(): Content

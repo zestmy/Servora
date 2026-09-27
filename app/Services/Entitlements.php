@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Http\Middleware\PosAgentAuthenticate;
 use App\Http\Middleware\PrintAgentAuthenticate;
+use App\Exceptions\LimitReachedException;
 use App\Models\Company;
+use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -85,6 +87,68 @@ class Entitlements
     {
         return $this->memo[$company->id] ??= $this->resolve($company);
     }
+
+    /**
+     * The cap on a metric (outlets, users, recipes, ingredients) for this
+     * company, or null for none. Same resolution as modules(): grandfathered,
+     * legacy plans and trials are uncapped — legacy limits were shown but never
+     * enforced, and starting now would ambush those customers. No live
+     * subscription means the Free plan's caps.
+     */
+    public function limit(Company $company, string $metric): ?int
+    {
+        if ($company->isGrandfathered()) {
+            return null;
+        }
+
+        $subscription = $this->subscriptions->getActiveSubscription($company);
+
+        if ($subscription) {
+            if ($subscription->plan?->modules === null || $subscription->isTrial()) {
+                return null;
+            }
+
+            return $subscription->plan->getLimit($metric);
+        }
+
+        return Plan::where('slug', 'free')->first()?->getLimit($metric);
+    }
+
+    /**
+     * Refuse adding $adding more of $metric past the cap.
+     *
+     * @throws LimitReachedException
+     */
+    public function assertCanAdd(Company $company, string $metric, int $adding = 1): void
+    {
+        $limit = $this->limit($company, $metric);
+        if ($limit === null) {
+            return;
+        }
+
+        $current = app(UsageTrackingService::class)->count($company, $metric);
+
+        if ($current + $adding > $limit) {
+            $noun = self::METRIC_NOUNS[$metric] ?? str_replace('_', ' ', $metric);
+            throw new LimitReachedException($metric, $current, $limit,
+                "Your plan includes up to {$limit} {$noun}. Upgrade to add more.");
+        }
+    }
+
+    /** Whether the company holds more of $metric than its plan allows (e.g. after a trial). */
+    public function isOverLimit(Company $company, string $metric): bool
+    {
+        $limit = $this->limit($company, $metric);
+
+        return $limit !== null && app(UsageTrackingService::class)->count($company, $metric) > $limit;
+    }
+
+    private const METRIC_NOUNS = [
+        'outlets'     => 'active outlet(s)',
+        'users'       => 'users',
+        'recipes'     => 'recipes',
+        'ingredients' => 'market list items',
+    ];
 
     /** The module a route belongs to, or null for core. */
     public function moduleForRoute(?string $routeName): ?string

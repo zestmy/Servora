@@ -206,5 +206,6 @@
      carries data-confirm-delete. See components/confirm-delete.blade.php. --}}
 <x-confirm-delete />
 
+    <x-plan-limit-dialog />
 </body>
 </html>

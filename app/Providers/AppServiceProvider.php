@@ -117,6 +117,22 @@ class AppServiceProvider extends ServiceProvider
         // Keep prep-item costs in sync whenever an ingredient's cost changes.
         Ingredient::observe(IngredientObserver::class);
 
+        // Plan caps (the Free tier's 1 outlet / 150 items / 30 recipes).
+        foreach ([\App\Models\Outlet::class, Ingredient::class, \App\Models\Recipe::class] as $capped) {
+            $capped::observe(\App\Observers\PlanLimitObserver::class);
+        }
+
+        // A cap hit inside a Livewire action becomes a dialog, not an error
+        // page: the action stops, the component re-renders, and the
+        // plan-limit dialog in the layout says what happened and where to
+        // upgrade. Anywhere else the exception renders itself.
+        \Livewire\on('exception', function ($component, $e, $stopPropagation) {
+            if ($e instanceof \App\Exceptions\LimitReachedException) {
+                $component->dispatch('plan-limit', message: $e->getMessage());
+                $stopPropagation();
+            }
+        });
+
         // Audit trail: observe every configured business model. class_exists()
         // guards against a stray/renamed entry ever fataling the whole app.
         foreach ((array) config('audit.models', []) as $auditable) {

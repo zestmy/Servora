@@ -130,6 +130,14 @@ class Wizard extends Component
                     continue;
                 }
 
+                // Past the plan's seats the rest are skipped, not failed:
+                // onboarding should finish, and Settings › Users says why.
+                try {
+                    app(\App\Services\Entitlements::class)->assertCanAdd($company, 'users');
+                } catch (\App\Exceptions\LimitReachedException) {
+                    break;
+                }
+
                 $user = User::create([
                     'name'       => $invite['name'],
                     'email'      => $invite['email'],

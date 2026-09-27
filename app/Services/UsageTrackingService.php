@@ -53,11 +53,27 @@ class UsageTrackingService
         return $counts;
     }
 
+    /**
+     * How many of a limited thing the company has. The single definition —
+     * the Billing usage bars and plan-limit enforcement both read it.
+     *
+     * Outlets: active ones; archiving an outlet is how a company gets back
+     * under the Free limit. Users: anyone whose active company this is OR who
+     * is a member through company_user, since one login can serve several
+     * companies and `users.company_id` alone undercounts them.
+     */
+    public function count(Company $company, string $metric): int
+    {
+        return $this->getCount($company, $metric);
+    }
+
     private function getCount(Company $company, string $metric): int
     {
         return match ($metric) {
-            'outlets'     => $company->outlets()->count(),
-            'users'       => $company->users()->count(),
+            'outlets'     => $company->outlets()->where('is_active', true)->count(),
+            'users'       => \App\Models\User::where('company_id', $company->id)
+                ->orWhereHas('companies', fn ($q) => $q->where('companies.id', $company->id))
+                ->count(),
             'recipes'     => $company->recipes()->count(),
             'ingredients' => $company->ingredients()->count(),
             'lms_users'   => LmsUser::where('company_id', $company->id)->count(),

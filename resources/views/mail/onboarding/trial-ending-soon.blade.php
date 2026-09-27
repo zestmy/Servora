@@ -10,9 +10,9 @@ Subscribe Now
 </x-mail::button>
 
 **What happens when the trial ends?**
-- Your data is preserved for 30 days
-- You can subscribe anytime to restore full access
-- No data is deleted during the grace period
+- You move to the Free plan automatically — no card needed, nothing deleted
+- Recipe costing for one outlet keeps working
+- Purchasing, inventory control, full reports and add-ons lock until you upgrade
 
 Thanks,<br>
 The Servora Team
