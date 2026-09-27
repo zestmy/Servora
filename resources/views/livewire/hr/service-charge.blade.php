@@ -92,6 +92,78 @@
         </div>
     </div>
 
+    {{-- Saved pools. A pool exists only for the exact outlet and from/to it
+         was saved against, so this is how one is found again: Open points
+         the pickers above at it; Delete removes one saved against the wrong
+         dates or outlet. --}}
+    @if ($savedPools->isNotEmpty())
+        <div x-data="{ open: true }" class="card mb-4 overflow-hidden">
+            <button type="button" @click="open = !open"
+                    class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
+                <span>
+                    <span class="text-sm font-semibold text-gray-700">Saved pools</span>
+                    <span class="text-xs text-gray-500 ml-1">{{ $savedPools->count() }}</span>
+                </span>
+                <x-icon name="chevron-down" class="h-4 w-4 text-gray-500 transition" ::class="open ? 'rotate-180' : ''" />
+            </button>
+            <div x-show="open" x-cloak class="border-t border-gray-100 overflow-x-auto max-h-80 overflow-y-auto">
+                <table class="table-surface">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2 text-left">Period</th>
+                            <th class="px-3 py-2 text-left">Outlet</th>
+                            <th class="px-3 py-2 text-right">Collected (RM)</th>
+                            <th class="px-3 py-2 text-left">Status</th>
+                            <th class="px-3 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($savedPools as $pool)
+                            @php
+                                $isCurrent = $pool->period_from->isSameDay($from)
+                                    && $pool->period_to->isSameDay($to)
+                                    && (string) ($pool->outlet_id ?? '') === $outletFilter;
+                            @endphp
+                            <tr wire:key="sc-pool-{{ $pool->id }}" class="{{ $isCurrent ? 'bg-brand-50/60' : 'hover:bg-gray-50/70' }}">
+                                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-800">
+                                    {{ $pool->period_from->format('d M Y') }} – {{ $pool->period_to->format('d M Y') }}
+                                    @if ($isCurrent)
+                                        <span class="badge-brand ml-1">Editing</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-gray-600">{{ $pool->outlet?->name ?? 'All outlets' }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">{{ number_format((float) $pool->amount, 2) }}</td>
+                                <td class="px-3 py-2 whitespace-nowrap">
+                                    @if ($pool->isFrozen())
+                                        <span class="badge-success">Calculated {{ $pool->calculated_at->format('d M Y') }}</span>
+                                    @else
+                                        <span class="badge-warning">Not calculated</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-right whitespace-nowrap">
+                                    {{-- An all-outlets pool can only be edited by
+                                         someone whose picker offers "All Outlets". --}}
+                                    @if (! $isCurrent && ($pool->outlet_id || $canViewAll))
+                                        <button type="button" wire:click="openPool({{ $pool->id }})" class="btn-secondary btn-sm">
+                                            Open
+                                        </button>
+                                    @endif
+                                    @if ($canDeletePool)
+                                        <button type="button" wire:click="deletePool({{ $pool->id }})"
+                                                data-confirm-delete="Delete the service charge pool for {{ $pool->period_from->format('d M Y') }} – {{ $pool->period_to->format('d M Y') }} ({{ $pool->outlet?->name ?? 'All outlets' }}), RM {{ number_format((float) $pool->amount, 2) }}? It is refused if an approved payroll run was paid from it. This cannot be undone."
+                                                class="btn-danger btn-sm">
+                                            Delete
+                                        </button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     {{-- Service Charge distribution --}}
         <div class="bg-white rounded-xl shadow-sm border border-teal-100 overflow-hidden mb-4">
             <div class="px-4 py-3 bg-teal-50/60 border-b border-teal-100">

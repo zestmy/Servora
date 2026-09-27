@@ -466,6 +466,80 @@ class ServiceCharge extends Component
         );
     }
 
+    /**
+     * Saved pools this user can see, newest first.
+     *
+     * A pool exists only for the exact outlet and from/to it was saved
+     * against, so without a list the only way to find one again was to guess
+     * the period back into the picker. Same query as the payout report, which
+     * is what scopes it to this company and this user's outlets.
+     */
+    protected function savedPools()
+    {
+        $user = Auth::user();
+
+        return app(\App\Services\Hr\ServiceChargeDistribution::class)
+            ->savedPeriods($user->company_id, $this->accessibleOutletIds(), 36);
+    }
+
+    /** Deleting a pool is its own ability — see ServiceChargePayout::canDelete(). */
+    protected function canDeletePool(): bool
+    {
+        return (bool) Auth::user()?->can('hr.attendance.service_charge.delete');
+    }
+
+    /** Point the outlet and period pickers at a saved pool, so it can be edited. */
+    public function openPool(int $id): void
+    {
+        $pool = $this->savedPools()->firstWhere('id', $id);
+
+        if (! $pool) {
+            session()->flash('error', 'That service charge pool is no longer available.');
+            return;
+        }
+
+        $this->outletFilter = $pool->outlet_id ? (string) $pool->outlet_id : '';
+
+        $from = $pool->period_from->copy()->startOfDay();
+        $to   = $pool->period_to->copy()->startOfDay();
+
+        // A whole calendar month opens in Month mode, anything else as the
+        // exact custom range it was saved against.
+        if ($from->day === 1 && $to->isSameDay($from->copy()->endOfMonth())) {
+            $this->periodMode = 'month';
+            $this->month      = $from->format('Y-m');
+        } else {
+            $this->periodMode = 'range';
+            $this->rangeFrom  = $from->format('Y-m-d');
+            $this->rangeTo    = $to->format('Y-m-d');
+        }
+    }
+
+    public function deletePool(int $id): void
+    {
+        abort_unless($this->canManageServiceCharge() && $this->canDeletePool(), 403);
+
+        // Re-fetched through the scoped list: an id arriving from a browser
+        // must not reach past this company and this user's outlets.
+        $pool = $this->savedPools()->firstWhere('id', $id);
+
+        if (! $pool) {
+            session()->flash('error', 'That service charge pool is no longer available.');
+            return;
+        }
+
+        $result = app(\App\Services\Hr\ServiceChargeDistribution::class)
+            ->deletePool($pool, $this->accessibleOutletIds());
+
+        // Rehydrate the inputs, in case the pool just deleted is the one on
+        // screen — otherwise its figures stay typed in and read as saved.
+        if ($result['deleted']) {
+            $this->scLoadedKey = '';
+        }
+
+        session()->flash($result['deleted'] ? 'success' : 'error', $result['message']);
+    }
+
     public function render()
     {
         $user      = Auth::user();
@@ -680,8 +754,11 @@ class ServiceCharge extends Component
         // so the figure can be checked without opening Clock-In Settings.
         $lateRatePerMinute = (float) \App\Models\ClockSetting::forCompany($companyId)->late_rate_per_minute;
 
+        $savedPools    = $this->savedPools();
+        $canDeletePool = $this->canDeletePool();
+
         return view('livewire.hr.service-charge', compact(
-            'lateRatePerMinute', 'serviceCharge',
+            'lateRatePerMinute', 'serviceCharge', 'savedPools', 'canDeletePool',
             'outlets', 'canViewAll', 'from', 'to',
             'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial', 'scPendingFunds', 'scPendingSettings',
         ))->layout('layouts.app', ['title' => 'Service Charge']);

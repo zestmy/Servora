@@ -320,6 +320,47 @@ class ServiceChargeDistribution
     }
 
     /**
+     * Delete a pool, unless an approved payroll run was paid from it.
+     *
+     * The one rule for both screens that offer a delete — the payout report
+     * and the Service Charge page's list of saved pools — so the refusal
+     * cannot be enforced on one and forgotten on the other.
+     *
+     * @return array{deleted: bool, message: string}
+     */
+    public function deletePool(ServiceChargePeriod $pool, array $accessibleOutletIds): array
+    {
+        $runs     = $this->runsUsing($pool, $accessibleOutletIds);
+        $approved = $runs->where('status', PayrollRun::APPROVED);
+
+        if ($approved->isNotEmpty()) {
+            return [
+                'deleted' => false,
+                'message' => 'This pool cannot be deleted — it was paid out by an approved payroll run ('
+                    . $approved->map(fn ($r) => $r->period_month?->format('M Y') ?? 'run #' . $r->id)
+                        ->unique()->implode(', ')
+                    . '). Those payslips keep their own figures, but this is the working behind them.',
+            ];
+        }
+
+        $label = $pool->period_from->format('d M Y') . ' – ' . $pool->period_to->format('d M Y')
+            . ' · ' . ($pool->outlet?->name ?? 'All outlets');
+
+        $pool->delete();
+
+        $drafts = $runs->count();
+
+        return [
+            'deleted' => true,
+            'message' => 'Deleted the service charge pool for ' . $label . '.'
+                . ($drafts
+                    ? ' ' . $drafts . ' draft payroll ' . \Illuminate\Support\Str::plural('run', $drafts)
+                        . ' drew on it and will pay no service charge if regenerated.'
+                    : ''),
+        ];
+    }
+
+    /**
      * Saved pools the user can see, newest first — the report picks from
      * these rather than asking anyone to remember exact dates, because a pool
      * only exists for the exact from/to it was saved against.

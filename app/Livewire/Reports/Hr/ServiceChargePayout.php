@@ -80,29 +80,19 @@ class ServiceChargePayout extends Component
             return;
         }
 
-        $approved = $this->service()
-            ->runsUsing($period, $user->accessibleOutletIds())
-            ->where('status', \App\Models\PayrollRun::APPROVED);
+        // Refused while an approved run was paid from it — see deletePool().
+        $result = $this->service()->deletePool($period, $user->accessibleOutletIds());
 
-        if ($approved->isNotEmpty()) {
-            session()->flash('error',
-                'This pool cannot be deleted — it was paid out by an approved payroll run ('
-                . $approved->map(fn ($r) => $r->period_month?->format('M Y') ?? 'run #' . $r->id)
-                    ->unique()->implode(', ')
-                . '). Those payslips keep their own figures, but this is the working behind them.');
+        if (! $result['deleted']) {
+            session()->flash('error', $result['message']);
             return;
         }
-
-        $label = $period->period_from->format('d M Y') . ' – ' . $period->period_to->format('d M Y')
-            . ' · ' . ($period->outlet?->name ?? 'All outlets');
-
-        $period->delete();
 
         // Back to whatever is left, so the page does not sit on a pool that
         // no longer exists and render an empty report.
         $this->periodId = $this->periods()->first()?->id;
 
-        session()->flash('status', 'Deleted the service charge pool for ' . $label . '.');
+        session()->flash('status', $result['message']);
     }
 
     public function select(int $id): void
