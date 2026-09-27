@@ -107,6 +107,12 @@ class AppServiceProvider extends ServiceProvider
         Livewire::setUpdateRoute(fn ($handle) => Route::post('/livewire/update', $handle)
             ->middleware(['web', 'company.subdomain']));
 
+        // Re-applied on /livewire/update for components whose page carried it,
+        // so a portal tab left open stops working once the module is parked.
+        Livewire::addPersistentMiddleware([
+            \App\Http\Middleware\EnsureSupplierPortalEnabled::class,
+        ]);
+
         // Keep prep-item costs in sync whenever an ingredient's cost changes.
         Ingredient::observe(IngredientObserver::class);
 

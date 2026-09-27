@@ -135,6 +135,12 @@ final class NavMenu
             }
         }
 
+        // 'module': a platform-wide switch in config/modules.php — the area is
+        // off for everyone, whatever their plan or role.
+        if (! empty($item['module']) && ! config('modules.'.$item['module'])) {
+            return false;
+        }
+
         if (! empty($item['kitchenOnly']) && ! $user->isKitchenUser()) {
             return false;
         }
@@ -160,7 +166,7 @@ final class NavMenu
                 'items' => [
                     ['route' => 'purchasing.index',           'label' => 'Orders & Requests',  'permission' => 'purchasing.view'],
                     ['route' => 'settings.suppliers',         'label' => 'Suppliers',          'permission' => 'purchasing.suppliers.manage'],
-                    ['route' => 'settings.supplier-mapping',  'label' => 'Product Mapping',    'permission' => 'purchasing.suppliers.manage'],
+                    ['route' => 'settings.supplier-mapping',  'label' => 'Product Mapping',    'permission' => 'purchasing.suppliers.manage', 'module' => 'supplier_portal'],
                     ['route' => 'settings.form-templates',    'label' => 'Form Templates',     'permission' => 'purchasing.suppliers.manage'],
                     ['route' => 'settings.price-alerts',      'label' => 'Price Alerts',       'permission' => 'purchasing.suppliers.manage'],
                     ['route' => 'settings.index', 'query' => 'module=procurement', 'label' => 'Procurement Settings',

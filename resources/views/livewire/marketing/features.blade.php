@@ -49,14 +49,13 @@
         [
             'id'    => 'purchasing',
             'icon'  => 'cart',
-            'title' => 'Purchasing, RFQ and receiving',
+            'title' => 'Purchasing and receiving',
             'nav'   => 'Purchasing',
             'desc'  => 'Request through to invoice, fully tracked. Nothing lost between the order, the delivery and what you were billed.',
             'items' => [
                 'Purchase requests with an approval gate',
                 'Purchase orders with par-level auto-ordering and template pre-fill',
                 'One order split across several suppliers',
-                'RFQ out to suppliers, quotes compared, accepted straight into a PO',
                 'Convert a PO to a delivery order, then to a goods received note',
                 'Supplier invoices matched against the PO and the GRN',
                 'Credit notes against a supplier',
@@ -196,11 +195,10 @@
             'icon'  => 'device',
             'title' => 'Supplier portal and marketplace',
             'nav'   => 'Suppliers',
-            'desc'  => 'Your suppliers get a login of their own, so quoting and acknowledging orders stops happening over WhatsApp.',
+            'desc'  => 'Your suppliers get a login of their own, so acknowledging orders stops happening over WhatsApp.',
             'items' => [
                 'Suppliers sign in separately from your team',
                 'They see and acknowledge the purchase orders you send',
-                'They respond to RFQs with a quote',
                 'Invoice and credit note history on their side',
                 'They maintain their own catalogue, profile and bank details',
                 'Supplier products mapped to your ingredients',
@@ -226,6 +224,12 @@
             ],
         ],
     ];
+
+    // The supplier portal is parked (config/modules.php); its section goes
+    // with it rather than describing screens nobody can open.
+    if (! config('modules.supplier_portal')) {
+        $groups = array_values(array_filter($groups, fn ($g) => $g['id'] !== 'suppliers'));
+    }
 @endphp
 
 <div>

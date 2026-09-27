@@ -281,6 +281,11 @@
             // span = lg column span out of 6. Rows: 3+3 / 2+2+2 / 3+3 / 3+3 / 2+2+2.
             // Twelve items, twelve cells, no filler tile. Photo and brand tones are
             // spread across rows rather than stacked, so the grid keeps its rhythm.
+            //
+            // While the supplier portal is parked (config/modules.php) its card
+            // goes and the last row becomes 3+3, so the grid still closes.
+            $supplierPortal = config('modules.supplier_portal');
+            $lastRowSpan    = $supplierPortal ? 'lg:col-span-2' : 'lg:col-span-3';
             $modules = [
                 ['icon' => 'ingredient', 'title' => 'Ingredients and recipe costing', 'span' => 'lg:col-span-3', 'tone' => 'photo',
                  'photo' => 'images/marketing/recipe-costing', 'alt' => 'A recipe and its quantities written out by hand on a notepad',
@@ -289,8 +294,8 @@
                 ['icon' => 'sparkles',   'title' => 'AI document capture',            'span' => 'lg:col-span-3', 'tone' => 'brand',
                  'desc' => 'Photograph a supplier invoice and the lines walk themselves in, matched to your ingredients, with a review step before anything lands.'],
 
-                ['icon' => 'cart',       'title' => 'Purchasing and RFQ',             'span' => 'lg:col-span-2', 'tone' => 'plain',
-                 'desc' => 'Request, quote, order, receive, then match the invoice against the order and the GRN.'],
+                ['icon' => 'cart',       'title' => 'Purchasing and receiving',       'span' => 'lg:col-span-2', 'tone' => 'plain',
+                 'desc' => 'Request, approve, order, receive, then match the invoice against the order and the GRN.'],
 
                 ['icon' => 'database',   'title' => 'Inventory and stock',            'span' => 'lg:col-span-2', 'tone' => 'plain',
                  'desc' => 'Stock takes, wastage, staff meals, prep items, par levels and transfers between outlets.'],
@@ -311,13 +316,15 @@
                 ['icon' => 'clock',      'title' => 'People and attendance',          'span' => 'lg:col-span-3', 'tone' => 'plain',
                  'desc' => 'Employees, attendance, duty roster and overtime claims with approval routing.'],
 
-                ['icon' => 'academic',   'title' => 'Staff training',                 'span' => 'lg:col-span-2', 'tone' => 'plain',
+                ['icon' => 'academic',   'title' => 'Staff training',                 'span' => $lastRowSpan,    'tone' => 'plain',
                  'desc' => 'SOPs with step-by-step method, plating photos and training video, opened by QR code on any phone.'],
 
+                ...($supplierPortal ? [
                 ['icon' => 'device',     'title' => 'Supplier portal',                'span' => 'lg:col-span-2', 'tone' => 'plain',
-                 'desc' => 'Suppliers sign in to acknowledge orders, quote against RFQs and see their own invoices.'],
+                 'desc' => 'Suppliers sign in to acknowledge the orders you send and see their own invoices.'],
+                ] : []),
 
-                ['icon' => 'shield',     'title' => 'Multi-outlet and control',       'span' => 'lg:col-span-2', 'tone' => 'plain',
+                ['icon' => 'shield',     'title' => 'Multi-outlet and control',       'span' => $lastRowSpan,    'tone' => 'plain',
                  'desc' => 'Shared data across sites, role-based access per company, and an audit log of who changed what.'],
             ];
         @endphp

@@ -47,18 +47,23 @@
         $navLinks = [
             ['route' => 'features',         'label' => 'Features'],
             ['route' => 'pricing',          'label' => 'Pricing'],
-            ['route' => 'marketplace',      'label' => 'Marketplace'],
+            ['route' => 'marketplace',      'label' => 'Marketplace',   'module' => 'supplier_portal'],
             // Third, not last: it is the only item here somebody can use
             // without deciding anything first, and the nav is read left to
             // right until something looks free.
             ['route' => 'tools.index',      'label' => 'Free Tools'],
-            ['route' => 'for-suppliers',    'label' => 'For Suppliers'],
+            ['route' => 'for-suppliers',    'label' => 'For Suppliers', 'module' => 'supplier_portal'],
             // The manual. Public, and linked from the marketing nav for the
             // same reason it is public: most of what it answers is asked
             // before anyone has an account.
             ['route' => 'help.index',       'label' => 'Help'],
             ['route' => 'referral.program', 'label' => 'Refer & Earn'],
         ];
+
+        // 'module': a platform switch in config/modules.php. A parked module's
+        // links go from the header and footer both, or they would 404.
+        $moduleOn = fn (array $link) => empty($link['module']) || config('modules.'.$link['module']);
+        $navLinks = array_values(array_filter($navLinks, $moduleOn));
     @endphp
 
     {{-- ── Nav ──────────────────────────────────────────────────────────────
@@ -172,8 +177,8 @@
                     'Product' => [
                         ['route' => 'features',            'label' => 'Features'],
                         ['route' => 'pricing',             'label' => 'Pricing'],
-                        ['route' => 'marketplace',         'label' => 'Marketplace'],
-                        ['route' => 'for-suppliers',       'label' => 'For Suppliers'],
+                        ['route' => 'marketplace',         'label' => 'Marketplace',   'module' => 'supplier_portal'],
+                        ['route' => 'for-suppliers',       'label' => 'For Suppliers', 'module' => 'supplier_portal'],
                         ['route' => 'marketing.downloads', 'label' => 'Downloads'],
                         ['route' => 'help.index',          'label' => 'Help Centre'],
                     ],
@@ -196,6 +201,8 @@
                 $companyPages = $footerPages->filter(fn ($p) => in_array($p->slug, $companySlugs));
                 $legalPages   = $footerPages->filter(fn ($p) => in_array($p->slug, $legalSlugs));
                 $otherPages   = $footerPages->reject(fn ($p) => in_array($p->slug, array_merge($companySlugs, $legalSlugs)));
+
+                $footerColumns = array_map(fn ($links) => array_values(array_filter($links, $moduleOn)), $footerColumns);
             @endphp
 
             {{-- Four equal link columns rather than three uneven ones. Brand

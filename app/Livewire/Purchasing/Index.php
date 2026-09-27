@@ -877,7 +877,7 @@ class Index extends Component
         $showStoTab   = $cpuMode;
         $showInvoiceTab = $canManageInvoices || $isAdvancedUser;
         $showCnTab    = $canManageInvoices || $isAdvancedUser;
-        $showSupplierTab = $isAdvancedUser;
+        $showSupplierTab = $isAdvancedUser && config('modules.supplier_portal');
 
         // Smart default tab based on role + mode. Requests is the default;
         // non-CPU basic users can't see the PR tab, so they land on Orders.

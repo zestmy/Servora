@@ -122,8 +122,11 @@ Route::get('/', MarketingHome::class)->name('marketing.home');
 // Marketing pages (public, no auth)
 Route::get('/pricing', MarketingPricing::class)->name('pricing');
 Route::get('/features', MarketingFeatures::class)->name('features');
-Route::get('/for-suppliers', \App\Livewire\Marketing\ForSuppliers::class)->name('for-suppliers');
-Route::get('/marketplace', \App\Livewire\Marketing\Marketplace::class)->name('marketplace');
+// Supplier-facing marketing: parked with the supplier portal (config/modules.php)
+Route::middleware(\App\Http\Middleware\EnsureSupplierPortalEnabled::class)->group(function () {
+    Route::get('/for-suppliers', \App\Livewire\Marketing\ForSuppliers::class)->name('for-suppliers');
+    Route::get('/marketplace', \App\Livewire\Marketing\Marketplace::class)->name('marketplace');
+});
 Route::get('/referral', MarketingReferralProgram::class)->name('referral.program');
 Route::get('/register/start', SaasRegister::class)->name('saas.register');
 Route::get('/page/{slug}', MarketingPageView::class)->name('page.show');
@@ -179,8 +182,8 @@ Route::post('/internal/deploy-hook', \App\Http\Controllers\DeployWebhookControll
 Route::get('/r/{code}', ReferralTrackingController::class)->name('referral.track');
 Route::get('/ref/{code}', ReferralTrackingController::class); // legacy fallback
 
-// Supplier portal
-Route::prefix('supplier')->group(function () {
+// Supplier portal — parked while Servora focuses on merchants (config/modules.php)
+Route::middleware(\App\Http\Middleware\EnsureSupplierPortalEnabled::class)->prefix('supplier')->group(function () {
     Route::get('/register', [\App\Http\Controllers\Supplier\AuthController::class, 'showRegister'])->name('supplier.register');
     Route::post('/register', [\App\Http\Controllers\Supplier\AuthController::class, 'register'])->name('supplier.register.submit');
     Route::get('/login', [\App\Http\Controllers\Supplier\AuthController::class, 'showLogin'])->name('supplier.login');
@@ -190,7 +193,7 @@ Route::prefix('supplier')->group(function () {
     Route::get('/reset-password', [\App\Http\Controllers\Supplier\AuthController::class, 'showResetPassword'])->name('supplier.reset-password');
     Route::post('/reset-password', [\App\Http\Controllers\Supplier\AuthController::class, 'resetPassword'])->name('supplier.reset-password.submit');
 });
-Route::middleware(\App\Http\Middleware\SupplierAuthenticate::class)->prefix('supplier')->group(function () {
+Route::middleware([\App\Http\Middleware\EnsureSupplierPortalEnabled::class, \App\Http\Middleware\SupplierAuthenticate::class])->prefix('supplier')->group(function () {
     Route::get('/dashboard', \App\Livewire\Supplier\Dashboard::class)->name('supplier.dashboard');
     Route::get('/products', \App\Livewire\Supplier\Products::class)->name('supplier.products');
     Route::get('/orders', \App\Livewire\Supplier\Orders::class)->name('supplier.orders');
@@ -325,7 +328,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices/receive', PurchasingInvoiceReceive::class)->name('purchasing.invoices.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/invoices/{id}', PurchasingInvoiceShow::class)->name('purchasing.invoices.show')->middleware('can:purchasing.view');
-    Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware('can:purchasing.suppliers.manage');
+    Route::get('/purchasing/suppliers', \App\Livewire\Purchasing\SupplierDirectory::class)->name('purchasing.suppliers.directory')->middleware(['can:purchasing.suppliers.manage', \App\Http\Middleware\EnsureSupplierPortalEnabled::class]);
     Route::get('/purchasing/credit-notes', \App\Livewire\Purchasing\CreditNoteIndex::class)->name('purchasing.credit-notes.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/credit-notes/create', \App\Livewire\Purchasing\CreditNoteForm::class)->name('purchasing.credit-notes.create')->middleware('can:purchasing.view');
     Route::get('/purchasing/credit-notes/{id}', \App\Livewire\Purchasing\CreditNoteForm::class)->name('purchasing.credit-notes.edit')->middleware('can:purchasing.view');
@@ -485,7 +488,7 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])
     Route::get('/settings/cpu-management', SettingsCpuManagement::class)->name('settings.cpu-management')->middleware('can:settings.cpu');
     Route::get('/settings/kitchen-management', SettingsKitchenManagement::class)->name('settings.kitchen-management')->middleware('can:settings.kitchens');
     Route::get('/settings/tax-rates', SettingsTaxRates::class)->name('settings.tax-rates')->middleware('can:settings.tax_rates');
-    Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware('can:purchasing.suppliers.manage');
+    Route::get('/settings/supplier-mapping', \App\Livewire\Settings\SupplierProductMapping::class)->name('settings.supplier-mapping')->middleware(['can:purchasing.suppliers.manage', \App\Http\Middleware\EnsureSupplierPortalEnabled::class]);
     Route::get('/settings/price-alerts', \App\Livewire\Settings\PriceAlerts::class)->name('settings.price-alerts')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/price-alerts/export-pdf', [\App\Http\Controllers\PriceHistoryExportController::class, 'pdf'])->name('settings.price-alerts.export-pdf')->middleware('can:purchasing.suppliers.manage');
     Route::get('/settings/price-alerts/export-excel', [\App\Http\Controllers\PriceHistoryExportController::class, 'excel'])->name('settings.price-alerts.export-excel')->middleware('can:purchasing.suppliers.manage');

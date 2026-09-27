@@ -27,8 +27,6 @@ class MarketingPagesTest extends TestCase
             'home'          => ['/'],
             'features'      => ['/features'],
             'pricing'       => ['/pricing'],
-            'marketplace'   => ['/marketplace'],
-            'for suppliers' => ['/for-suppliers'],
             'free tools'    => ['/tools'],
             'ea form'       => ['/tools/ea-form-generator'],
             'downloads'     => ['/download'],
@@ -54,13 +52,15 @@ class MarketingPagesTest extends TestCase
     {
         $response = $this->get('/');
 
-        foreach (['features', 'pricing', 'marketplace', 'for-suppliers', 'referral.program', 'marketing.downloads'] as $name) {
+        foreach (['features', 'pricing', 'referral.program', 'marketing.downloads'] as $name) {
             $response->assertSee(route($name), escape: false);
         }
     }
 
     /**
-     * Twelve areas, twelve jump links. The strip used to hide the overflow, so
+     * Eleven areas, eleven jump links (the supplier portal's section is parked
+     * with the module; SupplierPortalParkedTest covers it). The strip used to
+     * hide the overflow, so
      * a missing entry looked exactly like a scrolled one.
      */
     public function test_the_features_index_lists_every_area(): void
@@ -70,7 +70,7 @@ class MarketingPagesTest extends TestCase
         foreach ([
             'Ingredients and recipe costing',
             'AI document capture and analysis',
-            'Purchasing, RFQ and receiving',
+            'Purchasing and receiving',
             'Inventory and stock control',
             'Central kitchen and production',
             'Food safety labelling',
@@ -78,7 +78,6 @@ class MarketingPagesTest extends TestCase
             'Reports and analytics',
             'People, attendance and claims',
             'Training portal',
-            'Supplier portal and marketplace',
             'Multi-outlet, roles and control',
         ] as $title) {
             $response->assertSee($title, escape: false);
