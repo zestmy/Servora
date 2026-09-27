@@ -18,6 +18,7 @@ use App\Services\RosterEmailService;
 use App\Services\RosterPdfService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class DutyRoster extends Component
@@ -143,6 +144,21 @@ class DutyRoster extends Component
 
         $this->roster = $query->with(['entries.employee', 'entries.station', 'entries.shift', 'dayRemarks', 'amendments'])
             ->first();
+    }
+
+    /**
+     * A roster PDF was imported: show the week it was for, in its section,
+     * even if the manager was looking at a different week when they uploaded.
+     */
+    #[On('roster-pdf-imported')]
+    public function rosterPdfImported(string $weekStart, int $sectionId, string $message): void
+    {
+        $start = Carbon::parse($weekStart)->startOfWeek(Carbon::MONDAY);
+        $this->weekStart = $start->format('Y-m-d');
+        $this->weekEnd = $start->copy()->endOfWeek(Carbon::SUNDAY)->format('Y-m-d');
+        $this->sectionId = $sectionId;
+        $this->loadRoster();
+        session()->flash('success', $message);
     }
 
     public function createRoster(): void

@@ -3,6 +3,8 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     @endonce
 
+    @livewire('hr.roster-pdf-import-modal')
+
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
@@ -22,6 +24,16 @@
                 <h1 class="page-title mt-1">Duty Roster</h1>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            @if ($outletId && ($canCreate || $canEdit))
+                {{-- Most outlets still build the week in Excel; this takes the
+                     sheet as-is instead of having it retyped cell by cell. --}}
+                <button type="button"
+                        wire:click="$dispatch('open-roster-pdf-import', { outletId: {{ $outletId }}, sectionId: {{ $sectionId ?: 'null' }} })"
+                        class="btn-primary">
+                    <x-icon name="document" class="h-4 w-4" />
+                    Import PDF
+                </button>
+            @endif
             @can('roster.settings')
             <a href="{{ route('hr.roster-settings') }}"
                class="px-3 py-2 text-sm font-medium text-brand-600 border border-brand-300 rounded-lg hover:bg-brand-50 transition">
@@ -488,7 +500,12 @@
                                                             class="w-full py-1.5 px-1 rounded text-xs font-medium {{ $cellClass }}
                                                                 {{ !$canEditThis ? 'cursor-not-allowed' : '' }}"
                                                             {{ !$canEditThis ? 'disabled' : '' }}>
-                                                        <div>{{ $entry->shift_short }}</div>
+                                                        @if (! $entry->is_off_day && ! $entry->shift_start && $entry->notes)
+                                                            {{-- Imported from a sheet that named the day ("MITEC EVENT") but gave no times. --}}
+                                                            <div class="leading-tight">{{ $entry->notes }}</div>
+                                                        @else
+                                                            <div>{{ $entry->shift_short }}</div>
+                                                        @endif
                                                         @if ($entry->station && !$entry->is_off_day)
                                                             <div class="text-[10px] opacity-85 leading-tight">{{ $entry->station->name }}</div>
                                                         @endif
@@ -641,10 +658,19 @@
                 @else
                     <div class="text-gray-500 mb-4">No roster exists for this week and section.</div>
                     @if ($canCreate)
-                        <button wire:click="createRoster"
-                                class="btn-primary">
-                            Create Roster for {{ $periodLabel }}
-                        </button>
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <button wire:click="createRoster"
+                                    class="btn-primary">
+                                Create Roster for {{ $periodLabel }}
+                            </button>
+                            <button type="button"
+                                    wire:click="$dispatch('open-roster-pdf-import', { outletId: {{ $outletId }}, sectionId: {{ $sectionId }} })"
+                                    class="btn-secondary">
+                                <x-icon name="document" class="h-4 w-4" />
+                                Import from Excel PDF
+                            </button>
+                        </div>
+                        <p class="help mt-3">Already built this week in Excel? Save it as PDF and import it — no retyping.</p>
                     @else
                         <p class="text-sm text-gray-600">You do not have permission to create rosters.</p>
                     @endif
