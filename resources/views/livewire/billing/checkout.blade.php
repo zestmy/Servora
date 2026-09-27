@@ -24,9 +24,9 @@
                             class="seg-item {{ $billing_cycle === 'yearly' ? 'seg-item-on' : '' }}">Yearly — 2 months free</button>
                 </div>
 
-                <label for="outlets" class="label mt-5">Outlets</label>
+                <label for="outlets" class="label mt-5 block">Outlets</label>
                 <input id="outlets" type="number" min="{{ $minOutlets }}" max="19" wire:model.live.debounce.300ms="outlets"
-                       class="input w-32">
+                       class="input mt-1 w-32">
                 <p class="help">You have {{ $minOutlets }} active {{ Str::plural('outlet', $minOutlets) }}. 10% off outlets 6–10, 15% off 11–19. 20 or more is quoted.</p>
             </section>
 
