@@ -583,10 +583,13 @@
 
     /* Child links sit under a group header, indented and a step quieter. */
     .nav-sub {
-        @apply ml-1 block rounded-control px-3 py-1.5 text-sm font-medium transition-colors;
+        @apply ml-1 flex items-center gap-2 rounded-control px-3 py-1.5 text-sm font-medium transition-colors;
         color: var(--nav-fg-item);
     }
     .nav-sub:hover { background-color: var(--nav-hover-bg); color: var(--nav-hover-fg); }
+    /* Not on the plan: the muted token (AA on both themes, NavigationPanelTest)
+       and a lock. Still a link — it goes to Billing to unlock. */
+    .nav-sub-locked { color: var(--nav-fg-muted); }
     .nav-sub-on,
     .nav-sub-on:hover {
         background-color: var(--nav-accent);

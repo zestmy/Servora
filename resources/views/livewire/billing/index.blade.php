@@ -15,6 +15,17 @@
     <h1 class="text-lg font-bold text-gray-800 mb-1">Billing & Plan</h1>
     <p class="text-xs text-gray-600 mb-6">Manage your subscription and view usage.</p>
 
+    {{-- Arrived from a locked sidebar link: say what it was and how to get it. --}}
+    @if ($unlockPitch && $unlockPitch['pitch'])
+        <div class="alert-info mb-6 flex items-start gap-3" role="status">
+            <x-icon name="lock" size="h-5 w-5" class="mt-0.5 flex-shrink-0" />
+            <div>
+                <p class="text-sm font-semibold">{{ $unlockPitch['name'] }} is not on your plan yet</p>
+                <p class="mt-0.5 text-sm">{{ $unlockPitch['pitch'] }}</p>
+            </div>
+        </div>
+    @endif
+
     {{-- Coupon Redemption --}}
     <div class="mb-6 bg-gradient-to-r from-brand-50 to-purple-50 rounded-xl border border-brand-100 p-5">
         <div class="flex items-start gap-4 flex-wrap">

@@ -173,24 +173,44 @@ class EntitlementsTest extends TestCase
         $this->actingAs($user)->get(route('labels.print'))->assertOk();
     }
 
-    public function test_the_sidebar_shows_only_what_the_plan_has(): void
+    public function test_the_sidebar_locks_what_the_plan_does_not_have(): void
     {
         [$company, $user] = $this->company();
         Gate::before(fn () => true);
 
-        $routes = fn () => collect(NavMenu::visible(NavMenu::outlet(), $user->fresh()))
-            ->flatMap(fn ($g) => $g['items'])->pluck('route');
+        // route => the module it is locked behind, or null when open.
+        $locks = fn () => collect(NavMenu::visible(NavMenu::outlet(), $user->fresh()))
+            ->flatMap(fn ($g) => $g['items'])
+            ->mapWithKeys(fn ($i) => [$i['route'] => $i['locked'] ?? null]);
 
-        $this->assertContains('ingredients.index', $routes());
-        $this->assertNotContains('purchasing.index', $routes());
-        $this->assertNotContains('labels.print', $routes());
-        $this->assertNotContains('hr.employees', $routes());
+        $free = $locks();
+        $this->assertNull($free['ingredients.index']);
+        $this->assertSame('basic', $free['purchasing.index']);
+        $this->assertSame('labels', $free['labels.print']);
+        $this->assertSame('hr', $free['hr.employees']);
+        $this->assertArrayNotHasKey('settings.supplier-mapping', $free, 'a parked module is hidden, not sold');
 
         $this->subscribe($company, $this->plan('full'));
 
-        $this->assertContains('purchasing.index', $routes());
-        $this->assertContains('labels.print', $routes());
-        $this->assertNotContains('hr.employees', $routes(), 'HR is sold separately from both suites');
+        $full = $locks();
+        $this->assertNull($full['purchasing.index']);
+        $this->assertNull($full['labels.print']);
+        $this->assertSame('hr', $full['hr.employees'], 'HR is sold separately from both suites');
+    }
+
+    public function test_a_locked_link_lands_on_billing_with_the_way_to_unlock_it(): void
+    {
+        [, $user] = $this->company();
+        Gate::before(fn () => true);
+
+        $html = $this->actingAs($user)->get(route('dashboard'))->getContent();
+        $this->assertStringContainsString(e(route('billing.index', ['unlock' => 'labels'])), $html);
+        $this->assertStringContainsString('nav-sub-locked', $html);
+
+        $this->actingAs($user)->get(route('billing.index', ['unlock' => 'labels']))
+            ->assertOk()
+            ->assertSee('Food Safety Labels is not on your plan yet')
+            ->assertSee('add it to Basic for RM80 a month');
     }
 
     // ── Selling add-ons ─────────────────────────────────────────────────────

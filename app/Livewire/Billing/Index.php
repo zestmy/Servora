@@ -8,11 +8,16 @@ use App\Services\CouponService;
 use App\Services\SubscriptionService;
 use App\Services\UsageTrackingService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class Index extends Component
 {
     public string $couponCode = '';
+
+    /** The module a locked sidebar link was for (?unlock=labels). */
+    #[Url]
+    public ?string $unlock = null;
 
     public function redeemCoupon(): void
     {
@@ -80,8 +85,13 @@ class Index extends Component
 
         $amountDue = $invoices->filter->isOutstanding()->sum('total');
 
+        $entitlements = app(\App\Services\Entitlements::class);
+        $unlockPitch = $this->unlock && $company && ! $entitlements->allows($company, $this->unlock)
+            ? ['name' => $entitlements->name($this->unlock), 'pitch' => $entitlements->pitch($this->unlock)]
+            : null;
+
         return view('livewire.billing.index', compact(
-            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue'
+            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue', 'unlockPitch'
         ))->layout('layouts.app', ['title' => 'Billing & Plan']);
     }
 }

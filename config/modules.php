@@ -49,6 +49,9 @@ return [
 
     'addon_cap_on_basic' => 2,
 
+    /* Per outlet, per month. The plans table carries the same numbers for billing. */
+    'suite_prices' => ['basic' => 180, 'full' => 400],
+
     /*
      * Route name => module, FIRST MATCH WINS (Str::is patterns). `null` means
      * core: open to every company, Free included. A route that matches nothing

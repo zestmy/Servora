@@ -114,6 +114,30 @@ class Entitlements
         return config("modules.catalogue.$module.name", Str::headline($module));
     }
 
+    /**
+     * One sentence on how to get a module, for the upgrade prompt a locked
+     * link lands on. Prices come from the catalogue, never typed here.
+     */
+    public function pitch(string $module): ?string
+    {
+        $m = config("modules.catalogue.$module");
+        if (! $m || $this->isSwitch($module)) {
+            return null;
+        }
+
+        $basic = (int) config('modules.suite_prices.basic');
+        $full  = (int) config('modules.suite_prices.full');
+
+        return match ($m['kind']) {
+            'suite'   => "Purchasing, transfers, wastage and the full reports come with the Basic suite — RM{$basic} per outlet a month.",
+            'addon'   => "{$m['name']} is included in the Full suite (RM{$full} per outlet a month), or add it to Basic for RM{$m['price']} a month.",
+            'metered' => "{$m['name']} is RM{$m['price']} per {$m['unit']} a month"
+                .(($m['min_quantity'] ?? 1) > 1 ? " (minimum {$m['min_quantity']})" : '')
+                .', on Basic or Full.',
+            default   => null,
+        };
+    }
+
     public function isSwitch(string $module): bool
     {
         return in_array($module, (array) config('modules.switches', []), true);

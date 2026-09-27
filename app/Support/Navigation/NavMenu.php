@@ -69,10 +69,26 @@ final class NavMenu
         $out = [];
 
         foreach ($groups as $group) {
-            $items = array_values(array_filter(
-                $group['items'],
-                fn (array $item) => self::allows($item, $user)
-            ));
+            $items = [];
+            foreach ($group['items'] as $item) {
+                if (! self::allows($item, $user)) {
+                    continue;
+                }
+
+                // Permitted but not on the plan: shown LOCKED, pointing at
+                // Billing, rather than hidden — a Free company should see what
+                // it is missing. Platform switches (the parked supplier
+                // portal) are simply off, never an upsell.
+                $module = self::entitlements()->moduleForRoute($item['route'] ?? null);
+                if ($module !== null && ! self::entitlements()->allows($user->company, $module)) {
+                    if (self::entitlements()->isSwitch($module)) {
+                        continue;
+                    }
+                    $item['locked'] = $module;
+                }
+
+                $items[] = $item;
+            }
 
             if ($items !== []) {
                 $out[] = ['label' => $group['label'], 'icon' => $group['icon'] ?? null, 'items' => $items];
@@ -144,14 +160,6 @@ final class NavMenu
             if (! app(SubscriptionService::class)->canUseFeature($user->company, $item['feature'])) {
                 return false;
             }
-        }
-
-        // The plan: an item is shown only when its route's module is on the
-        // company's plan (config/modules.php `routes`, the same map the route
-        // middleware enforces, so a link and its destination cannot disagree).
-        // Platform switches such as the supplier portal answer here too.
-        if (! self::entitlements()->allowsRoute($user->company, $item['route'] ?? null)) {
-            return false;
         }
 
         if (! empty($item['kitchenOnly']) && ! $user->isKitchenUser()) {

@@ -81,7 +81,11 @@
         return false;
     };
 
-    $href = fn (array $item) => route($item['route']) . (! empty($item['query']) ? '?' . $item['query'] : '');
+    // A locked item (NavMenu marks those the plan does not include) goes to
+    // Billing with the module named, not to a route that would bounce it there.
+    $href = fn (array $item) => ! empty($item['locked'])
+        ? route('billing.index', ['unlock' => $item['locked']])
+        : route($item['route']) . (! empty($item['query']) ? '?' . $item['query'] : '');
 
     $allGroups = array_merge($groups, $adminGroups);
 
@@ -234,11 +238,15 @@
                                 <p class="nav-caption">{{ $item['section'] }}</p>
                             @endif
 
-                            @php $on = $isActive($item); @endphp
+                            @php $on = empty($item['locked']) && $isActive($item); @endphp
                             <a href="{{ $href($item) }}"
                                @if ($on) aria-current="page" @endif
-                               class="nav-sub {{ $on ? 'nav-sub-on' : '' }}">
-                                {{ $item['label'] }}
+                               class="nav-sub {{ $on ? 'nav-sub-on' : '' }} {{ ! empty($item['locked']) ? 'nav-sub-locked' : '' }}">
+                                <span class="min-w-0 flex-1 truncate">{{ $item['label'] }}</span>
+                                @if (! empty($item['locked']))
+                                    <x-icon name="lock" size="h-3.5 w-3.5" stroke="1.8" class="nav-lock flex-shrink-0" />
+                                    <span class="sr-only">(upgrade to unlock)</span>
+                                @endif
                             </a>
                         @endforeach
                     </div>
