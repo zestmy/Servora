@@ -1,118 +1,152 @@
-<div class="max-w-lg mx-auto px-4 py-8">
-    <div class="flex items-center gap-3 mb-6">
-        <a data-back href="{{ route('billing.index') }}" class="text-gray-600 hover:text-gray-900 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-        </a>
-        <div>
-            <p class="text-xs text-gray-600"><a href="{{ route('billing.index') }}" class="hover:underline">Billing</a> / Checkout</p>
-        </div>
-    </div>
+<div class="mx-auto max-w-5xl">
+    <x-page-header :title="$selectedPlan->name.' suite'" eyebrow="Checkout"
+                   subtitle="Priced per outlet. Pick your add-ons, see the total, pay with FPX, card or e-wallet.">
+        <x-slot:actions>
+            <a href="{{ route('billing.index') }}" wire:navigate class="btn-ghost">Back to billing</a>
+        </x-slot:actions>
+    </x-page-header>
 
-    <div class="card p-6">
-        <h2 class="text-base font-semibold text-gray-800 mb-1">
-            {{ $currentSubscription ? ($currentSubscription->isTrial() ? 'Upgrade to' : 'Switch to') : 'Subscribe to' }} {{ $selectedPlan->name }}
-        </h2>
-        <p class="text-xs text-gray-600 mb-5">Review your plan before confirming.</p>
+    @if ($blocked)
+        <div class="alert-warning mb-6" role="status">{{ $blocked }}</div>
+    @endif
 
-        {{-- Plan Summary --}}
-        <div class="bg-gray-50 rounded-lg p-4 mb-5">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-lg font-bold text-gray-900">{{ $selectedPlan->name }}</span>
-                <div class="text-right">
-                    <span class="text-xl font-bold text-gray-900">
-                        {{ $selectedPlan->currency }} {{ number_format($billing_cycle === 'yearly' ? $selectedPlan->price_yearly : $selectedPlan->price_monthly, 0) }}
-                    </span>
-                    <span class="text-xs text-gray-600">/{{ $billing_cycle === 'yearly' ? 'year' : 'month' }}</span>
+    <div class="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        {{-- ── Choices ───────────────────────────────────────────────────── --}}
+        <div class="space-y-6">
+            <section class="card p-5">
+                <h2 class="text-sm font-semibold text-gray-900">Billing</h2>
+                <div class="seg mt-3 w-full sm:w-auto" role="radiogroup" aria-label="Billing cycle">
+                    <button type="button" role="radio" wire:click="$set('billing_cycle', 'monthly')"
+                            aria-checked="{{ $billing_cycle === 'monthly' ? 'true' : 'false' }}"
+                            class="seg-item {{ $billing_cycle === 'monthly' ? 'seg-item-on' : '' }}">Monthly</button>
+                    <button type="button" role="radio" wire:click="$set('billing_cycle', 'yearly')"
+                            aria-checked="{{ $billing_cycle === 'yearly' ? 'true' : 'false' }}"
+                            class="seg-item {{ $billing_cycle === 'yearly' ? 'seg-item-on' : '' }}">Yearly — 2 months free</button>
                 </div>
-            </div>
-            <div class="text-xs text-gray-500 space-y-1">
-                <p>{{ $selectedPlan->max_outlets ?? 'Unlimited' }} outlets, {{ $selectedPlan->max_users ?? 'Unlimited' }} users</p>
-                @if (!$currentSubscription)
-                    <p>{{ $selectedPlan->trial_days }}-day free trial included</p>
-                @endif
-            </div>
-        </div>
 
-        {{-- Billing Cycle --}}
-        <div class="mb-5">
-            <x-input-label value="Billing Cycle" />
-            <div class="mt-2 flex gap-3">
-                <label class="flex-1 relative cursor-pointer">
-                    <input type="radio" wire:model.live="billing_cycle" value="monthly" class="peer sr-only" />
-                    <div class="border-2 rounded-xl p-3 text-center transition
-                                peer-checked:border-brand-500 peer-checked:bg-brand-50
-                                border-gray-200 hover:border-gray-300">
-                        <p class="text-sm font-semibold text-gray-800">Monthly</p>
-                        <p class="text-xs text-gray-600">{{ $selectedPlan->currency }} {{ number_format($selectedPlan->price_monthly, 0) }}/mo</p>
+                <label for="outlets" class="label mt-5">Outlets</label>
+                <input id="outlets" type="number" min="{{ $minOutlets }}" max="19" wire:model.live.debounce.300ms="outlets"
+                       class="input w-32">
+                <p class="help">You have {{ $minOutlets }} active {{ Str::plural('outlet', $minOutlets) }}. 10% off outlets 6–10, 15% off 11–19. 20 or more is quoted.</p>
+            </section>
+
+            <section class="card p-5">
+                <div class="flex items-baseline justify-between gap-3">
+                    <h2 class="text-sm font-semibold text-gray-900">Add-ons</h2>
+                    @unless ($isFull)
+                        <span class="text-xs text-gray-600">Up to {{ $cap }} on Basic</span>
+                    @endunless
+                </div>
+
+                @if ($isFull)
+                    <p class="help mt-1">Full includes all six: Labels, Learn SOP, Audits, Assets, POS Sync and AI Insights.</p>
+                @else
+                    <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                        @foreach ($catalogue as $key => $m)
+                            @continue($m['kind'] !== 'addon')
+                            <label wire:key="addon-{{ $key }}"
+                                   class="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-control border border-gray-200 px-3">
+                                <input type="checkbox" wire:model.live="addons.{{ $key }}" class="rounded border-gray-300 text-brand-600">
+                                <span class="flex-1 text-sm text-gray-900">{{ $m['name'] }}</span>
+                                <span class="text-sm tabular-nums text-gray-600">RM{{ $m['price'] }}</span>
+                            </label>
+                        @endforeach
                     </div>
-                </label>
-                <label class="flex-1 relative cursor-pointer">
-                    <input type="radio" wire:model.live="billing_cycle" value="yearly" class="peer sr-only" />
-                    <div class="border-2 rounded-xl p-3 text-center transition
-                                peer-checked:border-brand-500 peer-checked:bg-brand-50
-                                border-gray-200 hover:border-gray-300">
-                        <p class="text-sm font-semibold text-gray-800">Yearly</p>
-                        <p class="text-xs text-gray-600">{{ $selectedPlan->currency }} {{ number_format($selectedPlan->price_yearly, 0) }}/yr</p>
-                        @if ($selectedPlan->yearlyDiscount() > 0)
-                            <p class="text-[10px] text-success-600 font-medium mt-0.5">Save {{ $selectedPlan->yearlyDiscount() }}%</p>
+                @endif
+
+                <div class="mt-5 space-y-3 border-t border-gray-100 pt-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-600">On either suite</p>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3">
+                            <input type="checkbox" wire:model.live="hr" class="rounded border-gray-300 text-brand-600">
+                            <span class="text-sm text-gray-900">HR &amp; Payroll <span class="text-gray-600">— RM3 per employee, min 10</span></span>
+                        </label>
+                        @if ($hr)
+                            <label class="flex items-center gap-2 text-sm text-gray-600">
+                                <input type="number" min="1" wire:model.live.debounce.300ms="hrEmployees" class="input w-24" aria-label="Employees">
+                                employees
+                            </label>
                         @endif
                     </div>
-                </label>
-            </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3">
+                            <input type="checkbox" wire:model.live="kitchen" class="rounded border-gray-300 text-brand-600">
+                            <span class="text-sm text-gray-900">Central Kitchen <span class="text-gray-600">— RM300 per kitchen</span></span>
+                        </label>
+                        @if ($kitchen)
+                            <label class="flex items-center gap-2 text-sm text-gray-600">
+                                <input type="number" min="1" wire:model.live.debounce.300ms="kitchens" class="input w-24" aria-label="Kitchens">
+                                kitchens
+                            </label>
+                        @endif
+                    </div>
+                </div>
+            </section>
         </div>
 
-        {{-- Payment methods info --}}
-        @if ($chipInConfigured)
-            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-5">
-                <p class="text-xs text-gray-600 font-medium mb-1">Accepted payment methods</p>
-                <p class="text-xs text-gray-600">FPX (online banking), credit/debit cards, and e-wallets via CHIP-IN.</p>
-            </div>
-        @endif
+        {{-- ── Summary ───────────────────────────────────────────────────── --}}
+        <aside class="panel h-fit p-5 lg:sticky lg:top-20" aria-live="polite">
+            <h2 class="text-sm font-semibold text-gray-900">Summary</h2>
 
-        {{-- Action Buttons --}}
-        @if (!$currentSubscription)
-            {{-- New user — start free trial --}}
-            <button wire:click="subscribe"
-                    wire:loading.attr="disabled"
-                    class="btn-primary w-full py-3">
-                <span wire:loading.remove wire:target="subscribe">Start {{ $selectedPlan->trial_days }}-Day Free Trial</span>
-                <span wire:loading wire:target="subscribe">Processing...</span>
-            </button>
-            <p class="text-xs text-gray-600 text-center mt-2">No payment required now. Pay when you're ready.</p>
-
-        @elseif ($currentSubscription->isTrial())
-            {{-- Trialing — show both options --}}
-            @if ($chipInConfigured)
-                <button wire:click="payNow"
-                        wire:loading.attr="disabled"
-                        class="btn-primary w-full py-3">
-                    <span wire:loading.remove wire:target="payNow">Pay Now & Activate</span>
-                    <span wire:loading wire:target="payNow">Redirecting to payment...</span>
-                </button>
-                <p class="text-xs text-gray-600 text-center mt-2">You'll be redirected to CHIP-IN to complete payment.</p>
+            @if (! $quote->ok())
+                <p class="alert-warning mt-4 text-sm">{{ $quote->error }}</p>
             @else
-                <button wire:click="subscribe"
-                        wire:loading.attr="disabled"
-                        class="btn-primary w-full py-3">
-                    <span wire:loading.remove wire:target="subscribe">Select This Plan</span>
-                    <span wire:loading wire:target="subscribe">Processing...</span>
-                </button>
-                <div class="bg-warning-50 border border-warning-200 rounded-lg p-3 mt-3 text-xs text-warning-700">
-                    <p class="font-medium">Online payment coming soon</p>
-                    <p class="mt-0.5">Payment via FPX, card, and e-wallet will be available shortly. Contact us to activate your subscription now.</p>
-                </div>
-            @endif
+                <dl class="mt-4 space-y-2 text-sm">
+                    @foreach ($quote->lines as $line)
+                        <div class="flex justify-between gap-3">
+                            <dt class="min-w-0">
+                                <span class="text-gray-900">{{ $line['label'] }}</span>
+                                <span class="block text-xs text-gray-600">{{ $line['detail'] }}</span>
+                            </dt>
+                            <dd class="tabular-nums {{ $line['amount'] < 0 ? 'text-success-700' : 'text-gray-900' }}">
+                                {{ $line['amount'] < 0 ? '−' : '' }}RM{{ number_format(abs($line['amount']), 2) }}
+                            </dd>
+                        </div>
+                    @endforeach
+                </dl>
 
-        @else
-            {{-- Active subscription — switch plan --}}
-            <button wire:click="subscribe"
-                    wire:loading.attr="disabled"
-                    class="btn-primary w-full py-3">
-                <span wire:loading.remove wire:target="subscribe">Switch to {{ $selectedPlan->name }}</span>
-                <span wire:loading wire:target="subscribe">Processing...</span>
-            </button>
-        @endif
+                <div class="mt-4 space-y-2 border-t border-gray-100 pt-4 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Per month</span>
+                        <span class="tabular-nums text-gray-900">RM{{ number_format($quote->monthly, 2) }}</span>
+                    </div>
+                    @if ($quote->cycle === 'yearly')
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Per year (10 months)</span>
+                            <span class="tabular-nums text-gray-900">RM{{ number_format($quote->cycleTotal, 2) }}</span>
+                        </div>
+                    @endif
+                    @if ($quote->credit > 0)
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Credit for unused time</span>
+                            <span class="tabular-nums text-success-700">−RM{{ number_format($quote->credit, 2) }}</span>
+                        </div>
+                    @endif
+                    <div class="flex justify-between pt-2 text-base font-semibold">
+                        <span class="text-gray-900">Due today</span>
+                        <span class="tabular-nums text-gray-900">RM{{ number_format($quote->due(), 2) }}</span>
+                    </div>
+                </div>
+
+                @error('checkout') <p class="error-text mt-3">{{ $message }}</p> @enderror
+
+                <button type="button" wire:click="pay" wire:loading.attr="disabled"
+                        class="btn-primary mt-5 w-full justify-center" @disabled($blocked)>
+                    <span wire:loading.remove wire:target="pay">
+                        {{ $quote->due() > 0 ? 'Pay RM'.number_format($quote->due(), 2) : 'Switch at next renewal' }}
+                    </span>
+                    <span wire:loading wire:target="pay">Starting payment…</span>
+                </button>
+                <p class="help mt-2">
+                    @if ($quote->due() > 0)
+                        Your new plan starts as soon as the payment clears. Renews {{ $quote->cycle === 'yearly' ? 'yearly' : 'monthly' }} at RM{{ number_format($quote->cycleTotal, 2) }}.
+                    @else
+                        What you have already paid covers this, so the change starts when your current period ends.
+                    @endif
+                </p>
+            @endif
+        </aside>
     </div>
 </div>

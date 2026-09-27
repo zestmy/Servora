@@ -28,9 +28,22 @@ class ProcessRecurringBilling extends Command
         $this->info("Found {$dueSoon->count()} subscriptions due for renewal.");
 
         foreach ($dueSoon as $sub) {
-            $amount = $sub->billing_cycle === 'yearly'
-                ? (float) $sub->plan->price_yearly
-                : (float) $sub->plan->price_monthly;
+            // This runs daily and the window is three days: without this, a
+            // company that has not paid yet got a fresh purchase every day.
+            $alreadyAsked = \App\Models\Payment::where('subscription_id', $sub->id)
+                ->where('status', \App\Models\Payment::STATUS_PENDING)
+                ->where('created_at', '>=', now()->subDays(3))
+                ->exists();
+            if ($alreadyAsked) {
+                continue;
+            }
+
+            // A cheaper configuration chosen mid-period starts now, at its
+            // price; the webhook applies it (Billing\CheckoutService::fulfil).
+            $checkout = $sub->pending_change;
+            $amount = $checkout
+                ? (float) $checkout['amount']
+                : $sub->currentPrice();
 
             if ($amount <= 0) {
                 continue;
@@ -43,6 +56,8 @@ class ProcessRecurringBilling extends Command
                 $sub,
                 $amount,
                 $sub->plan->currency,
+                null,
+                $checkout,
             );
 
             if ($result['success']) {

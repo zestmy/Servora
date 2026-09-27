@@ -1,26 +1,38 @@
 @php
-    // Computed from the real plans rather than a hardcoded "save up to 17%",
-    // so the badge cannot drift out of date when prices change.
-    $maxSaving = $plans
-        ->filter(fn ($p) => $p->price_monthly > 0 && $p->price_yearly > 0)
-        ->map(fn ($p) => (int) round((1 - ($p->price_yearly / 12) / $p->price_monthly) * 100))
-        ->filter(fn ($pct) => $pct > 0)
-        ->max();
+    // docs/pricing-model.md. Suite prices come from the plans table and add-on
+    // prices from config/modules.php, so this page cannot drift from what
+    // checkout charges.
+    $trialDays = $plans->firstWhere('slug', 'full')?->trial_days ?? 14;
+    $catalogue = config('modules.catalogue');
+    $addonNames = collect($catalogue)->where('kind', 'addon')->pluck('name');
 
-    $trialDays = $plans->first()?->trial_days ?? 30;
+    $bullets = [
+        'free'  => [
+            '1 outlet, 2 users',
+            '150 market list items, 30 recipes',
+            'Recipe costing and prep items',
+            'Stock counts and daily sales entry',
+            'Food-cost reports',
+        ],
+        'basic' => [
+            'Unlimited items, recipes and users',
+            'Purchasing: requests, orders, GRN, supplier invoices',
+            'Inventory control: transfers, wastage, par levels',
+            'Every report, scheduled to your inbox',
+            'AI invoice capture — 30 scans per outlet a month',
+            'Add up to 2 add-ons',
+        ],
+        'full'  => array_merge(['Everything in Basic, plus:'], $addonNames->all()),
+    ];
 @endphp
 
 <div>
-    {{-- ── 1. Hero ─────────────────────────────────────────────────────────
-         Centred is the right call here: the page IS the price list, so there
-         is no competing asset to sit beside. Compact, because the plans are
-         what the visitor came for.
-    --}}
+    {{-- ── 1. Hero ───────────────────────────────────────────────────────── --}}
     <section class="bg-gradient-to-b from-brand-50/70 to-white">
         <div class="mx-auto max-w-3xl px-4 pb-14 pt-16 text-center sm:px-6 lg:px-8 lg:pt-24">
-            <h1 class="display-1 text-gray-950">Simple, transparent pricing</h1>
+            <h1 class="display-1 text-gray-950">Free to start. Per outlet as you grow.</h1>
             <p class="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-gray-600">
-                Every plan is the full product for {{ $trialDays }} days. No card to start.
+                Every sign-up gets the whole product for {{ $trialDays }} days, then keeps Free for as long as it likes. No card to start.
             </p>
 
             {{-- Billing cycle. A real radiogroup so it is operable by keyboard
@@ -36,12 +48,12 @@
                                 'text-gray-600 hover:text-gray-900' => $cycle !== $value,
                             ])>
                         {{ $label }}
-                        @if ($value === 'yearly' && $maxSaving)
+                        @if ($value === 'yearly')
                             <span @class([
                                 'ml-1.5 text-xs font-bold',
                                 'text-brand-50' => $cycle === 'yearly',
                                 'text-brand-700' => $cycle !== 'yearly',
-                            ])>save {{ $maxSaving }}%</span>
+                            ])>2 months free</span>
                         @endif
                     </button>
                 @endforeach
@@ -51,10 +63,9 @@
 
     {{-- ── 2. Plans ────────────────────────────────────────────────────────
          Equal columns on purpose. A pricing table is one of the few places
-         where symmetry aids comparison, and breaking the grid to look
-         designed would make the plans harder to read against each other.
+         where symmetry aids comparison.
     --}}
-    <section class="mx-auto max-w-6xl px-4 pb-20 sm:px-6 lg:px-8">
+    <section class="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
         @if ($plans->isEmpty())
             <div class="empty-state">
                 <p class="empty-title">Pricing is being updated</p>
@@ -62,32 +73,26 @@
                 <a href="{{ route('saas.register') }}" class="btn-primary mt-2">Start free trial</a>
             </div>
         @else
-            <div class="grid items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div class="grid items-start gap-6 md:grid-cols-3">
                 @foreach ($plans as $i => $plan)
                     @php
-                        $isPopular = $plan->slug === 'professional';
-                        $total     = $cycle === 'yearly' ? $plan->price_yearly : $plan->price_monthly;
-                        $perMonth  = $cycle === 'yearly' ? $plan->price_yearly / 12 : $plan->price_monthly;
-
-                        $limits = [
-                            [$plan->max_outlets,   Str::plural('outlet', $plan->max_outlets ?? 2)],
-                            [$plan->max_users,     'users'],
-                            [$plan->max_recipes,   'recipes'],
-                            [$plan->max_lms_users, 'training accounts'],
-                        ];
+                        $isFull   = $plan->slug === 'full';
+                        $isFree   = (float) $plan->price_monthly === 0.0;
+                        // Yearly is ten months' price for twelve.
+                        $perMonth = $cycle === 'yearly' ? $plan->price_monthly * 10 / 12 : $plan->price_monthly;
                     @endphp
 
                     <div data-reveal-index="{{ $i }}"
                          @class([
                              'reveal relative flex flex-col rounded-surface bg-white p-7',
-                             'border-2 border-brand-600 shadow-e3' => $isPopular,
-                             'border border-gray-200 shadow-e1' => ! $isPopular,
+                             'border-2 border-brand-600 shadow-e3' => $isFull,
+                             'border border-gray-200 shadow-e1' => ! $isFull,
                          ])>
 
-                        @if ($isPopular)
+                        @if ($isFull)
                             <span class="absolute -top-3 left-7 rounded-control bg-brand-600 px-3 py-1
                                          text-xs font-bold uppercase tracking-wide text-white shadow-btn">
-                                Most popular
+                                Everything
                             </span>
                         @endif
 
@@ -98,76 +103,70 @@
 
                         <p class="mt-5 flex items-baseline gap-1.5">
                             <span class="tabular text-4xl font-bold tracking-tight text-gray-950">
-                                {{ $plan->currency }} {{ number_format($perMonth, 0) }}
+                                RM{{ number_format($perMonth, 0) }}
                             </span>
-                            <span class="text-sm text-gray-600">/month</span>
+                            @unless ($isFree)
+                                <span class="text-sm text-gray-600">/ outlet / month</span>
+                            @endunless
                         </p>
-                        {{-- Reserved height so the cards stay aligned when the
-                             yearly line appears and disappears. --}}
                         <p class="mt-1 min-h-[1.25rem] text-xs text-gray-600">
-                            @if ($cycle === 'yearly')
-                                Billed {{ $plan->currency }} {{ number_format($total, 0) }} yearly
+                            @if ($cycle === 'yearly' && ! $isFree)
+                                Billed RM{{ number_format($plan->price_monthly * 10, 0) }} per outlet yearly
+                            @elseif ($isFree)
+                                Forever
                             @endif
                         </p>
 
-                        <a href="{{ route('saas.register', ['plan' => $plan->slug]) }}"
-                           @class(['mt-6 w-full', 'btn-primary' => $isPopular, 'btn-secondary' => ! $isPopular])>
-                            Start free trial
+                        <a href="{{ route('saas.register') }}"
+                           @class(['mt-6 w-full', 'btn-primary' => $isFull, 'btn-secondary' => ! $isFull])>
+                            {{ $isFree ? 'Start free' : "Try it free for {$trialDays} days" }}
                         </a>
 
                         <div class="mt-7 flex-1 border-t border-gray-200 pt-6">
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-600">What you get</h3>
-
-                            <ul class="mt-4 space-y-3 text-sm text-gray-700">
-                                @foreach ($limits as [$value, $noun])
+                            <ul class="space-y-3 text-sm text-gray-700">
+                                @foreach ($bullets[$plan->slug] ?? [] as $line)
                                     <li class="flex items-start gap-2.5">
                                         <x-icon name="check" size="h-5 w-5" stroke="2.2" class="mt-px flex-none text-brand-600" />
-                                        <span><strong class="font-semibold text-gray-950">{{ $value ?? 'Unlimited' }}</strong> {{ $noun }}</span>
+                                        <span>{{ $line }}</span>
                                     </li>
-                                @endforeach
-
-                                {{-- Only what the plan actually includes. Greyed-out
-                                     rows for absent features were unreadable
-                                     (text-gray-300 is roughly 1.6:1) and added
-                                     nothing but noise. --}}
-                                @foreach ($plan->feature_flags ?? [] as $flag => $enabled)
-                                    @if ($enabled)
-                                        <li class="flex items-start gap-2.5">
-                                            <x-icon name="check" size="h-5 w-5" stroke="2.2" class="mt-px flex-none text-brand-600" />
-                                            <span>{{ Str::headline($flag) }}</span>
-                                        </li>
-                                    @endif
                                 @endforeach
                             </ul>
                         </div>
                     </div>
                 @endforeach
             </div>
+
+            <p class="mt-6 text-center text-sm text-gray-600">
+                More outlets cost less each: 10% off outlets 6–10, 15% off 11–19. Twenty or more? We will quote it.
+            </p>
         @endif
     </section>
 
-    {{-- ── 3. On every plan ────────────────────────────────────────────────
-         Was an emoji grid. Emoji render differently on every OS and read as
-         placeholder art on a paid product page.
-    --}}
+    {{-- ── 3. Add-ons ──────────────────────────────────────────────────── --}}
     <section class="border-y border-gray-200 bg-gray-50 py-20">
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <h2 class="display-3 max-w-2xl text-gray-950">On every plan, including the trial</h2>
+            <h2 class="display-3 max-w-2xl text-gray-950">Add only what you run</h2>
+            <p class="mt-3 max-w-prose text-gray-600">
+                Add-ons are one price per company, however many outlets you have. Full includes all six;
+                Basic takes up to two. HR and Central Kitchen go on either suite.
+            </p>
 
-            @php
-                $core = [
-                    ['ingredient', 'Ingredients'],  ['clipboard', 'Recipes'],
-                    ['cart',       'Purchasing'],   ['currency',  'Sales'],
-                    ['database',   'Inventory'],    ['chart',     'Reports'],
-                    ['printer',    'PDF documents'],['shield',    'Daily backups'],
-                ];
-            @endphp
-
-            <ul class="mt-10 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
-                @foreach ($core as [$icon, $label])
-                    <li class="flex items-center gap-3">
-                        <x-icon :name="$icon" size="h-5 w-5" class="flex-none text-brand-600" />
-                        <span class="text-sm font-medium text-gray-800">{{ $label }}</span>
+            <ul class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                @foreach ($catalogue as $key => $m)
+                    @continue(! in_array($m['kind'], ['addon', 'metered'], true))
+                    <li class="card p-5">
+                        <p class="text-sm font-semibold text-gray-950">{{ $m['name'] }}</p>
+                        <p class="mt-2 tabular text-xl font-bold text-gray-950">
+                            RM{{ $m['price'] }}
+                            <span class="text-xs font-normal text-gray-600">
+                                / {{ $m['kind'] === 'metered' ? $m['unit'].' ' : '' }}month
+                            </span>
+                        </p>
+                        @if (($m['min_quantity'] ?? 1) > 1)
+                            <p class="mt-1 text-xs text-gray-600">Minimum {{ $m['min_quantity'] }} {{ Str::plural($m['unit']) }}</p>
+                        @elseif ($m['kind'] === 'addon')
+                            <p class="mt-1 text-xs text-gray-600">Included in Full</p>
+                        @endif
                     </li>
                 @endforeach
             </ul>
@@ -184,7 +183,7 @@
 
         @php
             $faqs = [
-                ['Can I change plans later?', 'Yes. Upgrade or downgrade at any time. Changes take effect immediately and billing is prorated.'],
+                ['Can I change plans later?', 'Yes. An upgrade starts straight away and you pay only the difference for the rest of your period. A downgrade starts when the period you have paid for ends.'],
                 ['What payment methods do you accept?', 'FPX online banking, credit and debit cards, and e-wallets, through our payment partner CHIP-IN.'],
                 ['Is my data secure?', 'Data is encrypted, backed up daily, and every company is fully isolated from every other company on the platform.'],
                 ['Can I export my data?', 'Yes. Every module exports to CSV, and the reports and inventory screens export to Excel and PDF as well. The data is yours and you can take it out at any time.'],

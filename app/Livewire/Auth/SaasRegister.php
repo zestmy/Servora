@@ -16,29 +16,23 @@ class SaasRegister extends Component
     public string $email         = '';
     public string $password      = '';
     public string $password_confirmation = '';
+    // Always the trial plan (mount); not the browser's to choose.
+    #[\Livewire\Attributes\Locked]
     public ?int   $plan_id       = null;
     public string $billing_cycle = 'monthly';
     public string $coupon_code   = '';
 
     public function mount(): void
     {
-        // Pre-select plan from query string
-        if (request()->has('plan')) {
-            $plan = Plan::where('slug', request('plan'))->active()->first();
-            if ($plan) {
-                $this->plan_id = $plan->id;
-            }
-        }
-
         // Pre-fill coupon from query string
         if (request()->has('coupon')) {
             $this->coupon_code = strtoupper(trim((string) request('coupon')));
         }
 
-        // Default to first active plan
-        if (!$this->plan_id) {
-            $this->plan_id = Plan::active()->ordered()->value('id');
-        }
+        // The trial runs on Full: the whole product (docs/pricing-model.md).
+        // Falls back to any active plan on an install without the new plans.
+        $this->plan_id = Plan::where('slug', 'full')->active()->value('id')
+            ?? Plan::active()->ordered()->value('id');
     }
 
     protected function rules(): array
@@ -104,9 +98,9 @@ class SaasRegister extends Component
 
     public function render()
     {
-        $plans = Plan::active()->ordered()->get();
+        $trialDays = Plan::find($this->plan_id)?->trial_days ?? 14;
 
-        return view('livewire.auth.saas-register', compact('plans'))
+        return view('livewire.auth.saas-register', compact('trialDays'))
             ->layout('layouts.marketing', ['title' => 'Start Your Free Trial']);
     }
 }

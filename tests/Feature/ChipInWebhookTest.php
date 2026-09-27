@@ -197,6 +197,23 @@ PEM;
         ];
     }
 
+    public function test_a_paid_checkout_applies_the_configuration_it_carried(): void
+    {
+        $basic = Plan::where('slug', 'basic')->firstOrFail();
+        $this->payment->update(['checkout' => [
+            'plan_id' => $basic->id, 'billing_cycle' => 'monthly', 'outlet_quantity' => 3,
+            'amount' => 129.00, 'addons' => ['hr' => ['quantity' => 12, 'unit_price' => 3]],
+        ]]);
+
+        $this->postCallback($this->paidPayload())->assertOk();
+
+        $sub = $this->subscription->refresh();
+        $this->assertSame(Subscription::STATUS_ACTIVE, $sub->status);
+        $this->assertSame($basic->id, $sub->plan_id);
+        $this->assertSame(3, $sub->outlet_quantity);
+        $this->assertSame(['hr'], $sub->addons()->pluck('module')->all());
+    }
+
     // ── The happy path, which never once worked in production ──────────────
 
     public function test_a_properly_signed_paid_callback_settles_everything(): void

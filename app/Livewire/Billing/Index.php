@@ -53,7 +53,10 @@ class Index extends Component
 
         $subscription = $company ? $subscriptionService->getActiveSubscription($company) : null;
         $plan = $subscription?->plan;
-        $plans = Plan::active()->ordered()->get();
+        // What is sold: Free / Basic / Full. The flat legacy plans are no
+        // longer public, but a company still on one sees it in its own card.
+        $plans = Plan::active()->publiclyVisible()->ordered()->get();
+        $addons = $subscription ? $subscription->addons()->current()->get() : collect();
         $usage = $company ? app(UsageTrackingService::class)->getCurrentCounts($company) : [];
 
         // Build usage with limits for display
@@ -91,7 +94,7 @@ class Index extends Component
             : null;
 
         return view('livewire.billing.index', compact(
-            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue', 'unlockPitch'
+            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue', 'unlockPitch', 'addons'
         ))->layout('layouts.app', ['title' => 'Billing & Plan']);
     }
 }

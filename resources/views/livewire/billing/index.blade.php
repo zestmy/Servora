@@ -74,7 +74,7 @@
                                 </span>
                             </div>
                         @else
-                            <p class="text-sm text-danger-600 mt-1 font-medium">No active subscription</p>
+                            <span class="mt-1 block text-xl font-bold text-gray-900">Free</span>
                         @endif
                     </div>
 
@@ -105,7 +105,31 @@
                             <p class="text-gray-500 font-medium">Billing Cycle</p>
                             <p class="text-gray-900 font-bold mt-0.5 capitalize">{{ $subscription->billing_cycle }}</p>
                         </div>
+                        @if ($subscription->amount !== null)
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <p class="text-gray-500 font-medium">Outlets</p>
+                                <p class="text-gray-900 font-bold mt-0.5">{{ $subscription->outlet_quantity }}</p>
+                            </div>
+                        @endif
                     </div>
+
+                    @if ($addons->isNotEmpty())
+                        <p class="mt-3 text-xs text-gray-600">
+                            Add-ons:
+                            {{ $addons->map(fn ($a) => config("modules.catalogue.{$a->module}.name").(in_array(config("modules.catalogue.{$a->module}.kind"), ['metered'], true) ? " ({$a->quantity})" : ''))->join(', ') }}
+                        </p>
+                    @endif
+
+                    @if ($subscription->pending_change)
+                        <p class="alert-info mt-3 text-sm">
+                            Your plan changes on {{ $subscription->current_period_end?->format('d M Y') }}, when the period you have paid for ends.
+                        </p>
+                    @endif
+                @elseif (! $isGrandfathered)
+                    <p class="mt-3 text-sm text-gray-600">
+                        You are on <span class="font-semibold text-gray-900">Free</span>: recipe costing for one outlet.
+                        Choose a suite to unlock purchasing, inventory control, full reports and add-ons.
+                    </p>
                 @endif
             </div>
 
@@ -140,40 +164,39 @@
             @endif
         </div>
 
-        {{-- Available Plans --}}
+        {{-- Plans (docs/pricing-model.md). Suites are per outlet; add-ons are
+             chosen on the checkout page, which prices the whole thing. --}}
         <div class="space-y-4">
-            <h2 class="text-sm font-semibold text-gray-800">Available Plans</h2>
+            <h2 class="text-sm font-semibold text-gray-800">Plans</h2>
             @foreach ($plans as $availPlan)
-                @php $isCurrent = $plan && $plan->id === $availPlan->id; @endphp
-                <div class="bg-white rounded-xl shadow-sm border {{ $isCurrent ? 'border-brand-300 ring-1 ring-brand-300' : 'border-gray-100' }} p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-sm font-bold text-gray-800">{{ $availPlan->name }}</h3>
-                        @if ($isCurrent)
-                            <span class="text-[10px] font-bold text-brand-600 uppercase">Current</span>
+                @php
+                    $isCurrent = $plan && $plan->id === $availPlan->id && $subscription && ! $subscription->isTrial();
+                    $isFree = ! in_array('basic', (array) $availPlan->modules, true);
+                @endphp
+                <div wire:key="plan-{{ $availPlan->id }}"
+                     class="card p-4 {{ ($isCurrent || ($isFree && ! $subscription && ! $isGrandfathered)) ? 'ring-1 ring-brand-300 border-brand-300' : '' }}">
+                    <div class="mb-1 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-900">{{ $availPlan->name }}</h3>
+                        @if ($isCurrent || ($isFree && ! $subscription && ! $isGrandfathered))
+                            <span class="badge-brand">Current</span>
                         @endif
                     </div>
                     <p class="text-lg font-bold text-gray-900">
-                        {{ $availPlan->currency }} {{ number_format($availPlan->price_monthly, 0) }}
-                        <span class="text-xs text-gray-600 font-normal">/mo</span>
+                        RM{{ number_format($availPlan->price_monthly, 0) }}
+                        @unless ($isFree)
+                            <span class="text-xs font-normal text-gray-600">/ outlet / month</span>
+                        @endunless
                     </p>
-                    <p class="text-xs text-gray-600 mt-1 mb-3">
-                        {{ $availPlan->max_outlets ?? '∞' }} outlets,
-                        {{ $availPlan->max_users ?? '∞' }} users
-                    </p>
-                    @if ($isCurrent && $subscription && $subscription->isTrial())
-                        <a href="{{ route('billing.checkout', $availPlan->slug) }}"
-                           class="block w-full text-center py-2 text-xs font-semibold rounded-lg transition bg-success-600 text-white hover:bg-success-700">
-                            Pay & Activate
+                    <p class="mt-1 text-xs text-gray-600">{{ $availPlan->description }}</p>
+                    @unless ($isFree || $isGrandfathered)
+                        <a href="{{ route('billing.checkout', ['planSlug' => $availPlan->slug, 'unlock' => $unlock]) }}" wire:navigate
+                           class="{{ $availPlan->slug === 'full' ? 'btn-primary' : 'btn-secondary' }} mt-3 w-full justify-center">
+                            {{ $isCurrent ? 'Change outlets or add-ons' : 'Choose '.$availPlan->name }}
                         </a>
-                    @elseif (!$isCurrent)
-                        <a href="{{ route('billing.checkout', $availPlan->slug) }}"
-                           class="block w-full text-center py-2 text-xs font-semibold rounded-lg transition
-                                  {{ ($plan && $availPlan->price_monthly > $plan->price_monthly) ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
-                            {{ ($plan && $availPlan->price_monthly > $plan->price_monthly) ? 'Upgrade' : 'Switch' }}
-                        </a>
-                    @endif
+                    @endunless
                 </div>
             @endforeach
+            <p class="help">HR &amp; Payroll (RM3 per employee, min 10) and Central Kitchen (RM300 per kitchen) go on either suite.</p>
         </div>
     </div>
 

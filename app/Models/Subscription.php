@@ -16,6 +16,7 @@ class Subscription extends Model
     protected $fillable = [
         'company_id', 'plan_id', 'status', 'billing_cycle',
         'trial_ends_at', 'current_period_start', 'current_period_end', 'cancelled_at',
+        'outlet_quantity', 'amount', 'pending_change',
     ];
 
     protected $casts = [
@@ -26,6 +27,9 @@ class Subscription extends Model
         'current_period_start' => 'datetime',
         'current_period_end'   => 'datetime',
         'cancelled_at'         => 'datetime',
+        'outlet_quantity'      => 'integer',
+        'amount'               => 'decimal:2',
+        'pending_change'       => 'array',
     ];
 
     public const STATUS_TRIALING  = 'trialing';
@@ -33,6 +37,9 @@ class Subscription extends Model
     public const STATUS_PAST_DUE  = 'past_due';
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_EXPIRED   = 'expired';
+    // Checkout started for a company with no live plan; live once paid
+    // (Billing\CheckoutService). Never counts as a subscription until then.
+    public const STATUS_INCOMPLETE = 'incomplete';
 
     public function company(): BelongsTo
     {
@@ -99,6 +106,11 @@ class Subscription extends Model
 
     public function currentPrice(): float
     {
+        // Per-outlet plans store what THIS company pays per cycle.
+        if ($this->amount !== null) {
+            return (float) $this->amount;
+        }
+
         if (!$this->plan) {
             return 0;
         }
@@ -116,6 +128,7 @@ class Subscription extends Model
             self::STATUS_PAST_DUE  => 'Past Due',
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_EXPIRED   => 'Expired',
+            self::STATUS_INCOMPLETE => 'Awaiting payment',
             default                => ucfirst($this->status),
         };
     }

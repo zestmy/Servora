@@ -42,6 +42,7 @@ class ChipInService
         float $amount,
         string $currency = 'MYR',
         ?string $description = null,
+        ?array $checkout = null,
     ): array {
         $description = $description ?? "Servora {$subscription->plan->name} — {$subscription->billing_cycle}";
 
@@ -56,6 +57,7 @@ class ChipInService
             'amount'          => $amount,
             'currency'        => $currency,
             'status'          => Payment::STATUS_PENDING,
+            'checkout'        => $checkout,
         ]);
 
         if (!$this->apiKey) {

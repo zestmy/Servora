@@ -43,45 +43,12 @@
             </div>
         </div>
 
-        {{-- Plan Selection --}}
-        <div>
-            <x-input-label value="Select Plan" />
-            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                @foreach ($plans as $plan)
-                    <label class="relative cursor-pointer">
-                        <input type="radio" wire:model="plan_id" value="{{ $plan->id }}" class="peer sr-only" />
-                        <div class="border-2 rounded-xl p-3 text-center transition
-                                    peer-checked:border-brand-500 peer-checked:bg-brand-50
-                                    border-gray-200 hover:border-gray-300">
-                            <p class="text-sm font-bold text-gray-800">{{ $plan->name }}</p>
-                            <p class="text-lg font-bold text-brand-600 mt-1">
-                                {{ $plan->currency }} {{ number_format($billing_cycle === 'yearly' ? $plan->price_yearly / 12 : $plan->price_monthly, 0) }}
-                            </p>
-                            <p class="text-[10px] text-gray-600">/month</p>
-                            @if ($plan->trial_days > 0)
-                                <p class="text-[10px] text-success-600 font-medium mt-1">{{ $plan->trial_days }}-day free trial</p>
-                            @endif
-                        </div>
-                    </label>
-                @endforeach
-            </div>
-            <x-input-error :messages="$errors->get('plan_id')" class="mt-1" />
-        </div>
-
-        {{-- Billing Cycle --}}
-        <div>
-            <div class="flex items-center gap-4">
-                <label class="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="radio" wire:model.live="billing_cycle" value="monthly"
-                           class="text-brand-600 focus:ring-brand-500" />
-                    <span class="text-sm text-gray-700">Monthly</span>
-                </label>
-                <label class="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="radio" wire:model.live="billing_cycle" value="yearly"
-                           class="text-brand-600 focus:ring-brand-500" />
-                    <span class="text-sm text-gray-700">Yearly <span class="text-success-600 font-medium">(save up to 17%)</span></span>
-                </label>
-            </div>
+        {{-- No plan to choose: every sign-up is a reverse trial — the whole
+             product for the trial, then Free unless they pick a suite
+             (docs/pricing-model.md). Asking for a plan before anyone has seen
+             the product was a decision made blind. --}}
+        <div class="alert-info text-sm">
+            You get every module free for {{ $trialDays }} days. After that you stay on Free — or choose a plan from Billing. No card needed.
         </div>
 
         {{-- Coupon code (optional) --}}

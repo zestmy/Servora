@@ -149,7 +149,11 @@ class ChipInWebhookController extends Controller
         // this must not 500 if a row is ever stitched up differently.
         $subscription = $payment->subscription;
 
-        if ($subscription) {
+        if ($subscription && $payment->checkout) {
+            // Per-outlet checkout or a renewal with a parked change: apply
+            // exactly what was paid for (Billing\CheckoutService).
+            app(\App\Services\Billing\CheckoutService::class)->fulfil($payment);
+        } elseif ($subscription) {
             $service = app(SubscriptionService::class);
 
             $subscription->isTrial() || $subscription->isPastDue()

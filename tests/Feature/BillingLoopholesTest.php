@@ -24,21 +24,22 @@ class BillingLoopholesTest extends TestCase
 
     public function test_an_active_company_cannot_switch_itself_to_a_dearer_plan_for_free(): void
     {
-        $starter    = $this->plan('starter', 99, []);
-        $enterprise = $this->plan('enterprise', 499, ['analytics']);
         [$company, $user] = $this->company('self_signup');
+        $basic = Plan::where('slug', 'basic')->firstOrFail();
 
         $sub = Subscription::create([
-            'company_id' => $company->id, 'plan_id' => $starter->id, 'status' => 'active',
+            'company_id' => $company->id, 'plan_id' => $basic->id, 'status' => 'active', 'amount' => 180,
             'billing_cycle' => 'monthly', 'current_period_start' => now(), 'current_period_end' => now()->addMonth(),
         ]);
 
+        // Checkout can only START a payment; the plan changes when the
+        // webhook says it was paid. With no gateway, nothing changes at all.
         $this->actingAs($user);
-        Livewire::test(Checkout::class, ['planSlug' => 'enterprise'])
-            ->call('subscribe')
-            ->assertRedirect(route('billing.index'));
+        Livewire::test(Checkout::class, ['planSlug' => 'full'])
+            ->call('pay')
+            ->assertHasErrors('checkout');
 
-        $this->assertSame($starter->id, $sub->fresh()->plan_id);
+        $this->assertSame($basic->id, $sub->fresh()->plan_id);
         $this->assertFalse(app(SubscriptionService::class)->canUseFeature($company, 'analytics'));
     }
 

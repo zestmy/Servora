@@ -13,13 +13,16 @@ class Payment extends Model
 
     protected $fillable = [
         'company_id', 'subscription_id', 'chip_payment_id', 'chip_purchase_id',
-        'amount', 'currency', 'status', 'payment_method', 'paid_at', 'metadata',
+        'amount', 'currency', 'status', 'payment_method', 'paid_at', 'metadata', 'checkout',
     ];
 
     protected $casts = [
         'amount'   => 'decimal:2',
         'paid_at'  => 'datetime',
         'metadata' => 'array',
+        // What this payment buys (Billing\CheckoutService). metadata is
+        // overwritten with CHIP's payload on completion; this never is.
+        'checkout' => 'array',
     ];
 
     public const STATUS_PENDING   = 'pending';

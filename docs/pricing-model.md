@@ -71,5 +71,27 @@ outlets up, so chains would never take Full.
 - `SubscriptionService::syncAddons()` — the selling rules (no add-ons on Free,
   cap of two on Basic, nothing Full already includes, metered minimums).
   Admin › Subscriptions uses it until checkout sells add-ons.
-- The Free / Basic / Full plans exist but are private (`is_public = false`)
-  until checkout can charge per outlet.
+- Free caps (1 active outlet, 150 items, 30 recipes, 2 users):
+  `Entitlements::limit()/assertCanAdd()`, enforced by `PlanLimitObserver` on
+  Outlet / Ingredient / Recipe and at user invites. A cap hit in Livewire opens
+  the plan-limit dialog. Caps apply to the new plans only.
+- Reverse trial: sign-up trials run on Full; an ended trial or lapsed plan is
+  Free, not read-only. A Free company over its outlet cap is read-only until
+  it archives outlets (Settings › Outlets stays writable). Past due stays
+  read-only.
+
+## Checkout
+
+- `Billing\PriceCalculator` — pure arithmetic: suite × outlets, marginal
+  volume discount (6–10 at 10%, 11–19 at 15%, 20+ quoted), add-ons, metered
+  minimums, yearly = 10 × monthly.
+- `Billing\CheckoutService` — credits the unused part of a paid period, so an
+  upgrade charges the difference; a change the credit covers (a downgrade)
+  is parked in `subscriptions.pending_change` and applied at renewal. The
+  Payment carries the configuration (`payments.checkout`) and the CHIP-IN
+  webhook applies exactly that (`fulfil()`), never the form's current state.
+  A Free company's first payment hangs off an `incomplete` subscription.
+- Renewals charge `subscriptions.amount` (legacy rows: the plan's flat price)
+  and raise one purchase per window, not one a day.
+- Grandfathered companies and live legacy plans cannot self-serve; they are
+  moved by hand in Admin › Subscriptions.
