@@ -59,13 +59,17 @@ class Index extends Component
         $addons = $subscription ? $subscription->addons()->current()->get() : collect();
         $usage = $company ? app(UsageTrackingService::class)->getCurrentCounts($company) : [];
 
-        // Build usage with limits for display
+        // Usage against the limits actually ENFORCED (Entitlements::limit):
+        // a Free company has no subscription row, so reading the plan here
+        // showed ∞ for caps that were in force. Legacy plans and trials are
+        // uncapped and read ∞, which is also what is enforced.
         $usageMetrics = [];
-        $metrics = ['outlets', 'users', 'recipes', 'ingredients', 'lms_users'];
-        foreach ($metrics as $metric) {
-            $limit = $plan?->getLimit($metric);
+        $labels = ['outlets' => 'Active outlets', 'users' => 'Users', 'recipes' => 'Recipes', 'ingredients' => 'Market list items'];
+        $entitlements = app(\App\Services\Entitlements::class);
+        foreach ($labels as $metric => $label) {
+            $limit = $company ? $entitlements->limit($company, $metric) : null;
             $usageMetrics[] = [
-                'label'   => ucfirst(str_replace('_', ' ', $metric)),
+                'label'   => $label,
                 'current' => $usage[$metric] ?? 0,
                 'limit'   => $limit,
                 'percent' => $limit ? min(100, round(($usage[$metric] ?? 0) / max($limit, 1) * 100)) : 0,

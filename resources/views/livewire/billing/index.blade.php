@@ -149,7 +149,8 @@
                                 @if ($metric['limit'])
                                     <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                                         <div class="h-full rounded-full transition-all duration-300
-                                            {{ $metric['percent'] >= 90 ? 'bg-danger-500' : ($metric['percent'] >= 70 ? 'bg-warning-500' : 'bg-brand-500') }}"
+                                            {{-- Full is a limit reached, not a fault: on Free, 1 of 1 outlet is the normal state. --}}
+                                            {{ $metric['percent'] >= 70 ? 'bg-warning-500' : 'bg-brand-500' }}"
                                              style="width: {{ $metric['percent'] }}%"></div>
                                     </div>
                                 @else
