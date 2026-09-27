@@ -15,7 +15,7 @@ class Plan extends Model
         'name', 'slug', 'description',
         'price_monthly', 'price_yearly', 'currency',
         'max_outlets', 'max_users', 'max_recipes', 'max_ingredients', 'max_lms_users',
-        'feature_flags', 'is_active', 'is_public', 'sort_order', 'trial_days', 'api_rate_limit',
+        'feature_flags', 'modules', 'is_active', 'is_public', 'sort_order', 'trial_days', 'api_rate_limit',
     ];
 
     protected $casts = [
@@ -27,6 +27,7 @@ class Plan extends Model
         'max_ingredients' => 'integer',
         'max_lms_users'   => 'integer',
         'feature_flags'   => 'array',
+        'modules'         => 'array',
         'is_active'       => 'boolean',
         'sort_order'      => 'integer',
         'trial_days'      => 'integer',

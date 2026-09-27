@@ -230,6 +230,10 @@
                 // now, and none of them is something a shift switches BETWEEN
                 // — you go looking for a payslip, you do not flick to it.
             ];
+
+            // Only the tabs whose module the company has: a company without
+            // HR has no Clock tab, one without Learn SOP no Learn or Board.
+            $tabs = array_values(array_filter($tabs, fn ($tab) => route_on($tab['route'])));
         @endphp
         {{-- The active tab is marked three ways — a rule above it, a heavier
              stroke, and colour — because colour alone is the one signal a

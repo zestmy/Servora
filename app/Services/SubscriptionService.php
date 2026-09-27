@@ -96,6 +96,63 @@ class SubscriptionService
         return $subscription->fresh();
     }
 
+    /**
+     * Replace a subscription's add-ons with $wanted: [module => ['quantity' =>
+     * int, 'unit_price' => float]]. Enforces the pricing rules
+     * (docs/pricing-model.md) so no screen can sell what the model forbids:
+     *   - legacy plans (modules NULL) already include everything
+     *   - Free takes no add-ons
+     *   - an add-on the suite already includes is not sold twice
+     *   - Basic holds at most `modules.addon_cap_on_basic` flat add-ons
+     *   - metered modules bill at least their minimum quantity
+     *
+     * @throws \Illuminate\Validation\ValidationException  keyed `addons`
+     */
+    public function syncAddons(Subscription $subscription, array $wanted): void
+    {
+        $catalogue = (array) config('modules.catalogue');
+        $planModules = $subscription->plan->modules;
+        $fail = fn (string $message) => throw \Illuminate\Validation\ValidationException::withMessages(['addons' => $message]);
+
+        $wanted = array_filter(
+            $wanted,
+            fn ($row, $module) => in_array($catalogue[$module]['kind'] ?? null, ['addon', 'metered'], true)
+                && ! in_array($module, (array) $planModules, true),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ($wanted !== [] && $planModules === null) {
+            $fail('This is a legacy plan that already includes every module. Move the company to Free, Basic or Full first.');
+        }
+
+        if ($wanted !== [] && ! in_array('basic', (array) $planModules, true)) {
+            $fail('The Free plan cannot take add-ons.');
+        }
+
+        $flat = array_filter(array_keys($wanted), fn ($m) => $catalogue[$m]['kind'] === 'addon');
+        $cap = (int) config('modules.addon_cap_on_basic');
+        if (count($flat) > $cap) {
+            $fail("Basic can take at most {$cap} add-ons. For more, move the company to the Full suite.");
+        }
+
+        foreach ($wanted as $module => $row) {
+            $min = (int) ($catalogue[$module]['min_quantity'] ?? 1);
+            if ((int) ($row['quantity'] ?? 1) < $min) {
+                $fail("{$catalogue[$module]['name']} bills at least {$min} {$catalogue[$module]['unit']}s.");
+            }
+        }
+
+        $subscription->addons()->whereNotIn('module', array_keys($wanted))->delete();
+
+        foreach ($wanted as $module => $row) {
+            $subscription->addons()->updateOrCreate(['module' => $module], [
+                'quantity'   => $catalogue[$module]['kind'] === 'addon' ? 1 : (int) $row['quantity'],
+                'unit_price' => $row['unit_price'] ?? $catalogue[$module]['price'],
+                'ends_at'    => null,
+            ]);
+        }
+    }
+
     public function canUseFeature(Company $company, string $feature): bool
     {
         $subscription = $this->getActiveSubscription($company);
@@ -109,6 +166,13 @@ class SubscriptionService
 
         if (!$subscription->isActive()) {
             return false;
+        }
+
+        // Plans with modules (Free / Basic / Full) answer the old feature
+        // flags through the module that now carries them.
+        $module = config("modules.legacy_features.$feature");
+        if ($subscription->plan->modules !== null && $module) {
+            return app(Entitlements::class)->allows($company, $module);
         }
 
         return $subscription->plan->hasFeature($feature);

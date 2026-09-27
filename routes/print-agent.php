@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\Route;
 
 $domain = config('app.domain');
 
-$group = Route::middleware(['web', 'company.subdomain']);
+$group = Route::middleware(['web', 'company.subdomain', 'module']);
 
 if ($domain) {
     $group->domain('{companySlug}.' . $domain)->prefix('agent');
@@ -41,7 +41,7 @@ $group->group(function () {
     Route::post('/pair', [PrintAgentController::class, 'pair'])
         ->name('print-agent.pair');
 
-    Route::middleware('print.agent')->group(function () {
+    Route::middleware(['print.agent', 'module'])->group(function () {
         // The poll doubles as the heartbeat — no separate ping endpoint.
         Route::get('/jobs', [PrintAgentController::class, 'jobs'])
             ->name('print-agent.jobs');

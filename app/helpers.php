@@ -49,3 +49,25 @@ if (! function_exists('brand_asset')) {
         return $versions[$relative] === null ? $url : $url . '?v=' . $versions[$relative];
     }
 }
+
+if (! function_exists('module_on')) {
+    /**
+     * Whether the company this request acts for has a module
+     * (config/modules.php). For views; routes are enforced by middleware.
+     */
+    function module_on(string $module): bool
+    {
+        return \App\Services\Entitlements::current()->allowsHere($module);
+    }
+}
+
+if (! function_exists('route_on')) {
+    /**
+     * Whether the company this request acts for may open a named route — for
+     * filtering a list of links against the same map the middleware enforces.
+     */
+    function route_on(string $routeName): bool
+    {
+        return \App\Services\Entitlements::current()->allowsRouteHere($routeName);
+    }
+}

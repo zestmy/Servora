@@ -42,6 +42,7 @@
          The primary card and the primary action. Clocking in is one tap from
          the landing screen, which is the whole reason this page exists instead
          of a redirect to the board. --}}
+    @if (module_on('hr'))
     <div class="card overflow-hidden">
         <div class="{{ $open ? 'bg-success-600' : 'bg-gray-900' }} px-4 py-3 text-white">
             <div class="flex items-center justify-between gap-3">
@@ -81,7 +82,10 @@
             </a>
         </div>
     </div>
+    @endif
 
+    {{-- Training, certificates and the board: Learn SOP only. --}}
+    @if (module_on('learn'))
     {{-- ── What you owe ──
          Above the stats on purpose: an overdue course is the only thing on this
          screen that somebody else is waiting on. --}}
@@ -207,6 +211,8 @@
         </div>
     @endif
 
+    @endif
+
     {{-- ── Everything else ──
          A grid rather than more tabs: the bar is already carrying more than it
          should, and these are things somebody goes looking for rather than
@@ -226,6 +232,7 @@
             // into the other.
             ['route' => 'clock.staff.lms',       'label' => 'SOP Library','icon' => 'book-open', 'external' => true],
         ] as $link)
+            @continue(! route_on($link['route']))
             <a href="{{ route($link['route']) }}" @unless ($link['external'] ?? false) wire:navigate @endunless
                class="card flex min-h-[3.5rem] items-center gap-3 px-4 py-3 active:bg-gray-50">
                 <x-icon :name="$link['icon']" size="h-5 w-5" class="shrink-0 text-brand-600" />

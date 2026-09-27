@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 
 $domain = config('app.domain');
 
-$group = Route::middleware(['web', 'company.subdomain']);
+$group = Route::middleware(['web', 'company.subdomain', 'module']);
 
 if ($domain) {
     $group->domain('{companySlug}.' . $domain)->prefix('pos-agent');
@@ -30,7 +30,7 @@ $group->group(function () {
     Route::post('/pair', [PosAgentController::class, 'pair'])
         ->name('pos-agent.pair');
 
-    Route::middleware('pos.agent')->group(function () {
+    Route::middleware(['pos.agent', 'module'])->group(function () {
         // The ping is the heartbeat AND the config channel: the agent
         // adopts pushed settings and logs its recent batch outcomes from
         // the response. Sales sync needs no poll loop — data flows up.

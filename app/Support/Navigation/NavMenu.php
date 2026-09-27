@@ -3,6 +3,7 @@
 namespace App\Support\Navigation;
 
 use App\Models\User;
+use App\Services\Entitlements;
 use App\Services\SubscriptionService;
 
 /**
@@ -62,6 +63,9 @@ final class NavMenu
      */
     public static function visible(array $groups, User $user): array
     {
+        // One Entitlements per render: it memoises the company's modules, and
+        // allows() runs once per item.
+        self::$entitlements = app(Entitlements::class);
         $out = [];
 
         foreach ($groups as $group) {
@@ -101,6 +105,13 @@ final class NavMenu
         return $out;
     }
 
+    private static ?Entitlements $entitlements = null;
+
+    private static function entitlements(): Entitlements
+    {
+        return self::$entitlements ??= app(Entitlements::class);
+    }
+
     private static function allows(array $item, User $user): bool
     {
         if (! empty($item['capability']) && ! $user->canDo($item['capability'])) {
@@ -135,9 +146,11 @@ final class NavMenu
             }
         }
 
-        // 'module': a platform-wide switch in config/modules.php — the area is
-        // off for everyone, whatever their plan or role.
-        if (! empty($item['module']) && ! config('modules.'.$item['module'])) {
+        // The plan: an item is shown only when its route's module is on the
+        // company's plan (config/modules.php `routes`, the same map the route
+        // middleware enforces, so a link and its destination cannot disagree).
+        // Platform switches such as the supplier portal answer here too.
+        if (! self::entitlements()->allowsRoute($user->company, $item['route'] ?? null)) {
             return false;
         }
 
@@ -166,7 +179,7 @@ final class NavMenu
                 'items' => [
                     ['route' => 'purchasing.index',           'label' => 'Orders & Requests',  'permission' => 'purchasing.view'],
                     ['route' => 'settings.suppliers',         'label' => 'Suppliers',          'permission' => 'purchasing.suppliers.manage'],
-                    ['route' => 'settings.supplier-mapping',  'label' => 'Product Mapping',    'permission' => 'purchasing.suppliers.manage', 'module' => 'supplier_portal'],
+                    ['route' => 'settings.supplier-mapping',  'label' => 'Product Mapping',    'permission' => 'purchasing.suppliers.manage'],
                     ['route' => 'settings.form-templates',    'label' => 'Form Templates',     'permission' => 'purchasing.suppliers.manage'],
                     ['route' => 'settings.price-alerts',      'label' => 'Price Alerts',       'permission' => 'purchasing.suppliers.manage'],
                     ['route' => 'settings.index', 'query' => 'module=procurement', 'label' => 'Procurement Settings',

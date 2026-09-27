@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Route;
 
 $domain = config('app.domain');
 
-$group = Route::middleware(['web', 'company.subdomain']);
+$group = Route::middleware(['web', 'company.subdomain', 'module']);
 
 if ($domain) {
     $group->domain('{companySlug}.' . $domain)->prefix('staff');

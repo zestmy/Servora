@@ -238,6 +238,40 @@
                             @error('sub_period_end') <p class="text-xs text-danger-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                     </div>
+
+                    {{-- Add-ons (docs/pricing-model.md). Only Basic and Full plans take
+                         them; SubscriptionService::syncAddons refuses the rest and
+                         enforces the two-add-on cap on Basic, so the rules live in
+                         one place and this is only a form. --}}
+                    <fieldset class="border-t border-gray-100 pt-4">
+                        <legend class="text-xs font-semibold uppercase tracking-wide text-gray-600">Add-ons</legend>
+                        <p class="help mt-1">Basic takes at most {{ config('modules.addon_cap_on_basic') }} add-ons; Full includes them. HR and Central Kitchen go on either.</p>
+
+                        <div class="mt-3 space-y-2">
+                            @foreach (config('modules.catalogue') as $key => $module)
+                                @continue(! in_array($module['kind'], ['addon', 'metered'], true))
+                                <div class="flex items-center gap-3" wire:key="addon-{{ $key }}">
+                                    <label class="flex min-w-0 flex-1 items-center gap-2 text-sm text-gray-800">
+                                        <input type="checkbox" wire:model.live="sub_addons.{{ $key }}.on" class="rounded border-gray-300 text-brand-600">
+                                        <span class="truncate">{{ $module['name'] }}</span>
+                                    </label>
+                                    @if ($module['kind'] === 'metered')
+                                        <input type="number" min="{{ $module['min_quantity'] ?? 1 }}" wire:model="sub_addons.{{ $key }}.quantity"
+                                               aria-label="{{ $module['name'] }} {{ $module['unit'] }}s"
+                                               class="input w-20 text-sm" @disabled(empty($sub_addons[$key]['on']))>
+                                        <span class="w-16 text-xs text-gray-600">{{ $module['unit'] }}s</span>
+                                    @endif
+                                    <label class="flex items-center gap-1 text-xs text-gray-600">
+                                        RM
+                                        <input type="number" step="0.01" min="0" wire:model="sub_addons.{{ $key }}.unit_price"
+                                               aria-label="{{ $module['name'] }} price"
+                                               class="input w-20 text-sm" @disabled(empty($sub_addons[$key]['on']))>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                        @error('sub_addons') <p class="error-text mt-2">{{ $message }}</p> @enderror
+                    </fieldset>
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">

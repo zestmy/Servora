@@ -518,6 +518,12 @@ class User extends Authenticatable
     /** Check if user is assigned to any central kitchen of the active company. */
     public function isKitchenUser(): bool
     {
+        // Every way into the kitchen workspace asks this, so a company
+        // without the Central Kitchen module has no kitchen users at all.
+        if ($this->company && ! app(\App\Services\Entitlements::class)->allows($this->company, 'central_kitchen')) {
+            return false;
+        }
+
         return \Illuminate\Support\Facades\DB::table('kitchen_users')
             ->join('central_kitchens', 'central_kitchens.id', '=', 'kitchen_users.kitchen_id')
             ->where('kitchen_users.user_id', $this->id)
@@ -529,7 +535,11 @@ class User extends Authenticatable
     /** Get the active workspace mode from session (falls back to DB default). */
     public function activeWorkspace(): string
     {
-        return session('workspace_mode', $this->workspace_mode ?? 'outlet');
+        $mode = session('workspace_mode', $this->workspace_mode ?? 'outlet');
+
+        // A kitchen workspace left selected after the module lapsed would put
+        // the user on screens they can no longer open.
+        return $mode === 'kitchen' && ! $this->isKitchenUser() ? 'outlet' : $mode;
     }
 
     /**

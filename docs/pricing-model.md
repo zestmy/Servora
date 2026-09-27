@@ -57,3 +57,19 @@ outlets up, so chains would never take Full.
 | 1 outlet, Basic + Labels + HR (15 staff) | 180 + 80 + 45 = RM305 |
 | 3 outlets, Full + HR (60 staff) | 1,200 + 180 = RM1,380 |
 | 5 outlets, Full + Central Kitchen + HR (120 staff) | 2,000 + 300 + 360 = RM2,660 |
+
+## How it is enforced
+
+- `config/modules.php` — the catalogue (names, list prices, kinds) and the map
+  from route name to module. Unmatched routes are core (on Free too).
+- `App\Services\Entitlements` — resolves a company's modules: grandfathered /
+  legacy plan / trialing → everything; no live subscription → Free; otherwise
+  `plans.modules` + current `subscription_addons`.
+- `EnforceModuleAccess` (`module` middleware) on the main app, staff portal,
+  label PWA, training portal and both agent APIs. Managers are redirected to
+  Billing; staff apps get a 403; agents and the kiosk a JSON 403.
+- `SubscriptionService::syncAddons()` — the selling rules (no add-ons on Free,
+  cap of two on Basic, nothing Full already includes, metered minimums).
+  Admin › Subscriptions uses it until checkout sells add-ons.
+- The Free / Basic / Full plans exist but are private (`is_public = false`)
+  until checkout can charge per outlet.

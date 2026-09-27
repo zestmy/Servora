@@ -111,6 +111,7 @@ class AppServiceProvider extends ServiceProvider
         // so a portal tab left open stops working once the module is parked.
         Livewire::addPersistentMiddleware([
             \App\Http\Middleware\EnsureSupplierPortalEnabled::class,
+            \App\Http\Middleware\EnforceModuleAccess::class,
         ]);
 
         // Keep prep-item costs in sync whenever an ingredient's cost changes.

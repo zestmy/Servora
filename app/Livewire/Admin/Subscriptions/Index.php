@@ -7,6 +7,8 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Services\SubscriptionService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -29,6 +31,9 @@ class Index extends Component
     public ?string $sub_trial_ends_at = null;
     public ?string $sub_period_start = null;
     public ?string $sub_period_end = null;
+
+    /** Add-ons, keyed by module: ['on' => bool, 'quantity' => int, 'unit_price' => float]. */
+    public array   $sub_addons = [];
 
     public function updatingSearch(): void
     {
@@ -58,6 +63,12 @@ class Index extends Component
         $this->sub_trial_ends_at = $sub->trial_ends_at?->format('Y-m-d');
         $this->sub_period_start  = $sub->current_period_start?->format('Y-m-d');
         $this->sub_period_end    = $sub->current_period_end?->format('Y-m-d');
+        $this->sub_addons        = $this->blankAddons();
+        foreach ($sub->addons()->current()->get() as $addon) {
+            $this->sub_addons[$addon->module] = [
+                'on' => true, 'quantity' => $addon->quantity, 'unit_price' => (float) $addon->unit_price,
+            ];
+        }
         $this->showModal = true;
     }
 
@@ -99,6 +110,28 @@ class Index extends Component
             'cancelled_at'         => $this->sub_status === Subscription::STATUS_CANCELLED ? now() : null,
         ];
 
+        $addons = collect($this->sub_addons)->filter(fn ($row) => ! empty($row['on']))->all();
+
+        try {
+            $sub = DB::transaction(fn () => $this->persist($data, $addons));
+        } catch (ValidationException $e) {
+            $this->addError('sub_addons', $e->errors()['addons'][0] ?? $e->getMessage());
+            return;
+        }
+
+        $msg = $this->editingId
+            ? "Subscription updated for {$sub->companyName()}."
+            : "Subscription created for {$sub->companyName()}.";
+
+        $this->syncCompanyTrial($sub->fresh());
+
+        $this->closeModal();
+        session()->flash('success', $msg);
+    }
+
+    /** Save the subscription and its add-ons together; a refused add-on rolls both back. */
+    private function persist(array $data, array $addons): Subscription
+    {
         if ($this->editingId) {
             $sub = Subscription::findOrFail($this->editingId);
             // Keep an existing cancelled_at if it was already cancelled
@@ -106,16 +139,22 @@ class Index extends Component
                 $data['cancelled_at'] = $sub->cancelled_at;
             }
             $sub->update($data);
-            $msg = "Subscription updated for {$sub->companyName()}.";
         } else {
             $sub = Subscription::create($data);
-            $msg = "Subscription created for {$sub->companyName()}.";
         }
 
-        $this->syncCompanyTrial($sub->fresh());
+        app(SubscriptionService::class)->syncAddons($sub->fresh('plan'), $addons);
 
-        $this->closeModal();
-        session()->flash('success', $msg);
+        return $sub;
+    }
+
+    /** One row per sellable module, off, at list price. */
+    private function blankAddons(): array
+    {
+        return collect(config('modules.catalogue'))
+            ->filter(fn ($m) => in_array($m['kind'], ['addon', 'metered'], true))
+            ->map(fn ($m) => ['on' => false, 'quantity' => $m['min_quantity'] ?? 1, 'unit_price' => (float) $m['price']])
+            ->all();
     }
 
     public function activateSubscription(int $id): void
@@ -229,6 +268,7 @@ class Index extends Component
         $this->sub_trial_ends_at = null;
         $this->sub_period_start = null;
         $this->sub_period_end = null;
+        $this->sub_addons = $this->blankAddons();
         $this->resetValidation();
     }
 }

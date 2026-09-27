@@ -34,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'clock.kiosk'         => \App\Http\Middleware\KioskAuthenticate::class,
             'print.agent'         => \App\Http\Middleware\PrintAgentAuthenticate::class,
             'pos.agent'           => \App\Http\Middleware\PosAgentAuthenticate::class,
+            // Plan entitlements by route name (config/modules.php). Last in every
+            // group that carries a company, so the company is resolved first.
+            'module'              => \App\Http\Middleware\EnforceModuleAccess::class,
         ]);
 
         /*

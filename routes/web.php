@@ -234,7 +234,7 @@ Route::middleware('auth:affiliate')->prefix('affiliate')->group(function () {
 Route::get('/training/certificates/{id}/pdf', [\App\Http\Controllers\Training\CertificatePdfController::class, 'show'])
     ->name('training.certificates.pdf');
 
-Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription'])->group(function () {
+Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription', 'module'])->group(function () {
     // Onboarding (must be before onboarding middleware)
     Route::get('/onboarding', OnboardingWizard::class)->name('onboarding');
 
