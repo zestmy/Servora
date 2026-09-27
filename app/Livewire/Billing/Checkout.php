@@ -32,9 +32,14 @@ class Checkout extends Component
         }
 
         if ($existing) {
-            // Active subscription — change plan (payment handled on next billing cycle)
-            $subscriptionService->changePlan($existing, $this->selectedPlan);
-            session()->flash('success', "Switched to {$this->selectedPlan->name} plan.");
+            // A paying company changing plan. This used to swap the plan on the
+            // spot and "bill next cycle" — but the next cycle bills whatever
+            // plan the subscription is on, so an upgrade to Enterprise was free
+            // until then. Until checkout can charge the difference, plan
+            // changes go through support (Admin › Subscriptions).
+            if ($existing->plan_id !== $this->selectedPlan->id) {
+                session()->flash('error', 'To change your plan, please contact support and we will switch it for you.');
+            }
             $this->redirect(route('billing.index'), navigate: true);
             return;
         }

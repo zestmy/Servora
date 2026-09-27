@@ -100,9 +100,11 @@ class SubscriptionService
     {
         $subscription = $this->getActiveSubscription($company);
 
-        // Grandfathered — no subscription = unlimited
+        // No live subscription: only a grandfathered company (seeded or created
+        // by an admin) gets everything. A self-signup company whose
+        // subscription expired or was cancelled lands here too, and must not.
         if (!$subscription) {
-            return true;
+            return $company->isGrandfathered();
         }
 
         if (!$subscription->isActive()) {
