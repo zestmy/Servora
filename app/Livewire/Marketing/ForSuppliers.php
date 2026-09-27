@@ -23,6 +23,6 @@ class ForSuppliers extends Component
         ];
 
         return view('livewire.marketing.for-suppliers', compact('stats'))
-            ->layout('layouts.marketing', ['title' => 'For Suppliers']);
+            ->layout('layouts.marketing', ['title' => 'For Suppliers', 'flush' => true]);
     }
 }

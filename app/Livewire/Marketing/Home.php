@@ -24,7 +24,11 @@ class Home extends Component
         // touches every company's price history.
         $tickerItems = app(\App\Services\Marketing\MarketPriceTicker::class)->items();
 
-        return view('livewire.marketing.home', compact('trialDays', 'tickerItems'))
-            ->layout('layouts.marketing', ['title' => 'F&B Management Platform']);
+        // The same rows the pricing page and checkout read, so the teaser on
+        // the home page cannot quote a price checkout will not charge.
+        $plans = Plan::publiclyVisible()->ordered()->get();
+
+        return view('livewire.marketing.home', compact('trialDays', 'tickerItems', 'plans'))
+            ->layout('layouts.marketing', ['title' => 'F&B Management Platform', 'flush' => true]);
     }
 }

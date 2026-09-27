@@ -58,7 +58,7 @@ class MarketingPagesTest extends TestCase
     }
 
     /**
-     * Eleven areas, eleven jump links (the supplier portal's section is parked
+     * Thirteen areas, thirteen jump links (the supplier portal's section is parked
      * with the module; SupplierPortalParkedTest covers it). The strip used to
      * hide the overflow, so
      * a missing entry looked exactly like a scrolled one.
@@ -78,9 +78,26 @@ class MarketingPagesTest extends TestCase
             'Reports and analytics',
             'People, attendance and claims',
             'Training portal',
+            'Outlet audits and compliance',
+            'Assets and smallwares',
             'Multi-outlet, roles and control',
         ] as $title) {
             $response->assertSee($title, escape: false);
         }
+    }
+
+    /**
+     * The pricing page's calculator repeats Billing\PriceCalculator in the
+     * browser. It must be handed the same bands and prices checkout uses, or
+     * the page quotes one figure and checkout charges another.
+     */
+    public function test_the_pricing_calculator_reads_the_checkout_numbers(): void
+    {
+        $html = $this->get('/pricing')->assertOk()->getContent();
+
+        $this->assertStringContainsString('Work out', $html);
+        $this->assertStringContainsString(
+            e(json_encode(\App\Services\Billing\PriceCalculator::VOLUME_BANDS)), $html, 'volume bands'
+        );
     }
 }

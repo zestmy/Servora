@@ -21,13 +21,31 @@
     <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
 
     <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800|space-grotesk:500,600,700|jetbrains-mono:400,500&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     <style>[x-cloak] { display: none !important; }</style>
+
+    {{-- Count a number up when it scrolls into view. Inline and classic
+         (not in the Vite module) because Livewire boots Alpine as soon as its
+         own script tag is parsed, before deferred modules have run. --}}
+    <script>
+        window.mkCount = function (el, to, decimals = 0, ms = 1400) {
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const fmt = (v) => v.toLocaleString('en-MY', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            if (reduce) { el.textContent = fmt(to); return; }
+            const start = performance.now();
+            const tick = (now) => {
+                const t = Math.min(1, (now - start) / ms);
+                el.textContent = fmt(to * (1 - Math.pow(1 - t, 3)));
+                if (t < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        };
+    </script>
 </head>
-<body class="bg-white text-gray-900 antialiased">
+<body class="mk bg-white text-gray-900 antialiased">
 
     {{-- Keyboard users land here first and can jump the nav. --}}
     <a href="#main"
@@ -157,12 +175,19 @@
         </div>
     </header>
 
-    <main id="main">
+    {{-- Pages that end on a dark band pass flush, so it meets the footer.
+         Everything else keeps air above it. --}}
+    <main id="main" @class(["relative isolate", "pb-24" => ! ($flush ?? false)])>
+        {{-- The grid the home page hero sits on, behind every other page's
+             heading too. Pages that paint their own hero cover it. --}}
+        @unless ($flush ?? false)
+            <div aria-hidden="true" class="mk-grid-bg pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"></div>
+        @endunless
         {{ $slot }}
     </main>
 
     {{-- ── Footer ───────────────────────────────────────────────────────── --}}
-    <footer class="mt-24 bg-gray-950 text-gray-400">
+    <footer class="border-t border-white/10 bg-navy-950 text-gray-400">
         <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
 
             @php

@@ -677,6 +677,184 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   MARKETING
+   Scoped to `.mk`, which only layouts/marketing.blade.php puts on <body>, so
+   none of this can leak into the product. Display type is Space Grotesk here
+   (loaded by that layout alone); the product keeps Figtree throughout.
+
+   Every animation below is decorative and loops on its own. Reduced motion
+   (next section) flattens all of them to their end state, and each mock is
+   aria-hidden with the real claim stated in the copy beside it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+    .mk .display-1,
+    .mk .display-2,
+    .mk .display-3,
+    .mk .mk-display {
+        font-family: 'Space Grotesk', 'Figtree', ui-sans-serif, system-ui, sans-serif;
+        font-weight: 600;
+        letter-spacing: -0.035em;
+    }
+    .mk .display-1 { @apply text-[2.6rem] leading-[1.02] sm:text-6xl lg:text-7xl; }
+    .mk .display-2 { @apply text-[2rem] leading-[1.05] sm:text-5xl; }
+    .mk-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    /* Faint square grid, fading out towards the edges. */
+    .mk-grid-bg {
+        background-image:
+            linear-gradient(to right, rgb(15 23 42 / 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgb(15 23 42 / 0.05) 1px, transparent 1px);
+        background-size: 56px 56px;
+        -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 100%);
+        mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 100%);
+    }
+    .mk-grid-bg-dark {
+        background-image:
+            linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+            linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+        background-size: 48px 48px;
+        -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 100%);
+    }
+
+    /* The announcement pill above a headline. */
+    .mk-pill {
+        @apply inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50/80
+               px-3.5 py-1.5 text-[13px] font-medium text-brand-800 shadow-e1;
+    }
+    /* Section kicker: mono caps with a dot. */
+    .mk-kicker {
+        @apply mk-mono inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-brand-700;
+    }
+    .mk-kicker::before {
+        content: '';
+        @apply h-1.5 w-1.5 rounded-full bg-brand-600;
+    }
+    /* The product's own eyebrow, restyled as a kicker on marketing pages
+       (the free tools and downloads use it). */
+    .mk .page-eyebrow {
+        @apply mk-mono inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-brand-700;
+    }
+    .mk .page-eyebrow::before {
+        content: '';
+        @apply h-1.5 w-1.5 rounded-full bg-brand-600;
+    }
+    .mk-kicker-dark { @apply text-brand-300; }
+    .mk-kicker-dark::before { @apply bg-brand-400; }
+
+    /* The accented phrase in a headline, with a highlighter bar drawn in. */
+    .mk-accent { @apply relative whitespace-nowrap text-brand-600; isolation: isolate; }
+    .mk-accent::after {
+        content: '';
+        position: absolute;
+        left: 0; right: 0; bottom: 0.06em;
+        height: 0.16em;
+        border-radius: 999px;
+        background: theme('colors.brand.100');
+        z-index: -1;
+        transform-origin: left;
+        animation: mk-draw 0.9s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .mk-accent-dark { @apply text-brand-300; }
+    .mk-accent-dark::after { background: rgb(69 139 249 / 0.25); }
+
+    .mk-chip {
+        @apply inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5
+               text-[13px] font-medium text-gray-700 shadow-e1;
+    }
+
+    /* A product screenshot built in markup: browser chrome + body. */
+    .mk-window {
+        @apply overflow-hidden rounded-panel border border-gray-200 bg-white shadow-e4;
+    }
+    .mk-window-bar {
+        @apply flex items-center gap-2 border-b border-gray-100 bg-gray-50/80 px-4 py-2.5;
+    }
+    .mk-window-bar > i { @apply block h-2.5 w-2.5 rounded-full bg-gray-300; }
+    .mk-window-bar > i:nth-child(1) { background: #ff5f57; }
+    .mk-window-bar > i:nth-child(2) { background: #febc2e; }
+    .mk-window-bar > i:nth-child(3) { background: #28c840; }
+
+    /* Feature card with a lift on hover. */
+    .mk-card {
+        @apply rounded-surface border border-gray-200 bg-white p-6 shadow-e1
+               transition-[box-shadow,transform,border-color] duration-300;
+    }
+    .mk-card:hover { @apply -translate-y-1 border-brand-200 shadow-e3; }
+
+    .mk-icon-tile {
+        @apply flex h-10 w-10 flex-none items-center justify-center rounded-control
+               border border-brand-100 bg-brand-50 text-brand-700;
+    }
+
+    /* A number that counts up (see mkCount in app.js). */
+    .mk-stat { @apply font-display text-5xl font-semibold tracking-tight text-gray-950 tabular-nums sm:text-6xl; }
+    .mk .mk-stat { font-family: 'Space Grotesk', 'Figtree', sans-serif; letter-spacing: -0.04em; }
+
+    /* Range input restyled to the brand. */
+    .mk-range {
+        @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200;
+        background-image: linear-gradient(theme('colors.brand.600'), theme('colors.brand.600'));
+        background-repeat: no-repeat;
+        background-size: var(--mk-fill, 50%) 100%;
+    }
+    .mk-range::-webkit-slider-thumb {
+        @apply h-6 w-6 appearance-none rounded-full border-[3px] border-brand-600 bg-white shadow-e2;
+    }
+    .mk-range::-moz-range-thumb {
+        @apply h-5 w-5 rounded-full border-[3px] border-brand-600 bg-white shadow-e2;
+    }
+    .mk-range:focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2; }
+
+    /* FAQ row */
+    .mk-faq { @apply border-b border-gray-200; }
+    .mk-faq summary { @apply flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-left text-base font-semibold text-gray-950; }
+    .mk-faq summary::-webkit-details-marker { display: none; }
+    .mk-faq-plus { @apply relative h-5 w-5 flex-none rounded-full text-brand-600 transition-transform duration-300; }
+    .mk-faq-plus::before, .mk-faq-plus::after {
+        content: ''; position: absolute; left: 50%; top: 50%;
+        width: 12px; height: 2px; margin: -1px 0 0 -6px; border-radius: 2px; background: currentColor;
+    }
+    .mk-faq-plus::after { transform: rotate(90deg); transition: transform 0.3s; }
+    .mk-faq[open] .mk-faq-plus::after { transform: rotate(0deg); }
+    .mk-faq[open] .mk-faq-plus { transform: rotate(180deg); }
+
+    /* ── Motion ─────────────────────────────────────────────────────────── */
+    .mk-float    { animation: mk-float 6s ease-in-out infinite; }
+    .mk-float-2  { animation: mk-float 7s 1.2s ease-in-out infinite; }
+    .mk-scan     { animation: mk-scan 2.8s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+    .mk-grow     { transform-origin: bottom; animation: mk-grow 1.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .mk-blink    { animation: mk-blink 1s steps(1) infinite; }
+    .mk-ping     { animation: mk-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+    .mk-dash     { stroke-dasharray: 4 6; animation: mk-dash 1.2s linear infinite; }
+    .mk-shimmer  {
+        background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.6) 50%, transparent 80%);
+        background-size: 200% 100%;
+        animation: mk-shimmer 2.4s linear infinite;
+    }
+    .mk-in       { animation: mk-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .mk-pop      { animation: mk-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+    .mk-travel   { animation: mk-travel 5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+    .mk-print    { animation: mk-print 4s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+    .mk-spin-slow{ animation: mk-spin 18s linear infinite; }
+}
+
+@keyframes mk-draw    { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes mk-float   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes mk-scan    { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+@keyframes mk-grow    { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes mk-blink   { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@keyframes mk-ping    { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes mk-dash    { to { stroke-dashoffset: -20; } }
+@keyframes mk-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes mk-in      { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes mk-pop     { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+@keyframes mk-travel  { 0% { left: 0%; } 100% { left: 100%; } }
+@keyframes mk-print   { 0% { transform: translateY(-100%); } 30%, 92% { transform: translateY(0); } 100% { transform: translateY(0); opacity: 0; } }
+
+@keyframes mk-spin    { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
    REDUCED MOTION
    Non-negotiable. Every entrance, marquee, shimmer and hover lift collapses
    to a static end state — nothing is left mid-transform or invisible.

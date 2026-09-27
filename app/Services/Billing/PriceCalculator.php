@@ -19,7 +19,8 @@ class PriceCalculator
 {
     public const ENTERPRISE_FROM = 20;
 
-    private const VOLUME_BANDS = [
+    // Public so the pricing page's calculator reads the same bands checkout charges.
+    public const VOLUME_BANDS = [
         // [first outlet, last outlet, discount]
         [6, 10, 0.10],
         [11, self::ENTERPRISE_FROM - 1, 0.15],

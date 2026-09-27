@@ -14,6 +14,6 @@ class Pricing extends Component
         $plans = Plan::publiclyVisible()->ordered()->get();
 
         return view('livewire.marketing.pricing', compact('plans'))
-            ->layout('layouts.marketing', ['title' => 'Pricing']);
+            ->layout('layouts.marketing', ['title' => 'Pricing', 'flush' => true]);
     }
 }

@@ -14,6 +14,6 @@ class ReferralProgram extends Component
         $plans = Plan::publiclyVisible()->ordered()->get();
 
         return view('livewire.marketing.referral-program', compact('programs', 'plans'))
-            ->layout('layouts.marketing', ['title' => 'Referral Program']);
+            ->layout('layouts.marketing', ['title' => 'Referral Program', 'flush' => true]);
     }
 }

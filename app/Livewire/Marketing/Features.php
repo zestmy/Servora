@@ -12,6 +12,6 @@ class Features extends Component
         $trialDays = Plan::active()->ordered()->value('trial_days') ?? 30;
 
         return view('livewire.marketing.features', compact('trialDays'))
-            ->layout('layouts.marketing', ['title' => 'Features']);
+            ->layout('layouts.marketing', ['title' => 'Features', 'flush' => true]);
     }
 }
