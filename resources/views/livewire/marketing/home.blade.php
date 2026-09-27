@@ -80,7 +80,7 @@
             <div class="mx-auto max-w-4xl text-center">
                 <a href="{{ route('pricing') }}" class="mk-pill mk-in transition-colors hover:border-brand-300">
                     <x-icon name="sparkles" size="h-4 w-4" />
-                    New: <span class="hidden sm:inline">per-outlet plans, and</span> Free for one outlet, forever
+                    <span>New: <span class="hidden sm:inline">per-outlet plans, and </span>Free for one outlet, forever</span>
                     <x-icon name="arrow-right" size="h-3.5 w-3.5" />
                 </a>
 
