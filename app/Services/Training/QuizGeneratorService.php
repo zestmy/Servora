@@ -39,7 +39,7 @@ class QuizGeneratorService
      * note. Recorded on the quiz as `ai_model` so an author can tell which
      * questions came from which generation.
      */
-    public const MODEL = 'anthropic/claude-sonnet-4';
+    public const MODEL = \App\Support\AiModels::SONNET; // AiModels 'quiz'
 
     public const MAX_QUESTIONS = 30;
 

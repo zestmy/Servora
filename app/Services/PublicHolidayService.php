@@ -57,7 +57,7 @@ class PublicHolidayService
                 ->post('https://openrouter.ai/api/v1/chat/completions', [
                     // Fast, capable default model (mirrors AiAnalyticsService) — a
                     // slow reasoning model would risk timing the request out.
-                    'model'      => 'anthropic/claude-sonnet-4',
+                    'model'      => \App\Support\AiModels::for('holidays'),
                     'max_tokens' => 4096,
                     'messages'   => [
                         ['role' => 'system', 'content' => $system],

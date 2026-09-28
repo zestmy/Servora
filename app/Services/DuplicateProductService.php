@@ -42,7 +42,7 @@ class DuplicateProductService
     /** Skip ultra-common tokens (e.g. "chicken") that would explode the candidate set. */
     private const MAX_TOKEN_BUCKET = 400;
 
-    private const MODEL = 'anthropic/claude-sonnet-4';
+    private const MODEL = \App\Support\AiModels::SONNET; // AiModels 'duplicates'
 
     /**
      * Scan a company's products for likely duplicates.

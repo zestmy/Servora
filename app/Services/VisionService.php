@@ -10,11 +10,12 @@ use App\Support\ExecutionTime;
 class VisionService
 {
     private string $apiKey;
-    private string $model = 'anthropic/claude-sonnet-4';
+    private string $model;
     private string $endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
     public function __construct()
     {
+        $this->model = \App\Support\AiModels::for('vision');
         $this->apiKey = AppSetting::get('openrouter_api_key') ?? '';
     }
 

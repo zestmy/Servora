@@ -70,7 +70,7 @@
 
             {{-- Model Selection --}}
             <div class="mb-4" x-data="{ custom: @js(!in_array($openrouter_model, ['', 'anthropic/claude-sonnet-4', 'anthropic/claude-haiku-3.5', 'google/gemini-2.5-flash-preview', 'google/gemini-2.5-pro-preview', 'openai/gpt-4.1', 'openai/gpt-4.1-mini', 'meta-llama/llama-4-maverick', 'deepseek/deepseek-r1'])) }">
-                <x-input-label for="openrouter_model" value="Model" />
+                <x-input-label for="openrouter_model" value="Model for adjustable features" />
                 <select x-show="!custom"
                         x-on:change="if ($event.target.value === '__custom__') { custom = true; $wire.set('openrouter_model', ''); $nextTick(() => $refs.customModel.focus()); }"
                         wire:model="openrouter_model"
@@ -109,6 +109,7 @@
                 </div>
                 <x-input-error :messages="$errors->get('openrouter_model')" class="mt-1" />
                 <p class="mt-1.5 text-xs text-gray-600">
+                    Used only by the features marked <span class="font-medium text-gray-900">Follows this setting</span> below; the rest use a fixed model.
                     Browse all models at <a href="https://openrouter.ai/models" target="_blank" class="text-brand-600 hover:underline">openrouter.ai/models</a>. Leave blank for default.
                 </p>
             </div>
@@ -131,6 +132,72 @@
                     No API key set — AI features will not work
                 </div>
             @endif
+
+            {{-- Which model each feature sends. Read from App\Support\AiModels,
+                 the same table the features themselves read, so this list
+                 cannot drift from what is actually used. --}}
+            @php
+                $configured = \App\Support\AiModels::configured();
+                $modelName = fn (string $id) => [
+                    'anthropic/claude-sonnet-4' => 'Claude Sonnet 4',
+                    'anthropic/claude-haiku-3.5' => 'Claude Haiku 3.5',
+                    'google/gemini-2.5-flash' => 'Gemini 2.5 Flash',
+                    'google/gemini-2.5-flash-preview' => 'Gemini 2.5 Flash',
+                    'google/gemini-2.5-pro-preview' => 'Gemini 2.5 Pro',
+                    'openai/gpt-4.1' => 'GPT-4.1',
+                    'openai/gpt-4.1-mini' => 'GPT-4.1 Mini',
+                    'meta-llama/llama-4-maverick' => 'Llama 4 Maverick',
+                    'deepseek/deepseek-r1' => 'DeepSeek R1',
+                ][$id] ?? $id;
+                // Reasoning models think at length before answering: slow, and
+                // DeepSeek R1 has answered with empty content on production.
+                $reasoning = (bool) preg_match('/deepseek-r1|:thinking|\bo[134](-mini)?\b|reasoning/i', $configured);
+            @endphp
+            <div class="mt-8 border-t border-gray-100 pt-6">
+                <h4 class="text-sm font-semibold text-gray-900">Which model each feature uses</h4>
+                <p class="mt-1 text-xs text-gray-600">
+                    Most features use a fixed model chosen for the job. The ones that follow this setting are using
+                    <span class="font-semibold text-gray-900">{{ $modelName($configured) }}</span>{{ $configured === \App\Support\AiModels::FALLBACK && ! \App\Models\AppSetting::get('openrouter_model') ? ' (the default)' : '' }}.
+                </p>
+
+                @if ($reasoning)
+                    <p class="alert-warning mt-3 text-xs">
+                        {{ $modelName($configured) }} is a reasoning model: it thinks at length before answering, so it is slow,
+                        and it has returned empty answers here. The features that follow this setting will be slow or fail
+                        with it — Claude Sonnet 4 is the safer choice.
+                    </p>
+                @endif
+
+                <div class="mt-3 overflow-hidden rounded-control border border-gray-200">
+                    <table class="table-surface min-w-full text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left">Feature</th>
+                                <th class="px-3 py-2 text-left">Model</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (\App\Support\AiModels::FEATURES as $key => [$feature, $where, $model, $why])
+                                @php $follows = $model === 'configured'; @endphp
+                                <tr wire:key="ai-model-{{ $key }}">
+                                    <td class="px-3 py-2 align-top">
+                                        <span class="font-medium text-gray-900">{{ $feature }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $where }}</span>
+                                    </td>
+                                    <td class="px-3 py-2 align-top">
+                                        <span class="font-medium {{ $follows && $reasoning ? 'text-warning-700' : 'text-gray-900' }}">{{ $modelName($follows ? $configured : $model) }}</span>
+                                        @if ($follows)
+                                            <span class="badge-brand ml-1">Follows this setting</span>
+                                        @else
+                                            <span class="block text-xs text-gray-500">Fixed · {{ $why }}</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         {{-- EngineMailer --}}

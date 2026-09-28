@@ -28,7 +28,7 @@ class LandingTranslator
      * as "Could not read the AI response". Sonnet did the longest batch (the
      * FAQ answers) in 8 s. VisionService pins its model for the same reason.
      */
-    private const MODEL = 'anthropic/claude-sonnet-4';
+    private const MODEL = \App\Support\AiModels::SONNET; // AiModels 'translation'
 
     /** Keys per request: small enough to finish well inside the timeout. */
     private const CHUNK = TranslateLandingPage::BATCH;

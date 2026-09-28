@@ -146,7 +146,7 @@ class Import extends Component
         }
 
         // PDF extraction requires a vision-capable model
-        $model = 'google/gemini-2.5-flash';
+        $model = \App\Support\AiModels::for('ingredient_pdf');
 
         $mimeType = mime_content_type($path) ?: 'application/pdf';
         $base64   = base64_encode(file_get_contents($path));
@@ -398,7 +398,7 @@ PROMPT;
             return;
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        $model = \App\Support\AiModels::for('ingredient_mapping');
 
         $sampleRows = array_slice($this->fileDataRows, 0, 3);
         $sampleText = '';
@@ -796,7 +796,7 @@ PROMPT;
         $apiKey = AppSetting::get('openrouter_api_key');
         if (! $apiKey) return; // No AI available — everything stays as ingredient
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        $model = \App\Support\AiModels::for('prep_detection');
 
         // Build numbered list of item names
         $namesList = '';

@@ -79,7 +79,7 @@ class ReportInsightsService
             ];
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        $model = \App\Support\AiModels::for('report_insights');
 
         try {
             $response = Http::timeout(60)

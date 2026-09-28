@@ -304,7 +304,7 @@ PROMPT;
 
     private function extractRecipesFromText(string $text, string $apiKey): array
     {
-        $model = 'google/gemini-2.5-flash';
+        $model = \App\Support\AiModels::for('recipe_extract');
 
         $userMessage = "Extract all recipes from the following PDF text. The content below is raw extracted text from one or more pages.\n\n"
             . "--- PDF TEXT START ---\n"
@@ -333,7 +333,7 @@ PROMPT;
 
     private function extractRecipesFromPdfFile(string $path, string $apiKey): array
     {
-        $model = 'google/gemini-2.5-flash';
+        $model = \App\Support\AiModels::for('recipe_extract');
 
         $mimeType = mime_content_type($path) ?: 'application/pdf';
         $base64   = base64_encode(file_get_contents($path));
@@ -452,7 +452,7 @@ PROMPT;
             return;
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        $model = \App\Support\AiModels::for('recipe_mapping');
 
         $sampleRows = array_slice($this->fileDataRows, 0, 5);
         $sampleText = '';

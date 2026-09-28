@@ -79,7 +79,7 @@ PROMPT;
 
     private function callOpenRouter(string $apiKey, string $prompt): array
     {
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        $model = \App\Support\AiModels::for('pos_departments');
 
         $response = Http::timeout(30)
             ->withHeaders([

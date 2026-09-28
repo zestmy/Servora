@@ -140,7 +140,7 @@ PROMPT;
                     'X-Title'       => config('app.name', 'Servora'),
                 ])
                 ->post('https://openrouter.ai/api/v1/chat/completions', [
-                    'model'      => 'google/gemini-2.5-flash',
+                    'model'      => \App\Support\AiModels::for('document_scan'),
                     'max_tokens' => 16384,
                     'messages'   => [
                         ['role' => 'user', 'content' => [
