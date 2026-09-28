@@ -21,6 +21,15 @@ class LandingTranslator
 {
     private const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
+    /**
+     * Fixed, NOT the admin's Settings › API Keys model. Production has that
+     * set to deepseek/deepseek-r1, a reasoning model: it took 42 s for 15
+     * short strings and then answered with empty content, which the admin saw
+     * as "Could not read the AI response". Sonnet did the longest batch (the
+     * FAQ answers) in 8 s. VisionService pins its model for the same reason.
+     */
+    private const MODEL = 'anthropic/claude-sonnet-4';
+
     /** Keys per request: small enough to finish well inside the timeout. */
     private const CHUNK = TranslateLandingPage::BATCH;
 
@@ -35,7 +44,7 @@ class LandingTranslator
             throw new \RuntimeException('No OpenRouter API key is set. Add one under Settings › API Keys.');
         }
 
-        $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
+        $model = self::MODEL;
         $previous = ExecutionTime::raise(90);
         $out = [];
 
@@ -95,7 +104,13 @@ class LandingTranslator
             $data = json_decode($m[0], true);
         }
         if (! is_array($data)) {
-            throw new \RuntimeException('Could not read the AI response. Please try again.');
+            Log::warning('Landing page translation: unreadable response', [
+                'finish_reason' => $response->json('choices.0.finish_reason'),
+                'raw'           => mb_substr($raw, 0, 500),
+            ]);
+            throw new \RuntimeException($raw === ''
+                ? 'The AI returned an empty answer. Please try again.'
+                : 'Could not read the AI response. Please try again.');
         }
 
         // Only keys we asked for, only strings, and only where every
