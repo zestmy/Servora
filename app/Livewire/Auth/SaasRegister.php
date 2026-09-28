@@ -76,6 +76,7 @@ class SaasRegister extends Component
             'password'      => $this->password,
             'plan_id'       => $this->plan_id,
             'billing_cycle' => $this->billing_cycle,
+            'billing_country' => app(\App\Services\GeoIp::class)->country(request()),
         ]);
 
         // Apply coupon after company/subscription is created

@@ -16,7 +16,7 @@ class Subscription extends Model
     protected $fillable = [
         'company_id', 'plan_id', 'status', 'billing_cycle',
         'trial_ends_at', 'current_period_start', 'current_period_end', 'cancelled_at',
-        'outlet_quantity', 'amount', 'pending_change',
+        'outlet_quantity', 'currency', 'amount', 'pending_change',
     ];
 
     protected $casts = [

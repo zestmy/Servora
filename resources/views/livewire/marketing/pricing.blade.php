@@ -4,6 +4,10 @@
     // checkout charges. The calculator below repeats Billing\PriceCalculator's
     // arithmetic in the browser and reads its volume bands, so a change there
     // lands here too; the figure checkout shows is still the one that counts.
+    //
+    // Every price is in the visitor's currency ($book, Billing\PriceBook):
+    // MYR for Malaysia, otherwise what Admin › Currencies sets for their
+    // country. Whatever it is, CHIP-IN charges the ringgit equivalent.
     $trialDays = $plans->firstWhere('slug', 'full')?->trial_days ?? 14;
     $catalogue = config('modules.catalogue');
     $addonNames = collect($catalogue)->where('kind', 'addon')->pluck('name');
@@ -44,13 +48,19 @@
         'pos_sync' => 'currency', 'ai_insights' => 'sparkles', 'hr' => 'users', 'central_kitchen' => 'clipboard',
     ];
 
-    $suite = $plans->whereIn('slug', ['basic', 'full'])->mapWithKeys(fn ($p) => [$p->slug => (float) $p->price_monthly]);
+    $suiteMyr = $plans->whereIn('slug', ['basic', 'full'])->mapWithKeys(fn ($p) => [$p->slug => (float) $p->price_monthly]);
+    if ($suiteMyr->isEmpty()) {
+        $suiteMyr = collect(config('modules.suite_prices'));
+    }
+    $price = fn (string $key) => $book->module($key, (float) $catalogue[$key]['price']);
     $calc = [
-        'suite'  => $suite->isNotEmpty() ? $suite : config('modules.suite_prices'),
+        'suite'  => $suiteMyr->map(fn ($myr, $slug) => $book->suite($slug, (float) $myr)),
         'addons' => collect($catalogue)->filter(fn ($m) => $m['kind'] === 'addon')
-            ->map(fn ($m, $k) => ['key' => $k, 'name' => $m['name'], 'price' => $m['price']])->values(),
-        'hr'     => $catalogue['hr'],
-        'ck'     => $catalogue['central_kitchen'],
+            ->map(fn ($m, $k) => ['key' => $k, 'name' => $m['name'], 'price' => $price($k)])->values(),
+        'hr'     => array_merge($catalogue['hr'], ['price' => $price('hr')]),
+        'ck'     => array_merge($catalogue['central_kitchen'], ['price' => $price('central_kitchen')]),
+        'symbol' => $book->symbol(),
+        'decimals' => $book->isMyr() || $book->step() >= 1 ? 0 : 2,
         'bands'  => \App\Services\Billing\PriceCalculator::VOLUME_BANDS,
         'cap'    => $cap,
         'enterprise' => $enterpriseFrom,
@@ -90,6 +100,16 @@
                     </button>
                 @endforeach
             </div>
+
+            @unless ($book->isMyr())
+                <p class="mk-in mx-auto mt-6 flex max-w-xl items-start justify-center gap-2 text-left text-sm text-gray-600" style="animation-delay:.3s">
+                    <x-icon name="info" size="h-4 w-4" class="mt-0.5 flex-none text-brand-600" />
+                    <span>
+                        Prices in {{ $book->name() }} ({{ $book->currency }}){{ $country ? ' for '.\App\Support\Countries::name($country) : '' }}.
+                        You pay the equivalent in Malaysian ringgit, at Bank Negara Malaysia's exchange rate on the day.
+                    </span>
+                </p>
+            @endunless
         </div>
     </section>
 
@@ -110,7 +130,7 @@
                     @php
                         $isFull = $plan->slug === 'full';
                         $isFree = (float) $plan->price_monthly === 0.0;
-                        $monthly = (float) $plan->price_monthly;
+                        $monthly = $isFree ? 0.0 : (float) ($book->suite((string) $plan->slug, (float) $plan->price_monthly) ?? $plan->price_monthly);
                     @endphp
 
                     <div data-reveal-index="{{ $i }}"
@@ -133,7 +153,7 @@
                         <p class="mt-5 flex items-baseline gap-1.5">
                             {{-- Yearly is ten months' price for twelve. --}}
                             <span @class(['mk-display text-5xl font-semibold tracking-tight tabular-nums', 'text-white' => $isFull, 'text-gray-950' => ! $isFull])
-                                  x-text="'RM' + Math.round(cycle === 'yearly' ? {{ $monthly }} * 10 / 12 : {{ $monthly }}).toLocaleString('en-MY')">RM{{ number_format($monthly, 0) }}</span>
+                                  x-text="@js($book->symbol()) + Math.round(cycle === 'yearly' ? {{ $monthly }} * 10 / 12 : {{ $monthly }}).toLocaleString('en-MY')">{{ $book->format($monthly, 0) }}</span>
                             @unless ($isFree)
                                 <span @class(['text-sm', 'text-gray-300' => $isFull, 'text-gray-600' => ! $isFull])>/ outlet / month</span>
                             @endunless
@@ -142,7 +162,7 @@
                             @if ($isFree)
                                 Forever
                             @else
-                                <span x-show="cycle === 'yearly'" x-cloak>Billed RM{{ number_format($monthly * 10, 0) }} per outlet yearly</span>
+                                <span x-show="cycle === 'yearly'" x-cloak>Billed {{ $book->format($monthly * 10) }} per outlet yearly</span>
                             @endif
                         </p>
 
@@ -209,7 +229,7 @@
                     if (this.picked.length >= this.c.cap) return;
                     this.picked = [...this.picked, k];
                 },
-                rm(v) { return 'RM' + Math.round(v).toLocaleString('en-MY') },
+                rm(v) { return this.c.symbol + Number(v).toLocaleString('en-MY', { minimumFractionDigits: this.c.decimals, maximumFractionDigits: this.c.decimals }) },
                 fill(v, min, max) { return ((v - min) / (max - min) * 100) + '%' },
              }">
             <div class="mx-auto max-w-3xl text-center">
@@ -230,7 +250,7 @@
                                         class="min-h-[44px] rounded-surface border px-4 py-3 text-left transition-all"
                                         :class="suite === '{{ $slug }}' ? 'border-brand-400 bg-brand-600/20 ring-1 ring-brand-400' : 'border-white/10 hover:border-white/25'">
                                     <span class="block text-sm font-semibold text-white">{{ $name }}</span>
-                                    <span class="block text-xs text-gray-400">RM{{ number_format($calc['suite'][$slug] ?? 0, 0) }} / outlet / month</span>
+                                    <span class="block text-xs text-gray-400">{{ $book->format((float) ($calc['suite'][$slug] ?? 0)) }} / outlet / month</span>
                                 </button>
                             @endforeach
                         </div>
@@ -268,7 +288,7 @@
                                         <x-icon name="check" size="h-3 w-3" stroke="3" x-show="suite === 'full' || picked.includes('{{ $a['key'] }}')" />
                                     </span>
                                     <span class="min-w-0 flex-1 text-sm text-white">{{ $a['name'] }}</span>
-                                    <span class="text-xs tabular-nums text-gray-400">RM{{ $a['price'] }}</span>
+                                    <span class="text-xs tabular-nums text-gray-400">{{ $book->format((float) $a['price']) }}</span>
                                 </button>
                             @endforeach
                         </div>
@@ -283,7 +303,7 @@
                             </div>
                             <input id="mk-staff" type="range" min="0" max="200" step="5" x-model.number="staff"
                                    class="mk-range mt-3 bg-white/15" :style="`--mk-fill:${fill(staff, 0, 200)}`">
-                            <p class="mt-2 text-[11px] text-gray-400">RM{{ $calc['hr']['price'] }} per employee, minimum {{ $calc['hr']['min_quantity'] }}</p>
+                            <p class="mt-2 text-[11px] text-gray-400">{{ $book->format((float) $calc['hr']['price']) }} per employee, minimum {{ $calc['hr']['min_quantity'] }}</p>
                         </div>
                         <div>
                             <p class="text-sm font-medium text-gray-300">Central kitchens</p>
@@ -292,7 +312,7 @@
                                 <span class="mk-display w-8 text-center text-2xl font-semibold tabular-nums text-white" x-text="kitchens">0</span>
                                 <button type="button" class="icon-btn border border-white/15 text-white hover:bg-white/10" @click="kitchens = Math.min(5, kitchens + 1)" aria-label="One more kitchen">+</button>
                             </div>
-                            <p class="mt-2 text-[11px] text-gray-400">RM{{ $calc['ck']['price'] }} per kitchen, on either suite</p>
+                            <p class="mt-2 text-[11px] text-gray-400">{{ $book->format((float) $calc['ck']['price']) }} per kitchen, on either suite</p>
                         </div>
                     </div>
                 </div>
@@ -317,7 +337,7 @@
 
                             <dl class="mt-6 space-y-2.5 border-t border-gray-200 pt-5 text-sm">
                                 <div class="flex justify-between gap-3">
-                                    <dt class="text-gray-600"><span x-text="suite === 'full' ? 'Full' : 'Basic'"></span> suite · <span x-text="outlets"></span> × RM<span x-text="unit"></span></dt>
+                                    <dt class="text-gray-600"><span x-text="suite === 'full' ? 'Full' : 'Basic'"></span> suite · <span x-text="outlets"></span> × <span x-text="rm(unit)"></span></dt>
                                     <dd class="font-medium tabular-nums" x-text="rm(suiteTotal)"></dd>
                                 </div>
                                 <div class="flex justify-between gap-3 text-success-700" x-show="discount > 0">
@@ -348,12 +368,14 @@
 
                             <p class="mt-4 rounded-control bg-brand-50 px-3 py-2.5 text-xs leading-relaxed text-brand-800"
                                x-show="suite === 'basic' && picked.length >= c.cap">
-                                Want a third add-on? Full includes all six for RM<span x-text="c.suite.full - c.suite.basic"></span> more per outlet.
+                                Want a third add-on? Full includes all six for <span x-text="rm(c.suite.full - c.suite.basic)"></span> more per outlet.
                             </p>
 
                             <div class="flex-1"></div>
                             <a href="{{ route('saas.register') }}" class="btn-primary btn-lg mt-8 w-full">Try it free for {{ $trialDays }} days</a>
-                            <p class="mt-3 text-center text-[11px] text-gray-500">Checkout shows the exact figure before you pay.</p>
+                            <p class="mt-3 text-center text-[11px] text-gray-500">
+                                Checkout shows the exact figure before you pay{{ $book->isMyr() ? '' : ', and the ringgit it comes to at Bank Negara\'s rate' }}.
+                            </p>
                         </div>
                     </template>
                 </div>
@@ -384,7 +406,7 @@
                         <p class="mt-4 text-sm font-semibold text-gray-950">{{ $m['name'] }}</p>
                         <p class="mt-1 flex-1 text-xs leading-relaxed text-gray-600">{{ $addonBlurbs[$key] ?? '' }}</p>
                         <p class="mt-4 tabular text-xl font-bold text-gray-950">
-                            RM{{ $m['price'] }}
+                            {{ $book->format((float) $price($key)) }}
                             <span class="text-xs font-normal text-gray-600">/ {{ $m['kind'] === 'metered' ? $m['unit'].' / ' : '' }}month</span>
                         </p>
                         @if (($m['min_quantity'] ?? 1) > 1)

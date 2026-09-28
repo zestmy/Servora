@@ -13,7 +13,7 @@ class Payment extends Model
 
     protected $fillable = [
         'company_id', 'subscription_id', 'chip_payment_id', 'chip_purchase_id',
-        'amount', 'currency', 'status', 'payment_method', 'paid_at', 'metadata', 'checkout',
+        'amount', 'currency', 'status', 'payment_method', 'paid_at', 'metadata', 'checkout', 'fx',
     ];
 
     protected $casts = [
@@ -23,6 +23,8 @@ class Payment extends Model
         // What this payment buys (Billing\CheckoutService). metadata is
         // overwritten with CHIP's payload on completion; this never is.
         'checkout' => 'array',
+        // Priced in another currency: that price and the BNM rate used (Billing\Fx::toArray).
+        'fx'       => 'array',
     ];
 
     public const STATUS_PENDING   = 'pending';

@@ -686,6 +686,9 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription', 
         Route::get('/announcements', AdminAnnouncements::class)->name('admin.announcements');
         Route::get('/pages', AdminPages::class)->name('admin.pages');
         Route::get('/coupons', \App\Livewire\Admin\Coupons::class)->name('admin.coupons');
+        Route::get('/currencies', \App\Livewire\Admin\Currencies::class)->name('admin.currencies');
+        Route::get('/landing-pages', \App\Livewire\Admin\LandingPages::class)->name('admin.landing-pages');
+        Route::get('/landing-pages/{id}/edit', \App\Livewire\Admin\LandingPageForm::class)->name('admin.landing-pages.edit');
 
         // Platform billing. `admin.invoices.*` is the SUBSCRIPTION ledger —
         // Servora billing its tenants. `purchasing.invoices.*` is a tenant
@@ -717,3 +720,11 @@ Route::post('/impersonation/stop', [\App\Http\Controllers\ImpersonationControlle
     ->name('impersonation.stop');
 
 require __DIR__ . '/auth.php';
+
+// Country landing pages: the home page in a local language, at /id, /th,
+// /zh-sg … (App\Models\LandingPage, Admin › Country Pages). Registered LAST
+// and limited to language-code shapes, so it can never shadow a real page;
+// Admin › Country Pages refuses a slug that an existing route already uses.
+Route::get('/{landing}', MarketingHome::class)
+    ->where('landing', '[a-z]{2}(?:-[a-z]{2,4})?')
+    ->name('marketing.landing');

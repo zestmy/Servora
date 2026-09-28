@@ -1,5 +1,12 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
+@php
+    // A country landing page (App\Models\LandingPage) passes its language
+    // and its copy; the nav and footer labels read from it, English otherwise.
+    $landing ??= null;
+    $copy ??= null;
+    $nav = fn (string $key, string $english) => $copy[$key] ?? $english;
+@endphp
+<html lang="{{ $landing?->locale ?? str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +24,15 @@
     <meta property="og:image" content="{{ brand_asset('images/servora-logo-black.png') }}">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="{{ url()->current() }}">
+    @if (request()->routeIs('marketing.home', 'marketing.landing'))
+        {{-- The home page and its translations point at each other, so a
+             search engine shows each country its own language. --}}
+        <link rel="alternate" hreflang="en" href="{{ route('marketing.home', ['lang' => 'en']) }}">
+        <link rel="alternate" hreflang="x-default" href="{{ route('marketing.home') }}">
+        @foreach (\App\Models\LandingPage::published()->get(['slug', 'locale']) as $alt)
+            <link rel="alternate" hreflang="{{ $alt->locale }}" href="{{ route('marketing.landing', $alt->slug) }}">
+        @endforeach
+    @endif
 
     <link rel="icon" type="image/png" href="{{ brand_asset('favicon.png') }}">
 
@@ -63,19 +79,19 @@
         // both key off them, so the one-line fix is the breakpoint and the
         // type scale, not the wording.
         $navLinks = [
-            ['route' => 'features',         'label' => 'Features'],
-            ['route' => 'pricing',          'label' => 'Pricing'],
+            ['route' => 'features',         'label' => $nav('nav.features', 'Features')],
+            ['route' => 'pricing',          'label' => $nav('nav.pricing', 'Pricing')],
             ['route' => 'marketplace',      'label' => 'Marketplace',   'module' => 'supplier_portal'],
             // Third, not last: it is the only item here somebody can use
             // without deciding anything first, and the nav is read left to
             // right until something looks free.
-            ['route' => 'tools.index',      'label' => 'Free Tools'],
+            ['route' => 'tools.index',      'label' => $nav('nav.tools', 'Free Tools')],
             ['route' => 'for-suppliers',    'label' => 'For Suppliers', 'module' => 'supplier_portal'],
             // The manual. Public, and linked from the marketing nav for the
             // same reason it is public: most of what it answers is asked
             // before anyone has an account.
-            ['route' => 'help.index',       'label' => 'Help'],
-            ['route' => 'referral.program', 'label' => 'Refer & Earn'],
+            ['route' => 'help.index',       'label' => $nav('nav.help', 'Help')],
+            ['route' => 'referral.program', 'label' => $nav('nav.refer', 'Refer & Earn')],
         ];
 
         // 'module': a platform switch in config/modules.php. A parked module's
@@ -121,12 +137,18 @@
             </div>
 
             <div class="hidden items-center gap-3 lg:flex">
+                @if ($landing)
+                    <a href="{{ route('marketing.home', ['lang' => 'en']) }}" hreflang="en"
+                       class="text-[13px] font-medium text-gray-600 transition-colors hover:text-gray-900">
+                        {{ $nav('nav.english', 'View in English') }}
+                    </a>
+                @endif
                 <a href="{{ route('login') }}"
                    class="text-[13px] font-medium text-gray-600 transition-colors hover:text-gray-900">
-                    Log In
+                    {{ $nav('nav.login', 'Log In') }}
                 </a>
                 <a href="{{ route('saas.register') }}" class="btn-primary btn-sm">
-                    Start Free Trial
+                    {{ $nav('nav.cta', 'Start Free Trial') }}
                 </a>
             </div>
 
@@ -163,13 +185,19 @@
                             {{ $hp->title }}
                         </a>
                     @endforeach
+                    @if ($landing)
+                        <a href="{{ route('marketing.home', ['lang' => 'en']) }}" hreflang="en"
+                           class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
+                            {{ $nav('nav.english', 'View in English') }}
+                        </a>
+                    @endif
                     <a href="{{ route('login') }}"
                        class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
-                        Log In
+                        {{ $nav('nav.login', 'Log In') }}
                     </a>
                 </div>
                 <a href="{{ route('saas.register') }}" class="btn-primary mt-4 w-full">
-                    Start Free Trial
+                    {{ $nav('nav.cta', 'Start Free Trial') }}
                 </a>
             </div>
         </div>
@@ -239,8 +267,7 @@
                 <div class="max-w-xs md:col-span-2 lg:col-span-1">
                     <img src="{{ brand_asset('images/servora-logo-white.png') }}" alt="Servora" class="h-8 w-auto">
                     <p class="mt-4 text-sm leading-relaxed">
-                        Costing, purchasing, inventory and training for F&amp;B operators who need to know
-                        their numbers before month end.
+                        {{ $nav('nav.tagline', 'Costing, purchasing, inventory and training for F&B operators who need to know their numbers before month end.') }}
                     </p>
                     <a href="{{ route('saas.register') }}"
                        class="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-300 transition-colors hover:text-brand-200">

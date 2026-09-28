@@ -43,6 +43,7 @@ class ChipInService
         string $currency = 'MYR',
         ?string $description = null,
         ?array $checkout = null,
+        ?array $fx = null,
     ): array {
         $description = $description ?? "Servora {$subscription->plan->name} — {$subscription->billing_cycle}";
 
@@ -58,6 +59,9 @@ class ChipInService
             'currency'        => $currency,
             'status'          => Payment::STATUS_PENDING,
             'checkout'        => $checkout,
+            // Priced in another currency: that price and the BNM rate that
+            // turned it into $amount (Billing\Fx::toArray).
+            'fx'              => $fx,
         ]);
 
         if (!$this->apiKey) {

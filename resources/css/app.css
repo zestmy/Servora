@@ -742,21 +742,24 @@
     .mk-kicker-dark { @apply text-brand-300; }
     .mk-kicker-dark::before { @apply bg-brand-400; }
 
-    /* The accented phrase in a headline, with a highlighter bar drawn in. */
-    .mk-accent { @apply relative whitespace-nowrap text-brand-600; isolation: isolate; }
-    .mk-accent::after {
-        content: '';
-        position: absolute;
-        left: 0; right: 0; bottom: 0.06em;
-        height: 0.16em;
-        border-radius: 999px;
-        background: theme('colors.brand.100');
-        z-index: -1;
-        transform-origin: left;
+    /* The accented phrase in a headline, with a highlighter bar drawn in.
+       A background rather than a pseudo-element, and allowed to wrap: a
+       translated phrase (Admin › Country Pages) is often longer than the
+       English, and box-decoration-break carries the bar onto each line. */
+    .mk-accent {
+        @apply text-brand-600;
+        background-image: linear-gradient(theme('colors.brand.100'), theme('colors.brand.100'));
+        background-repeat: no-repeat;
+        background-position: 0 88%;
+        background-size: 100% 0.16em;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
         animation: mk-draw 0.9s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
-    .mk-accent-dark { @apply text-brand-300; }
-    .mk-accent-dark::after { background: rgb(69 139 249 / 0.25); }
+    .mk-accent-dark {
+        @apply text-brand-300;
+        background-image: linear-gradient(rgb(69 139 249 / 0.25), rgb(69 139 249 / 0.25));
+    }
 
     .mk-chip {
         @apply inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5
@@ -839,7 +842,7 @@
     .mk-spin-slow{ animation: mk-spin 18s linear infinite; }
 }
 
-@keyframes mk-draw    { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes mk-draw    { from { background-size: 0% 0.16em; } to { background-size: 100% 0.16em; } }
 @keyframes mk-float   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes mk-scan    { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 @keyframes mk-grow    { from { transform: scaleY(0); } to { transform: scaleY(1); } }

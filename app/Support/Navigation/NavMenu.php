@@ -429,10 +429,12 @@ final class NavMenu
                     ['route' => 'admin.invoices.index',      'label' => 'Invoices',        'section' => 'Billing'],
                     ['route' => 'admin.trials.index',        'label' => 'Trials',          'section' => 'Billing'],
                     ['route' => 'admin.coupons',             'label' => 'Coupons',         'section' => 'Billing'],
+                    ['route' => 'admin.currencies',          'label' => 'Currencies',      'section' => 'Billing'],
                     ['route' => 'admin.referrals.index',     'label' => 'Referrals',       'section' => 'Billing'],
 
                     ['route' => 'admin.announcements',       'label' => 'Announcements',   'section' => 'Content'],
                     ['route' => 'admin.pages',               'label' => 'Pages',           'section' => 'Content'],
+                    ['route' => 'admin.landing-pages',       'label' => 'Country Pages',   'section' => 'Content'],
                     ['route' => 'admin.docs.index',          'label' => 'Documentation',   'section' => 'Content'],
 
                     // Last, like HR's and Learning's own Configure sections:

@@ -54,6 +54,16 @@ class InvoiceService
             ? "Servora {$plan->name} Plan — " . ucfirst((string) $subscription->billing_cycle)
             : 'Servora subscription';
 
+        // Priced in another currency and charged in ringgit: say both, and
+        // the rate, so the invoice reconciles with the price the customer saw.
+        if ($fx = $payment->fx) {
+            $description .= sprintf(' (%s %s at %s MYR, %s %s rate of %s)',
+                $fx['currency'], number_format((float) $fx['amount'], 2),
+                rtrim(rtrim(number_format((float) $fx['myr_per_unit'], 6), '0'), '.'),
+                $fx['source'] ?? 'BNM', str_replace('_rate', '', (string) ($fx['rate_type'] ?? 'middle')),
+                \Carbon\Carbon::parse($fx['rate_date'])->format('d M Y'));
+        }
+
         return DB::transaction(function () use ($payment, $subscription, $company, $amount, $description) {
             return Invoice::create([
                 'company_id'      => $payment->company_id,

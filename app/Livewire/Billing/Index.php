@@ -97,8 +97,11 @@ class Index extends Component
             ? ['name' => $entitlements->name($this->unlock), 'pitch' => $entitlements->pitch($this->unlock)]
             : null;
 
+        // The currency this company is priced in (Admin › Currencies).
+        $book = app(\App\Services\Billing\CheckoutService::class)->book(Auth::user()->company);
+
         return view('livewire.billing.index', compact(
-            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue', 'unlockPitch', 'addons'
+            'subscription', 'plan', 'plans', 'usageMetrics', 'isGrandfathered', 'invoices', 'amountDue', 'unlockPitch', 'addons', 'book'
         ))->layout('layouts.app', ['title' => 'Billing & Plan']);
     }
 }

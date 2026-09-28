@@ -18,6 +18,13 @@
     JPEG fallback. A module card takes a photo with `'photo' => 'images/
     marketing/<name>'`; card art is 1200x560 (15:7).
 
+    ── WORDS ────────────────────────────────────────────────────────────────
+    Every visible string comes from $t('key'), backed by
+    App\Support\Marketing\HomeCopy. A country landing page (Admin › Country
+    Pages) overrides those keys, so this one view is every language's home
+    page. New copy goes into HomeCopy first. Prices come from $book, the
+    visitor's currency (Billing\PriceBook).
+
     ── CLAIMS ───────────────────────────────────────────────────────────────
     The three testimonials are carried over verbatim from the previous
     version. They are unattributed to real, verifiable customers. Either
@@ -29,41 +36,54 @@
     $catalogue = config('modules.catalogue');
     $suitePrices = config('modules.suite_prices');
 
+    // Prices in the visitor's currency, for the copy's :placeholders.
+    $myrSuite = fn (string $slug) => (float) ($plans->firstWhere('slug', $slug)?->price_monthly ?? $suitePrices[$slug]);
+    $vars = [
+        ':days'  => $trialDays,
+        ':basic' => $book->format((float) $book->suite('basic', $myrSuite('basic'))),
+        ':full'  => $book->format((float) $book->suite('full', $myrSuite('full'))),
+        ':hr'    => $book->format((float) $book->module('hr', (float) $catalogue['hr']['price'])),
+        ':ck'    => $book->format((float) $book->module('central_kitchen', (float) $catalogue['central_kitchen']['price'])),
+        ':addon' => $book->format((float) collect($catalogue)->filter(fn ($m) => $m['kind'] === 'addon')
+            ->map(fn ($m, $k) => $book->module($k, (float) $m['price']))->min()),
+    ];
+    $t = fn (string $key, array $extra = []) => strtr($copy[$key] ?? $key, $extra + $vars);
+
     // The areas of the features page, in the same order under the same
     // titles. span = lg column span out of 6: 3+3 / 2+2+2 / 3+3 / 3+3 /
     // 2+2+2 / 6 (or 3+3 with the supplier portal on). No filler tile.
             $modules = [
-                ['icon' => 'ingredient', 'title' => 'Ingredients and recipe costing', 'span' => 'lg:col-span-3', 'tone' => 'photo', 'tag' => 'Free',
+                ['icon' => 'ingredient', 'title' => $t('modules.costing'), 'span' => 'lg:col-span-3', 'tone' => 'photo', 'tag' => $t('tag.free'),
                  'photo' => 'images/marketing/recipe-costing', 'alt' => 'A recipe and its quantities written out by hand on a notepad',
-                 'desc' => 'Build a recipe once and watch its cost, yield and food-cost percentage update as ingredient prices move.'],
-                ['icon' => 'sparkles',   'title' => 'AI document capture', 'span' => 'lg:col-span-3', 'tone' => 'brand', 'tag' => 'Basic',
-                 'desc' => 'Photograph a supplier invoice and the lines walk themselves in, matched to your ingredients, with a review step before anything lands.'],
-                ['icon' => 'cart',       'title' => 'Purchasing and receiving', 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => 'Basic',
-                 'desc' => 'Request, approve, order, receive, then match the invoice against the order and the GRN.'],
-                ['icon' => 'database',   'title' => 'Inventory and stock', 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => 'Basic',
-                 'desc' => 'Stock takes, wastage, staff meals, prep items, par levels and transfers between outlets.'],
-                ['icon' => 'clipboard',  'title' => 'Central kitchen', 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => 'Per kitchen',
-                 'desc' => 'Plan batch production against your outlets, then log what it actually yielded.'],
-                ['icon' => 'printer',    'title' => 'Food safety labelling', 'span' => 'lg:col-span-3', 'tone' => 'navy', 'tag' => 'Add-on',
-                 'desc' => 'HACCP date labels printed at the bench, shelf life worked out for you, and every label that came off the printer logged.'],
-                ['icon' => 'currency',   'title' => 'Sales and POS Sync', 'span' => 'lg:col-span-3', 'tone' => 'plain', 'tag' => 'Basic · add-on',
-                 'desc' => 'Daily takings by meal period and Z-report capture, or let POS Sync bring the sales in from the till on its own.'],
-                ['icon' => 'chart',      'title' => 'Reports and analytics', 'span' => 'lg:col-span-3', 'tone' => 'photo', 'tag' => 'Basic',
+                 'desc' => $t('modules.costing_desc')],
+                ['icon' => 'sparkles',   'title' => $t('modules.ai'), 'span' => 'lg:col-span-3', 'tone' => 'brand', 'tag' => $t('tag.basic'),
+                 'desc' => $t('modules.ai_desc')],
+                ['icon' => 'cart',       'title' => $t('modules.purchasing'), 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => $t('tag.basic'),
+                 'desc' => $t('modules.purchasing_desc')],
+                ['icon' => 'database',   'title' => $t('modules.inventory'), 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => $t('tag.basic'),
+                 'desc' => $t('modules.inventory_desc')],
+                ['icon' => 'clipboard',  'title' => $t('modules.kitchen'), 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => $t('tag.per_kitchen'),
+                 'desc' => $t('modules.kitchen_desc')],
+                ['icon' => 'printer',    'title' => $t('modules.labels'), 'span' => 'lg:col-span-3', 'tone' => 'navy', 'tag' => $t('tag.addon'),
+                 'desc' => $t('modules.labels_desc')],
+                ['icon' => 'currency',   'title' => $t('modules.sales'), 'span' => 'lg:col-span-3', 'tone' => 'plain', 'tag' => $t('tag.basic_addon'),
+                 'desc' => $t('modules.sales_desc')],
+                ['icon' => 'chart',      'title' => $t('modules.reports'), 'span' => 'lg:col-span-3', 'tone' => 'photo', 'tag' => $t('tag.basic'),
                  'photo' => 'images/marketing/reports-pnl', 'alt' => 'An income statement showing revenue, cost of goods and gross profit',
-                 'desc' => 'The weekly WIP review as a slide deck for the meeting, monthly cost summaries, COGS, labour cost, and exports your accountant takes without rework.'],
-                ['icon' => 'users',      'title' => 'HR and payroll', 'span' => 'lg:col-span-3', 'tone' => 'plain', 'tag' => 'Per employee',
-                 'desc' => 'Roster, QR clock-in, attendance, leave, OT claims, service charge, payroll, payslips and EA forms.'],
-                ['icon' => 'academic',   'title' => 'Learn SOP', 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => 'Add-on',
-                 'desc' => 'SOPs, plating photos and video, with courses, quizzes and certificates, opened by QR on any phone.'],
-                ['icon' => 'shield',     'title' => 'Audits and compliance', 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => 'Add-on',
-                 'desc' => 'Scored outlet audits on a phone, with corrective actions tracked to an owner and a re-audit date.'],
-                ['icon' => 'cube',       'title' => 'Assets', 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => 'Add-on',
-                 'desc' => 'A register of smallwares and equipment, counted, received and disposed of like stock.'],
-                ['icon' => 'building',   'title' => 'Multi-outlet and control', 'span' => $supplierPortal ? 'lg:col-span-3' : 'lg:col-span-6', 'tone' => 'plain', 'tag' => 'Every plan',
-                 'desc' => 'Shared data across sites, role-based access per company, and an audit log of who changed what.'],
+                 'desc' => $t('modules.reports_desc')],
+                ['icon' => 'users',      'title' => $t('modules.hr'), 'span' => 'lg:col-span-3', 'tone' => 'plain', 'tag' => $t('tag.per_employee'),
+                 'desc' => $t('modules.hr_desc')],
+                ['icon' => 'academic',   'title' => $t('modules.learn'), 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => $t('tag.addon'),
+                 'desc' => $t('modules.learn_desc')],
+                ['icon' => 'shield',     'title' => $t('modules.audits'), 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => $t('tag.addon'),
+                 'desc' => $t('modules.audits_desc')],
+                ['icon' => 'cube',       'title' => $t('modules.assets'), 'span' => 'lg:col-span-2', 'tone' => 'plain', 'tag' => $t('tag.addon'),
+                 'desc' => $t('modules.assets_desc')],
+                ['icon' => 'building',   'title' => $t('modules.control'), 'span' => $supplierPortal ? 'lg:col-span-3' : 'lg:col-span-6', 'tone' => 'plain', 'tag' => $t('tag.every_plan'),
+                 'desc' => $t('modules.control_desc')],
                 ...($supplierPortal ? [
-                ['icon' => 'device',     'title' => 'Supplier portal', 'span' => 'lg:col-span-3', 'tone' => 'plain', 'tag' => 'Every plan',
-                 'desc' => 'Suppliers sign in to acknowledge the orders you send and see their own invoices.'],
+                ['icon' => 'device',     'title' => $t('modules.suppliers'), 'span' => 'lg:col-span-3', 'tone' => 'plain', 'tag' => $t('tag.every_plan'),
+                 'desc' => $t('modules.suppliers_desc')],
                 ] : []),
             ];
 @endphp
@@ -80,22 +100,23 @@
             <div class="mx-auto max-w-4xl text-center">
                 <a href="{{ route('pricing') }}" class="mk-pill mk-in transition-colors hover:border-brand-300">
                     <x-icon name="sparkles" size="h-4 w-4" />
-                    <span>New: <span class="hidden sm:inline">per-outlet plans, and </span>Free for one outlet, forever</span>
+                    <span class="hidden sm:inline">{{ $t('hero.pill_long') }}</span>
+                    <span class="sm:hidden">{{ $t('hero.pill_short') }}</span>
                     <x-icon name="arrow-right" size="h-3.5 w-3.5" />
                 </a>
 
                 <h1 class="display-1 mk-in mt-7 text-gray-950" style="animation-delay:.08s">
-                    Know your food cost<br>
-                    <span class="mk-accent">before month end</span>.
+                    {{ $t('hero.title') }}<br>
+                    <span class="mk-accent">{{ $t('hero.title_accent') }}</span>.
                 </h1>
 
                 @php
                     $heroChips = [
-                        ['ingredient', 'Costing'], ['cart', 'Purchasing'], ['database', 'Inventory'],
-                        ['printer', 'Labels'], ['users', 'HR & Payroll'], ['clipboard', 'Audits'],
+                        ['ingredient', $t('chip.costing')], ['cart', $t('chip.purchasing')], ['database', $t('chip.inventory')],
+                        ['printer', $t('chip.labels')], ['users', $t('chip.hr')], ['clipboard', $t('chip.audits')],
                     ];
                 @endphp
-                <ul class="mk-in mt-7 flex flex-wrap justify-center gap-2" style="animation-delay:.16s" aria-label="What Servora covers">
+                <ul class="mk-in mt-7 flex flex-wrap justify-center gap-2" style="animation-delay:.16s" aria-label="Servora">
                     @foreach ($heroChips as [$icon, $label])
                         <li class="mk-chip">
                             <x-icon :name="$icon" size="h-4 w-4" class="text-brand-600" />
@@ -105,24 +126,22 @@
                 </ul>
 
                 <p class="mk-in mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-gray-600" style="animation-delay:.24s">
-                    AI reads your supplier invoices, every recipe re-costs itself as prices move, and your
-                    week is written up for Monday's meeting. Purchasing, stock, labels and payroll all run
-                    on the same numbers.
+                    {{ $t('hero.lead') }}
                 </p>
 
                 <div class="mk-in mt-9 flex flex-wrap items-center justify-center gap-3" style="animation-delay:.32s">
                     <a href="{{ route('saas.register') }}" class="btn-primary btn-lg group">
-                        Start {{ $trialDays }}-day free trial
+                        {{ $t('cta.trial') }}
                         <x-icon name="arrow-right" size="h-4 w-4" class="transition-transform group-hover:translate-x-0.5" />
                     </a>
                     <a href="#tour" class="btn-secondary btn-lg">
                         <x-icon name="play" size="h-4 w-4" />
-                        See it work
+                        {{ $t('hero.see') }}
                     </a>
                 </div>
 
                 <ul class="mk-in mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-600" style="animation-delay:.4s">
-                    @foreach (['No card to start', 'Free plan for one outlet', 'Live in an afternoon'] as $point)
+                    @foreach ([$t('hero.point_1'), $t('hero.point_2'), $t('hero.point_3')] as $point)
                         <li class="flex items-center gap-1.5">
                             <x-icon name="check" size="h-4 w-4" stroke="2.4" class="text-brand-600" />
                             {{ $point }}
@@ -276,7 +295,7 @@
                             <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-success-400 opacity-75"></span>
                             <span class="relative inline-flex h-2 w-2 rounded-full bg-success-500"></span>
                         </span>
-                        <span class="mk-mono text-[11px] font-medium uppercase tracking-widest text-gray-400">Market</span>
+                        <span class="mk-mono text-[11px] font-medium uppercase tracking-widest text-gray-400">{{ $t('ticker.label') }}</span>
                     </span>
 
                     <div class="mask-edges min-w-0 flex-1 overflow-hidden">
@@ -303,9 +322,9 @@
                     </div>
                 </div>
                 <p class="mt-1.5 text-center text-[11px] text-gray-400 sm:text-left">
-                    Median prices paid by kitchens running on Servora &middot; updated hourly &middot; suppliers not identified
+                    {{ $t('ticker.note') }}
                     &middot;
-                    <a href="{{ route('tools.recipe-cost') }}" class="text-gray-200 underline hover:text-white">cost a recipe with these prices</a>
+                    <a href="{{ route('tools.recipe-cost') }}" class="text-gray-200 underline hover:text-white">{{ $t('ticker.link') }}</a>
                 </p>
             </div>
         </section>
@@ -314,13 +333,13 @@
     {{-- ── 2. Who it is for ───────────────────────────────────────────── --}}
     <section class="border-y border-gray-200 bg-gray-50/70 py-8" aria-label="Business types served">
         <p class="mk-mono text-center text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-            Built for every kind of F&amp;B operation
+            {{ $t('types.heading') }}
         </p>
         @php
             $types = [
-                ['fire', 'Restaurants'], ['sun', 'Cafes'], ['truck', 'Cloud kitchens'], ['users', 'Catering'],
-                ['cube', 'Bakeries'], ['moon', 'Bars &amp; pubs'], ['building', 'Food courts'], ['home', 'Hotels'],
-                ['clipboard', 'Central kitchens'], ['tag', 'Franchises'],
+                ['fire', $t('types.restaurants')], ['sun', $t('types.cafes')], ['truck', $t('types.cloud')], ['users', $t('types.catering')],
+                ['cube', $t('types.bakeries')], ['moon', $t('types.bars')], ['building', $t('types.food_courts')], ['home', $t('types.hotels')],
+                ['clipboard', $t('types.central')], ['tag', $t('types.franchises')],
             ];
         @endphp
         <div class="mask-edges mt-5 overflow-hidden">
@@ -330,7 +349,7 @@
                         <li class="flex items-center gap-2 whitespace-nowrap text-lg font-semibold text-gray-400"
                             @if ($isDuplicate) aria-hidden="true" @endif>
                             <x-icon :name="$icon" size="h-5 w-5" />
-                            <span class="mk-display">{!! $type !!}</span>
+                            <span class="mk-display">{{ $type }}</span>
                         </li>
                     @endforeach
                 @endforeach
@@ -344,10 +363,10 @@
     --}}
     @php
         $facts = [
-            ['n' => count($modules), 'pre' => '', 'post' => '', 'label' => 'areas of the operation, on one set of numbers'],
-            ['n' => $trialDays, 'pre' => '', 'post' => 'days', 'label' => 'of the whole product on the trial, add-ons included'],
-            ['n' => 30, 'pre' => '', 'post' => '', 'label' => 'AI invoice scans per outlet a month, on Basic'],
-            ['n' => 0, 'pre' => 'RM', 'post' => '', 'label' => 'for one outlet on the Free plan, for as long as you like'],
+            ['n' => count($modules), 'pre' => '', 'post' => '', 'label' => $t('facts.areas')],
+            ['n' => $trialDays, 'pre' => '', 'post' => $t('facts.days'), 'label' => $t('facts.trial')],
+            ['n' => 30, 'pre' => '', 'post' => '', 'label' => $t('facts.scans')],
+            ['n' => 0, 'pre' => trim($book->symbol()), 'post' => '', 'label' => $t('facts.free')],
         ];
     @endphp
     <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
@@ -372,13 +391,11 @@
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div class="grid items-end gap-8 lg:grid-cols-2">
                 <div>
-                    <p class="mk-kicker">Live recipe costing</p>
-                    <h2 class="display-2 mt-5 text-gray-950">One price moves.<br><span class="mk-accent">Every plate knows.</span></h2>
+                    <p class="mk-kicker">{{ $t('cost.kicker') }}</p>
+                    <h2 class="display-2 mt-5 text-gray-950">{{ $t('cost.title') }}<br><span class="mk-accent">{{ $t('cost.title_accent') }}</span></h2>
                 </div>
                 <p class="text-lg leading-relaxed text-gray-600 lg:pb-2">
-                    Build a recipe once. When a supplier's price changes on an invoice, the cost of every dish
-                    that uses it changes with it, and anything that drifts over target is flagged. Drag the
-                    chicken price and watch.
+                    {{ $t('cost.lead') }}
                 </p>
             </div>
 
@@ -408,19 +425,19 @@
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <p class="text-base font-semibold text-gray-950">Nasi Ayam Penyet</p>
-                                <p class="text-xs text-gray-500">Selling price RM 15.90 · target food cost {{ 28 }}%</p>
+                                <p class="text-xs text-gray-500">{{ $t('cost.selling', [':price' => 'RM 15.90', ':target' => 28]) }}</p>
                             </div>
                             <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition-colors"
                                   :class="over ? 'bg-danger-50 text-danger-700 ring-danger-200' : 'bg-success-50 text-success-700 ring-success-200'"
-                                  x-text="over ? 'Over target' : 'Within target'">Within target</span>
+                                  x-text="over ? @js($t('cost.over')) : @js($t('cost.within'))">{{ $t('cost.within') }}</span>
                         </div>
 
                         <table class="mt-4 w-full text-sm">
                             <thead>
                                 <tr class="text-left text-[11px] uppercase tracking-wide text-gray-500">
-                                    <th class="pb-2 font-medium">Ingredient</th>
-                                    <th class="pb-2 font-medium">Qty</th>
-                                    <th class="pb-2 text-right font-medium">Cost</th>
+                                    <th class="pb-2 font-medium">{{ $t('cost.col_ingredient') }}</th>
+                                    <th class="pb-2 font-medium">{{ $t('cost.col_qty') }}</th>
+                                    <th class="pb-2 text-right font-medium">{{ $t('cost.col_cost') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -428,8 +445,8 @@
                                     <tr :class="l.live && 'bg-brand-50/70'">
                                         <td class="py-2 pl-1 text-gray-800">
                                             <span x-text="l.name"></span>
-                                            <span x-show="l.live" class="ml-1 rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">live</span>
-                                            <span x-show="l.pack" class="ml-1 text-[11px] text-gray-500">packaging</span>
+                                            <span x-show="l.live" class="ml-1 rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{{ $t('cost.live') }}</span>
+                                            <span x-show="l.pack" class="ml-1 text-[11px] text-gray-500">{{ $t('cost.packaging') }}</span>
                                         </td>
                                         <td class="py-2 text-gray-600" x-text="l.qty"></td>
                                         <td class="py-2 pr-1 text-right font-medium tabular-nums text-gray-900" x-text="rm(lineCost(l))"></td>
@@ -438,7 +455,7 @@
                             </tbody>
                             <tfoot>
                                 <tr class="border-t-2 border-gray-200">
-                                    <td class="pt-3 font-semibold text-gray-950" colspan="2">Cost per serving</td>
+                                    <td class="pt-3 font-semibold text-gray-950" colspan="2">{{ $t('cost.serving') }}</td>
                                     <td class="pt-3 text-right text-base font-bold tabular-nums text-gray-950" x-text="rm(cost)"></td>
                                 </tr>
                             </tfoot>
@@ -446,7 +463,7 @@
 
                         <div class="mt-6">
                             <div class="flex items-baseline justify-between">
-                                <label for="mk-chicken" class="text-sm font-medium text-gray-700">Chicken thigh, per kg</label>
+                                <label for="mk-chicken" class="text-sm font-medium text-gray-700">{{ $t('cost.slider') }}</label>
                                 <span class="mk-display text-2xl font-semibold tabular-nums text-gray-950" x-text="rm(price)">RM 10.50</span>
                             </div>
                             <input id="mk-chicken" type="range" class="mk-range mt-3" step="0.10"
@@ -461,7 +478,7 @@
                     <div class="flex flex-col gap-4 lg:col-span-2">
                         <div class="rounded-surface border bg-white p-5 shadow-e1 transition-colors"
                              :class="over ? 'border-danger-200' : 'border-success-200'">
-                            <p class="text-sm font-medium text-gray-600">Food cost</p>
+                            <p class="text-sm font-medium text-gray-600">{{ $t('cost.food_cost') }}</p>
                             <p class="mk-display mt-1 text-5xl font-semibold tabular-nums tracking-tight"
                                :class="over ? 'text-danger-600' : 'text-gray-950'">
                                 <span x-text="pct.toFixed(1)">25.3</span>%
@@ -471,29 +488,29 @@
                                      :class="over ? 'bg-danger-500' : 'bg-success-500'"
                                      :style="`width:${Math.min(100, pct / 40 * 100)}%`"></div>
                             </div>
-                            <p class="mt-2 text-xs text-gray-500">Target {{ 28 }}% &middot; scale to 40%</p>
+                            <p class="mt-2 text-xs text-gray-500">{{ $t('cost.scale', [':target' => 28]) }}</p>
                         </div>
 
                         <div class="flex-1 rounded-surface bg-navy-950 p-5 text-white shadow-e3">
-                            <p class="text-sm text-gray-300">At 1,500 plates a month, that price move is</p>
+                            <p class="text-sm text-gray-300">{{ $t('cost.impact') }}</p>
                             <p class="mk-display mt-2 text-4xl font-semibold tabular-nums tracking-tight"
                                :class="monthly > 0 ? 'text-danger-300' : 'text-success-300'">
                                 <span x-text="(monthly > 0 ? '−' : '+') + rm(Math.abs(monthly))">+RM 0.00</span>
                             </p>
-                            <p class="mt-1 text-sm text-gray-300">of margin a month, on this one dish.</p>
+                            <p class="mt-1 text-sm text-gray-300">{{ $t('cost.impact_after') }}</p>
                             <p class="mt-5 border-t border-white/10 pt-4 text-sm text-gray-300" x-show="over">
-                                To get back to {{ 28 }}%, the menu price would need to be
+                                {{ $t('cost.hold', [':target' => 28]) }}
                                 <span class="font-semibold text-white" x-text="rm(hold)"></span>.
                             </p>
                             <p class="mt-5 border-t border-white/10 pt-4 text-sm text-gray-300" x-show="! over">
                                 <span class="font-semibold text-white" x-text="rm(sell * target / 100 - cost)"></span>
-                                of headroom per plate before it crosses {{ 28 }}%.
+                                {{ $t('cost.headroom', [':target' => 28]) }}
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
-            <p class="mt-4 text-center text-xs text-gray-500">An illustration with sample figures. In Servora the prices come from your own invoices.</p>
+            <p class="mt-4 text-center text-xs text-gray-500">{{ $t('cost.note') }}</p>
         </div>
     </section>
 
@@ -505,19 +522,17 @@
     <section class="border-y border-gray-200 bg-gray-50/70 py-20 lg:py-28">
         <div class="mx-auto grid max-w-6xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
             <div>
-                <p class="mk-kicker">AI document capture</p>
-                <h2 class="display-2 mt-5 text-gray-950">Photograph the invoice.<br><span class="mk-accent">The lines walk in.</span></h2>
+                <p class="mk-kicker">{{ $t('ai.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-gray-950">{{ $t('ai.title') }}<br><span class="mk-accent">{{ $t('ai.title_accent') }}</span></h2>
                 <p class="mt-6 text-lg leading-relaxed text-gray-600">
-                    Typing is the reason costing goes stale. Snap the delivery invoice on a phone and the
-                    supplier, items, quantities and prices are read off the page, matched to your ingredients,
-                    and held for a quick review before anything lands.
+                    {{ $t('ai.lead') }}
                 </p>
 
                 <div class="mt-8 grid gap-3">
                     @foreach ([
-                        ['receipt', 'Photo or PDF, invoices and delivery orders', 'Z-reports from the till are read the same way.'],
-                        ['check', 'Matched to your ingredients, UOM corrected', 'Nothing imports blind: every line waits in a review queue.'],
-                        ['trending-up', 'Price moves caught at the door', 'You see the increase before it reaches a single costing.'],
+                        ['receipt', $t('ai.1_title'), $t('ai.1_body')],
+                        ['check', $t('ai.2_title'), $t('ai.2_body')],
+                        ['trending-up', $t('ai.3_title'), $t('ai.3_body')],
                     ] as $i => [$icon, $title, $body])
                         <div data-reveal-index="{{ $i }}" class="reveal mk-card flex gap-4 p-4">
                             <span class="mk-icon-tile"><x-icon :name="$icon" size="h-5 w-5" /></span>
@@ -611,22 +626,21 @@
 
         <div class="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-3xl text-center">
-                <p class="mk-kicker mk-kicker-dark">Purchasing, end to end</p>
-                <h2 class="display-2 mt-5 text-white">Request to invoice.<br><span class="mk-accent mk-accent-dark">Nothing lost between.</span></h2>
+                <p class="mk-kicker mk-kicker-dark">{{ $t('buy.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-white">{{ $t('buy.title') }}<br><span class="mk-accent mk-accent-dark">{{ $t('buy.title_accent') }}</span></h2>
                 <p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300">
-                    Every order is followed from the kitchen's request to the supplier's bill, and the invoice
-                    is checked against what was ordered and what actually arrived.
+                    {{ $t('buy.lead') }}
                 </p>
             </div>
 
             @php
                 $flow = [
-                    ['clipboard', 'Request', 'Kitchen asks'],
-                    ['shield', 'Approve', 'Manager signs off'],
-                    ['cart', 'Order', 'PO emailed to supplier'],
-                    ['truck', 'Deliver', 'Delivery order'],
-                    ['inbox', 'Receive', 'GRN, costs updated'],
-                    ['receipt', 'Invoice', 'Three-way matched'],
+                    ['clipboard', $t('buy.step_1'), $t('buy.step_1_sub')],
+                    ['shield', $t('buy.step_2'), $t('buy.step_2_sub')],
+                    ['cart', $t('buy.step_3'), $t('buy.step_3_sub')],
+                    ['truck', $t('buy.step_4'), $t('buy.step_4_sub')],
+                    ['inbox', $t('buy.step_5'), $t('buy.step_5_sub')],
+                    ['receipt', $t('buy.step_6'), $t('buy.step_6_sub')],
                 ];
             @endphp
             <div class="mt-14 rounded-panel border border-white/10 bg-white/[0.03] p-6 shadow-e4 backdrop-blur-sm sm:p-10" aria-hidden="true"
@@ -653,8 +667,8 @@
                 </div>
 
                 <div class="mt-10 flex flex-wrap items-center justify-center gap-3 border-t border-white/10 pt-8">
-                    <span class="mk-mono text-[11px] uppercase tracking-[0.18em] text-gray-400">Three-way match</span>
-                    @foreach (['Purchase order', 'Goods received', 'Supplier invoice'] as $j => $doc)
+                    <span class="mk-mono text-[11px] uppercase tracking-[0.18em] text-gray-400">{{ $t('buy.match') }}</span>
+                    @foreach ([$t('buy.doc_1'), $t('buy.doc_2'), $t('buy.doc_3')] as $j => $doc)
                         <span class="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-500"
                               :class="step >= {{ count($flow) - 1 + ($j > 0 ? 1 : 0) }} ? 'border-success-400/50 bg-success-500/15 text-success-300' : 'border-white/10 text-gray-400'">
                             <x-icon name="check" size="h-3.5 w-3.5" stroke="2.6" />
@@ -666,9 +680,9 @@
 
             <div class="mt-8 grid gap-4 md:grid-cols-3">
                 @foreach ([
-                    ['bolt', 'Par levels write the order', 'Stock below par pre-fills the next PO, per ingredient, per outlet.'],
-                    ['truck', 'One order, several suppliers', 'Build one list and Servora splits it into a PO for each supplier.'],
-                    ['building', 'Central purchasing', 'Approved requests from every outlet, consolidated by supplier.'],
+                    ['bolt', $t('buy.1_title'), $t('buy.1_body')],
+                    ['truck', $t('buy.2_title'), $t('buy.2_body')],
+                    ['building', $t('buy.3_title'), $t('buy.3_body')],
                 ] as $i => [$icon, $title, $body])
                     <div data-reveal-index="{{ $i }}" class="reveal rounded-surface border border-white/10 bg-white/[0.04] p-6 transition-colors hover:border-brand-400/40 hover:bg-white/[0.07]">
                         <span class="flex h-10 w-10 items-center justify-center rounded-control bg-brand-600/20 text-brand-300"><x-icon :name="$icon" size="h-5 w-5" /></span>
@@ -717,10 +731,10 @@
                         <div x-show="slide === 1" x-cloak x-transition.opacity.duration.500ms class="absolute inset-6">
                             <p class="mk-mono text-[10px] uppercase tracking-[0.18em] text-brand-700">Cost of goods</p>
                             <div class="mt-4 space-y-4">
-                                @foreach ([['Kitchen', 29.4, 31], ['Beverage', 22.1, 24], ['Consumable', 3.8, 3.5]] as [$dept, $v, $t])
+                                @foreach ([['Kitchen', 29.4, 31], ['Beverage', 22.1, 24], ['Consumable', 3.8, 3.5]] as [$dept, $v, $goal])
                                     <div>
-                                        <div class="flex justify-between text-xs"><span class="font-medium text-gray-900">{{ $dept }}</span><span class="tabular-nums {{ $v > $t ? 'text-danger-600' : 'text-gray-600' }}">{{ $v }}% <span class="text-gray-400">/ {{ $t }}%</span></span></div>
-                                        <div class="mt-1.5 h-2 rounded-full bg-gray-100"><div class="h-full rounded-full {{ $v > $t ? 'bg-danger-500' : 'bg-brand-600' }}" style="width: {{ $v / 40 * 100 }}%"></div></div>
+                                        <div class="flex justify-between text-xs"><span class="font-medium text-gray-900">{{ $dept }}</span><span class="tabular-nums {{ $v > $goal ? 'text-danger-600' : 'text-gray-600' }}">{{ $v }}% <span class="text-gray-400">/ {{ $goal }}%</span></span></div>
+                                        <div class="mt-1.5 h-2 rounded-full bg-gray-100"><div class="h-full rounded-full {{ $v > $goal ? 'bg-danger-500' : 'bg-brand-600' }}" style="width: {{ $v / 40 * 100 }}%"></div></div>
                                     </div>
                                 @endforeach
                             </div>
@@ -739,18 +753,16 @@
             </div>
 
             <div>
-                <p class="mk-kicker">Reports and AI insights</p>
-                <h2 class="display-2 mt-5 text-gray-950">Your week, <span class="mk-accent">written up</span> for Monday.</h2>
+                <p class="mk-kicker">{{ $t('review.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-gray-950">{{ $t('review.title') }} <span class="mk-accent">{{ $t('review.title_accent') }}</span> {{ $t('review.title_end') }}</h2>
                 <p class="mt-6 text-lg leading-relaxed text-gray-600">
-                    The weekly WIP review puts the week just closed against the one before: sales, cost of goods
-                    by department, wastage, transfers, overtime and labour cost. Scroll it, present it full-screen
-                    as a slide deck, or send the PDF.
+                    {{ $t('review.lead') }}
                 </p>
                 <ul class="mt-8 space-y-3">
                     @foreach ([
-                        'A plain-English review of what moved, and two or three things to do about it',
-                        'Cost summary, COGS and month-to-date comparisons on every outlet',
-                        'Reports scheduled to your inbox, exported to Excel, PDF or CSV',
+                        $t('review.point_1'),
+                        $t('review.point_2'),
+                        $t('review.point_3'),
                     ] as $line)
                         <li class="flex items-start gap-3 text-[15px] text-gray-700">
                             <span class="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-brand-600 text-white"><x-icon name="check" size="h-3 w-3" stroke="3" /></span>
@@ -768,22 +780,10 @@
     --}}
     @php
         $floor = [
-            ['key' => 'labels', 'icon' => 'printer', 'tab' => 'Labels',
-             'title' => 'Date labels at the bench',
-             'body' => 'Pick the item, print the label. Shelf life is worked out from your own rules, prepared-by is captured, and every label that came off the printer is logged.',
-             'addon' => 'Food Safety Labels'],
-            ['key' => 'clock', 'icon' => 'clock', 'tab' => 'Clock-in',
-             'title' => 'Clock-in nobody can do for a friend',
-             'body' => 'The outlet kiosk shows a QR code that changes on its own, every 30 seconds by default. Staff scan it with their own phone and their own PIN, so nobody clocks in for a friend.',
-             'addon' => 'HR & Payroll'],
-            ['key' => 'audits', 'icon' => 'clipboard', 'tab' => 'Audits',
-             'title' => 'Audits that end in a fix',
-             'body' => 'Scored checklists on a phone, Pass, Conditional pass or Fail, and every non-conformance becomes a corrective action with an owner, a photo of the fix and a re-audit date.',
-             'addon' => 'Audits & Compliance'],
-            ['key' => 'learn', 'icon' => 'academic', 'tab' => 'Learn SOP',
-             'title' => 'Every outlet makes it the same way',
-             'body' => 'SOPs with the method, plating photos and video, plus courses, quizzes, a leaderboard and certificates. Staff open it from the staff portal with their PIN.',
-             'addon' => 'Learn SOP'],
+            ...array_map(fn ($k, $icon) => [
+                'key' => $k, 'icon' => $icon, 'tab' => $t("floor.{$k}_tab"), 'title' => $t("floor.{$k}_title"),
+                'body' => $t("floor.{$k}_body"), 'addon' => $t("floor.{$k}_addon"),
+            ], ['labels', 'clock', 'audits', 'learn'], ['printer', 'clock', 'clipboard', 'academic']),
         ];
     @endphp
     <section class="border-t border-gray-200 bg-gray-50/70 py-20 lg:py-28"
@@ -795,11 +795,10 @@
              x-intersect.once="run()">
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-3xl text-center">
-                <p class="mk-kicker">On the kitchen floor</p>
-                <h2 class="display-2 mt-5 text-gray-950">Built for wet hands<br>and <span class="mk-accent">busy passes</span>.</h2>
+                <p class="mk-kicker">{{ $t('floor.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-gray-950">{{ $t('floor.title') }}<br>{{ $t('floor.title_and') }} <span class="mk-accent">{{ $t('floor.title_accent') }}</span>.</h2>
                 <p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-600">
-                    Staff get phone apps on your own subdomain, each behind a personal PIN, with touch targets
-                    big enough for wet and gloved hands.
+                    {{ $t('floor.lead') }}
                 </p>
             </div>
 
@@ -828,7 +827,7 @@
                             <p class="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-600 ring-1 ring-gray-200">
                                 <x-icon name="tag" size="h-3.5 w-3.5" class="text-brand-600" />
                                 {{ $f['addon'] }}
-                                @if ($f['key'] !== 'clock') · included in Full @endif
+                                @if ($f['key'] !== 'clock') · {{ $t('floor.included') }} @endif
                             </p>
                         </div>
                     @endforeach
@@ -960,12 +959,11 @@
     <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div class="grid items-end gap-6 lg:grid-cols-2">
             <div>
-                <p class="mk-kicker">One platform</p>
-                <h2 class="display-2 mt-5 text-gray-950">Every part of the operation, <span class="mk-accent">one set of numbers</span>.</h2>
+                <p class="mk-kicker">{{ $t('modules.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-gray-950">{{ $t('modules.title') }} <span class="mk-accent">{{ $t('modules.title_accent') }}</span>.</h2>
             </div>
             <p class="text-lg leading-relaxed text-gray-600 lg:pb-2">
-                Start with costing on the Free plan. Add purchasing and inventory with Basic, then only the
-                add-ons you actually run, or take Full and get them all.
+                {{ $t('modules.lead') }}
             </p>
         </div>
 
@@ -1029,7 +1027,7 @@
 
         <div class="mt-10 text-center">
             <a href="{{ route('features') }}" class="btn-secondary group">
-                Everything in each module
+                {{ $t('modules.cta') }}
                 <x-icon name="arrow-right" size="h-4 w-4" class="transition-transform group-hover:translate-x-0.5" />
             </a>
         </div>
@@ -1039,16 +1037,16 @@
     <section class="border-y border-gray-200 bg-gray-50/70 py-20 lg:py-28">
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-2xl text-center">
-                <p class="mk-kicker">Getting started</p>
-                <h2 class="display-2 mt-5 text-gray-950">Live in <span class="mk-accent">an afternoon</span>.</h2>
-                <p class="mx-auto mt-5 max-w-xl text-lg text-gray-600">No implementation project, no consultant. Most operators cost their first recipes the day they sign up.</p>
+                <p class="mk-kicker">{{ $t('steps.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-gray-950">{{ $t('steps.title') }} <span class="mk-accent">{{ $t('steps.title_accent') }}</span>.</h2>
+                <p class="mx-auto mt-5 max-w-xl text-lg text-gray-600">{{ $t('steps.lead') }}</p>
             </div>
 
             @php
                 $steps = [
-                    ['Create your account', 'Company name and email. No card, no sales call.', 'users'],
-                    ['Load ingredients and recipes', 'Import a supplier price list or add items as you go. Costs calculate the moment an ingredient has a price.', 'ingredient'],
-                    ['Work the month normally', 'Raise POs, receive deliveries, record sales and stock takes. The reports build themselves from what you already do.', 'chart'],
+                    [$t('steps.1_title'), $t('steps.1_body'), 'users'],
+                    [$t('steps.2_title'), $t('steps.2_body'), 'ingredient'],
+                    [$t('steps.3_title'), $t('steps.3_body'), 'chart'],
                 ];
             @endphp
             <ol class="relative mt-14 grid gap-6 md:grid-cols-3">
@@ -1065,7 +1063,7 @@
                 @endforeach
             </ol>
             <div class="mt-12 text-center">
-                <a href="{{ route('saas.register') }}" class="btn-primary btn-lg">Start {{ $trialDays }}-day free trial</a>
+                <a href="{{ route('saas.register') }}" class="btn-primary btn-lg">{{ $t('cta.trial') }}</a>
             </div>
         </div>
     </section>
@@ -1076,28 +1074,25 @@
     --}}
     <section class="py-20 lg:py-28">
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <p class="mk-kicker">From operators</p>
-            <h2 class="display-2 mt-5 max-w-2xl text-gray-950">What operators say <span class="mk-accent">after a quarter</span>.</h2>
+            <p class="mk-kicker">{{ $t('quotes.kicker') }}</p>
+            <h2 class="display-2 mt-5 max-w-2xl text-gray-950">{{ $t('quotes.title') }} <span class="mk-accent">{{ $t('quotes.title_accent') }}</span>.</h2>
             @php
                 $testimonials = [
-                    ['quote' => 'Servora helped us cut food costs by 12% in 3 months. The recipe costing alone is worth it.',
-                     'name'  => 'Ahmad R.', 'role' => 'Restaurant Owner', 'place' => 'Kuala Lumpur'],
-                    ['quote' => 'Finally, a system that understands F&B operations. The PO to GRN flow saved us hours every week.',
-                     'name'  => 'Sarah L.', 'role' => 'Operations Manager', 'place' => 'Penang'],
-                    ['quote' => 'The LMS module transformed our staff training. New hires get up to speed in half the time.',
-                     'name'  => 'David T.', 'role' => 'F&B Group Director', 'place' => 'Johor Bahru'],
+                    ['quote' => $t('quotes.1'), 'name' => 'Ahmad R.', 'role' => $t('quotes.1_role'), 'place' => 'Kuala Lumpur'],
+                    ['quote' => $t('quotes.2'), 'name' => 'Sarah L.', 'role' => $t('quotes.2_role'), 'place' => 'Penang'],
+                    ['quote' => $t('quotes.3'), 'name' => 'David T.', 'role' => $t('quotes.3_role'), 'place' => 'Johor Bahru'],
                 ];
             @endphp
             <div class="mt-12 grid gap-5 md:grid-cols-3">
-                @foreach ($testimonials as $i => $t)
+                @foreach ($testimonials as $i => $q)
                     <figure data-reveal-index="{{ $i }}" class="reveal mk-card flex flex-col">
                         <span class="mk-display text-5xl leading-none text-brand-200" aria-hidden="true">&ldquo;</span>
-                        <blockquote class="mt-2 flex-1 text-[15px] leading-relaxed text-gray-800">{{ $t['quote'] }}</blockquote>
+                        <blockquote class="mt-2 flex-1 text-[15px] leading-relaxed text-gray-800">{{ $q['quote'] }}</blockquote>
                         <figcaption class="mt-6 flex items-center gap-3 border-t border-gray-100 pt-4">
-                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white" aria-hidden="true">{{ mb_substr($t['name'], 0, 1) }}</span>
+                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white" aria-hidden="true">{{ mb_substr($q['name'], 0, 1) }}</span>
                             <span>
-                                <span class="block text-sm font-semibold text-gray-950">{{ $t['name'] }}</span>
-                                <span class="block text-xs text-gray-600">{{ $t['role'] }}, {{ $t['place'] }}</span>
+                                <span class="block text-sm font-semibold text-gray-950">{{ $q['name'] }}</span>
+                                <span class="block text-xs text-gray-600">{{ $q['role'] }}, {{ $q['place'] }}</span>
                             </span>
                         </figcaption>
                     </figure>
@@ -1114,14 +1109,20 @@
             <div aria-hidden="true" class="mk-grid-bg pointer-events-none absolute inset-0"></div>
             <div class="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <div class="mx-auto max-w-2xl text-center">
-                    <p class="mk-kicker">Pricing</p>
-                    <h2 class="display-2 mt-5 text-gray-950">Free to start.<br><span class="mk-accent">Per outlet</span> as you grow.</h2>
-                    <p class="mx-auto mt-5 max-w-xl text-lg text-gray-600">Every sign-up gets the whole product for {{ $trialDays }} days, then keeps Free for as long as it likes.</p>
+                    <p class="mk-kicker">{{ $t('plans.kicker') }}</p>
+                    <h2 class="display-2 mt-5 text-gray-950">{{ $t('plans.title') }}<br><span class="mk-accent">{{ $t('plans.title_accent') }}</span> {{ $t('plans.title_end') }}</h2>
+                    <p class="mx-auto mt-5 max-w-xl text-lg text-gray-600">{{ $t('plans.lead') }}</p>
                 </div>
 
                 <div class="mt-12 grid items-stretch gap-5 md:grid-cols-3">
                     @foreach ($plans as $i => $plan)
-                        @php $isFull = $plan->slug === 'full'; $isFree = (float) $plan->price_monthly === 0.0; @endphp
+                        @php
+                            $isFull = $plan->slug === 'full';
+                            $isFree = (float) $plan->price_monthly === 0.0;
+                            $price  = $isFree ? 0.0 : (float) ($book->suite((string) $plan->slug, (float) $plan->price_monthly) ?? $plan->price_monthly);
+                            // A country page describes the plans in its language; English reads the plans table.
+                            $desc   = $landing && isset($copy["plans.{$plan->slug}_desc"]) ? $t("plans.{$plan->slug}_desc") : $plan->description;
+                        @endphp
                         <div data-reveal-index="{{ $i }}"
                              @class([
                                  'reveal relative flex flex-col rounded-panel p-7 transition-transform duration-300 hover:-translate-y-1',
@@ -1129,25 +1130,28 @@
                                  'border border-gray-200 bg-white shadow-e1' => ! $isFull,
                              ])>
                             @if ($isFull)
-                                <span class="mk-mono absolute -top-3 left-7 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-white shadow-btn">Everything</span>
+                                <span class="mk-mono absolute -top-3 left-7 rounded-full bg-brand-600 px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-white shadow-btn">{{ $t('plans.everything') }}</span>
                             @endif
                             <p @class(['text-lg font-semibold', 'text-white' => $isFull, 'text-gray-950' => ! $isFull])>{{ $plan->name }}</p>
-                            <p @class(['mt-1 min-h-[2.5rem] text-sm', 'text-gray-300' => $isFull, 'text-gray-600' => ! $isFull])>{{ $plan->description }}</p>
+                            <p @class(['mt-1 min-h-[2.5rem] text-sm', 'text-gray-300' => $isFull, 'text-gray-600' => ! $isFull])>{{ $desc }}</p>
                             <p class="mt-5 flex items-baseline gap-1.5">
-                                <span @class(['mk-display text-5xl font-semibold tracking-tight tabular-nums', 'text-white' => $isFull, 'text-gray-950' => ! $isFull])>RM{{ number_format($plan->price_monthly, 0) }}</span>
-                                <span @class(['text-sm', 'text-gray-300' => $isFull, 'text-gray-600' => ! $isFull])>{{ $isFree ? 'forever' : '/ outlet / month' }}</span>
+                                <span @class(['mk-display text-5xl font-semibold tracking-tight tabular-nums', 'text-white' => $isFull, 'text-gray-950' => ! $isFull])>{{ $book->format($price) }}</span>
+                                <span @class(['text-sm', 'text-gray-300' => $isFull, 'text-gray-600' => ! $isFull])>{{ $isFree ? $t('plans.forever') : $t('plans.per_outlet') }}</span>
                             </p>
                             <div class="flex-1"></div>
                             <a href="{{ route('saas.register') }}" @class(['mt-7 w-full', 'btn-primary' => $isFull, 'btn-secondary' => ! $isFull])>
-                                {{ $isFree ? 'Start free' : "Try it free for {$trialDays} days" }}
+                                {{ $isFree ? $t('plans.start_free') : $t('plans.try') }}
                             </a>
                         </div>
                     @endforeach
                 </div>
                 <p class="mt-8 text-center text-sm text-gray-600">
-                    Add-ons from RM{{ collect($catalogue)->where('kind', 'addon')->min('price') }} a month per company. HR &amp; Payroll RM{{ $catalogue['hr']['price'] }} per employee.
-                    <a href="{{ route('pricing') }}" class="font-semibold text-brand-700 hover:text-brand-800">Work out your price &rarr;</a>
+                    {{ $t('plans.addons') }}
+                    <a href="{{ route('pricing') }}" class="font-semibold text-brand-700 hover:text-brand-800">{{ $t('plans.work_out') }} &rarr;</a>
                 </p>
+                @unless ($book->isMyr())
+                    <p class="mx-auto mt-3 max-w-xl text-center text-xs text-gray-500">{{ $t('plans.fx_note', [':currency' => $book->currency]) }}</p>
+                @endunless
             </div>
         </section>
     @endif
@@ -1156,21 +1160,13 @@
     <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div class="grid gap-12 lg:grid-cols-12">
             <div class="lg:col-span-4">
-                <p class="mk-kicker">FAQ</p>
-                <h2 class="display-2 mt-5 text-gray-950">Questions, <span class="mk-accent">answered</span>.</h2>
-                <p class="mt-5 text-gray-600">Anything else is in the Help Centre, which is public too.</p>
-                <a href="{{ route('help.index') }}" class="btn-secondary mt-6">Open the Help Centre</a>
+                <p class="mk-kicker">{{ $t('faq.kicker') }}</p>
+                <h2 class="display-2 mt-5 text-gray-950">{{ $t('faq.title') }} <span class="mk-accent">{{ $t('faq.title_accent') }}</span>.</h2>
+                <p class="mt-5 text-gray-600">{{ $t('faq.lead') }}</p>
+                <a href="{{ route('help.index') }}" class="btn-secondary mt-6">{{ $t('faq.help') }}</a>
             </div>
             @php
-                $faqs = [
-                    ['Is there really a free plan?', 'Yes. Free keeps recipe costing, prep items, stock counts, daily sales and food-cost reports for one outlet, with up to 150 market list items, 30 recipes and 2 users. It does not expire.'],
-                    ['What happens when my trial ends?', "The {$trialDays}-day trial is the Full suite with every add-on. When it ends you move to Free: nothing is deleted, and paid modules lock until you choose a plan."],
-                    ['How is it priced?', 'Per outlet, per month: Basic RM'.$suitePrices['basic'].' and Full RM'.$suitePrices['full'].'. Add-ons are one flat price per company, HR & Payroll is RM'.$catalogue['hr']['price'].' per employee, and a central kitchen RM'.$catalogue['central_kitchen']['price'].' each. Yearly billing is two months free.'],
-                    ['Does it work with my POS?', 'Every paid plan takes sales by hand, by CSV import or from a photo of the Z-report. The POS Sync add-on brings them in automatically through a small agent on the outlet PC.'],
-                    ['Do I need to install anything?', 'No. Servora runs in the browser on a desktop, tablet or phone. The staff apps install from the browser to a phone. Only label printing and POS Sync use a small agent on the outlet PC.'],
-                    ['Can staff use it without a login each?', 'Yes. Kitchen staff use a personal PIN on the staff portal, label app and SOP library. PIN-only staff never count as users.'],
-                    ['Can I get my data out?', 'Always. Every module exports to CSV, and the reports and inventory screens to Excel and PDF too.'],
-                ];
+                $faqs = array_map(fn ($n) => [$t("faq.{$n}_q"), $t("faq.{$n}_a")], range(1, 7));
             @endphp
             <div class="border-t border-gray-200 lg:col-span-8">
                 @foreach ($faqs as [$q, $a])
@@ -1190,18 +1186,18 @@
         <div aria-hidden="true" class="mk-grid-bg-dark pointer-events-none absolute inset-0"></div>
         <div aria-hidden="true" class="pointer-events-none absolute left-1/2 top-0 h-80 w-[40rem] -translate-x-1/2 rounded-full bg-brand-600/25 blur-3xl"></div>
         <div class="relative mx-auto max-w-4xl px-4 py-24 text-center sm:px-6 lg:px-8 lg:py-32">
-            <h2 class="display-1 text-white">Stop finding out<br><span class="mk-accent mk-accent-dark">at month end</span>.</h2>
+            <h2 class="display-1 text-white">{{ $t('close.title') }}<br><span class="mk-accent mk-accent-dark">{{ $t('close.title_accent') }}</span>.</h2>
             <p class="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-gray-300">
-                Cost one real recipe and see whether the margin matches what you assumed. Set-up takes minutes and the trial is the whole product.
+                {{ $t('close.lead') }}
             </p>
             <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
                 <a href="{{ route('saas.register') }}" class="btn-primary btn-lg group">
-                    Start {{ $trialDays }}-day free trial
+                    {{ $t('cta.trial') }}
                     <x-icon name="arrow-right" size="h-4 w-4" class="transition-transform group-hover:translate-x-0.5" />
                 </a>
-                <a href="{{ route('pricing') }}" class="btn-on-dark btn-lg">View pricing</a>
+                <a href="{{ route('pricing') }}" class="btn-on-dark btn-lg">{{ $t('cta.pricing') }}</a>
             </div>
-            <p class="mt-6 text-sm text-gray-400">No card to start &middot; Free plan for one outlet &middot; Cancel from inside the app</p>
+            <p class="mt-6 text-sm text-gray-400">{{ $t('close.note') }}</p>
         </div>
     </section>
 </div>

@@ -81,7 +81,7 @@
                     @if ($subscription && $plan)
                         <div class="text-right">
                             <p class="text-2xl font-bold text-gray-900">
-                                {{ $plan->currency }} {{ number_format($subscription->currentPrice(), 0) }}
+                                {{ $subscription->currency ?: $plan->currency }} {{ number_format($subscription->currentPrice(), 0) }}
                             </p>
                             <p class="text-xs text-gray-600">/{{ $subscription->billing_cycle === 'yearly' ? 'year' : 'month' }}</p>
                         </div>
@@ -183,7 +183,7 @@
                         @endif
                     </div>
                     <p class="text-lg font-bold text-gray-900">
-                        RM{{ number_format($availPlan->price_monthly, 0) }}
+                        {{ $book->format((float) ($book->suite((string) $availPlan->slug, (float) $availPlan->price_monthly) ?? $availPlan->price_monthly), 0) }}
                         @unless ($isFree)
                             <span class="text-xs font-normal text-gray-600">/ outlet / month</span>
                         @endunless

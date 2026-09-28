@@ -137,9 +137,13 @@ class Checkout extends Component
 
         $company = Auth::user()->company;
         $service = app(CheckoutService::class);
+        $book    = $service->book($company);
+        $quote   = $service->quote($company, $this->selectedPlan, $this->outlets, $this->chosen(), $this->billing_cycle, $book);
 
         return view('livewire.billing.checkout', [
-            'quote'      => $service->quote($company, $this->selectedPlan, $this->outlets, $this->chosen(), $this->billing_cycle),
+            'quote'      => $quote,
+            'book'       => $book,
+            'fx'         => $quote->ok() ? $service->charge($quote, $book->fx) : null,
             'minOutlets' => $service->minimumOutlets($company),
             'blocked'    => $service->blockedReason($company),
             'catalogue'  => config('modules.catalogue'),

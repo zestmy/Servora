@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Subscription;
+use App\Services\Billing\ExchangeRates;
 use App\Services\ChipInService;
 use App\Services\SubscriptionService;
 use Illuminate\Console\Command;
@@ -49,15 +50,25 @@ class ProcessRecurringBilling extends Command
                 continue;
             }
 
-            $this->line("  Processing: {$sub->companyName()} — {$sub->plan->name} ({$sub->plan->currency} {$amount})");
+            // The price stays in the currency the customer agreed to; what
+            // CHIP-IN charges is that in ringgit at today's BNM rate.
+            $currency = $checkout['currency'] ?? ($sub->currency ?: 'MYR');
+            $fx = app(ExchangeRates::class)->rate($currency, fresh: true);
+            if (! $fx) {
+                $this->warn("  Skipped: {$sub->companyName()} — no usable Bank Negara rate for {$currency}; tomorrow's run retries.");
+                continue;
+            }
+
+            $this->line("  Processing: {$sub->companyName()} — {$sub->plan->name} ({$currency} {$amount} = MYR {$fx->toMyr($amount)})");
 
             $result = app(ChipInService::class)->createPurchase(
                 $sub->company,
                 $sub,
-                $amount,
-                $sub->plan->currency,
+                $fx->toMyr($amount),
+                'MYR',
                 null,
                 $checkout,
+                $fx->isMyr() ? null : $fx->toArray($amount),
             );
 
             if ($result['success']) {

@@ -28,6 +28,9 @@ class CompanyRegistrationService
                 'slug'           => $slug,
                 'email'          => $data['email'],
                 'currency'       => 'MYR',
+                // Where the sign-up came from: it decides the currency the
+                // company is priced in (Billing\CurrencyResolver).
+                'billing_country' => $data['billing_country'] ?? null,
                 'is_active'      => true,
                 'registered_via' => 'self_signup',
             ]);
@@ -137,6 +140,9 @@ class CompanyRegistrationService
                 'slug'           => $slug,
                 'email'          => $user->email,
                 'currency'       => 'MYR',
+                // Where the sign-up came from: it decides the currency the
+                // company is priced in (Billing\CurrencyResolver).
+                'billing_country' => $data['billing_country'] ?? null,
                 'is_active'      => true,
                 'registered_via' => 'self_signup',
             ]);

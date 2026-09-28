@@ -14,6 +14,9 @@ use App\Models\Plan;
  *   + flat add-ons (none on Full, which includes them; at most two on Basic)
  *   + metered add-ons × max(quantity, minimum)
  *   yearly = 10 × monthly (two months free)
+ *
+ * In any currency: the PriceBook gives each item's price there (MYR by
+ * default). Bands and the add-on cap are the same everywhere.
  */
 class PriceCalculator
 {
@@ -29,9 +32,10 @@ class PriceCalculator
     /**
      * @param  array<string, int>  $addons  module => quantity (1 for a flat add-on)
      */
-    public function quote(Plan $plan, int $outlets, array $addons, string $cycle): Quote
+    public function quote(Plan $plan, int $outlets, array $addons, string $cycle, ?PriceBook $book = null): Quote
     {
-        $fail = fn (string $error) => new Quote([], 0, $cycle, 0, error: $error);
+        $book ??= PriceBook::myr();
+        $fail = fn (string $error) => new Quote([], 0, $cycle, 0, error: $error, currency: $book->currency);
 
         if (! in_array('basic', (array) $plan->modules, true)) {
             return $fail('Choose the Basic or Full suite.');
@@ -44,10 +48,13 @@ class PriceCalculator
         }
 
         $catalogue = (array) config('modules.catalogue');
-        $unit = (float) $plan->price_monthly;
+        $unit = $book->suite((string) $plan->slug, (float) $plan->price_monthly);
+        if ($unit === null) {
+            return $fail("Prices in {$book->currency} are not available right now. Please try again shortly.");
+        }
         $lines = [[
             'label'  => "{$plan->name} suite",
-            'detail' => "{$outlets} outlet".($outlets === 1 ? '' : 's').' × RM'.number_format($unit, 0),
+            'detail' => "{$outlets} outlet".($outlets === 1 ? '' : 's').' × '.$book->format($unit),
             'amount' => $unit * $outlets,
         ]];
 
@@ -73,18 +80,23 @@ class PriceCalculator
                 continue;
             }
 
+            $price = $book->module($module, (float) $m['price']);
+            if ($price === null) {
+                return $fail("Prices in {$book->currency} are not available right now. Please try again shortly.");
+            }
+
             if ($m['kind'] === 'addon') {
                 $flat++;
-                $lines[] = ['label' => $m['name'], 'detail' => 'Add-on', 'amount' => (float) $m['price']];
+                $lines[] = ['label' => $m['name'], 'detail' => 'Add-on', 'amount' => $price];
                 continue;
             }
 
             $billed = max((int) $quantity, (int) ($m['min_quantity'] ?? 1));
             $lines[] = [
                 'label'  => $m['name'],
-                'detail' => "{$billed} {$m['unit']}".($billed === 1 ? '' : 's').' × RM'.$m['price']
+                'detail' => "{$billed} {$m['unit']}".($billed === 1 ? '' : 's').' × '.$book->format($price)
                     .((int) $quantity < $billed ? " (minimum {$billed})" : ''),
-                'amount' => (float) $m['price'] * $billed,
+                'amount' => $price * $billed,
             ];
         }
 
@@ -95,6 +107,6 @@ class PriceCalculator
 
         $monthly = round(array_sum(array_column($lines, 'amount')), 2);
 
-        return new Quote($lines, $monthly, $cycle, $cycle === 'yearly' ? $monthly * 10 : $monthly);
+        return new Quote($lines, $monthly, $cycle, $cycle === 'yearly' ? $monthly * 10 : $monthly, currency: $book->currency);
     }
 }

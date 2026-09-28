@@ -48,7 +48,7 @@
                                    class="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-control border border-gray-200 px-3">
                                 <input type="checkbox" wire:model.live="addons.{{ $key }}" class="rounded border-gray-300 text-brand-600">
                                 <span class="flex-1 text-sm text-gray-900">{{ $m['name'] }}</span>
-                                <span class="text-sm tabular-nums text-gray-600">RM{{ $m['price'] }}</span>
+                                <span class="text-sm tabular-nums text-gray-600">{{ $book->format((float) $book->module($key, (float) $m['price'])) }}</span>
                             </label>
                         @endforeach
                     </div>
@@ -60,7 +60,7 @@
                     <div class="flex flex-wrap items-center gap-3">
                         <label class="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3">
                             <input type="checkbox" wire:model.live="hr" class="rounded border-gray-300 text-brand-600">
-                            <span class="text-sm text-gray-900">HR &amp; Payroll <span class="text-gray-600">— RM3 per employee, min 10</span></span>
+                            <span class="text-sm text-gray-900">HR &amp; Payroll <span class="text-gray-600">— {{ $book->format((float) $book->module('hr', (float) $catalogue['hr']['price'])) }} per employee, min {{ $catalogue['hr']['min_quantity'] }}</span></span>
                         </label>
                         @if ($hr)
                             <label class="flex items-center gap-2 text-sm text-gray-600">
@@ -73,7 +73,7 @@
                     <div class="flex flex-wrap items-center gap-3">
                         <label class="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3">
                             <input type="checkbox" wire:model.live="kitchen" class="rounded border-gray-300 text-brand-600">
-                            <span class="text-sm text-gray-900">Central Kitchen <span class="text-gray-600">— RM300 per kitchen</span></span>
+                            <span class="text-sm text-gray-900">Central Kitchen <span class="text-gray-600">— {{ $book->format((float) $book->module('central_kitchen', (float) $catalogue['central_kitchen']['price'])) }} per kitchen</span></span>
                         </label>
                         @if ($kitchen)
                             <label class="flex items-center gap-2 text-sm text-gray-600">
@@ -101,7 +101,7 @@
                                 <span class="block text-xs text-gray-600">{{ $line['detail'] }}</span>
                             </dt>
                             <dd class="tabular-nums {{ $line['amount'] < 0 ? 'text-success-700' : 'text-gray-900' }}">
-                                {{ $line['amount'] < 0 ? '−' : '' }}RM{{ number_format(abs($line['amount']), 2) }}
+                                {{ $book->format($line['amount'], 2) }}
                             </dd>
                         </div>
                     @endforeach
@@ -110,24 +110,41 @@
                 <div class="mt-4 space-y-2 border-t border-gray-100 pt-4 text-sm">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Per month</span>
-                        <span class="tabular-nums text-gray-900">RM{{ number_format($quote->monthly, 2) }}</span>
+                        <span class="tabular-nums text-gray-900">{{ $book->format($quote->monthly, 2) }}</span>
                     </div>
                     @if ($quote->cycle === 'yearly')
                         <div class="flex justify-between">
                             <span class="text-gray-600">Per year (10 months)</span>
-                            <span class="tabular-nums text-gray-900">RM{{ number_format($quote->cycleTotal, 2) }}</span>
+                            <span class="tabular-nums text-gray-900">{{ $book->format($quote->cycleTotal, 2) }}</span>
                         </div>
                     @endif
                     @if ($quote->credit > 0)
                         <div class="flex justify-between">
                             <span class="text-gray-600">Credit for unused time</span>
-                            <span class="tabular-nums text-success-700">−RM{{ number_format($quote->credit, 2) }}</span>
+                            <span class="tabular-nums text-success-700">{{ $book->format(-$quote->credit, 2) }}</span>
                         </div>
                     @endif
                     <div class="flex justify-between pt-2 text-base font-semibold">
                         <span class="text-gray-900">Due today</span>
-                        <span class="tabular-nums text-gray-900">RM{{ number_format($quote->due(), 2) }}</span>
+                        <span class="tabular-nums text-gray-900">{{ $book->format($quote->due(), 2) }}</span>
                     </div>
+
+                    {{-- CHIP-IN charges ringgit only. Say what this comes to,
+                         and at whose rate, before anyone presses Pay. --}}
+                    @if (! $book->isMyr() && $quote->due() > 0)
+                        @if ($fx)
+                            <div class="flex justify-between rounded-control bg-gray-50 px-3 py-2">
+                                <span class="text-gray-600">Charged in ringgit</span>
+                                <span class="font-semibold tabular-nums text-gray-900">RM{{ number_format($fx->toMyr($quote->due()), 2) }}</span>
+                            </div>
+                            <p class="help">
+                                At Bank Negara Malaysia's rate of {{ $book->currency }} 1 = RM{{ rtrim(rtrim(number_format($fx->myrPerUnit, 6), '0'), '.') }}
+                                ({{ $fx->date->format('d M Y') }}). The rate is refreshed when you press Pay, so the final ringgit may move slightly.
+                            </p>
+                        @else
+                            <p class="alert-warning text-xs">Bank Negara's rate for {{ $book->currency }} is not available right now. Try again shortly.</p>
+                        @endif
+                    @endif
                 </div>
 
                 @error('checkout') <p class="error-text mt-3">{{ $message }}</p> @enderror
@@ -135,13 +152,13 @@
                 <button type="button" wire:click="pay" wire:loading.attr="disabled"
                         class="btn-primary mt-5 w-full justify-center" @disabled($blocked)>
                     <span wire:loading.remove wire:target="pay">
-                        {{ $quote->due() > 0 ? 'Pay RM'.number_format($quote->due(), 2) : 'Switch at next renewal' }}
+                        {{ $quote->due() > 0 ? 'Pay '.($book->isMyr() || ! $fx ? $book->format($quote->due(), 2) : 'RM'.number_format($fx->toMyr($quote->due()), 2)) : 'Switch at next renewal' }}
                     </span>
                     <span wire:loading wire:target="pay">Starting payment…</span>
                 </button>
                 <p class="help mt-2">
                     @if ($quote->due() > 0)
-                        Your new plan starts as soon as the payment clears. Renews {{ $quote->cycle === 'yearly' ? 'yearly' : 'monthly' }} at RM{{ number_format($quote->cycleTotal, 2) }}.
+                        Your new plan starts as soon as the payment clears. Renews {{ $quote->cycle === 'yearly' ? 'yearly' : 'monthly' }} at {{ $book->format($quote->cycleTotal, 2) }}{{ $book->isMyr() ? '' : ', charged in ringgit at the rate of the day' }}.
                     @else
                         What you have already paid covers this, so the change starts when your current period ends.
                     @endif

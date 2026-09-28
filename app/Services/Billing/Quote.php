@@ -5,6 +5,8 @@ namespace App\Services\Billing;
 /**
  * A priced configuration. `monthly` and `cycleTotal` are the recurring price;
  * `credit` and `dueNow` are what CheckoutService adds for a change mid-period.
+ * Every amount is in `currency`; what CHIP-IN charges is that converted to
+ * MYR (CheckoutService::charge).
  */
 final class Quote
 {
@@ -19,6 +21,7 @@ final class Quote
         public readonly float $credit = 0,
         public readonly ?float $dueNow = null,
         public readonly ?string $error = null,
+        public readonly string $currency = 'MYR',
     ) {}
 
     public function ok(): bool
@@ -29,7 +32,7 @@ final class Quote
     public function withCredit(float $credit): self
     {
         return new self($this->lines, $this->monthly, $this->cycle, $this->cycleTotal,
-            $credit, max(0, round($this->cycleTotal - $credit, 2)), $this->error);
+            $credit, max(0, round($this->cycleTotal - $credit, 2)), $this->error, $this->currency);
     }
 
     public function due(): float

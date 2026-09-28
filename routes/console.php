@@ -11,6 +11,10 @@ Artisan::command('inspire', function () {
 // Process recurring billing daily at 6 AM MYT
 Schedule::command('billing:process-recurring')->dailyAt('06:00');
 
+// Bank Negara's ringgit rates, for pricing visitors in their own currency.
+// BNM publishes a few times a business day; checkout fetches its own anyway.
+Schedule::command('billing:refresh-rates')->hourly()->withoutOverlapping();
+
 // Ask CHIP-IN what happened to payments whose webhook never arrived. A lost
 // callback leaves the customer paid and Servora showing a pending payment, no
 // invoice and a subscription still on trial — and nothing used to close that
