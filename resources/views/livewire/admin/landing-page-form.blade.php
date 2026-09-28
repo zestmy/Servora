@@ -1,12 +1,4 @@
-<div x-data="{
-        running: false,
-        async draft() {
-            this.running = true;
-            await $wire.startAi();
-            while (await $wire.aiStep()) {}
-            this.running = false;
-        },
-     }">
+<div>
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
              class="alert-success mb-4">{{ session('success') }}</div>
@@ -67,11 +59,30 @@
                     <div class="h-full rounded-full bg-brand-600 transition-all" style="width: {{ $total ? round($done / $total * 100) : 0 }}%"></div>
                 </div>
 
-                <button type="button" @click="draft()" :disabled="running" class="btn-secondary btn-sm mt-4 w-full justify-center">
-                    <x-icon name="sparkles" size="h-4 w-4" />
-                    <span x-show="! running">Draft blank boxes with AI</span>
-                    <span x-show="running" x-cloak>Translating… <span class="tabular-nums">{{ count($aiQueue) }}</span> left</span>
-                </button>
+                @if ($aiRunning)
+                    {{-- The draft runs on the queue; this asks how far it has got. --}}
+                    <div wire:poll.2s="pollAi" class="mt-4 rounded-control border border-brand-100 bg-brand-50 p-3">
+                        <p class="flex items-center justify-between text-xs font-semibold text-brand-800">
+                            <span class="flex items-center gap-1.5">
+                                <x-icon name="sparkles" size="h-4 w-4" class="animate-pulse" />
+                                Translating with AI…
+                            </span>
+                            <span class="tabular-nums">{{ $aiDone }} / {{ $aiTotal }}</span>
+                        </p>
+                        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                            <div class="h-full rounded-full bg-brand-600 transition-all duration-500"
+                                 style="width: {{ $aiTotal ? max(3, round($aiDone / $aiTotal * 100)) : 3 }}%"></div>
+                        </div>
+                        <p class="help mt-2">About half a minute per {{ \App\Jobs\TranslateLandingPage::BATCH }} strings. You can keep editing, or leave and come back.</p>
+                        <button type="button" wire:click="cancelAi" class="mt-1 text-xs text-gray-600 underline hover:text-gray-900">Stop</button>
+                    </div>
+                @else
+                    <button type="button" wire:click="startAi" wire:loading.attr="disabled" wire:target="startAi"
+                            class="btn-secondary btn-sm mt-4 w-full justify-center">
+                        <x-icon name="sparkles" size="h-4 w-4" />
+                        Draft blank boxes with AI
+                    </button>
+                @endif
                 <p class="help mt-2">A first draft only. Have someone who reads {{ $language_name }} check it before publishing.</p>
                 @if ($aiError)
                     <p class="error-text mt-2">{{ $aiError }}</p>

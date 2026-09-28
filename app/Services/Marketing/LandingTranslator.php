@@ -2,6 +2,7 @@
 
 namespace App\Services\Marketing;
 
+use App\Jobs\TranslateLandingPage;
 use App\Models\AppSetting;
 use App\Support\ExecutionTime;
 use Illuminate\Support\Facades\Http;
@@ -21,7 +22,7 @@ class LandingTranslator
     private const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
     /** Keys per request: small enough to finish well inside the timeout. */
-    private const CHUNK = 40;
+    private const CHUNK = TranslateLandingPage::BATCH;
 
     /**
      * @param  array<string, string>  $strings  key => English
@@ -35,7 +36,7 @@ class LandingTranslator
         }
 
         $model = AppSetting::get('openrouter_model') ?: 'anthropic/claude-sonnet-4';
-        $previous = ExecutionTime::raise(120);
+        $previous = ExecutionTime::raise(90);
         $out = [];
 
         try {
@@ -66,7 +67,8 @@ class LandingTranslator
         - Short labels (buttons, tabs, tags) must stay short.
         TXT;
 
-        $response = Http::connectTimeout(15)->timeout(150)
+        // Inside the job's 85 s: a batch that cannot answer in 70 s fails cleanly.
+        $response = Http::connectTimeout(10)->timeout(70)
             ->withHeaders([
                 'Authorization' => 'Bearer '.$apiKey,
                 'HTTP-Referer'  => config('app.url', 'http://localhost'),
@@ -74,7 +76,7 @@ class LandingTranslator
             ])
             ->post(self::ENDPOINT, [
                 'model'           => $model,
-                'max_tokens'      => 8000,
+                'max_tokens'      => 4000,
                 'response_format' => ['type' => 'json_object'],
                 'messages'        => [
                     ['role' => 'system', 'content' => $system],

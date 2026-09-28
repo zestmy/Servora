@@ -115,14 +115,29 @@ class CountryLandingPageTest extends TestCase
             return Http::response(['choices' => [['message' => ['content' => json_encode($out)]]]]);
         }]);
 
+        // The queue is synchronous under test: every batch runs inside startAi.
         $test = Livewire::actingAs($this->admin())->test(LandingPageForm::class, ['id' => $page->id])->call('startAi');
-        while ($test->instance()->aiStep()) {
-        }
+
+        $this->assertFalse($test->get('aiRunning'));
+        $this->assertSame(count(HomeCopy::defaults()) - 1, $test->get('aiTotal'));
+        $this->assertSame([], $page->fresh()->strings['hero.see'] ?? [], 'a draft is not saved until the admin saves');
 
         $strings = $test->instance()->strings;
         $this->assertSame('Sudah diterjemahkan', $strings['hero__title'], 'a filled box is not overwritten');
         $this->assertSame('ID: See it work', $strings['hero__see']);
         $this->assertSame('', $strings['cta__trial'], 'a translation that lost :days is not used');
+    }
+
+    public function test_a_failing_ai_request_reports_instead_of_hanging(): void
+    {
+        \App\Models\AppSetting::set('openrouter_api_key', 'test');
+        $page = $this->page();
+        Http::fake(['openrouter.ai/*' => Http::response(['error' => ['message' => 'Rate limited']], 429)]);
+
+        Livewire::actingAs($this->admin())->test(LandingPageForm::class, ['id' => $page->id])
+            ->call('startAi')
+            ->assertSet('aiRunning', false)
+            ->assertSee('Rate limited');
     }
 
     private function page(array $attributes = []): LandingPage

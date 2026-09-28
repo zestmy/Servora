@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Admin;
 
+use App\Jobs\TranslateLandingPage;
 use App\Models\LandingPage;
-use App\Services\Marketing\LandingTranslator;
 use App\Support\Marketing\HomeCopy;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -14,9 +14,11 @@ use Livewire\Component;
  * English on the live page, so a page can go out half translated without a
  * hole in it — the counter says how far along it is.
  *
- * "Draft with AI" fills the blank boxes (LandingTranslator) one batch per
- * request, looped from the browser, so no single request runs anywhere near
- * the server's 60-second limit.
+ * "Draft with AI" runs on the queue (TranslateLandingPage), a small batch
+ * per job, and this screen polls for progress: a browser-driven loop broke
+ * on production, where one batch outlived the 60-second request limit and
+ * the screen sat on "Translating…" with nothing to say why. Results land in
+ * the blank boxes only, and nothing is stored until Save.
  */
 class LandingPageForm extends Component
 {
@@ -39,11 +41,11 @@ class LandingPageForm extends Component
     public string $section = 'hero';
     public bool $onlyMissing = false;
 
-    /** Keys left for the AI draft this run, so a key it could not do is not asked for forever. */
-    public array $aiQueue = [];
+    /** An AI draft is in progress on the queue; the view polls pollAi(). */
+    public bool $aiRunning = false;
+    public int $aiDone = 0;
+    public int $aiTotal = 0;
     public ?string $aiError = null;
-
-    private const AI_BATCH = 40;
 
     public function mount(int $id): void
     {
@@ -58,6 +60,9 @@ class LandingPageForm extends Component
         foreach (HomeCopy::defaults() as $key => $english) {
             $this->strings[self::field($key)] = (string) ($this->page->strings[$key] ?? '');
         }
+
+        // A draft started earlier (or still running) survives a reload.
+        $this->pollAi();
     }
 
     public static function field(string $key): string
@@ -130,48 +135,65 @@ class LandingPageForm extends Component
             'auto_redirect'    => $this->auto_redirect,
         ]);
 
+        // Its results are in the boxes and now saved; a later reload must
+        // not refill boxes the admin has since cleared on purpose.
+        if (! $this->aiRunning) {
+            cache()->forget(TranslateLandingPage::key($this->page->id));
+        }
+
         session()->flash('success', 'Saved.');
     }
 
-    /** Start an AI draft of every blank box. */
+    /** Queue an AI draft of every blank box. */
     public function startAi(): void
     {
+        $blank = array_keys(array_filter($this->translations(), fn ($v) => $v === ''));
         $this->aiError = null;
-        $this->aiQueue = array_keys(array_filter($this->translations(), fn ($v) => $v === ''));
+
+        if (! $blank) {
+            session()->flash('success', 'Every box already has a translation.');
+            return;
+        }
+        if (! \App\Models\AppSetting::get('openrouter_api_key')) {
+            $this->aiError = 'No OpenRouter API key is set. Add one under Settings › API Keys.';
+            return;
+        }
+
+        TranslateLandingPage::start($this->page, $blank);
+        $this->pollAi();
     }
 
-    /**
-     * Translate the next batch. Returns whether there is more to do; the
-     * view calls it again until there is not.
-     */
-    public function aiStep(): bool
+    /** Merge what the queue has translated so far into the blank boxes. */
+    public function pollAi(): void
     {
-        if (! $this->aiQueue) {
-            return false;
+        $state = TranslateLandingPage::state($this->page->id);
+        if (! $state) {
+            $this->aiRunning = false;
+            return;
         }
 
-        $batch = array_splice($this->aiQueue, 0, self::AI_BATCH);
-        $english = array_intersect_key(HomeCopy::defaults(), array_flip($batch));
-
-        try {
-            $done = app(LandingTranslator::class)->translate($english, $this->language_name, $this->locale);
-        } catch (\Throwable $e) {
-            $this->aiError = $e->getMessage();
-            $this->aiQueue = [];
-            return false;
-        }
-
-        foreach ($done as $key => $value) {
-            if (trim((string) ($this->strings[self::field($key)] ?? '')) === '') {
-                $this->strings[self::field($key)] = $value;
+        foreach ($state['results'] as $key => $value) {
+            $field = self::field($key);
+            if (array_key_exists($field, $this->strings) && trim((string) $this->strings[$field]) === '') {
+                $this->strings[$field] = $value;
             }
         }
 
-        if (! $this->aiQueue) {
+        $wasRunning   = $this->aiRunning;
+        $this->aiDone  = (int) $state['done'];
+        $this->aiTotal = (int) $state['total'];
+        $this->aiError = $state['error'];
+        $this->aiRunning = $state['status'] === 'running';
+
+        if ($wasRunning && $state['status'] === 'done') {
             session()->flash('success', 'AI draft done. Read it through, then Save — nothing is stored until you do.');
         }
+    }
 
-        return (bool) $this->aiQueue;
+    public function cancelAi(): void
+    {
+        cache()->forget(TranslateLandingPage::key($this->page->id));
+        $this->aiRunning = false;
     }
 
     public function clearSection(): void
