@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Cache;
  * It ran inside the admin's browser request first, 40 strings a time, and a
  * batch took ~90 s on production — past PHP's 60 s limit and nginx's 60 s
  * read timeout, so the request died and the screen sat on "Translating…"
- * for good. Now each job translates BATCH strings (well under a minute),
+ * for good. Now each job translates one small batch (BATCH strings or
+ * CHARS of English, whichever comes first — about 30-45 s),
  * then queues the next with what is left. The worker's own limit is 60 s
  * and Redis re-delivers a job after 90 s, so a job must finish inside that.
  *
@@ -32,6 +33,7 @@ class TranslateLandingPage implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public const BATCH = 15;
+    public const CHARS = 1200;
 
     public $tries = 1;
     public $timeout = 85;
@@ -70,9 +72,22 @@ class TranslateLandingPage implements ShouldQueue
             return; // cancelled, replaced or deleted
         }
 
-        $batch = array_slice($this->keys, 0, self::BATCH);
-        $rest = array_slice($this->keys, self::BATCH);
-        $english = array_intersect_key(HomeCopy::defaults(), array_flip($batch));
+        // Up to BATCH strings, but no more than CHARS of English: 15 short
+        // labels took 42 s on production, and a batch of FAQ answers at the
+        // same count would not fit inside the timeout.
+        $defaults = HomeCopy::defaults();
+        $batch = [];
+        $chars = 0;
+        foreach ($this->keys as $key) {
+            $len = mb_strlen($defaults[$key] ?? '');
+            if ($batch && (count($batch) >= self::BATCH || $chars + $len > self::CHARS)) {
+                break;
+            }
+            $batch[] = $key;
+            $chars += $len;
+        }
+        $rest = array_slice($this->keys, count($batch));
+        $english = array_intersect_key($defaults, array_flip($batch));
 
         try {
             $done = $translator->translate($english, $page->language_name, $page->locale);

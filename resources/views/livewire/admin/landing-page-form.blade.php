@@ -73,7 +73,7 @@
                             <div class="h-full rounded-full bg-brand-600 transition-all duration-500"
                                  style="width: {{ $aiTotal ? max(3, round($aiDone / $aiTotal * 100)) : 3 }}%"></div>
                         </div>
-                        <p class="help mt-2">About half a minute per {{ \App\Jobs\TranslateLandingPage::BATCH }} strings. You can keep editing, or leave and come back.</p>
+                        <p class="help mt-2">A full page takes 10–15 minutes. You can keep editing, or leave and come back — nothing is saved until you press Save.</p>
                         <button type="button" wire:click="cancelAi" class="mt-1 text-xs text-gray-600 underline hover:text-gray-900">Stop</button>
                     </div>
                 @else
