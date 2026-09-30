@@ -80,7 +80,7 @@
                     @else
                         <p class="progress-meta mt-0.5">
                             @if ($outletId !== '')
-                                The {{ $sopCount }} SOPs tagged to this outlet as one PDF — "All Outlets" recipes are left out.
+                                The {{ $sopCount }} SOPs this outlet sees as one PDF — tagged to it or set to "All Outlets".
                             @else
                                 All {{ $sopCount }} SOPs as one PDF — takes a couple of minutes, so it builds in the background.
                             @endif
@@ -90,8 +90,8 @@
             </div>
 
             <div class="flex flex-shrink-0 flex-wrap items-center gap-2">
-                {{-- Same rule as Export SOPs by Category: an outlet keeps only
-                     recipes tagged to it. Each choice has its own latest copy. --}}
+                {{-- Same rule as every outlet filter: tagged to the outlet or
+                     untagged. Each choice has its own latest copy. --}}
                 @if ($outlets->count() > 1)
                     <label class="flex items-center gap-2 text-xs text-gray-600">
                         Outlet

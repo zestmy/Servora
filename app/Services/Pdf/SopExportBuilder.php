@@ -91,7 +91,7 @@ class SopExportBuilder
      *
      * $filters accepts 'prep' (bool), 'prep_category' (id), 'category' (name)
      * and 'category_group' (root category id) — the four the Training Portal
-     * links offer — plus 'outlet' (id), which keeps only recipes tagged to it.
+     * links offer — plus 'outlet' (id): recipes tagged to it or to no outlet.
      *
      * $onProgress receives (int $percent, string $label, string $phase).
      *
@@ -143,10 +143,10 @@ class SopExportBuilder
         }
         $isFiltered = $category !== null || $groupNames !== null;
 
-        // Optional outlet filter (Training Portal) — only recipes explicitly
-        // tagged to that outlet. Stricter than a trainee's visibility on
-        // purpose: "All Outlets" recipes would otherwise land in every
-        // outlet's export and make it read as unfiltered.
+        // Optional outlet filter (Training Portal) — the same rule as every
+        // other outlet filter: recipes tagged to that outlet plus untagged
+        // ("All Outlets") ones, so a new outlet sees the shared menu without
+        // anything being re-tagged. Recipes tagged only elsewhere drop out.
         $outletId = (int) ($filters['outlet'] ?? 0) ?: null;
 
         // Shared LMS visibility scope (company + active + LMS-enabled + trainee outlets).
@@ -155,7 +155,7 @@ class SopExportBuilder
                 ->where('recipes.is_active', true)
                 ->where('recipes.exclude_from_lms', false)
                 ->visibleToOutlets($traineeOutletIds)
-                ->when($outletId, fn ($q) => $q->taggedToOutlet($outletId));
+                ->when($outletId, fn ($q) => $q->visibleToOutlets([$outletId]));
         };
 
         // Non-prep recipes — ordered EXACTLY like the Recipes list (category hierarchy:

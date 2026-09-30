@@ -123,16 +123,18 @@ class TrainingPortalSopExportTest extends TestCase
 
         $page->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Coffee', 'Rice', 'Toast']);
 
-        // Tagged only: "All Outlets" recipes would make every outlet's export
-        // look unfiltered, so Rice (untagged) drops out for KLCC.
+        // Same rule as every outlet filter: tagged to KLCC or untagged. Coffee
+        // is tagged to IOI only, so it drops out; Rice ("All Outlets") stays,
+        // so a new outlet sees the shared menu without re-tagging anything.
         $page->set('sopOutletId', (string) $klcc->id)
-            ->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Toast'])
+            ->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Rice', 'Toast'])
             ->assertSee(route('training.sop.pdf-all', ['category' => 'Toast', 'outlet' => $klcc->id]));
 
-        // The PDF applies the same rule: Kaya Toast, not Butter Toast.
-        $built = app(\App\Services\Pdf\SopExportBuilder::class)
-            ->bulk($this->user, ['category' => 'Toast', 'outlet' => $klcc->id]);
-        $this->assertSame(1, $built['recipeCount']);
+        // The PDF applies the same rule: Kaya Toast (tagged) and Butter Toast (untagged).
+        $builder = app(\App\Services\Pdf\SopExportBuilder::class);
+        $this->assertSame(2, $builder->bulk($this->user, ['category' => 'Toast', 'outlet' => $klcc->id])['recipeCount']);
+        // And a recipe tagged only to another outlet is left out of KLCC's.
+        $this->assertSame(0, $builder->bulk($this->user, ['category' => 'Coffee', 'outlet' => $klcc->id])['recipeCount']);
 
         // Another company's outlet id is ignored rather than trusted.
         $foreign = Outlet::create(['company_id' => Company::create([

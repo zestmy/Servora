@@ -148,12 +148,12 @@ class LmsUsers extends Component
             ->orderBy('name')
             ->get();
 
-        // The export filter narrows the category chips to recipes tagged to
-        // that outlet ("All Outlets" recipes excluded — same rule as the PDF),
-        // so no chip exports an empty PDF. An id that is not one of this
-        // company's outlets is dropped, not trusted.
+        // The export filter narrows the category chips to what that outlet
+        // sees — tagged to it or untagged, the same rule as the PDF — so no
+        // chip exports an empty PDF. An id that is not one of this company's
+        // outlets is dropped, not trusted.
         $exportOutletId = $accessOutlets->firstWhere('id', (int) $this->sopOutletId)?->id;
-        $forOutlet = fn ($q) => $q->when($exportOutletId, fn ($q) => $q->taggedToOutlet($exportOutletId));
+        $forOutlet = fn ($q) => $q->when($exportOutletId, fn ($q) => $q->visibleToOutlets([$exportOutletId]));
 
         // SOP categories
         $sopCategories = Recipe::where('is_active', true)

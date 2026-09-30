@@ -27,7 +27,7 @@ class SopExportPanel extends Component
     /** Matches the job's own progress writes; slower reads as laggy. */
     private const POLL_MS = 2000;
 
-    /** Outlet filter — '' is every SOP; an id keeps only recipes tagged to it. */
+    /** Outlet filter — '' is every SOP; an id keeps recipes tagged to it or to no outlet. */
     public string $outletId = '';
 
     public function start(SopExportBuilder $builder): void
@@ -161,7 +161,7 @@ class SopExportPanel extends Component
             'sopCount' => Recipe::where('company_id', $companyId)
                 ->where('is_active', true)
                 ->where('exclude_from_lms', false)
-                ->when($outletId, fn ($q) => $q->taggedToOutlet($outletId))
+                ->when($outletId, fn ($q) => $q->visibleToOutlets([$outletId]))
                 ->count(),
         ]);
     }
