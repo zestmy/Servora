@@ -70,7 +70,7 @@ class PrintSetBulkShelfLifeTest extends TestCase
                 'label_set_id' => $this->set->id,
                 'custom_name'  => $name,
                 'sort_order'   => $i,
-                'label_type'    => 'use_by',
+                'label_type'    => 'prep',
                 'storage_state' => 'chill',
                 'copies'        => 1,
                 'is_active'    => true,
@@ -204,7 +204,7 @@ class PrintSetBulkShelfLifeTest extends TestCase
         ]);
         $theirLine = LabelSetLine::create([
             'label_set_id' => $otherSet->id, 'custom_name' => 'NOT MINE',
-            'sort_order' => 0, 'label_type' => 'use_by', 'storage_state' => 'chill',
+            'sort_order' => 0, 'label_type' => 'prep', 'storage_state' => 'chill',
             'copies' => 1, 'is_active' => true,
         ]);
 
@@ -229,14 +229,14 @@ class PrintSetBulkShelfLifeTest extends TestCase
 
         $this->screen()
             ->call('updateLine', $theirLine->id, 'storage_state', 'frozen')
-            ->call('updateLine', $theirLine->id, 'label_type', 'prep')
+            ->call('updateLine', $theirLine->id, 'label_type', 'oof')
             ->call('updateLine', $theirLine->id, 'shelf_life_value', '30')
             ->call('removeLine', $theirLine->id);
 
         $theirs = $theirLine->fresh();
         $this->assertNotNull($theirs, 'A line outside the open set was removed.');
         $this->assertSame('chill', $theirs->storage_state);
-        $this->assertSame('use_by', $theirs->label_type);
+        $this->assertSame('prep', $theirs->label_type);
         $this->assertNull($theirs->shelf_life_value);
     }
 
@@ -248,7 +248,7 @@ class PrintSetBulkShelfLifeTest extends TestCase
 
         $line = $this->lines[0]->fresh();
         $this->assertSame('chill', $line->storage_state);
-        $this->assertSame('use_by', $line->label_type);
+        $this->assertSame('prep', $line->label_type);
     }
 
     public function test_a_line_in_the_open_set_can_still_be_updated_and_removed(): void
@@ -273,7 +273,7 @@ class PrintSetBulkShelfLifeTest extends TestCase
 
         return LabelSetLine::create([
             'label_set_id' => $otherSet->id, 'custom_name' => 'NOT MINE',
-            'sort_order' => 0, 'label_type' => 'use_by', 'storage_state' => 'chill',
+            'sort_order' => 0, 'label_type' => 'prep', 'storage_state' => 'chill',
             'copies' => 1, 'is_active' => true,
         ]);
     }
@@ -340,7 +340,7 @@ class PrintSetBulkShelfLifeTest extends TestCase
 
         $fresh = $this->lines[0]->fresh();
         $this->assertSame('frozen', $fresh->storage_state);
-        $this->assertSame('use_by', $fresh->label_type);
+        $this->assertSame('prep', $fresh->label_type);
         $this->assertSame(2, (int) $fresh->copies);
         $this->assertEquals(5.0, (float) $fresh->shelf_life_value);
         $this->assertSame('days', $fresh->shelf_life_unit);
