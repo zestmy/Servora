@@ -6,9 +6,11 @@ use App\Models\FormTemplate;
 use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\StockTake;
+use App\Models\StockTakeLine;
 use App\Traits\LocksLineUnitCost;
 use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class StockTakeForm extends Component
@@ -30,7 +32,24 @@ class StockTakeForm extends Component
     // Detailed method lines
     public array  $lines            = [];
     public string $ingredientSearch = '';
-    public bool   $hideSystemQty    = false;
+    // Counters work blind by default: seeing the expected figure invites
+    // copying it down instead of counting.
+    public bool   $hideSystemQty    = true;
+
+    /**
+     * ingredient id => recipe units per purchase unit, for lines that have a
+     * Purchase UOM column. Server-authored and #[Locked] for the same reason
+     * as the cost map: a factor from the browser would scale the stock saved.
+     *
+     * Each line is counted as pack_quantity (purchase UOM, full packs) plus
+     * actual_quantity (recipe UOM, loose). In the FORM actual_quantity is the
+     * loose part only; what is stored as actual_quantity is the total in the
+     * recipe UOM (see countedTotal()), which is what every report reads.
+     *
+     * @var array<int, float>
+     */
+    #[Locked]
+    public array  $packFactors      = [];
 
     // Template picker
     public string $selectedTemplateId = '';
@@ -51,6 +70,7 @@ class StockTakeForm extends Component
         } else {
             $rules['lines']                    = 'required|array|min:1';
             $rules['lines.*.actual_quantity']  = 'required|numeric|min:0';
+            $rules['lines.*.pack_quantity']    = 'nullable|numeric|min:0';
             // unit_cost is derived, not entered — see LocksLineUnitCost.
         }
 
@@ -67,6 +87,8 @@ class StockTakeForm extends Component
             'lines.min'                        => 'Add at least one ingredient.',
             'lines.*.actual_quantity.required' => 'Actual quantity is required.',
             'lines.*.actual_quantity.min'      => 'Quantity cannot be negative.',
+            'lines.*.pack_quantity.numeric'    => 'Enter a number of packs.',
+            'lines.*.pack_quantity.min'        => 'Quantity cannot be negative.',
         ];
     }
 
@@ -122,19 +144,34 @@ class StockTakeForm extends Component
                 ? round($varianceQty * $unitCost, 4)
                 : floatval($l->variance_cost);
 
-            return $this->rememberLineCost([
+            // Show the count the way it was typed: packs + loose when it was
+            // split, otherwise the stored total as loose.
+            $factor = StockTakeLine::packFactor($l->ingredient, $l->uom);
+            $split  = $factor && $l->pack_quantity !== null;
+
+            return $this->withPackFactor($this->rememberLineCost([
                 'ingredient_id'        => $l->ingredient_id,
                 'ingredient_name'      => $l->ingredient?->name ?? '(Deleted ingredient)',
                 'is_prep'              => (bool) ($l->ingredient?->is_prep ?? false),
                 'uom_id'               => $l->uom_id,
                 'uom_abbr'             => $l->uom->abbreviation ?? '',
+                'pack_uom_abbr'        => $factor ? ($l->ingredient->baseUom->abbreviation ?? '') : '',
                 'system_quantity'      => (string) floatval($l->system_quantity),
-                'actual_quantity'      => (string) floatval($l->actual_quantity),
+                'pack_quantity'        => $split ? (string) floatval($l->pack_quantity) : '',
+                'actual_quantity'      => (string) floatval($split ? $l->loose_quantity : $l->actual_quantity),
+                'counted_quantity'     => floatval($l->actual_quantity),
                 'variance_quantity'    => $varianceQty,
                 'variance_cost'        => $varianceCost,
                 ...$this->categoryFields($l->ingredient),
-            ], $unitCost);
+            ], $unitCost), $factor);
         })->toArray();
+
+        // A draft re-derives totals off today's pack size.
+        if ($refreshCost) {
+            foreach (array_keys($this->lines) as $idx) {
+                $this->recalcLine($idx);
+            }
+        }
     }
 
     /** Reorder lines by new sequence of indexes (from drag-drop). */
@@ -251,7 +288,7 @@ class StockTakeForm extends Component
     public function updatedLines($value, $key): void
     {
         $parts = explode('.', $key);
-        if (count($parts) === 2 && in_array($parts[1], ['actual_quantity', 'system_quantity'])) {
+        if (count($parts) === 2 && in_array($parts[1], ['actual_quantity', 'pack_quantity', 'system_quantity'])) {
             $this->recalcLine((int) $parts[0]);
         }
     }
@@ -272,7 +309,7 @@ class StockTakeForm extends Component
         // line so counting can continue.
         $lines = collect($this->lines);
         if ($action === 'complete') {
-            $lines = $lines->filter(fn ($l) => floatval($l['actual_quantity']) > 0)->values();
+            $lines = $lines->filter(fn ($l) => $this->countedTotal($l) > 0)->values();
 
             if ($this->method === 'detailed' && $lines->isEmpty()) {
                 $this->addError('lines', 'Enter a counted quantity for at least one item before completing.');
@@ -285,9 +322,9 @@ class StockTakeForm extends Component
             $totalVarianceCost = 0;
         } else {
             $totalVarianceCost = $lines->sum(fn ($l) => round(
-                (floatval($l['actual_quantity']) - floatval($l['system_quantity'])) * $this->lockedLineCost($l), 4
+                ($this->countedTotal($l) - floatval($l['system_quantity'])) * $this->lockedLineCost($l), 4
             ));
-            $totalStockCost    = $lines->sum(fn ($l) => floatval($l['actual_quantity']) * $this->lockedLineCost($l));
+            $totalStockCost    = $lines->sum(fn ($l) => $this->countedTotal($l) * $this->lockedLineCost($l));
         }
 
         $data = [
@@ -315,8 +352,9 @@ class StockTakeForm extends Component
         $record->lines()->delete();
         if ($this->method === 'detailed') {
             foreach ($lines as $line) {
-                $actualQty    = floatval($line['actual_quantity']);
+                $actualQty    = $this->countedTotal($line);
                 $systemQty    = floatval($line['system_quantity']);
+                $hasPacks     = $this->packFactor($line) !== null && trim((string) ($line['pack_quantity'] ?? '')) !== '';
                 $varianceQty  = $actualQty - $systemQty;
                 $unitCost     = $this->lockedLineCost($line);
                 $varianceCost = $varianceQty * $unitCost;
@@ -326,6 +364,8 @@ class StockTakeForm extends Component
                     'uom_id'            => $line['uom_id'],
                     'system_quantity'   => $systemQty,
                     'actual_quantity'   => $actualQty,
+                    'pack_quantity'     => $hasPacks ? floatval($line['pack_quantity']) : null,
+                    'loose_quantity'    => $hasPacks ? floatval($line['actual_quantity']) : null,
                     'variance_quantity' => round($varianceQty, 4),
                     'unit_cost'         => $unitCost,
                     'variance_cost'     => round($varianceCost, 4),
@@ -340,7 +380,7 @@ class StockTakeForm extends Component
             $names  = \App\Services\AuditLogService::itemLabels($ingIds);
             $uoms   = \App\Services\AuditLogService::uomLabels($lines->pluck('uom_id')->map('intval')->all());
             foreach ($lines as $line) {
-                $variance = round(floatval($line['actual_quantity']) - floatval($line['system_quantity']), 4);
+                $variance = round($this->countedTotal($line) - floatval($line['system_quantity']), 4);
                 if (abs($variance) < 0.0001) continue;
                 $ingId = (int) $line['ingredient_id'];
                 \App\Services\AuditLogService::log($record, 'line_variance', [
@@ -400,7 +440,7 @@ class StockTakeForm extends Component
         }
 
         $totalVarianceCost = collect($this->lines)->sum(fn ($l) => floatval($l['variance_cost']));
-        $totalStockCost    = collect($this->lines)->sum(fn ($l) => floatval($l['actual_quantity']) * $this->lockedLineCost($l));
+        $totalStockCost    = collect($this->lines)->sum(fn ($l) => $this->countedTotal($l) * $this->lockedLineCost($l));
         $positiveVariance  = collect($this->lines)->where(fn ($l) => floatval($l['variance_quantity']) > 0)->count();
         $negativeVariance  = collect($this->lines)->where(fn ($l) => floatval($l['variance_quantity']) < 0)->count();
 
@@ -431,18 +471,61 @@ class StockTakeForm extends Component
             ? app(\App\Services\UomService::class)->convertCost($ingredient, $countUom)
             : floatval($ingredient->current_cost);
 
-        return $this->rememberLineCost([
+        $factor = StockTakeLine::packFactor($ingredient, $countUom);
+
+        return $this->withPackFactor($this->rememberLineCost([
             'ingredient_id'     => $ingredient->id,
             'ingredient_name'   => $ingredient->name,
             'is_prep'           => (bool) $ingredient->is_prep,
             'uom_id'            => $countUom?->id ?? $ingredient->base_uom_id,
             'uom_abbr'          => $countUom?->abbreviation ?? '',
+            'pack_uom_abbr'     => $factor ? ($ingredient->baseUom->abbreviation ?? '') : '',
             'system_quantity'   => '0',
+            'pack_quantity'     => '',
             'actual_quantity'   => '0',
+            'counted_quantity'  => 0,
             'variance_quantity' => 0,
             'variance_cost'     => 0,
             ...$this->categoryFields($ingredient),
-        ], $unitCost);
+        ], $unitCost), $factor);
+    }
+
+    /** Record a line's pack factor server-side (none = no Purchase UOM column). */
+    private function withPackFactor(array $line, ?float $factor): array
+    {
+        $id = (int) $line['ingredient_id'];
+
+        if ($factor) {
+            $this->packFactors[$id] = $factor;
+        } else {
+            unset($this->packFactors[$id]);
+        }
+
+        return $line;
+    }
+
+    private function packFactor(array $line): ?float
+    {
+        $factor = $this->packFactors[(int) ($line['ingredient_id'] ?? 0)] ?? null;
+
+        return $factor && $factor > 0 ? (float) $factor : null;
+    }
+
+    /**
+     * The count in the recipe UOM: packs x pack size + loose. Always worked
+     * out here from the two inputs and the locked factor, never taken from a
+     * total the browser sent.
+     */
+    private function countedTotal(array $line): float
+    {
+        $loose  = floatval($line['actual_quantity'] ?? 0);
+        $factor = $this->packFactor($line);
+
+        if (! $factor) {
+            return $loose;
+        }
+
+        return round(floatval($line['pack_quantity'] ?? 0) * $factor + $loose, 4);
     }
 
     private function categoryFields(?Ingredient $ingredient): array
@@ -476,7 +559,8 @@ class StockTakeForm extends Component
     {
         if (! isset($this->lines[$idx])) return;
 
-        $actual   = floatval($this->lines[$idx]['actual_quantity'] ?? 0);
+        $actual   = $this->countedTotal($this->lines[$idx]);
+        $this->lines[$idx]['counted_quantity'] = $actual;
         $system   = floatval($this->lines[$idx]['system_quantity'] ?? 0);
         $unitCost = $this->lockedLineCost($this->lines[$idx]);
 

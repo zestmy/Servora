@@ -335,8 +335,11 @@
                             @if (! $hideSystemQty)
                                 <th class="px-4 py-2 text-right w-28">System Qty</th>
                             @endif
-                            <th class="px-4 py-2 text-right w-28">Actual Qty</th>
-                            <th class="px-4 py-2 text-left w-16">UOM</th>
+                            {{-- Full packs in the unit it is bought in, plus loose stock in
+                                 the unit it is used in. The line's count is packs x pack
+                                 size + loose, in the recipe UOM, which is what is stored. --}}
+                            <th class="px-4 py-2 text-right w-36" title="Full packs, in the unit the item is bought in">Purchase UOM</th>
+                            <th class="px-4 py-2 text-right w-36" title="Loose stock, in the unit the item is used in">Recipe UOM</th>
                             <th class="px-4 py-2 text-right w-28">Unit Cost</th>
                             <th class="px-4 py-2 text-right w-32">Stock Value</th>
                             @if (! $hideSystemQty)
@@ -357,7 +360,7 @@
                         @foreach ($grouped as $groupName => $groupLines)
                             @php
                                 $groupColor      = $groupLines->first()['category_group_color'] ?? '#6b7280';
-                                $groupStockValue = $groupLines->sum(fn($l) => floatval($l['actual_quantity']) * floatval($l['unit_cost']));
+                                $groupStockValue = $groupLines->sum(fn($l) => floatval($l['counted_quantity'] ?? $l['actual_quantity']) * floatval($l['unit_cost']));
                                 $groupVariance   = $groupLines->sum(fn($l) => floatval($l['variance_cost']));
                             @endphp
 
@@ -393,7 +396,9 @@
                                     $idx          = $line['_idx'];
                                     $variance     = floatval($line['variance_quantity']);
                                     $varianceCost = floatval($line['variance_cost']);
-                                    $stockValue   = floatval($line['actual_quantity']) * floatval($line['unit_cost']);
+                                    $counted      = floatval($line['counted_quantity'] ?? $line['actual_quantity']);
+                                    $stockValue   = $counted * floatval($line['unit_cost']);
+                                    $hasPackCol   = ($line['pack_uom_abbr'] ?? '') !== '';
                                     $varColor     = $variance > 0 ? 'text-success-600' : ($variance < 0 ? 'text-danger-500' : 'text-gray-600');
                                     $rowNum++;
                                 @endphp
@@ -426,17 +431,50 @@
                                             @endif
                                         </td>
                                     @endif
+                                    {{-- Purchase UOM: full packs. Only where a real pack
+                                         conversion exists; otherwise the item is counted in
+                                         one unit and guessing 1:1 would be off by the pack. --}}
                                     <td class="px-4 py-2">
-                                        @if ($isCompleted)
-                                            <span class="block text-right tabular-nums font-medium text-gray-800">{{ number_format(floatval($line['actual_quantity']), 2) }}</span>
+                                        @if (! $hasPackCol)
+                                            <span class="block text-right text-gray-400" title="No purchase-to-recipe conversion set for this item — count it in the recipe UOM">—</span>
+                                        @elseif ($isCompleted)
+                                            <span class="block text-right tabular-nums text-gray-800">
+                                                {{ ($line['pack_quantity'] ?? '') !== '' ? number_format(floatval($line['pack_quantity']), 2) : '—' }}
+                                                <span class="text-xs text-gray-500">{{ $line['pack_uom_abbr'] }}</span>
+                                            </span>
                                         @else
-                                            <input type="number" step="0.1" min="0"
-                                                   wire:model.blur="lines.{{ $idx }}.actual_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
-                                                   class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 font-medium" />
-                                            <x-input-error :messages="$errors->get('lines.'.$idx.'.actual_quantity')" class="mt-0.5" />
+                                            <div class="flex items-center gap-1.5">
+                                                <input type="number" step="1" min="0" placeholder="0"
+                                                       wire:model.blur="lines.{{ $idx }}.pack_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
+                                                       aria-label="{{ $line['ingredient_name'] }} — full {{ $line['pack_uom_abbr'] }}"
+                                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 font-medium" />
+                                                <span class="w-10 flex-shrink-0 text-xs text-gray-500">{{ $line['pack_uom_abbr'] }}</span>
+                                            </div>
+                                            <x-input-error :messages="$errors->get('lines.'.$idx.'.pack_quantity')" class="mt-0.5" />
                                         @endif
                                     </td>
-                                    <td class="px-4 py-2 text-gray-500 text-xs">{{ $line['uom_abbr'] }}</td>
+                                    {{-- Recipe UOM: loose stock. With packs entered, the
+                                         line's total shows underneath so the sum is visible. --}}
+                                    <td class="px-4 py-2">
+                                        @if ($isCompleted)
+                                            <span class="block text-right tabular-nums font-medium text-gray-800">
+                                                {{ number_format(floatval($line['actual_quantity']), 2) }}
+                                                <span class="text-xs font-normal text-gray-500">{{ $line['uom_abbr'] }}</span>
+                                            </span>
+                                        @else
+                                            <div class="flex items-center gap-1.5">
+                                                <input type="number" step="0.1" min="0"
+                                                       wire:model.blur="lines.{{ $idx }}.actual_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
+                                                       aria-label="{{ $line['ingredient_name'] }} — loose {{ $line['uom_abbr'] }}"
+                                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 font-medium" />
+                                                <span class="w-10 flex-shrink-0 text-xs text-gray-500">{{ $line['uom_abbr'] }}</span>
+                                            </div>
+                                            <x-input-error :messages="$errors->get('lines.'.$idx.'.actual_quantity')" class="mt-0.5" />
+                                        @endif
+                                        @if ($hasPackCol && floatval($line['pack_quantity'] ?? 0) > 0)
+                                            <span class="mt-0.5 block text-right text-xs tabular-nums text-gray-600">= {{ rtrim(rtrim(number_format($counted, 4, '.', ','), '0'), '.') }} {{ $line['uom_abbr'] }}</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-2">
                                         <span class="block text-right tabular-nums text-gray-600" title="Price comes from purchasing — goods received, supplier invoices and price lists. Not editable here.">{{ number_format(floatval($line['unit_cost']), 4) }}</span>
                                     </td>

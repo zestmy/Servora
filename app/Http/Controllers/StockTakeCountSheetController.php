@@ -20,6 +20,7 @@ class StockTakeCountSheetController extends Controller
             'lines.uom',
             'lines.ingredient.baseUom',
             'lines.ingredient.recipeUom',
+            'lines.ingredient.uomConversions',
             'lines.ingredient.ingredientCategory.parent',
             'createdBy',
         ])->findOrFail($id);

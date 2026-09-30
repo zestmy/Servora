@@ -128,6 +128,57 @@ class Ingredient extends Model
     }
 
     /**
+     * How many recipe units one purchase (base) unit holds — 1 ctn = 12000 ml
+     * gives 12000. Same conversion rules as recipeCost(), so a count converted
+     * with this is valued the same whichever unit it was entered in.
+     *
+     * Null when no conversion links the two: the caller must not guess 1:1.
+     * A ratio of exactly 1 between two DIFFERENT units counts as no link, the
+     * same call UomService::convertCost() makes: every UOM defaults to
+     * base_unit_factor 1, so "1 batch = 1 pc" is what an unconfigured pair
+     * looks like, and counting 2 batches as 2 pieces is a stock figure off by
+     * the pack size.
+     */
+    public function recipeUnitsPerBaseUnit(): ?float
+    {
+        $baseId   = (int) $this->base_uom_id;
+        $recipeId = (int) $this->recipe_uom_id;
+
+        if (! $recipeId || $baseId === $recipeId) {
+            return 1.0;
+        }
+
+        foreach ($this->uomConversions as $c) {
+            $from   = (int) $c->from_uom_id;
+            $to     = (int) $c->to_uom_id;
+            $factor = (float) $c->factor;
+            if ($factor <= 0) {
+                continue;
+            }
+            if ($factor == 1.0) {
+                continue;
+            }
+            if ($from === $baseId && $to === $recipeId) {
+                return $factor;
+            }
+            if ($from === $recipeId && $to === $baseId) {
+                return 1 / $factor;
+            }
+        }
+
+        $baseUom   = $this->baseUom;
+        $recipeUom = $this->recipeUom;
+        if ($baseUom && $recipeUom
+            && $baseUom->base_unit_factor && $recipeUom->base_unit_factor
+            && $baseUom->type === $recipeUom->type
+            && (float) $baseUom->base_unit_factor != (float) $recipeUom->base_unit_factor) {
+            return (float) $baseUom->base_unit_factor / (float) $recipeUom->base_unit_factor;
+        }
+
+        return null;
+    }
+
+    /**
      * Cost per recipe UOM, derived from current_cost + UOM conversions.
      * Falls back to standard base_unit_factor for same-type UOMs (kg↔g, L↔mL).
      * Returns null when no matching conversion exists.

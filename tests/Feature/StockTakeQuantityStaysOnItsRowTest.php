@@ -208,7 +208,8 @@ class StockTakeQuantityStaysOnItsRowTest extends TestCase
         // away: it commits empty and the keystroke is gone with no sign of it.
         // Refusing input for those few hundred milliseconds is the difference
         // between "not accepted" and "silently lost".
-        $html = $this->screenWithThreeRows()->html();
+        // System Qty is hidden by default; show it so both fields are checked.
+        $html = $this->screenWithThreeRows()->set('hideSystemQty', false)->html();
 
         preg_match_all('/<input[^>]*wire:model\.blur="lines\.\d+\.(?:actual|system)_quantity"[^>]*>/', $html, $m);
 

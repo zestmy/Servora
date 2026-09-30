@@ -43,8 +43,9 @@
             <tr>
                 <th style="width: 30px;">#</th>
                 <th>Item</th>
-                <th class="center" style="width: 50px;">UOM</th>
-                <th class="center" style="width: 100px;">Quantity</th>
+                {{-- Same two columns as the form: full packs, then loose. --}}
+                <th class="center" style="width: 110px;">Purchase UOM</th>
+                <th class="center" style="width: 110px;">Recipe UOM</th>
             </tr>
         </thead>
         <tbody>
@@ -71,15 +72,26 @@
                             @endif
                             {{ $line->ingredient?->name ?? '—' }}
                         </td>
-                        {{-- The unit this LINE is counted in, not the one the item is
-                             bought in. The sheet was printing the purchase UOM, so it
-                             asked for kilograms of something the form counts in grams:
-                             whoever filled it in wrote a number a thousand times off,
-                             and the value that came back was wrong by the same factor. --}}
-                        <td class="center">{{ $line->uom?->abbreviation
-                            ?? $line->ingredient?->recipeUom?->abbreviation
-                            ?? $line->ingredient?->baseUom?->abbreviation ?? '' }}</td>
-                        <td style="border: 1px solid #000; min-height: 20px;">&nbsp;</td>
+                        {{-- Each box is labelled with ITS unit. The loose box is the
+                             unit this LINE is stored in, not the one the item is bought
+                             in: the sheet once printed the purchase UOM there, so it asked
+                             for kilograms of something the form counts in grams, and the
+                             value that came back was a thousand times off. The pack box
+                             only exists where the form has a real conversion for it. --}}
+                        @php
+                            $packAbbr = \App\Models\StockTakeLine::packFactor($line->ingredient, $line->uom)
+                                ? $line->ingredient->baseUom->abbreviation
+                                : null;
+                            $looseAbbr = $line->uom?->abbreviation
+                                ?? $line->ingredient?->recipeUom?->abbreviation
+                                ?? $line->ingredient?->baseUom?->abbreviation ?? '';
+                        @endphp
+                        @if ($packAbbr)
+                            <td class="pack-box" style="border: 1px solid #000; min-height: 20px; text-align: right; color: #6b7280; font-size: 8px;">{{ $packAbbr }}</td>
+                        @else
+                            <td class="pack-box" style="border: 1px solid #000; background: #f3f4f6; text-align: center; color: #9ca3af;">&mdash;</td>
+                        @endif
+                        <td class="loose-box" style="border: 1px solid #000; min-height: 20px; text-align: right; color: #6b7280; font-size: 8px;">{{ $looseAbbr }}</td>
                     </tr>
                 @endforeach
             @endforeach

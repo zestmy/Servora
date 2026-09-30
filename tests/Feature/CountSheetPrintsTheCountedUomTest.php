@@ -104,10 +104,13 @@ class CountSheetPrintsTheCountedUomTest extends TestCase
         return $take;
     }
 
-    /** The UOM column of the rendered sheet, without the PDF wrapper. */
-    private function renderedUoms(StockTake $take): array
+    /**
+     * The unit printed in one of the two count boxes: 'loose' (recipe UOM,
+     * the unit the line is stored in) or 'pack' (purchase UOM, full packs).
+     */
+    private function renderedUoms(StockTake $take, string $box = 'loose'): array
     {
-        $take->load(['lines.uom', 'lines.ingredient.baseUom', 'lines.ingredient.recipeUom',
+        $take->load(['lines.uom', 'lines.ingredient.baseUom', 'lines.ingredient.recipeUom', 'lines.ingredient.uomConversions',
             'lines.ingredient.ingredientCategory.parent', 'outlet', 'department', 'createdBy']);
 
         $html = view('pdf.stock-take-count-sheet', [
@@ -116,7 +119,7 @@ class CountSheetPrintsTheCountedUomTest extends TestCase
             'groupedLines' => $take->lines->groupBy(fn () => 'All'),
         ])->render();
 
-        preg_match_all('/<td class="center">\s*([A-Za-z]*)\s*<\/td>/', $html, $m);
+        preg_match_all('/<td class="' . $box . '-box"[^>]*>\s*([A-Za-z]*)\s*<\/td>/', $html, $m);
 
         return array_values(array_filter(array_map('trim', $m[1])));
     }
@@ -134,7 +137,15 @@ class CountSheetPrintsTheCountedUomTest extends TestCase
         $take = $this->sheetFor($this->flour());
 
         $this->assertNotContains('kg', $this->renderedUoms($take),
-            'kg is the purchase unit. Printing it asks for a number a thousand times off.');
+            'kg is the purchase unit. Printing it on the loose box asks for a number a thousand times off.');
+    }
+
+    public function test_full_packs_get_their_own_box_in_the_purchase_unit(): void
+    {
+        $take = $this->sheetFor($this->flour());
+
+        $this->assertSame(['kg'], $this->renderedUoms($take, 'pack'),
+            'The pack box is the one place the purchase unit belongs.');
     }
 
     public function test_a_line_counted_in_the_purchase_unit_still_prints_that_unit(): void
@@ -143,6 +154,7 @@ class CountSheetPrintsTheCountedUomTest extends TestCase
         $take = $this->sheetFor($this->flour(), $this->kg);
 
         $this->assertContains('kg', $this->renderedUoms($take));
+        $this->assertSame([], $this->renderedUoms($take, 'pack'), 'Already in the purchase unit: no separate pack box.');
     }
 
     public function test_the_sheet_still_downloads(): void
