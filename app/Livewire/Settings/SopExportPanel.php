@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Jobs\GenerateSopExport;
+use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\SopExport;
 use App\Services\Pdf\SopExportBuilder;
@@ -26,14 +27,8 @@ class SopExportPanel extends Component
     /** Matches the job's own progress writes; slower reads as laggy. */
     private const POLL_MS = 2000;
 
-    public ?int $exportId = null;
-
-    public function mount(): void
-    {
-        $this->exportId = SopExport::forCompany($this->requireActiveCompany())
-            ->latest('id')
-            ->value('id');
-    }
+    /** Outlet filter — '' is every SOP; an id keeps only recipes tagged to it. */
+    public string $outletId = '';
 
     public function start(SopExportBuilder $builder): void
     {
@@ -49,19 +44,53 @@ class SopExportPanel extends Component
             return;
         }
 
+        $filters = $this->filters();
+
         $export = SopExport::create([
             'company_id'     => $companyId,
             'user_id'        => Auth::id(),
             'status'         => SopExport::STATUS_QUEUED,
-            'label'          => $builder->describe(Auth::user(), []),
-            'filters'        => [],
+            'label'          => $builder->describe(Auth::user(), $filters),
+            'filters'        => $filters,
             'progress'       => 0,
             'progress_label' => 'Waiting for a worker',
         ]);
 
-        $this->exportId = $export->id;
-
         GenerateSopExport::dispatch($export->id);
+    }
+
+    /** The selected outlet, only if it is one of this company's. */
+    private function selectedOutletId(): ?int
+    {
+        $id = (int) $this->outletId;
+
+        return $id && Outlet::where('company_id', $this->requireActiveCompany())->whereKey($id)->exists()
+            ? $id
+            : null;
+    }
+
+    private function filters(): array
+    {
+        $id = $this->selectedOutletId();
+
+        return $id ? ['outlet' => $id] : [];
+    }
+
+    /**
+     * This company's recent exports for the selected outlet (or for all
+     * SOPs), newest first. filters is a JSON column, so the match is done
+     * here rather than in SQL; the pruner keeps the row count small.
+     */
+    private function forSelection()
+    {
+        $outletId = (int) ($this->filters()['outlet'] ?? 0);
+
+        return SopExport::forCompany($this->requireActiveCompany())
+            ->latest('id')
+            ->limit(100)
+            ->get()
+            ->filter(fn (SopExport $e) => (int) ($e->filters['outlet'] ?? 0) === $outletId)
+            ->values();
     }
 
     /** wire:poll target — the re-render is the point, so this is empty. */
@@ -98,42 +127,41 @@ class SopExportPanel extends Component
     }
 
     /**
-     * The newest handbook that can actually be handed over.
+     * The newest handbook for this selection that can actually be handed over.
      *
      * Separate from the export being watched: while a rebuild runs, or after
      * one fails, the previous good copy is still the current version, so the
      * panel keeps offering it until a newer one replaces it. The pruner
      * spares this row's file for the same reason.
      */
-    private function latestDownloadable(?SopExport $current): ?SopExport
+    private function latestDownloadable($rows): ?SopExport
     {
-        if ($current?->isDownloadable()) {
-            return $current;
-        }
-
-        return SopExport::forCompany($this->requireActiveCompany())
-            ->where('status', SopExport::STATUS_COMPLETED)
-            ->whereNotNull('file_path')
-            ->latest('id')
-            ->get()
-            ->first(fn (SopExport $e) => $e->isDownloadable());
+        return $rows->first(fn (SopExport $e) => $e->isDownloadable());
     }
 
     public function render()
     {
-        $export = $this->exportId
-            ? SopExport::forCompany($this->requireActiveCompany())->find($this->exportId)
-            : null;
+        $companyId = $this->requireActiveCompany();
+        $rows      = $this->forSelection();
+
+        // A run in progress is shown whatever outlet is picked — only one runs
+        // at a time per company, so it is what the button is waiting on.
+        $export = SopExport::forCompany($companyId)->running()->latest('id')->first()
+            ?? $rows->first();
+
+        $outletId = $this->selectedOutletId();
 
         return view('livewire.settings.sop-export-panel', [
             'export'   => $export,
-            'latest'   => $this->latestDownloadable($export),
+            'latest'   => $this->latestDownloadable($rows),
             'running'  => (bool) $export?->isRunning(),
             'pollMs'   => self::POLL_MS,
             'typicalSeconds' => $this->typicalSeconds($export),
-            'sopCount' => Recipe::where('company_id', Auth::user()->company_id)
+            'outlets'  => Outlet::where('company_id', $companyId)->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'sopCount' => Recipe::where('company_id', $companyId)
                 ->where('is_active', true)
                 ->where('exclude_from_lms', false)
+                ->when($outletId, fn ($q) => $q->taggedToOutlet($outletId))
                 ->count(),
         ]);
     }

@@ -4,6 +4,7 @@ namespace App\Services\Pdf;
 
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\Outlet;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
 use App\Models\VideoShareToken;
@@ -229,6 +230,10 @@ class SopExportBuilder
                 ? "All-{$groupLabel}"
                 : ($category ?: 'Training-SOPs'));
 
+        if ($outletId && ($outletName = Outlet::where('company_id', $user->company_id)->whereKey($outletId)->value('name'))) {
+            $fileLabel .= "-{$outletName}";
+        }
+
         return [
             'pdf'         => $pdf,
             'filename'    => $this->safeFilename("{$brandName}-{$fileLabel}.pdf"),
@@ -238,6 +243,18 @@ class SopExportBuilder
 
     /** Human label for a set of filters, for the export list. */
     public function describe($user, array $filters = []): string
+    {
+        $label = $this->describeRecipes($user, $filters);
+
+        if ($id = (int) ($filters['outlet'] ?? 0)) {
+            $outlet = Outlet::where('company_id', $user->company_id)->whereKey($id)->value('name');
+            return $outlet ? "{$label} — {$outlet}" : $label;
+        }
+
+        return $label;
+    }
+
+    private function describeRecipes($user, array $filters): string
     {
         if ($id = (int) ($filters['prep_category'] ?? 0)) {
             $name = RecipeCategory::outletScope()->where('company_id', $user->company_id)->whereKey($id)->value('name');

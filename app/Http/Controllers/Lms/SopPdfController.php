@@ -65,11 +65,7 @@ class SopPdfController extends Controller
             'outlet'         => $outlet?->id,
         ], $traineeOutletIds);
 
-        $filename = $outlet
-            ? preg_replace('/\.pdf$/i', '', $built['filename']) . '-' . str_replace(['/', '\\'], '-', $outlet->name) . '.pdf'
-            : $built['filename'];
-
-        return $built['pdf']->download($filename);
+        return $built['pdf']->download($built['filename']);
     }
 
     /**

@@ -50,6 +50,8 @@
                     @if ($isRunning)
                         <p class="progress-meta mt-0.5">
                             {{ $export->status === \App\Models\SopExport::STATUS_QUEUED ? 'Queued' : 'Building' }}
+                            {{-- Only one runs per company, so it may be for another outlet than the one picked. --}}
+                            @if ($export->label) · {{ $export->label }} @endif
                             @if ($export->started_at)
                                 {{-- Ticks between polls so the card never looks frozen. --}}
                                 <span x-data="{
@@ -77,13 +79,31 @@
                         </p>
                     @else
                         <p class="progress-meta mt-0.5">
-                            All {{ $sopCount }} SOPs as one PDF — takes a couple of minutes, so it builds in the background.
+                            @if ($outletId !== '')
+                                The {{ $sopCount }} SOPs tagged to this outlet as one PDF — "All Outlets" recipes are left out.
+                            @else
+                                All {{ $sopCount }} SOPs as one PDF — takes a couple of minutes, so it builds in the background.
+                            @endif
                         </p>
                     @endif
                 </div>
             </div>
 
             <div class="flex flex-shrink-0 flex-wrap items-center gap-2">
+                {{-- Same rule as Export SOPs by Category: an outlet keeps only
+                     recipes tagged to it. Each choice has its own latest copy. --}}
+                @if ($outlets->count() > 1)
+                    <label class="flex items-center gap-2 text-xs text-gray-600">
+                        Outlet
+                        <select wire:model.live="outletId" class="input py-1.5 text-sm w-auto">
+                            <option value="">All outlets</option>
+                            @foreach ($outlets as $outlet)
+                                <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                @endif
+
                 @if (! $isRunning)
                     <button type="button" wire:click="start" wire:loading.attr="disabled"
                             @if ($latest) title="Build a fresh copy — the current one stays available until it is ready" @endif

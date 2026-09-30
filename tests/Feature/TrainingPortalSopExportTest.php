@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\GenerateSopExport;
 use App\Http\Controllers\Lms\SopExportController;
 use App\Livewire\Settings\LmsUsers;
 use App\Livewire\Settings\SopExportPanel;
@@ -12,9 +13,12 @@ use App\Models\SopExport;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -46,14 +50,14 @@ class TrainingPortalSopExportTest extends TestCase
         $this->user->companies()->syncWithoutDetaching([$this->company->id]);
     }
 
-    private function completed(string $finishedAt): SopExport
+    private function completed(string $finishedAt, array $filters = []): SopExport
     {
         $path = 'sop-exports/' . uniqid() . '.pdf';
         Storage::disk('local')->put($path, '%PDF-fake');
 
         $export = SopExport::create([
             'company_id' => $this->company->id, 'user_id' => $this->user->id,
-            'status' => SopExport::STATUS_COMPLETED, 'label' => 'All', 'filters' => [],
+            'status' => SopExport::STATUS_COMPLETED, 'label' => 'All', 'filters' => $filters,
             'progress' => 100, 'file_path' => $path, 'filename' => 'SOP Co-Training-SOPs.pdf',
             'file_size' => 9, 'recipe_count' => 3,
             'started_at' => $finishedAt, 'finished_at' => $finishedAt,
@@ -137,5 +141,43 @@ class TrainingPortalSopExportTest extends TestCase
 
         $page->set('sopOutletId', (string) $foreign->id)
             ->assertViewHas('exportOutletId', null);
+    }
+
+    public function test_handbook_is_built_and_kept_per_outlet(): void
+    {
+        Queue::fake();
+
+        $klcc = Outlet::create(['company_id' => $this->company->id, 'name' => 'KLCC', 'code' => 'KL', 'is_active' => true]);
+        Outlet::create(['company_id' => $this->company->id, 'name' => 'IOI', 'code' => 'IO', 'is_active' => true]);
+
+        setPermissionsTeamId($this->company->id);
+        Permission::findOrCreate('hr.view', 'web');
+        $this->user->givePermissionTo('hr.view');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $all = $this->completed(now()->subDays(5)->toDateTimeString());
+
+        // Picking an outlet shows that outlet's copy, not the all-SOPs one.
+        $panel = Livewire::actingAs($this->user)->test(SopExportPanel::class)
+            ->assertSee(route('training.sop.export.download', $all), false)
+            ->set('outletId', (string) $klcc->id)
+            ->assertDontSee(route('training.sop.export.download', $all), false)
+            ->call('start');
+
+        $export = SopExport::latest('id')->first();
+        $this->assertSame(['outlet' => $klcc->id], $export->filters);
+        $this->assertStringContainsString('KLCC', $export->label);
+        Queue::assertPushed(GenerateSopExport::class);
+
+        // Each selection keeps its own newest file past the retention window.
+        $export->delete();
+        $klccOld = $this->completed(now()->subDays(9)->toDateTimeString(), ['outlet' => $klcc->id]);
+        $klccNew = $this->completed(now()->subDays(4)->toDateTimeString(), ['outlet' => $klcc->id]);
+
+        $this->artisan('sop:prune-exports')->assertSuccessful();
+
+        $this->assertTrue($all->fresh()->isDownloadable());
+        $this->assertTrue($klccNew->fresh()->isDownloadable());
+        $this->assertNull($klccOld->fresh()->file_path);
     }
 }

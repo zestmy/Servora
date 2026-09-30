@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
  * finished" via SopExport::isDownloadable(), so a pruned export reads as an
  * offer to rebuild rather than an error.
  *
- * Each company's newest completed file is never pruned, however old: the
+ * Each company's newest completed file for each outlet selection is never pruned, however old: the
  * Training Portal offers it as the current handbook until a newer one
  * replaces it, so it has to outlive the retention window.
  *
@@ -38,10 +38,14 @@ class PruneSopExports extends Command
         $hours  = (int) ($this->option('hours') ?: SopExport::KEEP_FILE_HOURS);
         $cutoff = now()->subHours($hours);
 
+        // Newest per company AND per outlet selection — each outlet's
+        // handbook is its own current version. filters is JSON, so grouped
+        // here; only rows that still hold a file are read.
         $current = SopExport::where('status', SopExport::STATUS_COMPLETED)
             ->whereNotNull('file_path')
-            ->groupBy('company_id')
-            ->selectRaw('MAX(id) as id')
+            ->orderByDesc('id')
+            ->get(['id', 'company_id', 'filters'])
+            ->unique(fn (SopExport $e) => $e->company_id . ':' . (int) ($e->filters['outlet'] ?? 0))
             ->pluck('id');
 
         $files = 0;
