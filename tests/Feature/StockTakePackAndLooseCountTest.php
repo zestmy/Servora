@@ -115,6 +115,13 @@ class StockTakePackAndLooseCountTest extends TestCase
         $this->assertSame('pcs', $line['uom_abbr']);
     }
 
+    public function test_system_qty_shows_its_unit(): void
+    {
+        $this->loaded()
+            ->set('hideSystemQty', false)
+            ->assertSeeHtml('system pcs');
+    }
+
     public function test_packs_plus_loose_is_stored_as_one_recipe_uom_total(): void
     {
         $component = $this->loaded()

@@ -333,7 +333,7 @@
                             <th class="px-4 py-2 text-left w-8">#</th>
                             <th class="px-4 py-2 text-left">Product</th>
                             @if (! $hideSystemQty)
-                                <th class="px-4 py-2 text-right w-28">System Qty</th>
+                                <th class="px-4 py-2 text-right w-36">System Qty</th>
                             @endif
                             {{-- Full packs in the unit it is bought in, plus loose stock in
                                  the unit it is used in. The line's count is packs x pack
@@ -422,12 +422,21 @@
                                     </td>
                                     @if (! $hideSystemQty)
                                         <td class="px-4 py-2">
+                                            {{-- Expected stock is held in the recipe UOM, the same
+                                                 unit the line is stored in, so it wears that label. --}}
                                             @if ($isCompleted)
-                                                <span class="block text-right tabular-nums text-gray-600">{{ number_format(floatval($line['system_quantity']), 2) }}</span>
+                                                <span class="block text-right tabular-nums text-gray-600">
+                                                    {{ number_format(floatval($line['system_quantity']), 2) }}
+                                                    <span class="text-xs text-gray-500">{{ $line['uom_abbr'] }}</span>
+                                                </span>
                                             @else
-                                                <input type="number" step="0.1" min="0"
-                                                       wire:model.blur="lines.{{ $idx }}.system_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
-                                                       class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
+                                                <div class="flex items-center gap-1.5">
+                                                    <input type="number" step="0.1" min="0"
+                                                           wire:model.blur="lines.{{ $idx }}.system_quantity" wire:loading.attr="disabled" wire:target="reorderLines,reorderPackagingLines"
+                                                           aria-label="{{ $line['ingredient_name'] }} — system {{ $line['uom_abbr'] }}"
+                                                           class="w-full text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
+                                                    <span class="w-10 flex-shrink-0 text-xs text-gray-500">{{ $line['uom_abbr'] }}</span>
+                                                </div>
                                             @endif
                                         </td>
                                     @endif
