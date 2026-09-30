@@ -195,6 +195,40 @@ class StockTakePackAndLooseCountTest extends TestCase
         $this->loaded()->set('packFactors', [$this->dough->id => 1000]);
     }
 
+    /**
+     * The consolidated inventory (by department) reads actual_quantity and
+     * uom_id, which a packs + loose count still stores as one recipe-UOM total.
+     * Two sheets in the same department, one split and one loose-only, must
+     * download and add up in pieces: 2 batches + 3 pcs + 4 pcs = 27 pcs.
+     */
+    public function test_the_consolidated_sheet_by_department_adds_pack_counts_correctly(): void
+    {
+        $this->loaded()
+            ->set('lines.0.pack_quantity', '2')
+            ->set('lines.0.actual_quantity', '3')
+            ->call('save', 'complete');
+        $this->loaded()
+            ->set('lines.0.actual_quantity', '4')
+            ->call('save', 'complete');
+
+        $query = ['from' => today()->subDay()->toDateString(), 'to' => today()->addDay()->toDateString(), 'department' => $this->department->id];
+
+        $this->get(route('inventory.stock-takes.consolidated', $query))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $response = $this->get(route('inventory.stock-takes.consolidated-excel', $query))->assertOk();
+
+        $path = tempnam(sys_get_temp_dir(), 'cst') . '.xlsx';
+        file_put_contents($path, $response->streamedContent());
+        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet()->toArray(null, true, false, true);
+        @unlink($path);
+
+        $dough = collect($rows)->first(fn ($r) => str_contains((string) ($r['A'] ?? ''), 'PIZZA DOUGH'));
+        $this->assertNotNull($dough, 'The item should appear once in the consolidated sheet.');
+        $this->assertContains(27.0, array_map('floatval', array_filter($dough, 'is_numeric')), '2 batches + 3 pcs + 4 pcs = 27 pcs');
+    }
+
     public function test_completing_keeps_a_line_counted_only_in_packs(): void
     {
         $this->loaded()

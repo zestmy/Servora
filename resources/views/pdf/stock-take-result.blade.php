@@ -102,7 +102,14 @@
                         </td>
                         <td class="center">{{ $item['uom'] }}</td>
                         <td class="right">{{ rtrim(rtrim(number_format($item['system'], 4), '0'), '.') ?: '0' }}</td>
-                        <td class="right">{{ rtrim(rtrim(number_format($item['counted'], 4), '0'), '.') ?: '0' }}</td>
+                        <td class="right">
+                            {{ rtrim(rtrim(number_format($item['counted'], 4), '0'), '.') ?: '0' }}
+                            {{-- Counted as full packs + loose: show the breakdown
+                                 under the total, in the units it was counted in. --}}
+                            @if ($item['counted_as'])
+                                <div style="color: #64748b; font-size: 7px; white-space: nowrap;">{{ $item['counted_as'] }}</div>
+                            @endif
+                        </td>
                         {{-- Short is the one worth spotting on a page of numbers. --}}
                         <td class="right" style="{{ $item['variance'] < 0 ? 'color: #b91c1c; font-weight: bold;' : '' }}">
                             {{ $item['variance'] > 0 ? '+' : '' }}{{ rtrim(rtrim(number_format($item['variance'], 4), '0'), '.') ?: '0' }}

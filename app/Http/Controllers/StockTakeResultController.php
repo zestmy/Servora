@@ -63,6 +63,15 @@ class StockTakeResultController extends Controller
             $unitCost = (float) $line->unit_cost;
             $variance = $counted - $system;
 
+            // How it was counted, when it was counted as full packs plus loose
+            // ("2 ctn + 3 pcs"). The quantities stay the recipe-UOM total —
+            // this is only the breakdown, so the paper matches the shelf.
+            $countedAs = null;
+            if ($line->pack_quantity !== null) {
+                $countedAs = $this->qty((float) $line->pack_quantity) . ' ' . ($ingredient?->baseUom?->abbreviation ?? '')
+                    . ' + ' . $this->qty((float) $line->loose_quantity) . ' ' . ($line->uom?->abbreviation ?? '');
+            }
+
             $row = [
                 'name'          => $ingredient?->name ?? '(Deleted item)',
                 'code'          => $ingredient?->code,
@@ -70,6 +79,7 @@ class StockTakeResultController extends Controller
                 'uom'           => $line->uom?->abbreviation ?? '',
                 'system'        => $system,
                 'counted'       => $counted,
+                'counted_as'    => $countedAs,
                 'variance'      => $variance,
                 'unit_cost'     => $unitCost,
                 'value'         => round($counted * $unitCost, 2),
@@ -105,6 +115,12 @@ class StockTakeResultController extends Controller
         $totals['variance'] = round($totals['variance'], 2);
 
         return [$stockTake, array_values($groups), $totals];
+    }
+
+    /** 2.5000 -> "2.5", 3.0000 -> "3". */
+    protected function qty(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 4, '.', ','), '0'), '.') ?: '0';
     }
 
     protected function reference(StockTake $stockTake): string

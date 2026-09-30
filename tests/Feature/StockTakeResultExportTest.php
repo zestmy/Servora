@@ -203,6 +203,40 @@ class StockTakeResultExportTest extends TestCase
         @unlink($path);
     }
 
+    /** Counted as full packs + loose: the report shows how, next to the total. */
+    public function test_a_pack_and_loose_count_shows_its_breakdown(): void
+    {
+        $take = $this->completedCount();
+
+        $ctn = UnitOfMeasure::create(['name' => 'Carton', 'abbreviation' => 'ctn', 'type' => 'count']);
+        $g   = UnitOfMeasure::create(['name' => 'Gram', 'abbreviation' => 'g', 'type' => 'weight']);
+        $flour = Ingredient::create([
+            'company_id' => $this->company->id, 'name' => 'Flour',
+            'base_uom_id' => $ctn->id, 'recipe_uom_id' => $g->id, 'current_cost' => 50, 'is_active' => true,
+        ]);
+        StockTakeLine::create([
+            'stock_take_id' => $take->id, 'ingredient_id' => $flour->id, 'uom_id' => $g->id,
+            'system_quantity' => 0, 'actual_quantity' => 2350, 'pack_quantity' => 2, 'loose_quantity' => 350,
+            'variance_quantity' => 2350, 'unit_cost' => 0.05, 'variance_cost' => 117.5,
+        ]);
+
+        $html = view('pdf.stock-take-result', [
+            'stockTake' => $take,
+            'company'   => Company::find($this->company->id),
+            ...array_combine(['stockTake', 'groups', 'totals'], (fn () => $this->result($take->id))
+                ->call(new \App\Http\Controllers\StockTakeResultController())),
+        ])->render();
+        $this->assertStringContainsString('2 ctn + 350 g', $html);
+
+        $path = tempnam(sys_get_temp_dir(), 'st') . '.xlsx';
+        file_put_contents($path, $this->get(route('inventory.stock-takes.result-excel', $take->id))->streamedContent());
+        $flat = collect(IOFactory::load($path)->getActiveSheet()->toArray(null, false, false, true))->flatten()->filter()->implode('|');
+        @unlink($path);
+
+        $this->assertStringContainsString('Counted as', $flat);
+        $this->assertStringContainsString('2 ctn + 350 g', $flat);
+    }
+
     // ── The screen ───────────────────────────────────────────────────────
 
     public function test_the_buttons_appear_only_on_a_completed_row(): void

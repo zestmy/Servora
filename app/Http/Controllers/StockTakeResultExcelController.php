@@ -62,7 +62,7 @@ class StockTakeResultExcelController extends StockTakeResultController
     /** @return int the next free row */
     private function writeHeader(Worksheet $sheet, $stockTake): int
     {
-        foreach (['A' => 38, 'B' => 12, 'C' => 8, 'D' => 12, 'E' => 12, 'F' => 12, 'G' => 12, 'H' => 14, 'I' => 14] as $col => $width) {
+        foreach (['A' => 38, 'B' => 12, 'C' => 8, 'D' => 12, 'E' => 12, 'F' => 12, 'G' => 12, 'H' => 14, 'I' => 14, 'J' => 20] as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
 
@@ -88,10 +88,12 @@ class StockTakeResultExcelController extends StockTakeResultController
 
         $row++;
 
-        $headings = ['Item', 'Code', 'UOM', 'Expected', 'Counted', 'Variance', 'Unit Cost', 'Stock Value', 'Variance Cost'];
+        // "Counted as" is last on purpose: it is text beside the numbers, and
+        // putting it anywhere else would move every formula column.
+        $headings = ['Item', 'Code', 'UOM', 'Expected', 'Counted', 'Variance', 'Unit Cost', 'Stock Value', 'Variance Cost', 'Counted as'];
         $sheet->fromArray($headings, null, "A{$row}");
-        $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$row}:I{$row}")->getFill()
+        $sheet->getStyle("A{$row}:J{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:J{$row}")->getFill()
             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::HEADER_FILL);
         $sheet->getStyle("D{$row}:I{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->freezePane("A" . ($row + 1));
@@ -133,6 +135,9 @@ class StockTakeResultExcelController extends StockTakeResultController
                 $sheet->setCellValue("G{$row}", $item['unit_cost']);
                 $sheet->setCellValue("H{$row}", "=E{$row}*G{$row}");
                 $sheet->setCellValue("I{$row}", "=F{$row}*G{$row}");
+                if ($item['counted_as']) {
+                    $sheet->setCellValue("J{$row}", $item['counted_as']);
+                }
 
                 $sheet->getStyle("D{$row}:F{$row}")->getNumberFormat()->setFormatCode(self::QTY);
                 $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode(self::MONEY4);
