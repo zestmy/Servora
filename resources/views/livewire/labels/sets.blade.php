@@ -5,6 +5,11 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session()->has('error'))
+        <div wire:key="flash-error-{{ microtime(true) }}" class="alert-danger mb-4">
+            {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Here as well as on the print screen: a set's label types are chosen
          once and then printed unread for months, so this is the moment the
@@ -158,10 +163,10 @@
                         <span class="text-xs text-gray-600 whitespace-nowrap">{{ $lines->count() }} item{{ $lines->count() === 1 ? '' : 's' }}</span>
                     </div>
 
-                    {{-- Bulk shelf life. Appears only with something ticked, so the
-                         panel stays quiet for the ordinary one-item edit. A chiller
-                         set is a dozen things made this morning that all last three
-                         days; setting that twelve times is how it gets left on Auto. --}}
+                    {{-- Bulk edit. Appears only with something ticked, so the panel
+                         stays quiet for the ordinary one-item edit. Every field
+                         starts on "No change", so one Apply can change a single
+                         column across the set without touching the rest. --}}
                     @if (count($selectedLines) > 0)
                         <div class="px-4 py-3 bg-brand-50 border-b border-brand-100 flex flex-wrap items-end gap-3 flex-shrink-0">
                             <div class="flex-shrink-0">
@@ -172,30 +177,63 @@
                                         class="text-[11px] text-brand-700 hover:text-brand-800">Clear</button>
                             </div>
 
-                            <div class="flex items-end gap-2">
+                            <div class="flex flex-wrap items-end gap-2">
                                 <div>
-                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Shelf life</label>
-                                    <input type="number" step="0.5" min="0" wire:model="bulkShelfLifeValue"
-                                           placeholder="Auto"
-                                           class="w-20 rounded-lg border-gray-300 text-sm py-1" />
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Unit</label>
-                                    <select wire:model="bulkShelfLifeUnit"
-                                            class="rounded-lg border-gray-300 text-sm py-1">
-                                        @foreach ($shelfLifeUnits as $unit => $unitLabel)
-                                            <option value="{{ $unit }}">{{ $unitLabel }}</option>
+                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Label type</label>
+                                    <select wire:model="bulkLabelType" class="rounded-lg border-gray-300 text-sm py-1">
+                                        <option value="">No change</option>
+                                        @foreach ($labelTypes as $type => $caption)
+                                            <option value="{{ $type }}">{{ $caption ?: 'Custom' }}</option>
                                         @endforeach
                                     </select>
                                 </div>
-                                <button wire:click="applyBulkShelfLife" class="btn-primary py-1.5 px-3 text-xs">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Storage</label>
+                                    <select wire:model="bulkStorageState" class="rounded-lg border-gray-300 text-sm py-1">
+                                        <option value="">No change</option>
+                                        @foreach ($states as $state => $stateLabel)
+                                            <option value="{{ $state }}">{{ $stateLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Copies</label>
+                                    <input type="number" min="1" max="99" wire:model="bulkCopies"
+                                           placeholder="No change"
+                                           class="w-24 rounded-lg border-gray-300 text-sm py-1" />
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Shelf life</label>
+                                    <select wire:model.live="bulkShelfLifeMode" class="rounded-lg border-gray-300 text-sm py-1">
+                                        <option value="">No change</option>
+                                        <option value="auto">Auto — follow rules</option>
+                                        <option value="set">Set a value…</option>
+                                    </select>
+                                </div>
+                                @if ($bulkShelfLifeMode === 'set')
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Value</label>
+                                        <input type="number" step="0.5" min="0" wire:model="bulkShelfLifeValue"
+                                               class="w-20 rounded-lg border-gray-300 text-sm py-1" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-brand-900 mb-0.5">Unit</label>
+                                        <select wire:model="bulkShelfLifeUnit"
+                                                class="rounded-lg border-gray-300 text-sm py-1">
+                                            @foreach ($shelfLifeUnits as $unit => $unitLabel)
+                                                <option value="{{ $unit }}">{{ $unitLabel }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                @endif
+                                <button wire:click="applyBulk" class="btn-primary py-1.5 px-3 text-xs">
                                     Apply to {{ count($selectedLines) }}
                                 </button>
                             </div>
 
                             <p class="text-[11px] text-brand-800 w-full">
-                                Leave the number empty and Apply to put these items back on
-                                <strong>Auto</strong> — following the shelf life rules.
+                                Fields left on <strong>No change</strong> stay as they are. Changing the label type
+                                also resets storage to that type's default, unless you pick a storage here too.
                             </p>
                         </div>
                     @endif

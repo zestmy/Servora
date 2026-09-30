@@ -95,9 +95,10 @@ class PrintSetBulkShelfLifeTest extends TestCase
     {
         $this->screen()
             ->set('selectedLines', $this->ids(0, 2))
+            ->set('bulkShelfLifeMode', 'set')
             ->set('bulkShelfLifeValue', '3')
             ->set('bulkShelfLifeUnit', 'days')
-            ->call('applyBulkShelfLife');
+            ->call('applyBulk');
 
         $this->assertEquals(3.0, (float) $this->lines[0]->fresh()->shelf_life_value);
         $this->assertSame('days', $this->lines[0]->fresh()->shelf_life_unit);
@@ -121,9 +122,10 @@ class PrintSetBulkShelfLifeTest extends TestCase
     {
         $this->screen()
             ->call('toggleAllLines')
+            ->set('bulkShelfLifeMode', 'set')
             ->set('bulkShelfLifeValue', '12')
             ->set('bulkShelfLifeUnit', 'hours')
-            ->call('applyBulkShelfLife');
+            ->call('applyBulk');
 
         foreach ($this->lines as $line) {
             $this->assertEquals(12.0, (float) $line->fresh()->shelf_life_value);
@@ -135,7 +137,7 @@ class PrintSetBulkShelfLifeTest extends TestCase
      * Clearing has to clear the unit too, or a line carries a unit with
      * nothing to measure — the same rule updateLine() already follows.
      */
-    public function test_applying_an_empty_value_puts_the_lines_back_on_auto(): void
+    public function test_choosing_auto_puts_the_lines_back_on_auto(): void
     {
         foreach ($this->lines as $line) {
             $line->update(['shelf_life_value' => 5, 'shelf_life_unit' => 'days']);
@@ -143,8 +145,8 @@ class PrintSetBulkShelfLifeTest extends TestCase
 
         $this->screen()
             ->call('toggleAllLines')
-            ->set('bulkShelfLifeValue', '')
-            ->call('applyBulkShelfLife');
+            ->set('bulkShelfLifeMode', 'auto')
+            ->call('applyBulk');
 
         foreach ($this->lines as $line) {
             $this->assertNull($line->fresh()->shelf_life_value);
@@ -157,8 +159,9 @@ class PrintSetBulkShelfLifeTest extends TestCase
     {
         $this->screen()
             ->call('toggleAllLines')
+            ->set('bulkShelfLifeMode', 'set')
             ->set('bulkShelfLifeValue', '0')
-            ->call('applyBulkShelfLife');
+            ->call('applyBulk');
 
         // '0' is not the same as empty: empty means Auto, zero means a use-by
         // date identical to the prepared time, which is never what was meant.
@@ -169,8 +172,9 @@ class PrintSetBulkShelfLifeTest extends TestCase
     {
         $this->screen()
             ->set('selectedLines', [])
+            ->set('bulkShelfLifeMode', 'set')
             ->set('bulkShelfLifeValue', '3')
-            ->call('applyBulkShelfLife');
+            ->call('applyBulk');
 
         foreach ($this->lines as $line) {
             $this->assertNull($line->fresh()->shelf_life_value);
@@ -206,8 +210,9 @@ class PrintSetBulkShelfLifeTest extends TestCase
 
         $this->screen()
             ->set('selectedLines', [$this->lines[0]->id, $theirLine->id])
+            ->set('bulkShelfLifeMode', 'set')
             ->set('bulkShelfLifeValue', '7')
-            ->call('applyBulkShelfLife');
+            ->call('applyBulk');
 
         $this->assertEquals(7.0, (float) $this->lines[0]->fresh()->shelf_life_value);
         $this->assertNull($theirLine->fresh()->shelf_life_value, 'A line outside the open set was edited.');
@@ -221,9 +226,9 @@ class PrintSetBulkShelfLifeTest extends TestCase
     public function test_the_bulk_bar_appears_only_once_something_is_ticked(): void
     {
         $this->screen()
-            ->assertDontSee('applyBulkShelfLife')
+            ->assertDontSee('wire:click="applyBulk"', escape: false)
             ->set('selectedLines', $this->ids(0))
-            ->assertSee('applyBulkShelfLife', escape: false)
+            ->assertSee('wire:click="applyBulk"', escape: false)
             ->assertSee('1 selected')
             ->assertSee('Apply to 1');
     }
@@ -241,5 +246,75 @@ class PrintSetBulkShelfLifeTest extends TestCase
             ->assertSet('selectedLines', $this->ids(0, 1, 2))
             ->call('editLines', $otherSet->id)
             ->assertSet('selectedLines', []);
+    }
+
+    public function test_label_type_storage_and_copies_apply_to_every_ticked_line(): void
+    {
+        $this->screen()
+            ->call('toggleAllLines')
+            ->set('bulkLabelType', 'oof')
+            ->set('bulkStorageState', 'ambient')
+            ->set('bulkCopies', '4')
+            ->call('applyBulk');
+
+        foreach ($this->lines as $line) {
+            $fresh = $line->fresh();
+            $this->assertSame('oof', $fresh->label_type);
+            $this->assertSame('ambient', $fresh->storage_state, 'An explicit storage choice should beat the type default.');
+            $this->assertSame(4, (int) $fresh->copies);
+        }
+    }
+
+    /**
+     * One Apply changing one column must leave the others alone — above all
+     * a line's own shelf life, which used to be cleared by an empty box.
+     */
+    public function test_fields_left_on_no_change_are_untouched(): void
+    {
+        $this->lines[0]->update(['shelf_life_value' => 5, 'shelf_life_unit' => 'days', 'copies' => 2]);
+
+        $this->screen()
+            ->set('selectedLines', $this->ids(0))
+            ->set('bulkStorageState', 'frozen')
+            ->call('applyBulk');
+
+        $fresh = $this->lines[0]->fresh();
+        $this->assertSame('frozen', $fresh->storage_state);
+        $this->assertSame('use_by', $fresh->label_type);
+        $this->assertSame(2, (int) $fresh->copies);
+        $this->assertEquals(5.0, (float) $fresh->shelf_life_value);
+        $this->assertSame('days', $fresh->shelf_life_unit);
+    }
+
+    public function test_copies_are_clamped_to_the_line_range(): void
+    {
+        $this->screen()
+            ->call('toggleAllLines')
+            ->set('bulkCopies', '500')
+            ->call('applyBulk');
+
+        $this->assertSame(99, (int) $this->lines[0]->fresh()->copies);
+    }
+
+    public function test_an_unknown_label_type_or_storage_state_is_refused(): void
+    {
+        $this->screen()
+            ->call('toggleAllLines')
+            ->set('bulkStorageState', 'lava')
+            ->call('applyBulk');
+
+        $this->assertSame('chill', $this->lines[0]->fresh()->storage_state);
+    }
+
+    /** Same rule as the per-line select: a new type brings its default storage. */
+    public function test_changing_type_alone_resets_storage_to_that_types_default(): void
+    {
+        $this->screen()
+            ->call('toggleAllLines')
+            ->set('bulkLabelType', 'oof')
+            ->call('applyBulk');
+
+        $this->assertSame('oof', $this->lines[0]->fresh()->label_type);
+        $this->assertSame('thawed', $this->lines[0]->fresh()->storage_state);
     }
 }

@@ -95,7 +95,18 @@ class Sets extends Component
      */
     public array $selectedLines = [];
 
-    /** Bulk shelf-life form. Empty value + Apply means "follow the rules". */
+    /**
+     * Bulk edit form. Every field starts on "no change" ('') so one Apply can
+     * change a single column without touching the others.
+     *
+     * Shelf life needs a mode as well as a value, because clearing it is a
+     * real choice ("follow the rules") and has to be told apart from leaving
+     * it alone: '' = no change, 'auto' = back to the rules, 'set' = the value.
+     */
+    public string $bulkLabelType      = '';
+    public string $bulkStorageState   = '';
+    public string $bulkCopies         = '';
+    public string $bulkShelfLifeMode  = '';
     public string $bulkShelfLifeValue = '';
     public string $bulkShelfLifeUnit  = 'days';
 
@@ -435,14 +446,14 @@ class Sets extends Component
     }
 
     /**
-     * Set one shelf life across every ticked line, or clear them all back to
-     * following the rules.
+     * Apply the bulk form to every ticked line — label type, storage state,
+     * copies and shelf life, each only when it was changed from "no change".
      *
-     * The whole point of the screen: a chiller set is a dozen items that were
-     * all made this morning and all last three days, and setting that twelve
-     * times through twelve inputs is how it gets left on "Auto" instead.
+     * The point of the screen: a chiller set is a dozen items that were all
+     * made this morning, all use-by, all chilled, all lasting three days, and
+     * setting that one line at a time is how it gets left on the defaults.
      */
-    public function applyBulkShelfLife(): void
+    public function applyBulk(): void
     {
         $lines = $this->selectedLinesInSet();
 
@@ -452,36 +463,90 @@ class Sets extends Component
             return;
         }
 
-        $value = trim($this->bulkShelfLifeValue) === '' ? null : (float) $this->bulkShelfLifeValue;
+        $update  = [];
+        $changes = [];
 
-        if ($value !== null && $value <= 0) {
-            session()->flash('error', 'A shelf life has to be more than zero. Leave it empty to go back to the rules.');
+        if ($this->bulkLabelType !== '') {
+            if (! array_key_exists($this->bulkLabelType, LabelTemplate::LABEL_TYPES)) {
+                return;
+            }
+            $update['label_type'] = $this->bulkLabelType;
+            $changes[] = 'label type';
+
+            // Same rule as updateLine(): a new type brings its default storage
+            // state, or a defrost label keeps a chilled state and prints the
+            // wrong date. An explicit storage choice below still wins.
+            if (isset(LabelTemplate::DEFAULT_STORAGE_STATE[$this->bulkLabelType])) {
+                $update['storage_state'] = LabelTemplate::DEFAULT_STORAGE_STATE[$this->bulkLabelType];
+            }
+        }
+
+        if ($this->bulkStorageState !== '') {
+            if (! array_key_exists($this->bulkStorageState, ShelfLifeRule::STORAGE_STATES)) {
+                return;
+            }
+            $update['storage_state'] = $this->bulkStorageState;
+            $changes[] = 'storage';
+        }
+
+        if (trim($this->bulkCopies) !== '') {
+            $update['copies'] = min(99, max(1, (int) $this->bulkCopies));
+            $changes[] = 'copies';
+        }
+
+        if ($this->bulkShelfLifeMode === 'auto') {
+            // Clearing the value clears the unit too, so a line never carries
+            // a unit with nothing to measure.
+            $update['shelf_life_value'] = null;
+            $update['shelf_life_unit']  = null;
+            $changes[] = 'shelf life (back to Auto)';
+        } elseif ($this->bulkShelfLifeMode === 'set') {
+            $value = trim($this->bulkShelfLifeValue) === '' ? 0.0 : (float) $this->bulkShelfLifeValue;
+
+            // Zero is not "Auto": it would be a use-by identical to the
+            // prepared time, which is never what was meant.
+            if ($value <= 0) {
+                session()->flash('error', 'A shelf life has to be more than zero. Choose Auto to go back to the rules.');
+
+                return;
+            }
+
+            if (! array_key_exists($this->bulkShelfLifeUnit, Recipe::SHELF_LIFE_UNITS)) {
+                return;
+            }
+
+            $update['shelf_life_value'] = $value;
+            $update['shelf_life_unit']  = $this->bulkShelfLifeUnit;
+            $changes[] = 'shelf life';
+        }
+
+        if ($update === []) {
+            session()->flash('error', 'Choose at least one thing to change.');
 
             return;
         }
 
-        if ($value !== null && ! array_key_exists($this->bulkShelfLifeUnit, Recipe::SHELF_LIFE_UNITS)) {
-            return;
-        }
-
+        // Per model, not one query, so model events (auditing) still fire.
         foreach ($lines as $line) {
-            // Same shape as updateLine(): clearing the value clears the unit
-            // too, so a line never carries a unit with nothing to measure.
-            $line->update([
-                'shelf_life_value' => $value,
-                'shelf_life_unit'  => $value === null ? null : $this->bulkShelfLifeUnit,
-            ]);
+            $line->update($update);
         }
 
         $count = $lines->count();
-        $noun  = $count === 1 ? 'item' : 'items';
 
-        session()->flash('success', $value === null
-            ? "{$count} {$noun} back to following the shelf life rules."
-            : "{$count} {$noun} set to {$this->bulkShelfLifeValue} " . Recipe::SHELF_LIFE_UNITS[$this->bulkShelfLifeUnit] . '.');
+        session()->flash('success', "Updated {$count} " . ($count === 1 ? 'item' : 'items') . ': ' . implode(', ', $changes) . '.');
 
         $this->selectedLines = [];
+        $this->resetBulkForm();
+    }
+
+    private function resetBulkForm(): void
+    {
+        $this->bulkLabelType      = '';
+        $this->bulkStorageState   = '';
+        $this->bulkCopies         = '';
+        $this->bulkShelfLifeMode  = '';
         $this->bulkShelfLifeValue = '';
+        $this->bulkShelfLifeUnit  = 'days';
     }
 
     public function editLines(int $id): void
