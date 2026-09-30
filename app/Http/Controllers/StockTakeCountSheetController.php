@@ -39,7 +39,9 @@ class StockTakeCountSheetController extends Controller
         $pdf = Pdf::loadView('pdf.stock-take-count-sheet', compact('stockTake', 'company', 'groupedLines'))
             ->setPaper('a4', 'portrait');
 
-        $ref = $stockTake->reference_number ?? 'ST-' . $stockTake->id;
+        // References are free text ("ST/2026/09"); Content-Disposition refuses
+        // "/" and "\" in a filename, which 500'd the download.
+        $ref = str_replace(['/', '\\', '%', ':', '*', '?', '"', '<', '>', '|'], '-', $stockTake->reference_number ?? 'ST-' . $stockTake->id);
         return $pdf->download("Count-Sheet-{$ref}.pdf");
     }
 }

@@ -91,6 +91,22 @@ class CostSummaryTenantIsolationTest extends TestCase
         $this->assertStringNotContainsString('BRAVO SECRET SAUCE', $names, "Another company's wastage leaked into the cost summary.");
     }
 
+    /** A free-text reference with "/" must not 500 the download. */
+    public function test_a_count_sheet_downloads_when_the_reference_has_a_slash(): void
+    {
+        [$a, $outletA] = $this->company('Alpha');
+        $take = StockTake::create([
+            'company_id' => $a->id, 'outlet_id' => $outletA->id, 'status' => 'draft', 'method' => 'detailed',
+            'stock_take_date' => today()->toDateString(), 'reference_number' => 'ST/2026/09',
+            'total_stock_cost' => 0, 'total_variance_cost' => 0,
+        ]);
+
+        $this->actingAs($this->user($a, $outletA, ['inventory.view']))
+            ->get(route('inventory.stock-takes.count-sheet', $take->id))
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename=Count-Sheet-ST-2026-09.pdf');
+    }
+
     public function test_a_stock_take_from_an_outlet_the_user_cannot_access_is_not_served(): void
     {
         [$a, $outletA] = $this->company('Alpha');
