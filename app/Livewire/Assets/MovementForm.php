@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use App\Services\AssetOnHandService;
 use App\Traits\PicksRecordOutlet;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -37,6 +38,8 @@ class MovementForm extends Component
 {
     use PicksRecordOutlet;
 
+    /** Set by mount()/save() only — save() writes to whatever this names. */
+    #[Locked]
     public ?int $recordId = null;
 
     public string $movement_type    = AssetMovement::TYPE_RECEIPT;
@@ -285,6 +288,12 @@ class MovementForm extends Component
     {
         // Re-checked here, not just on the route: a Livewire action is its own request.
         abort_unless(Auth::user()?->canDo('assets.movements.record'), 403);
+
+        // An existing movement is rewritten only by someone at its outlet.
+        if ($this->recordId) {
+            $existing = AssetMovement::findOrFail($this->recordId);
+            abort_unless(Auth::user()->canAccessOutlet((int) $existing->outlet_id), 403);
+        }
 
         $this->validate();
 

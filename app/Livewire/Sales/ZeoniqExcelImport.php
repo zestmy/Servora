@@ -111,6 +111,10 @@ class ZeoniqExcelImport extends Component
 
     public function processFile(): void
     {
+        // Embedded in the Sales page, whose route asks only for sales.view; a Livewire
+        // action is its own request, so importing is authorised here.
+        abort_unless(auth()->user()?->canDo('sales.import'), 403);
+
         $this->validate([
             'importFile' => 'required|file|mimes:xlsx,xls,csv|max:20480',
         ]);
@@ -509,6 +513,10 @@ class ZeoniqExcelImport extends Component
 
     public function saveAll(): void
     {
+        // Embedded in the Sales page, whose route asks only for sales.view; a Livewire
+        // action is its own request, so importing is authorised here.
+        abort_unless(auth()->user()?->canDo('sales.import'), 403);
+
         $companyId = Auth::user()->company_id;
         $userId    = Auth::id();
         $created   = 0;

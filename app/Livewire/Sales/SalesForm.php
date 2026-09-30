@@ -16,6 +16,7 @@ class SalesForm extends Component
     use WithFileUploads;
     use \App\Traits\RejectsUnpreviewableUploads;
 
+    #[\Livewire\Attributes\Locked]
     public ?int    $recordId         = null;
     public string  $sale_date        = '';
     public string  $meal_period      = 'all_day';
@@ -240,7 +241,17 @@ class SalesForm extends Component
 
     public function removeExistingAttachment(int $id): void
     {
-        $attachment = SalesRecordAttachment::find($id);
+        // SalesRecordAttachment has no company scope of its own, so the lookup is pinned
+        // to the record this form is editing (whose own lookup IS company-scoped). A bare
+        // find() here let any id in the table be deleted, including another company's.
+        if (! $this->recordId) {
+            return;
+        }
+
+        $attachment = SalesRecordAttachment::where('id', $id)
+            ->where('sales_record_id', $this->recordId)
+            ->whereHas('salesRecord')
+            ->first();
         if ($attachment) {
             Storage::disk('public')->delete($attachment->file_path);
             $attachment->delete();

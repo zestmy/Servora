@@ -313,7 +313,8 @@ class RecipeCostPdfController extends Controller
             elseif ($status === 'inactive') $filters[] = 'Status: Inactive only';
         }
         if ($outletId = (int) $request->input('outlet', 0)) {
-            $outlet = \App\Models\Outlet::find($outletId);
+            // Outlet has no company scope; keep the caption to this company.
+            $outlet = \App\Models\Outlet::where('company_id', Auth::user()->company_id)->find($outletId);
             if ($outlet) $filters[] = 'Outlet: ' . $outlet->name;
         }
         if ($costFilter = $request->input('cost')) {

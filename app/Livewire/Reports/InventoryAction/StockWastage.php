@@ -50,9 +50,7 @@ class StockWastage extends Component
             ->with(['wastageRecord.outlet', 'ingredient', 'uom'])
             ->whereHas('wastageRecord', function ($q) {
                 $q->whereBetween('wastage_date', [$this->dateFrom, $this->dateTo]);
-                if ($this->outletFilter) {
-                    $q->where('outlet_id', $this->outletFilter);
-                }
+                $this->applyReportOutletScope($q, 'wastage_records.outlet_id');
             })
             ->orderByDesc(
                 \App\Models\WastageRecord::select('wastage_date')

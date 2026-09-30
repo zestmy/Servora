@@ -55,10 +55,7 @@ class OrderSummary extends Component
             ->whereBetween('order_date', [$this->dateFrom, $this->dateTo]);
 
         $this->scopeByOutlet($query);
-
-        if ($this->outletFilter) {
-            $query->where('outlet_id', $this->outletFilter);
-        }
+        $this->applyReportOutletScope($query, $query->getModel()->getTable() . '.outlet_id');
 
         return $query->groupBy('month_label', 'month_sort')
             ->orderByDesc('month_sort')

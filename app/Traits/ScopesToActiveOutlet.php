@@ -33,13 +33,10 @@ trait ScopesToActiveOutlet
      */
     protected function scopeByOutlet(Builder $query, string $column = 'outlet_id'): Builder
     {
-        $ids = $this->availableOutletIds();
-
-        if (! empty($ids)) {
-            $query->whereIn($column, $ids);
-        }
-
-        return $query;
+        // Fail closed. Anyone allowed every outlet already gets every id from
+        // accessibleOutletIds(), so an empty list means a restricted user
+        // with no outlets — who should see nothing, not everything.
+        return $query->whereIn($column, $this->availableOutletIds() ?: [0]);
     }
 
     /** @deprecated Use availableOutletIds() for listing queries. Kept for form prefill compat. */

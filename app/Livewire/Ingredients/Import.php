@@ -962,6 +962,11 @@ PROMPT;
             return;
         }
         $companyId = $user->company_id;
+        // Price, pack size and yield are what current_cost is built from, so writing
+        // them is a cost write. Without ingredients.cost the rows still import — names,
+        // codes, units, categories, suppliers — but at a zero cost the costing team fills
+        // in, exactly as the product form does for the same user.
+        $canSetCost = (bool) $user->canDo('ingredients.cost');
         $imported  = 0;
         $skipped   = 0;
         $prepCreated = 0;
@@ -996,9 +1001,9 @@ PROMPT;
                 }
             }
 
-            $pp       = $row['purchase_price'];
-            $ps       = $row['pack_size'] ?: 1; // treat 0 as 1 for DB storage (user updates later)
-            $yp       = $row['yield_percent'];
+            $pp       = $canSetCost ? $row['purchase_price'] : 0;
+            $ps       = $canSetCost ? ($row['pack_size'] ?: 1) : 1; // treat 0 as 1 for DB storage (user updates later)
+            $yp       = $canSetCost ? $row['yield_percent'] : 100;
             $baseCost = $pp / max($ps, 0.0001);
             $cost     = $yp > 0 ? $baseCost / ($yp / 100) : $baseCost;
 

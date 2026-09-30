@@ -48,6 +48,7 @@
                 </svg>
                 PDF
             </a>
+            @canDo('ingredients.manage')
             <button wire:click="openDuplicatesScan"
                     class="px-2.5 md:px-3 py-2 text-sm font-medium text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition flex items-center gap-1.5"
                     title="Use AI to find duplicate products that can break recipe costing">
@@ -56,12 +57,14 @@
                 </svg>
                 <span class="hidden sm:inline">Find Duplicates</span>
             </button>
+            @endcanDo
             @if ($this->locked)
                 <span class="inline-flex items-center gap-1.5 px-2.5 md:px-3 py-2 text-sm font-medium text-warning-700 bg-warning-50 border border-warning-200 rounded-lg" title="The company admin has locked this list. Read-only mode.">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                     Locked
                 </span>
             @else
+                @canDo('ingredients.import')
                 <button wire:click="openImport"
                         class="btn-secondary"
                         title="Bulk update from CSV">
@@ -70,6 +73,8 @@
                     </svg>
                     <span class="hidden sm:inline">Bulk Update</span>
                 </button>
+                @endcanDo
+                @canDo('ingredients.import')
                 <a href="{{ route('ingredients.scan-document') }}"
                    class="btn-secondary"
                    title="Price Watcher — scan supplier documents (invoice / quotation / price list)">
@@ -78,6 +83,7 @@
                     </svg>
                     <span class="hidden sm:inline">Scan Invoices</span>
                 </a>
+                @endcanDo
                 @canDo('ingredients.import')
                 <a href="{{ route('ingredients.import') }}"
                    title="Import"
@@ -88,11 +94,13 @@
                     <span class="hidden sm:inline">Import</span>
                 </a>
                 @endcanDo
+                @canDo('ingredients.manage')
                 <button wire:click="openCreate"
                         class="btn-primary">
                     <span class="sm:hidden">+ Add</span>
                     <span class="hidden sm:inline">+ Add Product</span>
                 </button>
+                @endcanDo
             @endif
         </div>
     </div>
@@ -133,12 +141,14 @@
                         @endif
                     @endforeach
                 </select>
+                @canDo('ingredients.manage')
                 <button wire:click="openCreateCategory" class="p-2 text-gray-600 hover:text-brand-600 transition" title="Manage Categories">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </button>
+                @endcanDo
             </div>
             <div>
                 <select wire:model.live="supplierFilter"
@@ -190,11 +200,13 @@
                         class="btn-secondary btn-sm">
                     Clear
                 </button>
+                @canDo('ingredients.delete')
                 <button wire:click="bulkDelete"
                         data-confirm-delete="Delete {{ count($selectedIds) }} selected product(s)? This cannot be undone."
                         class="btn-danger btn-sm">
                     Delete Selected
                 </button>
+                @endcanDo
             </div>
         </div>
     @endif
@@ -504,6 +516,7 @@
                                     </svg>
                                 </button>
                                 @if (! $this->locked)
+                                @canDo('ingredients.manage')
                                 <button wire:click="toggleActive({{ $ingredient->id }})"
                                         title="{{ $ingredient->is_active ? 'Deactivate' : 'Activate' }}"
                                         class="{{ $ingredient->is_active ? 'text-success-500 hover:text-success-700' : 'text-gray-600 hover:text-gray-900' }} transition">
@@ -511,6 +524,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </button>
+                                @endcanDo
                                 @canDo('ingredients.delete')
                                 <button wire:click="delete({{ $ingredient->id }})"
                                         data-confirm-delete="{{ $ingredient->recipes_count > 0 ? "'".$ingredient->name."' is used in ".$ingredient->recipes_count." recipe(s); deleting it will affect them. " : '' }}Delete '{{ $ingredient->name }}'? This cannot be undone."
@@ -625,7 +639,9 @@
                         <div>
                             <div class="flex items-center justify-between">
                                 <x-input-label for="ingredient_category_id" value="Category" />
+                                @canDo('ingredients.manage')
                                 <button type="button" wire:click="openCreateCategory" class="text-xs text-brand-600 hover:text-brand-800 font-medium">+ Add</button>
+                                @endcanDo
                             </div>
                             <select id="ingredient_category_id" wire:model="ingredient_category_id"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
@@ -1254,12 +1270,14 @@
                                     <span class="text-xs text-gray-600">({{ $cat->ingredients_count ?? $cat->ingredients()->count() }})</span>
                                 </div>
                                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                                    @canDo('ingredients.manage')
                                     <button wire:click="openEditCategory({{ $cat->id }})"
                                             class="p-1 text-gray-600 hover:text-brand-600 transition" title="Edit">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
+                                    @endcanDo
                                     @canDo('ingredients.delete')
                                     <button wire:click="deleteCategory({{ $cat->id }})"
                                             data-confirm-delete="Delete &quot;{{ $cat->name }}&quot;? Products in this category will become uncategorized."
@@ -1402,14 +1420,16 @@
                             </div>
 
                             <div class="flex items-center justify-between gap-3 px-4 py-2.5 bg-gray-50 border-t border-gray-100">
+                                @canDo('ingredients.manage')
                                 <button type="button" wire:click="dismissCluster({{ $ci }})"
                                         wire:confirm="Mark this whole group as different products? They won't be flagged as duplicates again."
                                         class="text-xs font-medium text-gray-500 hover:text-gray-700 transition">
                                     Not duplicates
                                 </button>
+                                @endcanDo
                                 @if ($this->locked)
                                     <span class="text-xs text-warning-600">List locked — unlock to merge.</span>
-                                @else
+                                @elseif (auth()->user()?->canDo('ingredients.manage') && auth()->user()?->canDo('ingredients.delete'))
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-600">{{ $mergeCount }} → KEEP</span>
                                         <button type="button" wire:click="mergeCluster({{ $ci }})"

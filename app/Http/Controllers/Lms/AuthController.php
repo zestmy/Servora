@@ -123,7 +123,9 @@ class AuthController extends Controller
             'email'     => ['required', 'email', Rule::unique('lms_users', 'email')->where('company_id', $company->id)],
             'password'  => 'required|string|min:6|confirmed',
             'phone'     => 'nullable|string|max:50',
-            'outlet_id' => 'nullable|exists:outlets,id',
+            // Outlet has no company scope: a bare exists rule would accept
+            // another company's outlet from a public form.
+            'outlet_id' => ['nullable', Rule::exists('outlets', 'id')->where('company_id', $company->id)->where('is_active', true)],
         ]);
 
         LmsUser::create([

@@ -21,10 +21,12 @@
         </div>
         @if ($isEditable)
         <div class="flex gap-2 flex-shrink-0">
+            @if ($canSchedule)
             <button wire:click="save('schedule')"
                     class="px-4 py-2 border border-blue-500 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition">
                 Save & Schedule
             </button>
+            @endif
             <button wire:click="save"
                     class="btn-primary">
                 Save Draft
@@ -285,10 +287,12 @@
             </a>
             @if ($isEditable)
                 <div class="flex gap-2">
+                    @if ($canSchedule)
                     <button wire:click="save('schedule')"
                             class="px-4 py-2 border border-blue-500 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition">
                         Save & Schedule
                     </button>
+                    @endif
                     <button wire:click="save"
                             class="btn-primary">
                         Save Draft

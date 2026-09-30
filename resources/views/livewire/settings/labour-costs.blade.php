@@ -71,10 +71,12 @@
                 <div class="card overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 {{ $type === 'foh' ? 'bg-blue-50' : 'bg-warning-50' }}">
                         <h3 class="text-sm font-semibold {{ $type === 'foh' ? 'text-blue-800' : 'text-warning-800' }}">{{ $label }}</h3>
+                        @canDo('hr.compensation')
                         <button wire:click="openEdit('{{ $type }}')"
                                 class="px-3 py-1.5 text-xs font-medium rounded-lg transition {{ $rec ? 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' : 'bg-brand-600 text-white hover:bg-brand-700' }}">
                             {{ $rec ? 'Edit' : '+ Enter' }}
                         </button>
+                        @endcanDo
                     </div>
 
                     @if ($rec)
@@ -295,10 +297,12 @@
                 <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
                     <button type="button" @click="$wire.closeModal()"
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
+                    @canDo('hr.compensation')
                     <button type="submit"
                             class="btn-primary">
                         Save
                     </button>
+                    @endcanDo
                 </div>
             </form>
 

@@ -13,12 +13,14 @@ use App\Models\UnitOfMeasure;
 use App\Services\OrderAdjustmentService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class OrderForm extends Component
 {
     use \App\Traits\RequiresActiveOutlet;
 
+    #[Locked]
     public ?int $orderId = null;
 
     /**
@@ -28,6 +30,7 @@ class OrderForm extends Component
      * the form rather than from the branch the order is for gives the wrong
      * numbers to anyone who works across more than one.
      */
+    #[Locked]
     public ?int $orderOutletId = null;
 
     /**
@@ -38,7 +41,9 @@ class OrderForm extends Component
      * the branch that ASKED, not on whichever outlet the person converting happens
      * to be standing in.
      */
+    #[Locked]
     public ?int $sourcePrId     = null;
+    #[Locked]
     public ?int $sourcePrOutlet = null;
 
     /** Raising a new order and amending an existing one are separate abilities. */
@@ -50,9 +55,36 @@ class OrderForm extends Component
         );
     }
 
-    // Read-only header info
+    // Read-only header info. Locked: save() never takes either from the
+    // browser — a posted status of "approved" used to be written straight
+    // through, and a posted number would have named somebody else's order.
+    #[Locked]
     public string $poNumber = '';
+    #[Locked]
     public string $status   = 'draft';
+
+    /**
+     * Whether this user may change the order on screen.
+     *
+     * The edit route only asks for purchasing.view, so someone who may look
+     * but not amend lands on the same page — read-only. Raising a new order
+     * needs create; amending one needs edit, and only while it is a draft or
+     * awaiting approval.
+     */
+    private function userMayEdit(): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+
+        if (! $this->orderId) {
+            return $user->canDo('purchasing.orders.create');
+        }
+
+        return $user->canDo('purchasing.orders.edit')
+            && in_array($this->status, ['draft', 'submitted'], true);
+    }
 
     // Editable header
     public ?int   $supplier_id              = null;
@@ -656,6 +688,33 @@ class OrderForm extends Component
         $taxPct = floatval($user->company?->tax_percent ?? 0);
 
         /*
+         * The stored order is the authority, not the component. Its outlet is
+         * re-checked (the page was opened once; access can be taken away since)
+         * and its status is read back from the database.
+         */
+        $existing = null;
+        if ($this->orderId) {
+            $existing = PurchaseOrder::findOrFail($this->orderId);
+
+            if ($existing->outlet_id && ! $user->canAccessOutlet($existing->outlet_id)) {
+                abort(403, 'You do not have access to this outlet.');
+            }
+
+            /*
+             * Draft or awaiting approval: anyone who may amend orders.
+             * Approved, sent or partly received: the adjustment-tracked path
+             * below, which moves committed spend — approvers only.
+             * Received or cancelled: never.
+             */
+            $dbStatus = $existing->status;
+            $amendable = in_array($dbStatus, ['draft', 'submitted'], true)
+                || (in_array($dbStatus, ['approved', 'sent', 'partial'], true) && $user->canDo('purchasing.approve'));
+            abort_unless($amendable, 403, 'This purchase order can no longer be changed.');
+
+            $this->status = $dbStatus;
+        }
+
+        /*
          * Only the create path needs an outlet, and only the create path sets
          * one — an edit leaves outlet_id alone, which is correct, so deriving
          * it here would be asking a question nobody uses the answer to.
@@ -670,10 +729,19 @@ class OrderForm extends Component
 
         $requiresApproval = $user->company?->require_po_approval ?? true;
 
-        if ($action === 'submit') {
+        /*
+         * Status is decided here, never taken from the component. A new order
+         * starts as a draft; an existing one keeps what the database says. Only
+         * a draft (or a new order) can be submitted, and "approved" comes out
+         * of a submit only when the company does not require approval — the
+         * same policy Index::submitPo() applies.
+         */
+        $canSubmit = ! $existing || in_array($existing->status, ['draft', 'submitted'], true);
+
+        if ($action === 'submit' && $canSubmit) {
             $status = $requiresApproval ? 'submitted' : 'approved';
         } else {
-            $status = $this->status ?: 'draft';
+            $status = $existing?->status ?? 'draft';
         }
 
         // Remove zero-quantity lines
@@ -722,7 +790,7 @@ class OrderForm extends Component
                     'tax_percent'           => $taxPct,
                     'status'                => $status,
                     'created_by'            => Auth::id(),
-                    'approved_by'           => ($action === 'submit' && ! $requiresApproval) ? Auth::id() : null,
+                    'approved_by'           => ($action === 'submit' && $canSubmit && ! $requiresApproval) ? Auth::id() : null,
                 ];
 
                 $poIds = \App\Services\PoSplitService::splitAndCreate($splitLines, $headerData);
@@ -753,12 +821,12 @@ class OrderForm extends Component
             'status'                 => $status,
         ];
 
-        if ($action === 'submit' && ! $requiresApproval) {
+        if ($action === 'submit' && $canSubmit && ! $requiresApproval) {
             $data['approved_by'] = Auth::id();
         }
 
-        if ($this->orderId) {
-            $po = PurchaseOrder::findOrFail($this->orderId);
+        if ($existing) {
+            $po = $existing;
             $po->update($data);
         } else {
             $data['company_id'] = $user->company_id;
@@ -850,7 +918,7 @@ class OrderForm extends Component
             \App\Services\AuditLogService::logLineChanges($po, $auditBefore, $auditAfter);
         }
 
-        if ($action === 'submit') {
+        if ($action === 'submit' && $canSubmit) {
             $msg = $requiresApproval ? 'PO submitted for approval.' : 'PO approved and sent to purchasing team.';
         } else {
             $msg = 'Purchase order saved as draft.';
@@ -905,7 +973,7 @@ class OrderForm extends Component
         $taxAmount          = collect($this->lines)->sum(fn ($l) => floatval($l['tax_amount'] ?? 0));
         $grandTotal         = round($subtotal + $taxAmount, 4);
         $availableTemplates = $this->availableTemplates();
-        $isEditable         = ! $this->orderId || in_array($this->status, ['draft', 'submitted']);
+        $isEditable         = $this->userMayEdit();
         $requirePoApproval  = $company?->require_po_approval ?? true;
 
         $pageTitle = $this->orderId

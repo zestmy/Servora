@@ -11,20 +11,26 @@ use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class CreditNoteForm extends Component
 {
     use \App\Traits\RequiresActiveOutlet;
 
+    #[Locked]
     public ?int $creditNoteId = null;
 
     // Header
     public string $credit_note_number = '';
     public string $type               = 'debit_note';
     public string $direction          = 'issued';
+    // Locked: both come from the database (or the raiser's active outlet) in
+    // mount(), and save() used to write whatever the browser sent back.
+    #[Locked]
     public string $status             = 'draft';
     public ?int   $supplier_id        = null;
+    #[Locked]
     public ?int   $outlet_id          = null;
     public string $issued_date        = '';
     public ?int   $procurement_invoice_id  = null;
@@ -82,6 +88,11 @@ class CreditNoteForm extends Component
         }
 
         $cn = CreditNote::with(['lines.ingredient.baseUom', 'lines.uom'])->findOrFail($id);
+
+        // The same outlet check every other purchasing document makes.
+        if ($cn->outlet_id && ! Auth::user()->canAccessOutlet($cn->outlet_id)) {
+            abort(403, 'You do not have access to this outlet.');
+        }
 
         $this->creditNoteId            = $cn->id;
         $this->credit_note_number      = $cn->credit_note_number;
@@ -298,6 +309,24 @@ class CreditNoteForm extends Component
 
     public function save(string $action = 'save'): void
     {
+        // The route only asks for purchasing.view. Raising or amending a note
+        // moves supplier money (and can dispose assets), which is invoice work.
+        abort_unless(Auth::user()?->canDo('purchasing.invoice'), 403);
+
+        // An existing note is judged by what the database holds: still in an
+        // outlet this user can reach, and still a draft. An issued note is
+        // final — the component's copy of its status is not evidence.
+        $existing = null;
+        if ($this->creditNoteId) {
+            $existing = CreditNote::findOrFail($this->creditNoteId);
+
+            if ($existing->outlet_id && ! Auth::user()->canAccessOutlet($existing->outlet_id)) {
+                abort(403, 'You do not have access to this outlet.');
+            }
+
+            abort_unless($existing->status === 'draft', 403, 'Only a draft note can be changed.');
+        }
+
         $this->validate();
 
         if (! $this->everyLineNamesSomething()) {
@@ -315,12 +344,12 @@ class CreditNoteForm extends Component
         $taxAmt   = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
         $total    = round($subtotal + $taxAmt, 4);
 
-        $status = $action === 'issue' ? 'issued' : ($this->status ?: 'draft');
+        $status = $action === 'issue' ? 'issued' : 'draft';
 
         // An existing note keeps the outlet it was raised against; a new one
         // needs the raiser to have one, and refuses rather than filing the
         // credit against an arbitrary branch.
-        $outletId = $this->outlet_id ?? $this->requireActiveOutlet();
+        $outletId = $existing?->outlet_id ?? $this->outlet_id ?? $this->requireActiveOutlet();
 
         $data = [
             'type'                     => $this->type,
@@ -473,7 +502,8 @@ class CreditNoteForm extends Component
         $taxPct     = floatval($company?->tax_percent ?? 0);
         $taxAmount  = $taxPct > 0 ? round($subtotal * ($taxPct / 100), 4) : 0;
         $grandTotal = round($subtotal + $taxAmount, 4);
-        $isEditable = ! $this->creditNoteId || in_array($this->status, ['draft']);
+        $isEditable = (! $this->creditNoteId || $this->status === 'draft')
+            && (bool) Auth::user()?->canDo('purchasing.invoice');
 
         $pageTitle = $this->creditNoteId
             ? ($isEditable ? 'Edit: ' : 'View: ') . $this->credit_note_number

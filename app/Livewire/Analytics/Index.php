@@ -82,6 +82,18 @@ class Index extends Component
         $this->outletResults = [];
         $this->activeOutletTab = 0;
 
+        // outletId is client-writable. A specific outlet must be one this user
+        // can reach; "all outlets" (null) analyses every outlet of the company,
+        // so it is only for someone whose access already covers all of them.
+        $user = Auth::user();
+        $allowed = $this->outletId
+            ? $user->canAccessOutlet((int) $this->outletId)
+            : $user->coversEveryOutlet();
+        if (! $allowed) {
+            $this->error = 'You do not have access to that outlet.';
+            return;
+        }
+
         try {
             $service = app(AiAnalyticsService::class);
             $customQ = null;

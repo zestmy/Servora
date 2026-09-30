@@ -951,7 +951,7 @@
                     <h3 class="text-sm font-semibold text-gray-700">Statutory</h3>
                     <p class="text-xs text-gray-500">
                         Scheme numbers and the inputs no company-wide setting can answer. Rates live on
-                        <a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>.
+                        @canDo('hr.compensation')<a href="{{ route('settings.statutory') }}" class="text-brand-600 hover:underline">Settings → Statutory Rates</a>@else<span>Settings → Statutory Rates</span>@endcanDo.
                     </p>
                 </div>
                 {{-- No badge on the tab as a whole any more: half of it is open
@@ -1269,7 +1269,7 @@
                     <p class="mt-3 text-xs text-gray-500">
                         @if ($availableCertifications->isEmpty())
                             No courses in the catalogue yet — add them under
-                            <a href="{{ route('settings.certifications') }}" class="text-brand-600 hover:underline">Settings → Certifications &amp; Training</a>.
+                            @canDo('settings.certifications')<a href="{{ route('settings.certifications') }}" class="text-brand-600 hover:underline">Settings → Certifications &amp; Training</a>@else<span>Settings → Certifications &amp; Training</span>@endcanDo.
                         @else
                             None recorded.
                         @endif

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Livewire\Hr\Concerns\ScopesRosterOutlet;
 use App\Models\Outlet;
 use App\Models\RosterStation;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,7 @@ use Livewire\Component;
 
 class RosterStations extends Component
 {
+    use ScopesRosterOutlet;
     public ?int $outletId = null;
 
     // Form
@@ -36,11 +38,19 @@ class RosterStations extends Component
 
     public function updatedOutletId(): void
     {
+        $this->normaliseRosterOutlet();
         $this->closeForm();
+    }
+
+    /** A station at an outlet this user can reach; RosterStation has no CompanyScope. */
+    protected function station(int $id): RosterStation
+    {
+        return RosterStation::whereIn('outlet_id', $this->rosterOutletIds())->findOrFail($id);
     }
 
     public function openCreate(): void
     {
+        $this->assertRosterOutlet($this->outletId);
         $this->resetForm();
         $this->f_sort_order = RosterStation::where('outlet_id', $this->outletId)->max('sort_order') + 1;
         $this->showForm = true;
@@ -48,7 +58,7 @@ class RosterStations extends Component
 
     public function openEdit(int $id): void
     {
-        $station = RosterStation::findOrFail($id);
+        $station = $this->station($id);
         $this->editingId = $station->id;
         $this->f_name = $station->name;
         $this->f_description = $station->description ?? '';
@@ -78,7 +88,7 @@ class RosterStations extends Component
         $this->validate();
 
         if ($this->editingId) {
-            $station = RosterStation::findOrFail($this->editingId);
+            $station = $this->station($this->editingId);
             $station->update([
                 'name' => $this->f_name,
                 'description' => $this->f_description ?: null,
@@ -87,6 +97,7 @@ class RosterStations extends Component
             ]);
             session()->flash('success', 'Station updated.');
         } else {
+            $this->assertRosterOutlet($this->outletId);
             RosterStation::create([
                 'outlet_id' => $this->outletId,
                 'name' => $this->f_name,
@@ -102,13 +113,13 @@ class RosterStations extends Component
 
     public function toggleActive(int $id): void
     {
-        $station = RosterStation::findOrFail($id);
+        $station = $this->station($id);
         $station->update(['is_active' => !$station->is_active]);
     }
 
     public function delete(int $id): void
     {
-        $station = RosterStation::findOrFail($id);
+        $station = $this->station($id);
 
         // Check if station is used in any roster entries
         if ($station->entries()->exists()) {
@@ -122,8 +133,9 @@ class RosterStations extends Component
 
     public function moveUp(int $id): void
     {
-        $station = RosterStation::findOrFail($id);
-        $prev = RosterStation::where('outlet_id', $this->outletId)
+        $station = $this->station($id);
+        // The station's own outlet, not the client-writable $outletId.
+        $prev = RosterStation::where('outlet_id', $station->outlet_id)
             ->where('sort_order', '<', $station->sort_order)
             ->orderByDesc('sort_order')
             ->first();
@@ -137,8 +149,8 @@ class RosterStations extends Component
 
     public function moveDown(int $id): void
     {
-        $station = RosterStation::findOrFail($id);
-        $next = RosterStation::where('outlet_id', $this->outletId)
+        $station = $this->station($id);
+        $next = RosterStation::where('outlet_id', $station->outlet_id)
             ->where('sort_order', '>', $station->sort_order)
             ->orderBy('sort_order')
             ->first();
@@ -157,6 +169,8 @@ class RosterStations extends Component
 
     public function render()
     {
+        $this->normaliseRosterOutlet();
+
         $stations = collect();
         if ($this->outletId) {
             $stations = RosterStation::where('outlet_id', $this->outletId)

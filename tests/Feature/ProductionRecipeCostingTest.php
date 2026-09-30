@@ -82,7 +82,7 @@ class ProductionRecipeCostingTest extends TestCase
         ]);
         $this->user->companies()->syncWithoutDetaching([$this->company->id]);
         $this->user->outlets()->sync([$outlet->id]);
-        $this->kitchen->users()->syncWithoutDetaching([$this->user->id => ['role' => 'chef']]);
+        $this->kitchen->users()->syncWithoutDetaching([$this->user->id => ['role' => 'manager']]); // the recipe book is a manager's
 
         setPermissionsTeamId($this->company->id);
         foreach (['recipes.view', 'recipes.manage', 'reports.view', 'kitchen.production.manage'] as $ability) {

@@ -23,9 +23,11 @@
                     · pass rate <span class="font-medium tabular-nums {{ $t['passRate'] >= 80 ? 'text-success-700' : 'text-gray-800' }}">{{ $t['passRate'] }}%</span>
                 </span>
             </div>
+            @canDo('reports.view')
             <a href="{{ route('reports.audit-trend') }}" wire:navigate class="text-xs font-medium text-brand-700 hover:text-brand-800">
                 Full trend <x-icon name="arrow-right" size="h-3.5 w-3.5" class="inline" />
             </a>
+            @endcanDo
         </div>
 
         <ul class="stack">

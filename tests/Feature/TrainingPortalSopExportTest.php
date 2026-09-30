@@ -153,11 +153,13 @@ class TrainingPortalSopExportTest extends TestCase
         Outlet::create(['company_id' => $this->company->id, 'name' => 'IOI', 'code' => 'IO', 'is_active' => true]);
 
         setPermissionsTeamId($this->company->id);
-        Permission::findOrCreate('hr.view', 'web');
-        $this->user->givePermissionTo('hr.view');
+        // The panel sits on Settings > LMS Users (can:training.portal), so that
+        // is the ability start() asks for — hr.view was the wrong one.
+        Permission::findOrCreate('training.portal', 'web');
+        $this->user->givePermissionTo('training.portal');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $all = $this->completed(now()->subDays(5)->toDateTimeString());
+        $all =$this->completed(now()->subDays(5)->toDateTimeString());
 
         // Picking an outlet shows that outlet's copy, not the all-SOPs one.
         $panel = Livewire::actingAs($this->user)->test(SopExportPanel::class)

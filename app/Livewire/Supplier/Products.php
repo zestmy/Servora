@@ -38,9 +38,22 @@ class Products extends Component
         $this->showForm = true;
     }
 
+    /**
+     * A product this supplier owns, by an id the browser sent.
+     *
+     * SupplierProduct has no scope and portal sign-up is public, so a bare
+     * findOrFail() let any registered supplier read, overwrite (and take
+     * over) or delete any other supplier's catalogue item.
+     */
+    private function ownProduct(int $id): SupplierProduct
+    {
+        return SupplierProduct::where('supplier_id', Auth::guard('supplier')->user()->supplier_id)
+            ->findOrFail($id);
+    }
+
     public function openEdit(int $id): void
     {
-        $product = SupplierProduct::findOrFail($id);
+        $product = $this->ownProduct($id);
         $this->editId = $product->id;
         $this->sku = $product->sku;
         $this->name = $product->name;
@@ -80,7 +93,7 @@ class Products extends Component
         ];
 
         if ($this->editId) {
-            SupplierProduct::findOrFail($this->editId)->update($data);
+            $this->ownProduct($this->editId)->update($data);
         } else {
             SupplierProduct::create($data);
         }
@@ -92,7 +105,7 @@ class Products extends Component
 
     public function delete(int $id): void
     {
-        SupplierProduct::findOrFail($id)->delete();
+        $this->ownProduct($id)->delete();
         session()->flash('success', 'Product deleted.');
     }
 

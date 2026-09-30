@@ -87,8 +87,45 @@ class Dashboard extends Component
         return auth()->user()->canViewAllOutlets() ? null : $this->activeOutletId();
     }
 
+    /**
+     * Whether the signed-in user may open a named route: every `can:` ability on
+     * the route (group middleware included) must pass canDo(). The quick-action
+     * list uses it so a shortcut is never offered to someone it would 403.
+     */
+    public static function canOpenRoute(string $name): bool
+    {
+        $user  = auth()->user();
+        $route = app('router')->getRoutes()->getByName($name);
+
+        if (! $user || ! $route) {
+            return false;
+        }
+
+        foreach ($route->gatherMiddleware() as $middleware) {
+            if (! is_string($middleware) || ! str_starts_with($middleware, 'can:')) {
+                continue;
+            }
+
+            $ability = substr($middleware, 4);
+            // Model-bound checks (can:update,post) are the route's own business.
+            if (str_contains($ability, ',')) {
+                continue;
+            }
+
+            if (! $user->canDo($ability)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function approvePo(int $id): void
     {
+        // Being a named approver is not enough on its own: the ability has to be
+        // held too, exactly as Purchasing\Index requires.
+        abort_unless(auth()->user()?->canDo('purchasing.approve'), 403);
+
         $po = PurchaseOrder::findOrFail($id);
         if ($po->status !== 'submitted') return;
         if (! PoApprover::isApproverFor(auth()->id(), $po->outlet_id, $po->department_id)) return;
@@ -99,6 +136,10 @@ class Dashboard extends Component
 
     public function rejectPo(int $id): void
     {
+        // Being a named approver is not enough on its own: the ability has to be
+        // held too, exactly as Purchasing\Index requires.
+        abort_unless(auth()->user()?->canDo('purchasing.approve'), 403);
+
         $po = PurchaseOrder::findOrFail($id);
         if ($po->status !== 'submitted') return;
         if (! PoApprover::isApproverFor(auth()->id(), $po->outlet_id, $po->department_id)) return;
@@ -141,6 +182,16 @@ class Dashboard extends Component
             $data['auditTrend']        = $this->auditScoreTrend();
         }
 
+        // A row may say what it links to, but only offers the link to someone who
+        // can open it — a 'can' key names the target route's ability.
+        $data['alerts'] = array_map(function (array $alert) use ($user) {
+            if (isset($alert['can']) && ! $user->canDo($alert['can'])) {
+                unset($alert['href'], $alert['action']);
+            }
+
+            return $alert;
+        }, $data['alerts'] ?? []);
+
         $data['roleName']      = $roleName;
         $data['dashboardType'] = $data['dashboardType'] ?? 'default';
         $data['filterOutlets'] = $this->filterableOutlets();
@@ -175,6 +226,8 @@ class Dashboard extends Component
         $this->scopeByOutletFilter($reaudits, $this->outletFilter);
         $reaudits = $reaudits->orderBy('reaudit_due_on')->get();
 
+        $canConduct = (bool) auth()->user()?->canDo('audits.conduct');
+
         foreach ($reaudits->take(self::REAUDIT_ROWS) as $audit) {
             $overdue = $audit->isReauditOverdue();
             $rows[]  = [
@@ -188,8 +241,12 @@ class Dashboard extends Component
                     $audit->audit_date->format('d M Y'),
                     number_format((float) $audit->score_percent, 1)
                 ),
-                'action'  => 'Start re-audit',
-                'href'    => route('audits.start', ['reaudit' => $audit->id]),
+                // Starting one needs audits.conduct; everyone else who can see
+                // audits is pointed at the schedule instead of a 403.
+                'action'  => $canConduct ? 'Start re-audit' : 'Schedule',
+                'href'    => $canConduct
+                    ? route('audits.start', ['reaudit' => $audit->id])
+                    : route('audits.schedules'),
             ];
         }
 
@@ -200,6 +257,7 @@ class Dashboard extends Component
                 'message' => "…and {$more} more re-audit" . ($more === 1 ? '' : 's') . ' waiting.',
                 'action'  => 'See all',
                 'href'    => route('audits.index'),
+                'can'     => 'audits.view',
             ];
         }
 
@@ -213,6 +271,7 @@ class Dashboard extends Component
                 'message' => "{$n} scheduled audit" . ($n === 1 ? ' is' : 's are') . ' overdue.',
                 'action'  => 'Schedule',
                 'href'    => route('audits.schedules', ['filter' => 'overdue']),
+                'can'     => 'audits.view',
             ];
         }
 
@@ -226,6 +285,7 @@ class Dashboard extends Component
                 'message' => "{$n} corrective action" . ($n === 1 ? ' is' : 's are') . ' overdue.',
                 'action'  => 'Review',
                 'href'    => route('audits.actions', ['status' => 'overdue']),
+                'can'     => 'audits.view',
             ];
         }
 
@@ -895,6 +955,7 @@ class Dashboard extends Component
                     : "{$awaitingApproval} " . Str::plural('PO', $awaitingApproval) . ' awaiting your approval',
                 'action'  => 'Review',
                 'href'    => route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']),
+                'can'     => 'purchasing.view',
             ];
         }
         if ($pendingGrns > 0) {
@@ -903,6 +964,7 @@ class Dashboard extends Component
                 'message' => "{$pendingGrns} " . Str::plural('GRN', $pendingGrns) . ' pending outlet receipt',
                 'action'  => 'Open GRNs',
                 'href'    => route('purchasing.index', ['tab' => 'grn']),
+                'can'     => 'purchasing.view',
             ];
         }
 
@@ -998,6 +1060,7 @@ class Dashboard extends Component
                              . ' above the ' . rtrim(rtrim(number_format((float) config('costing.target.over'), 1), '0'), '.') . '% food cost target',
                 'action'  => 'Review recipes',
                 'href'    => route('recipes.index'),
+                'can'     => 'recipes.view',
             ];
         }
         if ($expiringCount > 0) {
@@ -1006,6 +1069,7 @@ class Dashboard extends Component
                 'message' => $expiringCount . ' labelled ' . Str::plural('item', $expiringCount) . ' expiring within 24 hours',
                 'action'  => 'Open list',
                 'href'    => route('labels.expiring'),
+                'can'     => 'labels.print',
             ];
         }
         if ($pendingGrns > 0) {
@@ -1014,6 +1078,7 @@ class Dashboard extends Component
                 'message' => "{$pendingGrns} " . Str::plural('GRN', $pendingGrns) . ' pending receipt',
                 'action'  => 'Open GRNs',
                 'href'    => route('purchasing.index', ['tab' => 'grn']),
+                'can'     => 'purchasing.view',
             ];
         }
 
@@ -1110,6 +1175,7 @@ class Dashboard extends Component
                 'message' => "{$stale} submitted " . Str::plural('PO', $stale) . " have waited {$staleDays} days or more",
                 'action'  => 'Review queue',
                 'href'    => route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']),
+                'can'     => 'purchasing.view',
             ];
         } elseif ($submittedPOs > 0) {
             $alerts[] = [
@@ -1117,6 +1183,7 @@ class Dashboard extends Component
                 'message' => "{$submittedPOs} " . Str::plural('PO', $submittedPOs) . ' awaiting your review',
                 'action'  => 'Review queue',
                 'href'    => route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']),
+                'can'     => 'purchasing.view',
             ];
         }
         if ($pendingGRNs > 0) {
@@ -1125,6 +1192,7 @@ class Dashboard extends Component
                 'message' => "{$pendingGRNs} " . Str::plural('GRN', $pendingGRNs) . ' pending outlet receipt',
                 'action'  => 'Open GRNs',
                 'href'    => route('purchasing.index', ['tab' => 'grn']),
+                'can'     => 'purchasing.view',
             ];
         }
 
@@ -1283,6 +1351,7 @@ class Dashboard extends Component
                 'message' => "Gross margin is {$margin}%, below the {$floor}% floor",
                 'action'  => 'Open cost report',
                 'href'    => route('reports.index'),
+                'can'     => 'reports.view',
             ];
         } elseif ($priorMargin > 0 && ($priorMargin - $margin) >= 3) {
             $drop = round($priorMargin - $margin, 1);
@@ -1291,6 +1360,7 @@ class Dashboard extends Component
                 'message' => "Gross margin is down {$drop} points on the previous period",
                 'action'  => 'Open cost report',
                 'href'    => route('reports.index'),
+                'can'     => 'reports.view',
             ];
         }
 
@@ -1300,6 +1370,7 @@ class Dashboard extends Component
                 'message' => "Wastage is {$wastagePct}% of revenue, above the {$warn}% threshold",
                 'action'  => 'Open wastage',
                 'href'    => route('inventory.index', ['tab' => 'wastage']),
+                'can'     => 'inventory.view',
             ];
         }
 
@@ -1335,6 +1406,7 @@ class Dashboard extends Component
                              . " above the {$target}% food cost target",
                 'action'  => 'Review recipes',
                 'href'    => route('recipes.index'),
+                'can'     => 'recipes.view',
             ];
         }
 
@@ -1344,6 +1416,7 @@ class Dashboard extends Component
                 'message' => "Wastage is {$wastagePct}% of revenue for this period",
                 'action'  => 'Open wastage',
                 'href'    => route('inventory.index', ['tab' => 'wastage']),
+                'can'     => 'inventory.view',
             ];
         }
 
@@ -1353,15 +1426,19 @@ class Dashboard extends Component
                 'message' => "Gross margin is {$margin}%, below the " . config('costing.margin_floor_pct') . '% floor',
                 'action'  => 'Open cost report',
                 'href'    => route('reports.index'),
+                'can'     => 'reports.view',
             ];
         }
 
-        if ($pendingPOs > 0) {
+        // The manager dashboard is also the fallback for users matching no other
+        // branch; the PO queue is not news to someone who cannot see purchasing.
+        if ($pendingPOs > 0 && auth()->user()->canDo('purchasing.view')) {
             $alerts[] = [
                 'type'    => 'info',
                 'message' => "{$pendingPOs} purchase " . Str::plural('order', $pendingPOs) . ' pending',
                 'action'  => 'Open purchasing',
                 'href'    => route('purchasing.index', ['tab' => 'po']),
+                'can'     => 'purchasing.view',
             ];
         }
 
@@ -1388,6 +1465,7 @@ class Dashboard extends Component
                                  . $this->window->daysElapsed . ' of ' . $this->window->daysInPeriod . ' days elapsed)',
                     'action'  => 'Start stock take',
                     'href'    => route('inventory.stock-takes.create'),
+                    'can'     => 'inventory.stock_takes.record',
                 ];
             }
         }

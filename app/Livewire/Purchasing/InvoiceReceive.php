@@ -12,6 +12,7 @@ use App\Services\AiInvoiceExtractionService;
 use App\Services\InvoiceMatchingService;
 use App\Services\ProcurementInvoiceService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -25,8 +26,31 @@ class InvoiceReceive extends Component
     // Upload
     public $invoiceFile;
 
-    // Scan record
+    // Scan record. Locked: only upload() sets it, and approve()/reject() act
+    // on whichever scan it names.
+    #[Locked]
     public ?int $scanId = null;
+
+    /**
+     * Turning a scanned invoice into a procurement invoice is invoice work.
+     * The route only asks for purchasing.view, and Livewire re-applies just
+     * that on every action — so each write here names its own ability.
+     */
+    private function authorizeInvoiceWork(): void
+    {
+        abort_unless(Auth::user()?->canDo('purchasing.invoice'), 403);
+    }
+
+    /**
+     * This company's scan, looked up explicitly. withoutGlobalScopes() used to
+     * drop CompanyScope along with everything else, so any scan id reached any
+     * company's upload.
+     */
+    private function scanQuery()
+    {
+        return AiInvoiceScan::withoutGlobalScopes()
+            ->where('company_id', Auth::user()->company_id);
+    }
 
     // Review header
     public ?int $selectedSupplierId = null;
@@ -60,6 +84,8 @@ class InvoiceReceive extends Component
 
     public function upload(): void
     {
+        $this->authorizeInvoiceWork();
+
         $this->validate([
             'invoiceFile' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ]);
@@ -145,7 +171,7 @@ class InvoiceReceive extends Component
             $this->errorMessage = $e->getMessage();
 
             if ($this->scanId) {
-                AiInvoiceScan::withoutGlobalScopes()->where('id', $this->scanId)->update([
+                $this->scanQuery()->where('id', $this->scanId)->update([
                     'status'        => 'failed',
                     'error_message' => $e->getMessage(),
                 ]);
@@ -170,6 +196,8 @@ class InvoiceReceive extends Component
 
     public function approve(): void
     {
+        $this->authorizeInvoiceWork();
+
         $this->validate([
             'selectedSupplierId' => 'required|exists:suppliers,id',
             'issuedDate'         => 'required|date',
@@ -178,8 +206,24 @@ class InvoiceReceive extends Component
             'lines.*.unit_price' => 'required|numeric|min:0',
         ]);
 
+        // Every id below came from the browser, and exists:* rules skip the
+        // company scope. Resolve each through its company-scoped model so an
+        // invoice can only ever point at this company's own records.
+        abort_unless(Supplier::whereKey($this->selectedSupplierId)->exists(), 404);
+        if ($this->selectedPoId) {
+            abort_unless(PurchaseOrder::whereKey($this->selectedPoId)->exists(), 404);
+        }
+        if ($this->selectedGrnId) {
+            abort_unless(\App\Models\GoodsReceivedNote::whereKey($this->selectedGrnId)->exists(), 404);
+        }
+        $ingredientIds = collect($this->lines)->pluck('ingredient_id')->filter()->map(fn ($id) => (int) $id)->unique();
+        abort_unless(Ingredient::whereIn('id', $ingredientIds)->count() === $ingredientIds->count(), 404);
+
         $user = Auth::user();
-        $scan = AiInvoiceScan::withoutGlobalScopes()->findOrFail($this->scanId);
+        $scan = $this->scanQuery()->findOrFail($this->scanId);
+
+        // A scan becomes one invoice, once. An approved or rejected scan is done.
+        abort_if(in_array($scan->status, ['approved', 'rejected'], true), 403, 'This scan has already been processed.');
 
         $subtotal = collect($this->lines)->sum(fn ($l) => round(floatval($l['quantity']) * floatval($l['unit_price']), 4));
 
@@ -230,8 +274,13 @@ class InvoiceReceive extends Component
 
     public function reject(): void
     {
+        $this->authorizeInvoiceWork();
+
         if ($this->scanId) {
-            AiInvoiceScan::withoutGlobalScopes()->where('id', $this->scanId)->update(['status' => 'rejected']);
+            // Never un-reject — or overwrite — a scan that already became an invoice.
+            $this->scanQuery()->where('id', $this->scanId)
+                ->where('status', '!=', 'approved')
+                ->update(['status' => 'rejected']);
         }
 
         session()->flash('success', 'Invoice scan rejected.');

@@ -309,11 +309,13 @@
                         class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition">
                     Clear
                 </button>
+                @if (auth()->user()?->canDo('recipes.delete') && (! $isPrep || auth()->user()?->canDo('inventory.prep_items.delete')))
                 <button wire:click="bulkDelete"
                         data-confirm-delete="Delete {{ count($selectedIds) }} selected {{ $isPrep ? 'prep item' : 'recipe' }}{{ count($selectedIds) > 1 ? 's' : '' }}? This cannot be undone."
                         class="btn-danger btn-sm">
                     Delete Selected
                 </button>
+                @endif
             </div>
         </div>
     @endif
@@ -368,6 +370,9 @@
                     <th class="px-4 py-3 text-center">Actions</th>
                 </tr>
             </thead>
+            {{-- Reordering writes menu_sort_order, so only someone who may manage recipes
+                 gets the handles; everyone else sees the same fixed column the lock shows. --}}
+            @php $canReorder = ! $this->locked && (auth()->user()?->canDo('recipes.manage') ?? false); @endphp
             <tbody
                    x-data
                    x-init="new Sortable($el, {
@@ -403,10 +408,10 @@
                                        class="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                             </td>
                         @endif
-                        <td class="{{ $this->locked ? 'px-1 py-3' : 'drag-handle px-1 py-3 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none' }}" title="{{ $this->locked ? '' : 'Drag to reorder' }}">
-                            @unless ($this->locked)
+                        <td class="{{ ! $canReorder ? 'px-1 py-3' : 'drag-handle px-1 py-3 text-center text-gray-500 hover:text-gray-900 cursor-grab select-none' }}" title="{{ ! $canReorder ? '' : 'Drag to reorder' }}">
+                            @if ($canReorder)
                                 <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm8-12a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0zm0 4a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
-                            @endunless
+                            @endif
                         </td>
                         <td class="px-4 py-3">
                             @if ($tab === 'prep-items' && ! (auth()->user()?->canDo('inventory.prep_items.record') ?? false))
@@ -513,7 +518,12 @@
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 @if (! ($tab === 'prep-items' && ! (auth()->user()?->canDo('inventory.prep_items.record') ?? false)))
-                                <a href="{{ $tab === 'prep-items' ? route('inventory.prep-items.show', $recipe->id) : route('recipes.edit', $recipe->id) }}" title="Edit"
+                                @php
+                                    // recipes.edit needs recipes.manage; a view-only user gets the
+                                    // read-only recipe page instead of a link that 403s.
+                                    $canEditRecipe = $tab === 'prep-items' || (auth()->user()?->canDo('recipes.manage') ?? false);
+                                @endphp
+                                <a href="{{ $tab === 'prep-items' ? route('inventory.prep-items.show', $recipe->id) : ($canEditRecipe ? route('recipes.edit', $recipe->id) : route('recipes.show', $recipe->id)) }}" title="{{ $canEditRecipe ? 'Edit' : 'View' }}"
                                    class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -521,6 +531,7 @@
                                 </a>
                                 @endif
                                 @if (! $this->locked)
+                                @canDo('recipes.manage')
                                 <button wire:click="toggleActive({{ $recipe->id }})"
                                         title="{{ $recipe->is_active ? 'Deactivate' : 'Activate' }}"
                                         class="{{ $recipe->is_active ? 'text-success-500 hover:text-success-700' : 'text-gray-600 hover:text-gray-900' }} transition">
@@ -528,7 +539,8 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </button>
-                                @if (! $isPrep)
+                                @endcanDo
+                                @if (! $isPrep && (auth()->user()?->canDo('recipes.manage') ?? false))
                                 <button wire:click="duplicate({{ $recipe->id }})"
                                         wire:confirm="Duplicate '{{ $recipe->name }}'? A copy will be created that you can edit."
                                         title="Duplicate"

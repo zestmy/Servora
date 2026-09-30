@@ -37,7 +37,9 @@ class WipReviewPdfController extends Controller
         $count   = $monthly ? Params::months($request->query('months')) : Params::weeks($request->query('weeks'));
 
         $selected  = $this->selectedOutletId($request->query('outlet'));
-        $outletIds = $selected !== null ? [$selected] : $this->availableOutletIds();
+        // build() reads an empty list as "every outlet"; a restricted user
+        // with no outlets must get nothing instead, so fail closed.
+        $outletIds = $selected !== null ? [$selected] : ($this->availableOutletIds() ?: [0]);
 
         $report = app(WeeklyWipReview::class)->build(
             (int) $user->company_id,

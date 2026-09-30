@@ -111,10 +111,10 @@ class OutletFallbackAndGreetingTest extends TestCase
         $u->outlets()->sync($outletIds);
 
         setPermissionsTeamId($this->company->id);
-        foreach (['purchasing.view', 'purchasing.orders.create', 'purchasing.credit_notes.manage'] as $p) {
+        foreach (['purchasing.view', 'purchasing.orders.create', 'purchasing.invoice'] as $p) {
             Permission::findOrCreate($p, 'web');
         }
-        $u->givePermissionTo(['purchasing.view', 'purchasing.orders.create', 'purchasing.credit_notes.manage']);
+        $u->givePermissionTo(['purchasing.view', 'purchasing.orders.create', 'purchasing.invoice']);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return $u;
@@ -159,6 +159,7 @@ class OutletFallbackAndGreetingTest extends TestCase
             $this->fail('A credit note with no outlet should be refused.');
         } catch (HttpException $e) {
             $this->assertSame(403, $e->getStatusCode());
+            $this->assertStringContainsString('not assigned to an outlet', $e->getMessage());
         }
 
         $this->assertDatabaseCount('credit_notes', 0);

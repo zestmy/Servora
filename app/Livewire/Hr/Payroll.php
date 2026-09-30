@@ -444,6 +444,11 @@ class Payroll extends Component
     {
         $run = PayrollRun::findOrFail($id);
 
+        // Same outlet rule as opening the run (PayrollRunShow): a run for an
+        // outlet this user cannot see — or a company-wide run, for someone
+        // who does not cover every outlet — is not theirs to delete.
+        abort_unless($run->isWithinOutlets(Auth::user()), 403);
+
         // Only a draft. An approved run is a record of a decision, and a paid
         // one is a record of money that moved.
         if (! $run->isEditable()) {

@@ -27,8 +27,36 @@ class Wizard extends Component
     // Invite team
     public array $invites = [];
 
+    /**
+     * Only the person setting the company up, and only while it is being set up.
+     *
+     * The route has no `can:` — it has to stay reachable for a brand-new
+     * founder — so every action checks here instead. Without this any staff
+     * account could open /onboarding, change the company's currency and
+     * address, and invite a new "Company Admin" with a known password.
+     */
+    private function mayOnboard(): bool
+    {
+        $user = Auth::user();
+
+        return $user
+            && $user->company
+            && ! $user->company->onboarding_completed_at
+            && ($user->isSystemRole() || $user->canDo('users.manage'));
+    }
+
+    private function guard(): void
+    {
+        abort_unless($this->mayOnboard(), 403);
+    }
+
     public function mount(): void
     {
+        if (! $this->mayOnboard()) {
+            $this->redirect(route('dashboard'));
+            return;
+        }
+
         $company = Auth::user()->company;
         $steps = OnboardingStep::where('company_id', $company->id)->get()->keyBy('step');
 
@@ -56,6 +84,8 @@ class Wizard extends Component
 
     public function saveCompanyDetails(): void
     {
+        $this->guard();
+
         $this->validate([
             'company_phone'   => 'nullable|string|max:50',
             'company_address' => 'nullable|string|max:500',
@@ -75,6 +105,8 @@ class Wizard extends Component
 
     public function saveFirstOutlet(): void
     {
+        $this->guard();
+
         $this->validate([
             'outlet_name'    => 'required|string|max:200',
             'outlet_code'    => 'required|string|max:20',
@@ -100,17 +132,23 @@ class Wizard extends Component
 
     public function addInvite(): void
     {
+        $this->guard();
+
         $this->invites[] = ['name' => '', 'email' => '', 'role' => 'Staff'];
     }
 
     public function removeInvite(int $index): void
     {
+        $this->guard();
+
         unset($this->invites[$index]);
         $this->invites = array_values($this->invites);
     }
 
     public function saveInviteTeam(): void
     {
+        $this->guard();
+
         // Filter out empty invites
         $validInvites = array_filter($this->invites, fn ($i) => !empty($i['email']));
 
@@ -201,6 +239,8 @@ class Wizard extends Component
 
     public function finishOnboarding(): void
     {
+        $this->guard();
+
         $this->completeStep('explore_features');
 
         $company = Auth::user()->company;
@@ -211,6 +251,8 @@ class Wizard extends Component
 
     public function skipStep(): void
     {
+        $this->guard();
+
         $this->completeStep($this->currentStep);
 
         $steps = OnboardingStep::STEPS;

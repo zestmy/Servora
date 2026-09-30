@@ -402,6 +402,9 @@ class AttendanceRecords extends Component
 
     public function toggleCodeActive(int $id): void
     {
+        // Same ability as saveCode/deleteCode: codes decide what the grid can record.
+        abort_unless(Auth::user()?->canDo('hr.attendance.record'), 403);
+
         $code = AttendanceCode::findOrFail($id);
         if ($code->system_key) return;
         $code->update(['is_active' => ! $code->is_active]);

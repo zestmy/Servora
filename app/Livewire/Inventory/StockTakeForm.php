@@ -17,12 +17,14 @@ class StockTakeForm extends Component
 {
     use PicksRecordOutlet, LocksLineUnitCost;
 
+    #[Locked]
     public ?int $recordId      = null;
     public ?int $department_id = null;
 
     public string $stock_take_date  = '';
     public string $reference_number = '';
     public string $notes            = '';
+    #[Locked]
     public string $status           = 'draft';
     public string $method           = 'detailed'; // 'detailed' or 'summary'
 
@@ -300,9 +302,22 @@ class StockTakeForm extends Component
         // Re-checked here, not just on the route: a Livewire action is its own request.
         abort_unless(auth()->user()?->canDo('inventory.stock_takes.record'), 403);
 
+        // The stored record, not the component's copy, decides what may be changed: a
+        // completed count is final until someone with the reopen ability reopens it.
+        $existing = $this->recordId ? StockTake::findOrFail($this->recordId) : null;
+        if ($existing) {
+            abort_unless(
+                ! $existing->outlet_id || auth()->user()->canAccessOutlet((int) $existing->outlet_id),
+                403
+            );
+            if ($existing->status === 'completed') {
+                abort_unless(auth()->user()->canDo('inventory.stock_takes.reopen'), 403);
+            }
+        }
+
         $this->validate();
 
-        $newStatus = ($action === 'complete') ? 'completed' : $this->status;
+        $newStatus = ($action === 'complete') ? 'completed' : ($existing?->status ?? 'draft');
 
         // On completion, drop any detailed line left at 0 so the final record
         // only contains items that were actually counted. Drafts keep every
@@ -338,8 +353,8 @@ class StockTakeForm extends Component
             'total_stock_cost'    => round($totalStockCost, 4),
         ];
 
-        if ($this->recordId) {
-            $record = StockTake::findOrFail($this->recordId);
+        if ($existing) {
+            $record = $existing;
             $record->update($data);
         } else {
             $data['company_id'] = Auth::user()->company_id;

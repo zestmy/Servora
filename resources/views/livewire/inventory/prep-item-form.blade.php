@@ -23,7 +23,7 @@
                 / {{ $recipeId ? ($name ?: 'Edit') : 'New Prep Item' }}
             </p>
         </div>
-        @if ($recipeId)
+        @if ($recipeId && auth()->user()?->canDo('recipes.view'))
             <x-download-link href="{{ route('recipes.cost-pdf', $recipeId) }}"
                title="Export this prep item's costing as a PDF"
                class="btn-secondary flex-shrink-0">

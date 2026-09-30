@@ -7,6 +7,7 @@ use App\Models\LabelSetLine;
 use App\Models\LabelTemplate;
 use App\Scopes\CompanyScope;
 use App\Services\LabelPrintService;
+use Livewire\Attributes\Locked;
 
 /**
  * The review checklist for one set, on a phone.
@@ -20,6 +21,8 @@ class SetPrint extends StaffComponent
 {
     use SearchesLabelItems;
 
+    /** Set in mount() from a company/outlet-scoped lookup; never from the browser. */
+    #[Locked]
     public int $setId;
 
     public array $selected = [];
@@ -138,10 +141,18 @@ class SetPrint extends StaffComponent
         session()->flash('success', $line->displayName() . ' added.');
     }
 
-    /** A line belonging to THIS set, or nothing. */
+    /**
+     * A line belonging to THIS set, or nothing.
+     *
+     * The set is re-resolved through set(), which is company- and outlet-
+     * scoped: LabelSetLine has no CompanyScope, so trusting setId alone would
+     * let a line of any company's set be removed.
+     */
     private function line(int $lineId): ?LabelSetLine
     {
-        return LabelSetLine::where('label_set_id', $this->setId)->find($lineId);
+        $set = $this->set($this->setId);
+
+        return LabelSetLine::where('label_set_id', $set->id)->find($lineId);
     }
 
     public function print(LabelPrintService $service): void

@@ -763,7 +763,12 @@ class PrepItemForm extends Component
 
         $flash = $this->recipeId ? 'Prep item updated.' : 'Prep item created.';
         session()->flash('success', $flash);
-        $this->redirect(route('recipes.index', ['tab' => 'prep-items']));
+        // The prep-items list lives on the Recipes page, which needs recipes.view. Someone
+        // who may record prep items but not see recipes lands back on the item instead of
+        // on a 403.
+        $this->redirect(auth()->user()?->canDo('recipes.view')
+            ? route('recipes.index', ['tab' => 'prep-items'])
+            : route('inventory.prep-items.show', $this->recipeId));
     }
 
     public function render()

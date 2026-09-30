@@ -192,6 +192,7 @@
                             PDF
                         </button>
 
+                        @if ($this->canSendEmail())
                         <button wire:click="openEmailModal"
                                 class="btn-secondary">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,6 +200,7 @@
                             </svg>
                             Email
                         </button>
+                        @endif
 
                         @if ($canDelete)
                             <button wire:click="deleteRoster"
@@ -309,7 +311,9 @@
                                 <span class="text-xs text-gray-700">{{ $shift->timeLabel() }}</span>
                             </div>
                         @endforeach
+                        @can('roster.settings')
                         <a href="{{ route('hr.shifts') }}" class="text-xs text-brand-600 hover:underline ml-1">Manage</a>
+                        @endcan
                     </div>
                     <p class="text-[11px] text-gray-500 mt-2">
                         Dropping on a day off replaces it. You can also drag an existing shift from one day to another.
@@ -350,7 +354,7 @@
                                                 @endif
                                             </div>
                                         @endif
-                                        @if ($roster->isDraft())
+                                        @if ($roster->isDraft() && $canEdit)
                                             <button wire:click="openRemarkForm('{{ $day['date'] }}')"
                                                     class="mt-1 text-[10px] text-brand-500 hover:text-brand-700">
                                                 {{ isset($dayRemarks[$day['date']]) ? 'edit' : '+ remark' }}
@@ -933,7 +937,7 @@
                         @error('remark_text') <span class="text-xs text-danger-500 mt-1">{{ $message }}</span> @enderror
                     </div>
                     <div class="flex justify-between pt-3 border-t border-gray-100">
-                        @if (isset($dayRemarks[$remark_date]))
+                        @if (isset($dayRemarks[$remark_date]) && $canEdit)
                             <button type="button" wire:click="deleteRemark('{{ $remark_date }}')"
                             data-confirm-delete="Delete the remark for {{ $remark_date }}?"
                                     class="px-4 py-2 text-sm text-danger-600 hover:text-danger-800">
@@ -1045,7 +1049,9 @@
 
                     <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
                         <button type="button" @click="open = false" class="btn-secondary">Cancel</button>
+                        @if ($this->canSendEmail())
                         <button wire:click="sendEmail" class="btn-primary">Send Email</button>
+                        @endif
                     </div>
                 </div>
             </div>

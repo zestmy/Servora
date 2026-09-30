@@ -92,6 +92,9 @@ class Index extends Component
     public int    $duplicateScanned     = 0;
     public ?string $duplicateScanNote   = null;
     /** @var array<int,array> each: ids, products, probability, reason, suggested_keep_id, keep_id */
+    // Server-authored by scanDuplicates(); mergeCluster() trusts the ids inside it, so
+    // the browser must not be able to rewrite them.
+    #[\Livewire\Attributes\Locked]
     public array  $duplicateClusters    = [];
 
     // Live duplicate warning in the Add/Edit modal
@@ -415,6 +418,10 @@ class Index extends Component
 
     public function bulkDelete(): void
     {
+        // The page's route only asks for ingredients.view; a Livewire action is its own
+        // request, so the write is authorised here.
+        abort_unless(auth()->user()?->canDo('ingredients.delete'), 403);
+
         if (! $this->assertUnlocked()) return;
         $count = count($this->selectedIds);
         if ($count === 0) return;
@@ -429,6 +436,8 @@ class Index extends Component
 
     public function toggleActive(int $id): void
     {
+        abort_unless(auth()->user()?->canDo('ingredients.manage'), 403);
+
         if (! $this->assertUnlocked()) return;
         $ingredient = Ingredient::findOrFail($id);
         $ingredient->update(['is_active' => ! $ingredient->is_active]);
@@ -743,6 +752,8 @@ class Index extends Component
      */
     public function scanDuplicates(): void
     {
+        abort_unless(auth()->user()?->canDo('ingredients.manage'), 403);
+
         if ($this->duplicateScanDone || $this->scanningDuplicates) {
             return;
         }
@@ -822,6 +833,8 @@ class Index extends Component
      */
     public function dismissCluster(int $clusterIndex): void
     {
+        abort_unless(auth()->user()?->canDo('ingredients.manage'), 403);
+
         $cluster = $this->duplicateClusters[$clusterIndex] ?? null;
         if (! $cluster) {
             return;
@@ -839,6 +852,10 @@ class Index extends Component
     /** Merge a duplicate cluster into its chosen "keep" product, skipping any marked separate. */
     public function mergeCluster(int $clusterIndex): void
     {
+        // A merge rewrites the kept product and deletes the others.
+        $user = auth()->user();
+        abort_unless($user?->canDo('ingredients.manage') && $user->canDo('ingredients.delete'), 403);
+
         if (! $this->assertUnlocked()) {
             return;
         }

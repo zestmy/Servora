@@ -6,6 +6,7 @@ use App\Models\ReportLog;
 use App\Services\ReportGeneratorService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\View;
 
@@ -20,6 +21,13 @@ class ReportPdfController extends Controller
     {
         // CompanyScope on ReportLog keeps this tenant-safe.
         $log = ReportLog::with(['subscription', 'outlet', 'company'])->findOrFail($logId);
+
+        // Company-safe via the scope; outlet- and subject-safe here. A log for
+        // one outlet is that outlet's figures, and the document-expiry report
+        // is HR data that reports.view alone does not cover.
+        $user = Auth::user();
+        abort_if($log->outlet_id && ! $user->canAccessOutlet((int) $log->outlet_id), 404);
+        abort_if($log->report_type === 'hr_document_expiry' && ! $user->canDo('hr.documents.view'), 403);
 
         // Rebuild the report the same way a Resend does. Data and charts are
         // deterministic (SQL + chart-URL building); AI insights are reused

@@ -22,6 +22,7 @@ class TransferForm extends Component
     use ScopesToActiveOutlet, LocksLineUnitCost;
     use ValidatesCompanyOutlet;
 
+    #[\Livewire\Attributes\Locked]
     public ?int $transferId = null;
 
     public string $transfer_date   = '';
@@ -371,8 +372,14 @@ class TransferForm extends Component
         // Re-checked here, not just on the route: a Livewire action is its own request.
         abort_unless(auth()->user()?->canDo('inventory.transfers.record'), 403);
 
-        if ($this->status !== 'draft') {
+        // The stored status decides, not the component's copy of it: only a draft can
+        // be edited, whatever the browser sends.
+        $existing = $this->transferId ? OutletTransfer::findOrFail($this->transferId) : null;
+        if ($existing && $existing->status !== 'draft') {
             return;
+        }
+        if ($existing && ! Auth::user()->canAccessOutlet((int) $existing->from_outlet_id)) {
+            abort(403);
         }
 
         $this->validate();
@@ -396,8 +403,8 @@ class TransferForm extends Component
             'notes'          => $this->notes ?: null,
         ];
 
-        if ($this->transferId) {
-            $transfer = OutletTransfer::findOrFail($this->transferId);
+        if ($existing) {
+            $transfer = $existing;
             $transfer->update($data);
             session()->flash('success', 'Transfer updated.');
         } else {
@@ -451,6 +458,9 @@ class TransferForm extends Component
             return;
         }
 
+        // Sending takes stock out of the source, so it is the source's call.
+        abort_unless(Auth::user()->canAccessOutlet((int) $transfer->from_outlet_id), 403);
+
         // Status and register together: plates marked in transit must have
         // left the source outlet's register, or neither happened.
         DB::transaction(function () use ($transfer) {
@@ -468,6 +478,9 @@ class TransferForm extends Component
             return;
         }
 
+        // Receiving books stock into the destination, so it is the destination's call.
+        abort_unless(Auth::user()->canAccessOutlet((int) $transfer->to_outlet_id), 403);
+
         DB::transaction(function () use ($transfer) {
             $transfer->update(['status' => 'received']);
             AssetTransferService::arrive($transfer);
@@ -482,6 +495,9 @@ class TransferForm extends Component
         if (! in_array($transfer->status, ['draft', 'in_transit'])) {
             return;
         }
+
+        // The sender raised it and still holds the stock until it arrives.
+        abort_unless(Auth::user()->canAccessOutlet((int) $transfer->from_outlet_id), 403);
 
         DB::transaction(function () use ($transfer) {
             $transfer->update(['status' => 'cancelled']);

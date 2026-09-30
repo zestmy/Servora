@@ -60,7 +60,7 @@
                     @endforeach
                 </select>
                 <p class="text-[10px] text-gray-600 mt-1">
-                    Manage at <a href="{{ route('settings.sections') }}" class="text-brand-600 hover:underline">Settings → Sections</a>.
+                    Manage at @canDo('settings.sections')<a href="{{ route('settings.sections') }}" class="text-brand-600 hover:underline">Settings → Sections</a>@else<span>Settings → Sections</span>@endcanDo.
                 </p>
             </div>
             <button wire:click="addApprover"

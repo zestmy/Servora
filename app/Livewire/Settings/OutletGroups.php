@@ -6,11 +6,14 @@ use App\Models\Outlet;
 use App\Models\OutletGroup;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use App\Livewire\Settings\Concerns\ValidatesCompanyRows;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class OutletGroups extends Component
 {
+    use ValidatesCompanyRows;
+
     public bool $showForm = false;
     public ?int $editingId = null;
 
@@ -26,7 +29,7 @@ class OutletGroups extends Component
             'sort_order' => 'integer|min:0',
             'is_active'  => 'boolean',
             'outletIds'  => 'array',
-            'outletIds.*'=> 'integer|exists:outlets,id',
+            'outletIds.*'=> ['integer', $this->companyRowRule('outlets')],
         ];
     }
 

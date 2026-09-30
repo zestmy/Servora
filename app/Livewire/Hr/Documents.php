@@ -5,16 +5,28 @@ namespace App\Livewire\Hr;
 use App\Models\DocumentFolder;
 use App\Services\GoogleDriveService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
 class Documents extends Component
 {
     use WithFileUploads;
+
+    /*
+     * Where the user is standing in Drive. LOCKED: uploads and deletes act on
+     * these, and a Drive id typed into the browser would otherwise reach any
+     * folder the service account can see — including another company's.
+     * They only ever move by server-side navigation that starts at one of
+     * this company's DocumentFolder roots and steps into listed children.
+     */
+    #[Locked]
     public ?int $activeFolder = null;
+    #[Locked]
     public ?string $currentFolderId = null;
     public string $searchQuery = '';
     public string $viewMode = 'grid';
+    #[Locked]
     public array $breadcrumbs = [];
 
     // Preview modal
@@ -61,7 +73,13 @@ class Documents extends Component
     public function navigateToFolder(string $folderId): void
     {
         $folder = $this->getActiveDocumentFolder();
-        if (!$folder) return;
+        if (!$folder || !$this->currentFolderId) return;
+
+        // Only a sub-folder listed inside where we are now. That keeps the
+        // current folder a descendant of this company's DocumentFolder root.
+        if (! $this->isListedIn($this->currentFolderId, $folderId, foldersOnly: true)) {
+            abort(403);
+        }
 
         // Update breadcrumbs
         $this->breadcrumbs = $this->driveService->getBreadcrumbs($folderId, $folder->google_drive_folder_id);
@@ -226,6 +244,14 @@ class Documents extends Component
             return;
         }
 
+        // The id must be a file in the folder on screen, which is one of this
+        // company's folders (see the locked properties above). Without this,
+        // any Drive id the service account can reach could be deleted.
+        if (! $this->getActiveDocumentFolder() || ! $this->currentFolderId
+            || ! $this->isListedIn($this->currentFolderId, $fileId)) {
+            abort(403);
+        }
+
         if ($this->driveService->deleteFile($fileId)) {
             // Clear cache
             if ($this->currentFolderId) {
@@ -251,6 +277,18 @@ class Documents extends Component
     protected function getActiveDocumentFolder(): ?DocumentFolder
     {
         return $this->activeFolder ? DocumentFolder::find($this->activeFolder) : null;
+    }
+
+    /** Whether $id is listed directly inside the Drive folder $parentId. */
+    protected function isListedIn(string $parentId, string $id, bool $foldersOnly = false): bool
+    {
+        foreach ($this->driveService->listFiles($parentId) as $item) {
+            if (($item['id'] ?? null) === $id && (! $foldersOnly || ! empty($item['isFolder']))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function render()

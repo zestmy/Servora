@@ -1,3 +1,8 @@
+@php
+    $stoUser       = auth()->user();
+    $stoCanCreate  = (bool) $stoUser?->canDo('purchasing.transfers.create');
+    $stoCanReceive = (bool) $stoUser?->canDo('purchasing.receive');
+@endphp
 <div class="card overflow-hidden">
     <table class="table-surface min-w-full">
         <thead>
@@ -47,17 +52,17 @@
                         <div class="flex items-center justify-center gap-1">
                             {{-- Action menu (Duplicate, Share) --}}
                             <x-doc-action-menu
-                                :duplicateUrl="route('purchasing.transfers.create', ['duplicate' => $sto->id])"
+                                :duplicateUrl="$stoCanCreate ? route('purchasing.transfers.create', ['duplicate' => $sto->id]) : null"
                                 :docNumber="$sto->sto_number"
                                 docType="Stock Transfer"
                             />
-                            @if ($sto->status === 'sent')
+                            @if ($sto->status === 'sent' && $stoCanReceive)
                                 <button wire:click="receiveSto({{ $sto->id }})" wire:confirm="Confirm receipt of this transfer?"
                                         title="Receive" class="text-success-500 hover:text-success-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 </button>
                             @endif
-                            @if ($sto->status === 'draft')
+                            @if ($sto->status === 'draft' && $stoCanCreate)
                                 <button wire:click="sendSto({{ $sto->id }})" wire:confirm="Send this STO?"
                                         title="Send" class="text-blue-500 hover:text-blue-700 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>

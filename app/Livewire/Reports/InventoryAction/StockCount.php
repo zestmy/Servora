@@ -50,7 +50,7 @@ class StockCount extends Component
         return StockTake::query()
             ->with(['outlet', 'createdBy'])
             ->withCount('lines')
-            ->when($this->outletFilter, fn ($q) => $q->where('outlet_id', $this->outletFilter))
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'stock_takes.outlet_id'))
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
             ->whereBetween('stock_take_date', [$this->dateFrom, $this->dateTo])
             ->orderByDesc('stock_take_date');

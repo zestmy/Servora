@@ -11,6 +11,7 @@ use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -25,6 +26,8 @@ class LabourCostTransferForm extends Component
 {
     use ValidatesCompanyOutlet;
 
+    /** Set by mount()/persist() only — every write path trusts it. */
+    #[Locked]
     public ?int $transferId = null;
 
     public string $transfer_number = '';
@@ -33,6 +36,11 @@ class LabourCostTransferForm extends Component
     public string $purpose         = 'support';
     public string $reference       = '';
     public string $notes           = '';
+    /**
+     * Display copy of the stored status. Locked so the browser cannot set it,
+     * and every write re-reads the stored one anyway (storedStatus()).
+     */
+    #[Locked]
     public string $status          = 'draft';
 
     public array  $lines          = [];
@@ -134,6 +142,22 @@ class LabourCostTransferForm extends Component
         $ends = array_merge([$transfer->to_outlet_id], $transfer->lines->pluck('from_outlet_id')->all());
 
         abort_unless((bool) array_intersect($ids, $ends), 403, 'You do not have access to this transfer.');
+    }
+
+    /**
+     * The status as STORED, for the transfer being edited ('draft' for a new
+     * one). The write paths decide on this, not on the component property.
+     */
+    private function storedStatus(): string
+    {
+        if (! $this->transferId) {
+            return 'draft';
+        }
+
+        $transfer = LabourCostTransfer::with('lines')->findOrFail($this->transferId);
+        $this->assertCanSee($transfer);
+
+        return $transfer->status;
     }
 
     /** Employees whose pay this user may move: active, at an outlet they can access. */
@@ -287,7 +311,7 @@ class LabourCostTransferForm extends Component
     public function save(): void
     {
         $this->authorizeAccess();
-        if ($this->status !== 'draft') return;
+        if ($this->status !== 'draft' || $this->storedStatus() !== 'draft') return;
 
         $this->validate();
         $this->repriceAll();
@@ -309,7 +333,7 @@ class LabourCostTransferForm extends Component
     public function confirm(): void
     {
         $this->authorizeAccess();
-        if ($this->status !== 'draft') return;
+        if ($this->status !== 'draft' || $this->storedStatus() !== 'draft') return;
 
         $this->validate();
         $this->repriceAll();
@@ -367,7 +391,7 @@ class LabourCostTransferForm extends Component
     {
         $this->authorizeAccess();
         abort_unless($this->canManage(), 403);
-        if (! $this->editing || $this->status !== 'confirmed') return;
+        if (! $this->editing || $this->storedStatus() !== 'confirmed') return;
 
         $this->validate();
         $this->repriceAll();
@@ -417,7 +441,8 @@ class LabourCostTransferForm extends Component
         $this->authorizeAccess();
         if (! $this->transferId) return;
 
-        $transfer = LabourCostTransfer::findOrFail($this->transferId);
+        $transfer = LabourCostTransfer::with('lines')->findOrFail($this->transferId);
+        $this->assertCanSee($transfer);
         abort_unless($transfer->status === 'draft' || $this->canManage(), 403);
 
         $number = $transfer->transfer_number;
@@ -430,9 +455,17 @@ class LabourCostTransferForm extends Component
     public function cancelTransfer(): void
     {
         $this->authorizeAccess();
-        if (! $this->transferId || $this->status === 'cancelled') return;
+        if (! $this->transferId) return;
 
-        LabourCostTransfer::findOrFail($this->transferId)->update(['status' => 'cancelled']);
+        $transfer = LabourCostTransfer::with('lines')->findOrFail($this->transferId);
+        $this->assertCanSee($transfer);
+        if ($transfer->status === 'cancelled') return;
+
+        // A confirmed transfer has already moved cost in the reports; taking
+        // it back is the same call as correcting or deleting one.
+        abort_unless($transfer->status === 'draft' || $this->canManage(), 403);
+
+        $transfer->update(['status' => 'cancelled']);
         $this->status = 'cancelled';
         session()->flash('success', 'Transfer cancelled. Its days are free to be transferred again.');
     }

@@ -118,7 +118,7 @@
 
             @if ($transferId && ! $editing && ($status !== 'cancelled' || $canManage))
                 <div class="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                    @if ($status !== 'cancelled')
+                    @if ($status === 'draft' || ($status === 'confirmed' && $canManage))
                         <button wire:click="cancelTransfer" wire:confirm="Cancel this transfer?" class="btn-secondary w-full">Cancel transfer</button>
                     @endif
                     @if ($status === 'draft' || $canManage)

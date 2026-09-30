@@ -35,6 +35,7 @@
      *   sub       supporting line
      *   color     only for genuine state; anything else reads in ink
      *   href      makes the whole tile a link to what it summarises
+     *   can       ability the href's target needs; without it the tile is not a link
      */
     $count = max(count($stats), 1);
 
@@ -65,6 +66,9 @@
             $hasDelta = array_key_exists('prior', $stat);
             $spark    = $stat['spark'] ?? [];
             $href     = $stat['href'] ?? null;
+            if ($href && isset($stat['can']) && ! auth()->user()?->canDo($stat['can'])) {
+                $href = null;
+            }
 
             // A linked tile is a real link, not a div with a click handler, so
             // it is reachable by keyboard and announced as a link. The hover

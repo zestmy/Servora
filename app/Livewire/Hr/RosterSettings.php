@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Livewire\Hr\Concerns\ScopesRosterOutlet;
 use App\Models\Outlet;
 use App\Models\RosterSetting;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,7 @@ use Livewire\Component;
 
 class RosterSettings extends Component
 {
+    use ScopesRosterOutlet;
     public ?int $outletId = null;
     public string $normal_hours = '8.00';
     public int $rest_duration = 60;
@@ -22,6 +24,7 @@ class RosterSettings extends Component
 
     public function updatedOutletId(): void
     {
+        $this->normaliseRosterOutlet();
         $this->loadSettings();
     }
 
@@ -53,6 +56,9 @@ class RosterSettings extends Component
             'rest_duration' => 'required|integer|min:0|max:480',
             'week_start_day' => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
         ]);
+
+        // exists:outlets accepts any company's outlet.
+        $this->assertRosterOutlet($this->outletId);
 
         RosterSetting::updateOrCreate(
             ['outlet_id' => $this->outletId],

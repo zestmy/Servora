@@ -76,10 +76,7 @@ class InvoiceSummary extends Component
             ->whereBetween('issued_date', [$this->dateFrom, $this->dateTo]);
 
         $this->scopeByOutlet($query);
-
-        if ($this->outletFilter) {
-            $query->where('outlet_id', $this->outletFilter);
-        }
+        $this->applyReportOutletScope($query, $query->getModel()->getTable() . '.outlet_id');
 
         if ($this->typeFilter !== '') {
             $query->where('type', $this->typeFilter);

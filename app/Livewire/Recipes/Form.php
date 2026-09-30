@@ -25,6 +25,7 @@ class Form extends Component
     use WithFileUploads;
     use \App\Traits\RejectsUnpreviewableUploads;
 
+    #[\Livewire\Attributes\Locked]
     public ?int $recipeId = null;
 
     // Header fields
@@ -362,7 +363,17 @@ class Form extends Component
 
     public function removeExistingImage(int $id): void
     {
-        $image = RecipeImage::find($id);
+        // RecipeImage carries no company scope of its own, so the lookup is pinned to the
+        // recipe this form is editing (whose own lookup IS company-scoped). A bare find()
+        // here let any id in the table be deleted, including another company's.
+        if (! $this->recipeId) {
+            return;
+        }
+
+        $image = RecipeImage::where('id', $id)
+            ->where('recipe_id', $this->recipeId)
+            ->whereHas('recipe')
+            ->first();
         if ($image) {
             $type = $image->type;
             Storage::disk('public')->delete($image->file_path);

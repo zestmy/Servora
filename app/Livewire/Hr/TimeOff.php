@@ -53,6 +53,16 @@ class TimeOff extends Component
         return (bool) Auth::user()?->can('hr.leave.approve');
     }
 
+    /** Approvers cancel anything; anyone else only their own still-pending application. */
+    public function canCancel(TimeOffRequest $request): bool
+    {
+        if ($this->canApprove()) {
+            return true;
+        }
+
+        return $request->isPending() && (int) $request->applied_by === (int) Auth::id();
+    }
+
     public function updatingSearch(): void       { $this->resetPage(); }
     public function updatingStatusFilter(): void { $this->resetPage(); }
     public function updatingOutletFilter(): void { $this->resetPage(); }
@@ -119,6 +129,10 @@ class TimeOff extends Component
     {
         abort_unless($this->canApprove(), 403);
 
+        // The outcome arrives from the browser: only the two decisions are
+        // decisions. Anything else (pending, cancelled, invented) is refused.
+        abort_unless(in_array($outcome, [TimeOffRequest::APPROVED, TimeOffRequest::REJECTED], true), 422);
+
         $request = TimeOffRequest::with('employee')
             ->whereIn('employee_id', function ($q) {
                 $q->select('id')->from('employees')->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0]);
@@ -168,6 +182,11 @@ class TimeOff extends Component
         if ($request->status === TimeOffRequest::CANCELLED) {
             return;
         }
+
+        // Withdrawing your own pending application is yours to do; undoing an
+        // approval (which hands hours back), or someone else's request, is an
+        // approver's decision.
+        abort_unless($this->canCancel($request), 403);
 
         // Approved hours were spent against real claims, so cancelling has to
         // hand them back — otherwise the overtime is neither paid nor taken.

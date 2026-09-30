@@ -197,6 +197,10 @@ class Index extends Component
 
     public function sendSto(int $id): void
     {
+        // The page route only asks for purchasing.view, and Livewire re-applies
+        // just that on every action — so each write names its own ability.
+        abort_unless(Auth::user()?->canDo('purchasing.transfers.create'), 403);
+
         $sto = StockTransferOrder::findOrFail($id);
         if ($sto->to_outlet_id && ! Auth::user()->canAccessOutlet($sto->to_outlet_id) && ! Auth::user()->canViewAllOutlets()) {
             session()->flash('error', 'You do not have access to this transfer.');
@@ -209,6 +213,8 @@ class Index extends Component
 
     public function receiveSto(int $id): void
     {
+        abort_unless(Auth::user()?->canDo('purchasing.receive'), 403);
+
         $sto = StockTransferOrder::findOrFail($id);
         if ($sto->to_outlet_id && ! Auth::user()->canAccessOutlet($sto->to_outlet_id)) {
             session()->flash('error', 'You do not have access to receive this transfer.');
@@ -231,6 +237,8 @@ class Index extends Component
 
     public function cancelSto(int $id): void
     {
+        abort_unless(Auth::user()?->canDo('purchasing.transfers.create'), 403);
+
         $sto = StockTransferOrder::findOrFail($id);
         if ($sto->to_outlet_id && ! Auth::user()->canAccessOutlet($sto->to_outlet_id) && ! Auth::user()->canViewAllOutlets()) {
             session()->flash('error', 'You do not have access to this transfer.');
@@ -246,6 +254,8 @@ class Index extends Component
 
     public function submitPr(int $id): void
     {
+        abort_unless($this->mayAuthorPr(), 403);
+
         $pr = PurchaseRequest::findOrFail($id);
         if (! Auth::user()->canAccessOutlet($pr->outlet_id)) {
             session()->flash('error', 'You do not have access to this outlet.');
@@ -333,7 +343,14 @@ class Index extends Component
 
     public function revertPrToDraft(int $id): void
     {
+        $user = Auth::user();
+        abort_unless($user && ($user->canDo('purchasing.request') || $user->canDo('purchasing.requests.edit')), 403);
+
         $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->outlet_id && ! $user->canAccessOutlet($pr->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
+        }
         if (! in_array($pr->status, ['approved', 'rejected'])) {
             session()->flash('error', 'Only approved or rejected requests can be reverted to draft.');
             return;
@@ -350,7 +367,13 @@ class Index extends Component
 
     public function cancelPr(int $id): void
     {
+        abort_unless($this->mayAuthorPr(), 403);
+
         $pr = PurchaseRequest::findOrFail($id);
+        if ($pr->outlet_id && ! Auth::user()->canAccessOutlet($pr->outlet_id)) {
+            session()->flash('error', 'You do not have access to this outlet.');
+            return;
+        }
         if (in_array($pr->status, ['draft', 'submitted'])) {
             $pr->update(['status' => 'cancelled']);
             session()->flash('success', 'Purchase request cancelled.');
@@ -391,6 +414,22 @@ class Index extends Component
             || $user->canDo('purchasing.delete')
             || $user->canDo($createAbility)
             || $user->canDo($editAbility);
+    }
+
+    /** May raise or amend purchase requests (create OR edit). */
+    private function mayAuthorPr(): bool
+    {
+        $user = Auth::user();
+
+        return (bool) $user && ($user->canDo('purchasing.requests.create') || $user->canDo('purchasing.requests.edit'));
+    }
+
+    /** May raise or amend purchase orders (create OR edit). */
+    private function mayAuthorPo(): bool
+    {
+        $user = Auth::user();
+
+        return (bool) $user && ($user->canDo('purchasing.orders.create') || $user->canDo('purchasing.orders.edit'));
     }
 
     private function mayDeleteDraftPo(): bool
@@ -443,6 +482,8 @@ class Index extends Component
 
     public function submitPo(int $id): void
     {
+        abort_unless($this->mayAuthorPo(), 403);
+
         $po = PurchaseOrder::findOrFail($id);
         if (! Auth::user()->canAccessOutlet($po->outlet_id)) {
             session()->flash('error', 'You do not have access to this outlet.');
@@ -538,6 +579,8 @@ class Index extends Component
 
     public function cancel(int $id): void
     {
+        abort_unless($this->mayAuthorPo(), 403);
+
         $po = PurchaseOrder::findOrFail($id);
         if (! Auth::user()->canAccessOutlet($po->outlet_id)) {
             session()->flash('error', 'You do not have access to this outlet.');

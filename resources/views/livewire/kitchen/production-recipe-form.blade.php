@@ -90,7 +90,13 @@
                             <input type="text" wire:model="category" class="w-full rounded-lg border-gray-300 text-sm" placeholder="e.g. Sauce, Marinade, Base" />
                         @endif
                         <p class="text-[11px] text-gray-600 mt-1">
-                            Manage the kitchen's own list in <a href="{{ route('settings.recipe-categories') }}" target="_blank" class="text-brand-500 hover:underline">Production Categories</a> — separate from the outlet menu categories.
+                            Manage the kitchen's own list in
+                            @canDo('recipes.manage')
+                                <a href="{{ route('settings.recipe-categories') }}" target="_blank" class="text-brand-500 hover:underline">Production Categories</a>
+                            @else
+                                Production Categories
+                            @endcanDo
+                            — separate from the outlet menu categories.
                         </p>
                     </div>
                     <div>

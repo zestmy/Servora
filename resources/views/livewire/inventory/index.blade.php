@@ -629,12 +629,14 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
+                                    @canDo('inventory.stock_takes.record')
                                     <a href="{{ route('inventory.stock-takes.show', $record->id) }}" title="View / Edit"
                                        class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    @endcanDo
                                     {{-- A finished count is a document: the PDF is for
                                          filing, the workbook for anyone who needs to
                                          work the numbers. Only once it is completed —
@@ -653,7 +655,7 @@
                                             </svg>
                                         </a>
                                     @endif
-                                    @if ($record->status === 'draft' || $canDeleteRecords)
+                                    @if (($record->status === 'draft' && auth()->user()?->canDo('inventory.stock_takes.record')) || ($record->status !== 'draft' && $canDeleteRecords))
                                         <button wire:click="deleteStockTake({{ $record->id }})"
                                                 data-confirm-delete="{{ $record->status === 'draft' ? 'Delete this stock take? This cannot be undone.' : 'Delete this COMPLETED stock take? This cannot be undone.' }}"
                                                 title="{{ $record->status === 'draft' ? 'Delete' : 'Delete completed stock take' }}"
@@ -723,12 +725,14 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
+                                    @canDo('inventory.purchases.record')
                                     <a href="{{ route('inventory.purchases.show', $record->id) }}" title="View / Edit"
                                        class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    @endcanDo
                                     @if ($canDelete['purchases'])
                                     <button wire:click="deletePurchase({{ $record->id }})"
                                             data-confirm-delete="Delete this purchase record? This cannot be undone."
@@ -797,12 +801,14 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
+                                    @canDo('inventory.staff_meals.record')
                                     <a href="{{ route('inventory.staff-meals.show', $record->id) }}" title="Edit"
                                        class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    @endcanDo
                                     @if ($canDelete['staff_meals'])
                                     <button wire:click="deleteStaffMeal({{ $record->id }})"
                                             data-confirm-delete="Delete this staff meal record? This cannot be undone."
@@ -900,12 +906,14 @@
                             <td class="px-4 py-3 text-center text-gray-600">{{ $transfer->lines_count }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
+                                    @canDo('inventory.transfers.record')
                                     <a href="{{ route('inventory.transfers.show', $transfer->id) }}" title="View / Edit"
                                        class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    @endcanDo
                                     <a href="{{ route('inventory.transfers.pdf', $transfer->id) }}" title="Download PDF"
                                        aria-label="Download PDF for {{ $transfer->transfer_number }}"
                                        class="text-gray-600 hover:text-gray-900 transition">
@@ -916,7 +924,7 @@
                                        class="text-success-700 hover:text-success-800 transition">
                                         <x-icon name="document" class="h-4 w-4" />
                                     </a>
-                                    @if ($transfer->status === 'draft' || $canDelete['transfers'])
+                                    @if (($transfer->status === 'draft' && auth()->user()?->canDo('inventory.transfers.record')) || ($transfer->status !== 'draft' && $canDelete['transfers']))
                                         <button wire:click="deleteTransfer({{ $transfer->id }})"
                                                 data-confirm-delete="{{ $transfer->status === 'draft' ? 'Delete this transfer? This cannot be undone.' : 'Delete this ' . str_replace('_', ' ', $transfer->status) . ' transfer? This cannot be undone.' }}"
                                                 title="{{ $transfer->status === 'draft' ? 'Delete' : 'Delete transfer' }}"
@@ -998,12 +1006,14 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
+                                    @canDo('inventory.wastage.record')
                                     <a href="{{ route('inventory.wastage.show', $record->id) }}" title="Edit"
                                        class="text-brand-500 hover:text-brand-700 transition">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </a>
+                                    @endcanDo
                                     @if ($canDelete['wastage'])
                                     <button wire:click="deleteWastage({{ $record->id }})"
                                             data-confirm-delete="Delete this wastage record? This cannot be undone."

@@ -102,10 +102,12 @@
                 Employee List
             </a>
             @endcanDo
+            @canDo('hr.employees.manage')
             <button wire:click="openAddEmployee"
                     class="btn-secondary">
                 + Add Employee
             </button>
+            @endcanDo
             <button wire:click="openCreate"
                     class="btn-primary">
                 + New OT Claim
@@ -908,7 +910,7 @@
                             @endforeach
                         </select>
                         <p class="text-[10px] text-gray-600 mt-1">
-                            Manage the list at <a href="{{ route('settings.sections') }}" class="text-brand-600 hover:underline">Settings → Sections</a>.
+                            Manage the list at @canDo('settings.sections')<a href="{{ route('settings.sections') }}" class="text-brand-600 hover:underline">Settings → Sections</a>@else<span>Settings → Sections</span>@endcanDo.
                         </p>
                         <x-input-error :messages="$errors->get('emp_section_id')" class="mt-1" />
                     </div>
@@ -919,10 +921,12 @@
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">
                         Cancel
                     </button>
+                    @canDo('hr.employees.manage')
                     <button wire:click="saveEmployee"
                             class="btn-primary">
                         {{ $editingEmployeeId ? 'Update' : 'Add Employee' }}
                     </button>
+                    @endcanDo
                 </div>
             </div>
         </div>

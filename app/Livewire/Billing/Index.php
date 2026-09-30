@@ -21,6 +21,10 @@ class Index extends Component
 
     public function redeemCoupon(): void
     {
+        // Buying and redeeming change what the whole company pays for. The route
+        // carries can:users.manage too; this keeps the action safe on its own.
+        abort_unless(Auth::user()?->canDo('users.manage'), 403);
+
         $this->couponCode = strtoupper(trim($this->couponCode));
         if (! $this->couponCode) {
             $this->addError('couponCode', 'Enter a coupon code.');
@@ -49,6 +53,21 @@ class Index extends Component
     {
         $user = Auth::user();
         $company = $user->company;
+
+        // Every "upgrade" and locked-module link in the product points here,
+        // and it is shown to everyone. Only someone who manages users (the
+        // company's admin) sees the plan, invoices and checkout; anyone else
+        // gets what the module is and who to ask, rather than a 403.
+        if (! $user->canDo('users.manage')) {
+            $entitlements = app(\App\Services\Entitlements::class);
+            $unlockPitch = $this->unlock && $company && ! $entitlements->allows($company, $this->unlock)
+                ? ['name' => $entitlements->name($this->unlock), 'pitch' => $entitlements->pitch($this->unlock)]
+                : null;
+
+            return view('livewire.billing.ask-admin', compact('unlockPitch'))
+                ->layout('layouts.app', ['title' => 'Billing & Plan']);
+        }
+
         $subscriptionService = app(SubscriptionService::class);
 
         $subscription = $company ? $subscriptionService->getActiveSubscription($company) : null;

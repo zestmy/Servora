@@ -103,6 +103,10 @@ class Checkout extends Component
 
     public function pay(): void
     {
+        // Buying and redeeming change what the whole company pays for. The route
+        // carries can:users.manage too; this keeps the action safe on its own.
+        abort_unless(Auth::user()?->canDo('users.manage'), 403);
+
         $this->validate([
             'billing_cycle' => 'required|in:monthly,yearly',
             'outlets'       => 'required|integer|min:1',

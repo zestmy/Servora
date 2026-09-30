@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports\InventoryAction;
 
 use App\Models\OrderAdjustmentLog;
+use App\Models\PurchaseOrderLine;
 use App\Traits\ReportFilters;
 use App\Traits\ScopesToActiveOutlet;
 use Livewire\Component;
@@ -46,8 +47,19 @@ class StockAdjustment extends Component
 
     private function buildQuery()
     {
+        // order_adjustment_logs has no company column: a log belongs to the
+        // company (and outlet) of the purchase order its PO line sits on.
+        // whereHas applies PurchaseOrder's company scope; the explicit
+        // company_id is there so the bound does not rest on it alone.
         return OrderAdjustmentLog::query()
             ->with(['adjustedBy'])
+            ->where('adjustable_type', PurchaseOrderLine::class)
+            ->whereHasMorph('adjustable', [PurchaseOrderLine::class], function ($line) {
+                $line->whereHas('purchaseOrder', function ($po) {
+                    $po->where('purchase_orders.company_id', $this->reportCompanyId());
+                    $this->applyReportOutletScope($po, 'purchase_orders.outlet_id');
+                });
+            })
             ->whereBetween('created_at', [$this->dateFrom . ' 00:00:00', $this->dateTo . ' 23:59:59'])
             ->orderByDesc('created_at');
     }

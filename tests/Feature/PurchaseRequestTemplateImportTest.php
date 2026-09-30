@@ -56,6 +56,12 @@ class PurchaseRequestTemplateImportTest extends TestCase
         $this->user->companies()->syncWithoutDetaching([$this->company->id]);
         $this->user->outlets()->syncWithoutDetaching([$this->outlet->id]);
 
+        // The ability the create page itself is behind: the form is only
+        // editable (and so only imports) for someone who may raise a request.
+        setPermissionsTeamId($this->company->id);
+        $this->user->givePermissionTo(Permission::findOrCreate('purchasing.requests.create', 'web'));
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $this->uom = UnitOfMeasure::firstOrCreate(['abbreviation' => 'kg'], ['name' => 'Kilogram', 'type' => 'weight']);
 
         $this->actingAs($this->user);

@@ -32,7 +32,9 @@ class SopExportPanel extends Component
 
     public function start(SopExportBuilder $builder): void
     {
-        $this->authorize('hr.view');
+        // The panel lives on Settings > LMS Users (route can:training.portal); hr.view
+        // was the wrong ability and locked out the very people the page is for.
+        abort_unless(Auth::user()?->canDo('training.portal'), 403);
 
         $companyId = Auth::user()->company_id;
 

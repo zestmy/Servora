@@ -27,13 +27,18 @@
     // word is the family name would be guessing — the same mistake the
     // dashboard greeting made when it cut at the first space.
     $initials = mb_strtoupper(mb_substr(trim((string) $avatarName), 0, 2));
+
+    // The photo is served by hr.employees.photo, which is can:hr.view. Asking a
+    // viewer without it to load the URL paints a broken image from a 403, so
+    // they get the initials instead.
+    $showPhoto = $avatarPhoto && $avatarId && auth()->user()?->canDo('hr.view');
 @endphp
 
 <span {{ $attributes->merge([
         'class' => $size . ' flex-shrink-0 rounded-full overflow-hidden bg-gray-100 '
                  . 'border border-gray-200 flex items-center justify-center',
     ]) }}>
-    @if ($avatarPhoto && $avatarId)
+    @if ($showPhoto)
         {{-- alt is empty on purpose: the name is right beside it in every
              place this is used, and a screen reader reading it twice is
              noise rather than help. --}}

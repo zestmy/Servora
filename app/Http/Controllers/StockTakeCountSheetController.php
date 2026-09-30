@@ -25,6 +25,9 @@ class StockTakeCountSheetController extends Controller
             'createdBy',
         ])->findOrFail($id);
 
+        // Company-scoped by the model; the outlet is checked here too.
+        abort_unless(Auth::user()->canAccessOutlet((int) $stockTake->outlet_id), 404);
+
         $groupedLines = $stockTake->lines
             ->sortBy(fn ($l) => ($l->ingredient?->ingredientCategory?->parent?->name ?? $l->ingredient?->ingredientCategory?->name ?? 'ZZZ') . $l->ingredient?->name)
             ->groupBy(function ($line) {

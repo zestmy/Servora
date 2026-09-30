@@ -446,11 +446,29 @@ class Index extends Component
      */
     private function filter(array $groups, $user): array
     {
+        $entitlements = app(\App\Services\Entitlements::class);
+
         return collect($groups)
-            ->map(function (array $group) use ($user) {
+            ->map(function (array $group) use ($user, $entitlements) {
                 $group['tiles'] = collect($group['tiles'])
                     ->filter(fn (array $tile) => ($tile['when'] ?? true)
                         && (! isset($tile['can']) || $user->can($tile['can'])))
+                    // Same plan check as the sidebar (NavMenu::visible): a screen
+                    // the plan does not include is shown LOCKED, never as a live
+                    // link that EnforceModuleAccess would bounce; a platform
+                    // switch that is off is simply gone.
+                    ->map(function (array $tile) use ($user, $entitlements) {
+                        $module = $entitlements->moduleForRoute($tile['route'] ?? null);
+                        if ($module !== null && ! $entitlements->allows($user->company, $module)) {
+                            if ($entitlements->isSwitch($module)) {
+                                return null;
+                            }
+                            $tile['locked'] = $module;
+                        }
+
+                        return $tile;
+                    })
+                    ->filter()
                     ->values()
                     ->all();
 

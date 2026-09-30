@@ -24,7 +24,10 @@ class Marketplace extends Component
 
     public function render()
     {
-        if (Auth::check()) {
+        // Signed-in buyers belong in the in-app directory — but only someone who
+        // can open it (its route is can:purchasing.suppliers.manage). Everyone
+        // else gets the public page rather than a redirect into a 403.
+        if (Auth::user()?->canDo('purchasing.suppliers.manage')) {
             return redirect()->route('purchasing.suppliers.directory');
         }
 

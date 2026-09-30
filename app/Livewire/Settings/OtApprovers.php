@@ -7,10 +7,13 @@ use App\Models\OvertimeClaimApprover;
 use App\Models\Section;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Livewire\Settings\Concerns\ValidatesCompanyRows;
 use Livewire\Component;
 
 class OtApprovers extends Component
 {
+    use ValidatesCompanyRows;
+
     public ?int $user_id    = null;
     public ?int $outlet_id  = null;
     public ?int $section_id = null;
@@ -18,9 +21,9 @@ class OtApprovers extends Component
     protected function rules(): array
     {
         return [
-            'user_id'    => 'required|exists:users,id',
-            'outlet_id'  => 'nullable|exists:outlets,id',
-            'section_id' => 'nullable|exists:sections,id',
+            'user_id'    => ['required', 'integer', $this->companyUserRule()],
+            'outlet_id'  => ['nullable', 'integer', $this->companyRowRule('outlets')],
+            'section_id' => ['nullable', 'integer', $this->companyRowRule('sections')],
         ];
     }
 

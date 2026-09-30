@@ -37,7 +37,11 @@ class SupplierDirectory extends Component
     public function addSupplier(int $supplierId): void
     {
         $companyId = Auth::user()->company_id;
-        $supplier = Supplier::withoutGlobalScopes()->findOrFail($supplierId);
+
+        // Only a supplier this directory actually offers — the same filter the
+        // list is built from. Looking up any id without the company scope let a
+        // posted id copy (or, if it had no company, claim) any supplier at all.
+        $supplier = $this->directorySuppliers()->findOrFail($supplierId);
 
         // Check if already linked to this company
         if ($supplier->company_id === $companyId) {
@@ -72,16 +76,25 @@ class SupplierDirectory extends Component
         }
     }
 
+    /**
+     * The suppliers this directory lists: portal-registered, active, and with
+     * products to show. addSupplier() reads the same query, so a supplier
+     * cannot be added unless it could have been seen here.
+     */
+    private function directorySuppliers()
+    {
+        return Supplier::withoutGlobalScopes()
+            ->where('portal_enabled', true)
+            ->where('is_active', true)
+            ->has('products');
+    }
+
     public function render()
     {
         $companyId = Auth::user()->company_id;
 
         // Query portal-registered suppliers with products
-        $query = Supplier::withoutGlobalScopes()
-            ->where('portal_enabled', true)
-            ->where('is_active', true)
-            ->has('products')
-            ->withCount('products');
+        $query = $this->directorySuppliers()->withCount('products');
 
         if ($this->search) {
             $query->where(function ($q) {

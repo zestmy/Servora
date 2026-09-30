@@ -64,7 +64,8 @@ class StockBalancePackage extends Component
             ->join('stock_takes', 'stock_takes.id', '=', 'stock_take_lines.stock_take_id')
             ->where('stock_takes.status', 'completed')
             ->whereNull('stock_takes.deleted_at')
-            ->when($this->outletFilter, fn ($q) => $q->where('stock_takes.outlet_id', $this->outletFilter));
+            ->where('stock_takes.company_id', $this->reportCompanyId())
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'stock_takes.outlet_id'));
     }
 
     private function buildQuery()

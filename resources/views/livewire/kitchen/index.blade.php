@@ -21,10 +21,12 @@
         <h2 class="page-title">Kitchen</h2>
         <div class="flex gap-2">
             {{-- Stock reaches outlets by transfer, not by request. --}}
+            @canDo('inventory.transfers.record')
             <a href="{{ route('inventory.transfers.create') }}"
                class="px-4 py-2 bg-white text-brand-600 text-sm font-medium rounded-lg border border-brand-200 hover:bg-brand-50 transition">
                 + Send to Outlet
             </a>
+            @endcanDo
             <a href="{{ route('kitchen.orders.create') }}"
                class="btn-primary">
                 + Production Order

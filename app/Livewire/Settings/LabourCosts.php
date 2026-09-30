@@ -3,7 +3,6 @@
 namespace App\Livewire\Settings;
 
 use App\Models\LabourCost;
-use App\Models\LabourCostAllowance;
 use App\Models\Outlet;
 use App\Models\SalesRecord;
 use Carbon\Carbon;
@@ -58,8 +57,23 @@ class LabourCosts extends Component
         $this->period = Carbon::createFromFormat('!Y-m', $this->period)->addMonth()->format('Y-m');
     }
 
+    /**
+     * The page is reachable on hr.view (read-only). Entering salary figures is
+     * compensation data, so the write needs hr.compensation — and the outlet is a
+     * client-writable property, so it has to be one this user can actually reach.
+     */
+    private function authorizeWrite(): void
+    {
+        $user = Auth::user();
+        abort_unless($user?->canDo('hr.compensation'), 403);
+        abort_unless($this->outletId && $user->canAccessOutlet((int) $this->outletId), 403);
+    }
+
     public function openEdit(string $deptType): void
     {
+        $this->authorizeWrite();
+        abort_unless(in_array($deptType, ['foh', 'boh'], true), 422);
+
         $this->resetForm();
         $this->editDeptType = $deptType;
 
@@ -102,6 +116,9 @@ class LabourCosts extends Component
 
     public function save(): void
     {
+        $this->authorizeWrite();
+        abort_unless(in_array($this->editDeptType, ['foh', 'boh'], true), 422);
+
         $this->validate();
 
         $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
@@ -119,8 +136,14 @@ class LabourCosts extends Component
             'socso'           => (float) $this->socso,
         ];
 
-        if ($this->editingId) {
-            $record = LabourCost::findOrFail($this->editingId);
+        // Never trust the client's editingId: the record is identified by what is
+        // being edited — this outlet, this month, this department (company scoped).
+        $record = LabourCost::where('outlet_id', $this->outletId)
+            ->where('month', $month)
+            ->where('department_type', $this->editDeptType)
+            ->first();
+
+        if ($record) {
             $record->update($data);
         } else {
             $record = LabourCost::create($data);
@@ -132,7 +155,9 @@ class LabourCosts extends Component
             if (empty($row['label'])) continue;
 
             if (!empty($row['id'])) {
-                $allowance = LabourCostAllowance::find($row['id']);
+                // Only allowances of THIS record — client-supplied ids must never
+                // reach another outlet's or another company's rows.
+                $allowance = $record->allowances()->whereKey($row['id'])->first();
                 if ($allowance) {
                     $allowance->update(['label' => $row['label'], 'amount' => (float) $row['amount']]);
                     $keepIds[] = $allowance->id;

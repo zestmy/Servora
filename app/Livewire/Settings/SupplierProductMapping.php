@@ -17,11 +17,35 @@ class SupplierProductMapping extends Component
     public ?int $supplierId = null;
     public string $search = '';
 
-    public function updatedSupplierId(): void { $this->resetPage(); }
+    public function updatedSupplierId(): void
+    {
+        // supplierId is client-writable; one this company cannot see reads as none.
+        if ($this->supplierId && ! $this->visibleSupplierIds()->contains($this->supplierId)) {
+            $this->supplierId = null;
+        }
+        $this->resetPage();
+    }
+
+    /** Portal suppliers of the active company (Supplier is company scoped). */
+    private function visibleSupplierIds()
+    {
+        return Supplier::where('portal_enabled', true)->pluck('id')->map(fn ($i) => (int) $i);
+    }
     public function updatedSearch(): void { $this->resetPage(); }
 
     public function mapProduct(int $supplierProductId, int $ingredientId): void
     {
+        // Both ids come from the browser. The ingredient must be this company's
+        // (Ingredient is company scoped); the product must come from a supplier this
+        // company can see — SupplierProduct itself carries no company scope.
+        abort_unless(Ingredient::whereKey($ingredientId)->exists(), 404);
+        abort_unless(
+            SupplierProduct::whereKey($supplierProductId)
+                ->whereIn('supplier_id', $this->visibleSupplierIds()->all())
+                ->exists(),
+            404
+        );
+
         MappingModel::updateOrCreate(
             [
                 'company_id'          => Auth::user()->company_id,
@@ -50,7 +74,7 @@ class SupplierProductMapping extends Component
         $products = collect();
         $mappings = collect();
 
-        if ($this->supplierId) {
+        if ($this->supplierId && $suppliers->contains('id', $this->supplierId)) {
             $query = SupplierProduct::where('supplier_id', $this->supplierId)
                 ->where('is_active', true);
 

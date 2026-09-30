@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Livewire\Hr\Concerns\ScopesRosterOutlet;
 use App\Models\Outlet;
 use App\Models\RosterApprover;
 use App\Models\User;
@@ -10,6 +11,7 @@ use Livewire\Component;
 
 class RosterApprovers extends Component
 {
+    use ScopesRosterOutlet;
     public ?int $outletId = null;
     public ?int $selectedUserId = null;
 
@@ -20,6 +22,7 @@ class RosterApprovers extends Component
 
     public function updatedOutletId(): void
     {
+        $this->normaliseRosterOutlet();
         $this->selectedUserId = null;
     }
 
@@ -28,6 +31,14 @@ class RosterApprovers extends Component
         if (!$this->outletId || !$this->selectedUserId) {
             return;
         }
+
+        $this->assertRosterOutlet($this->outletId);
+
+        // Only someone from this company can approve its rosters.
+        abort_unless(
+            User::where('company_id', Auth::user()->company_id)->whereKey($this->selectedUserId)->exists(),
+            404
+        );
 
         // Check if already exists
         $exists = RosterApprover::where('outlet_id', $this->outletId)
@@ -50,7 +61,7 @@ class RosterApprovers extends Component
 
     public function removeApprover(int $id): void
     {
-        RosterApprover::findOrFail($id)->delete();
+        RosterApprover::whereIn('outlet_id', $this->rosterOutletIds())->findOrFail($id)->delete();
         session()->flash('success', 'Approver removed.');
     }
 
@@ -79,6 +90,8 @@ class RosterApprovers extends Component
 
     public function render()
     {
+        $this->normaliseRosterOutlet();
+
         $approvers = collect();
         if ($this->outletId) {
             $approvers = RosterApprover::with('user')

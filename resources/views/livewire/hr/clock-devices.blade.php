@@ -14,7 +14,9 @@
             @canDo('hr.clock')
             <a href="{{ route('hr.clock-ins') }}" wire:navigate class="btn-secondary">Back to clock-ins</a>
             @endcanDo
+            @canDo('settings.hr')
             <a href="{{ route('hr.clock-settings') }}" wire:navigate class="btn-secondary">Settings</a>
+            @endcanDo
         </x-slot:actions>
     </x-page-header>
 

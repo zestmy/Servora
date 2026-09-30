@@ -1,7 +1,9 @@
 <div>
     <x-page-header title="Payroll" eyebrow="HR">
         <x-slot:actions>
+            @canDo('hr.compensation')
             <a href="{{ route('hr.compensation') }}" class="btn-secondary">Compensation</a>
+            @endcanDo
             <button wire:click="openNew" class="btn-primary">Generate payroll</button>
         </x-slot:actions>
     </x-page-header>
@@ -38,7 +40,9 @@
                         <p class="help">
                             Covers <strong>{{ $newRange[0]->format('j M Y') }} – {{ $newRange[1]->format('j M Y') }}</strong>
                             @if ($settings->hasCustomCycle())
+                                @canDo('hr.compensation')
                                 <a href="{{ route('settings.pay-components') }}" class="text-brand-600 hover:underline">(pay cycle)</a>
+                                @endcanDo
                             @endif
                         </p>
                     @endif

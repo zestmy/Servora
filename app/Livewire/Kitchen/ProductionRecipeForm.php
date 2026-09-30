@@ -12,6 +12,8 @@ use App\Services\VisionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -19,6 +21,9 @@ class ProductionRecipeForm extends Component
 {
     use WithFileUploads;
 
+    // Locked: set in mount(). save() and deletePresentationImage() act on
+    // whichever recipe it names.
+    #[Locked]
     public ?int $recipeId = null;
 
     // Basic
@@ -85,13 +90,31 @@ class ProductionRecipeForm extends Component
     // Training / SOP steps: [{id, title, instruction, image_path, new_image, remove_image}]
     public array $steps = [];
 
+    /**
+     * Kitchens of the active company this user manages — the only ones a
+     * recipe may be filed under. A bare `exists:central_kitchens,id` queried
+     * the table directly, bypassing CompanyScope, so a crafted payload could
+     * name another tenant's kitchen (or one where this user is only a chef).
+     */
+    protected function manageableKitchenIds(): array
+    {
+        $user = Auth::user();
+
+        return CentralKitchen::where('company_id', $user->company_id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $user->canManageKitchen($id))
+            ->values()
+            ->all();
+    }
+
     protected function rules(): array
     {
         return [
             'name'                     => 'required|string|max:255',
             'code'                     => 'nullable|string|max:100',
             'category'                 => 'nullable|string|max:100',
-            'kitchen_id'               => 'required|exists:central_kitchens,id',
+            'kitchen_id'               => ['required', 'integer', Rule::in($this->manageableKitchenIds())],
             'description'              => 'nullable|string',
             'video_url'                => 'nullable|url|max:500',
             'yield_quantity'           => 'required|numeric|min:0.0001',
@@ -540,6 +563,9 @@ class ProductionRecipeForm extends Component
 
     public function deletePresentationImage(int $imageId): void
     {
+        // Deletes a stored file: the recipe's own kitchen manager only.
+        $this->authorizeManageExisting();
+
         $img = \App\Models\ProductionRecipeImage::where('production_recipe_id', $this->recipeId)->find($imageId);
         if (! $img) return;
 
@@ -727,9 +753,31 @@ class ProductionRecipeForm extends Component
 
     // ── Save ────────────────────────────────────────────────────────────
 
+    /**
+     * The kitchen routes carry only `kitchen.user`, which Livewire does not
+     * re-apply on an action. The recipe book is a manager's, per kitchen —
+     * judged by the kitchen the STORED recipe belongs to, so a recipe cannot
+     * be moved out of a kitchen its editor does not manage.
+     */
+    private function authorizeManageExisting(): void
+    {
+        if (! $this->recipeId) {
+            return;
+        }
+
+        $recipe = ProductionRecipe::findOrFail($this->recipeId);
+        abort_unless(Auth::user()?->canManageKitchen($recipe->kitchen_id), 403);
+    }
+
     public function save(): void
     {
+        $this->authorizeManageExisting();
+
         $this->validate();
+
+        // The rule above already confines kitchen_id to kitchens this user
+        // manages; said again here so the write never rests on a rule alone.
+        abort_unless(Auth::user()->canManageKitchen($this->kitchen_id), 403);
         $this->recalculate();
 
         $user = Auth::user();

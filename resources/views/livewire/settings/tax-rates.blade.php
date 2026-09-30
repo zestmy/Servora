@@ -54,8 +54,12 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <button wire:click="openEdit({{ $tr->id }})" class="text-sm text-brand-600 hover:text-brand-800">Edit</button>
-                                <button wire:click="delete({{ $tr->id }})" data-confirm-delete="Delete this tax rate?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
+                                @if ($tr->company_id)
+                                    <button wire:click="openEdit({{ $tr->id }})" class="text-sm text-brand-600 hover:text-brand-800">Edit</button>
+                                    <button wire:click="delete({{ $tr->id }})" data-confirm-delete="Delete this tax rate?" class="text-sm text-danger-500 hover:text-danger-700 ml-2">Delete</button>
+                                @else
+                                    <span class="text-xs text-gray-500" title="System rate, shared by every company">System</span>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

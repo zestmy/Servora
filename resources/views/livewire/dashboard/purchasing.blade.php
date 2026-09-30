@@ -25,23 +25,27 @@
                         ? 'Oldest waiting ' . $oldestWait . ' ' . Str::plural('day', $oldestWait)
                         : 'Queue is empty',
             'href'  => route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']),
+            'can'   => 'purchasing.view',
         ],
         [
             'label' => 'Approved',
             'value' => number_format($approvedPOs),
             'href'  => route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'approved']),
+            'can'   => 'purchasing.view',
         ],
         [
             'label' => 'Pending delivery',
             'value' => number_format($pendingDOs),
             'sub'   => $todayDOs > 0 ? $todayDOs . ' due today' : 'None due today',
             'href'  => route('purchasing.index', ['tab' => 'do']),
+            'can'   => 'purchasing.view',
         ],
         [
             'label' => 'Pending receipt',
             'value' => number_format($pendingGRNs),
             'color' => $pendingGRNs > 0 ? 'amber' : null,
             'href'  => route('purchasing.index', ['tab' => 'grn']),
+            'can'   => 'purchasing.view',
         ],
         [
             /*
@@ -70,7 +74,7 @@
     <div class="card lg:col-span-2">
         <div class="px-6 pt-6">
             <x-card-title :action="$submittedPOs > 0 ? 'View all (' . $submittedPOs . ')' : null"
-                          :action-href="route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted'])">
+                          :action-href="auth()->user()?->canDo('purchasing.view') ? route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']) : null">
                 Submitted, oldest first
             </x-card-title>
         </div>
@@ -85,10 +89,14 @@
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5 transition-colors hover:bg-gray-50">
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                @canDo('purchasing.view')
                                 <a href="{{ route('purchasing.orders.edit', $po->id) }}"
                                    class="font-mono text-xs font-medium text-brand-700 hover:underline">
                                     {{ $po->po_number }}
                                 </a>
+                                @else
+                                <span class="font-mono text-xs font-medium text-gray-800">{{ $po->po_number }}</span>
+                                @endcanDo
                                 <span class="text-sm text-gray-700">{{ $po->supplier?->name ?? '—' }}</span>
                             </div>
                             <p class="mt-0.5 text-xs text-gray-600">

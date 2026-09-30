@@ -255,7 +255,11 @@ class AttendanceExportController extends Controller
         $brandName  = $company?->brand_name ?: $company?->name;
         $logoBase64 = $company?->logoDataUri();
 
-        $outletName = $outletFilter !== '' ? Outlet::find((int) $outletFilter)?->name : null;
+        // Outlet has no company scope: look the caption up only among the
+        // outlets this user can see, or any company's name could be printed.
+        $outletName = $outletFilter !== '' && Auth::user()->canAccessOutlet((int) $outletFilter)
+            ? Outlet::find((int) $outletFilter)?->name
+            : null;
 
         // The distribution, for the callers that are ABOUT it. A pool is
         // keyed on the exact period + outlet selection (same key as the

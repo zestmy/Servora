@@ -83,6 +83,12 @@ class BillingLoopholesTest extends TestCase
         $user = User::factory()->create(['company_id' => $company->id, 'outlet_id' => $outlet->id]);
         $user->companies()->syncWithoutDetaching([$company->id]);
 
+        // Checkout is users.manage-only (BillingPermissionTest); the buyer here
+        // is the company's administrator, so the loophole is what gets tested.
+        setPermissionsTeamId($company->id);
+        $user->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate('users.manage', 'web'));
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
         return [$company, $user];
     }
 }

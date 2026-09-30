@@ -31,6 +31,8 @@ class SubscriptionInvoicePdfController extends Controller
             // are a member of.
             abort_unless($invoice->company_id === $user->company_id, 403);
             abort_if($invoice->isDraft(), 404);
+            // The company's bill is its admin's, like the rest of Billing.
+            abort_unless($user->canDo('users.manage'), 403);
         }
 
         return $invoices->pdf($invoice)->download($invoices->filename($invoice));

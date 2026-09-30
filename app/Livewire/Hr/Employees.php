@@ -202,6 +202,8 @@ class Employees extends Component
      */
     public function reorderRows(array $orderedIds): void
     {
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
+
         $allowed = Employee::whereIn('id', $orderedIds)
             ->whereIn('outlet_id', $this->accessibleOutletIds() ?: [0])
             ->pluck('id')
@@ -217,6 +219,10 @@ class Employees extends Component
 
     public function toggleActive(int $id): void
     {
+        // Active/inactive is employment standing, not something every viewer
+        // of the staff list (hr.view) may flip.
+        abort_unless(Auth::user()?->canDo('hr.employment'), 403);
+
         $emp = Employee::findOrFail($id);
         if (! in_array((int) $emp->outlet_id, $this->accessibleOutletIds(), true)) {
             session()->flash('error', 'You do not have access to this employee.');
@@ -285,12 +291,17 @@ class Employees extends Component
 
     public function openImport(): void
     {
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
+
         $this->reset(['csvFile', 'importResult']);
         $this->showImport = true;
     }
 
     public function processImport(): void
     {
+        // The staff list is readable under hr.view; writing staff is not.
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
+
         $this->validate([
             'csvFile' => 'required|file|mimes:csv,txt|max:5120',
         ]);
@@ -298,6 +309,10 @@ class Employees extends Component
         $user       = Auth::user();
         $companyId  = $user->company_id;
         $accessible = $this->accessibleOutletIds();
+        // Same split as the employee form: standing columns need hr.employment,
+        // and a new Section row is a settings change (settings.sections).
+        $canEditEmployment = $user->canDo('hr.employment');
+        $canCreateSections = $user->canDo('settings.sections');
 
         // Build outlet + section lookups for this company (name lowercased → id).
         // Outlet map is limited to the user's accessible outlets so a row for
@@ -445,6 +460,14 @@ class Employees extends Component
             ];
         }
 
+        // Employment-standing columns are only recognised for users with
+        // hr.employment — otherwise an import could resign or confirm staff
+        // that the employee form would not let this user touch.
+        if (! $canEditEmployment) {
+            $standing = ['join_date', 'employment_status', 'employment_status_date', 'employment_type', 'outsourcing_company'];
+            $aliasMap = array_filter($aliasMap, fn ($field) => ! in_array($field, $standing, true));
+        }
+
         $parseBool = fn (string $v): bool => in_array(
             strtolower(trim($v)), ['yes', 'y', '1', 'true', 'certified'], true
         );
@@ -505,11 +528,17 @@ class Employees extends Component
             // Resolve section by name; auto-create on the fly so a recognised
             // column with unknown values (e.g. "Bar") doesn't silently drop data.
             $sectionId = null;
+            $sectionUnresolved = false;
             $sectionRaw = trim((string) ($data['section'] ?? ''));
             if ($sectionRaw !== '') {
                 $sectionKey = strtolower($sectionRaw);
                 if (isset($sectionMap[$sectionKey])) {
                     $sectionId = $sectionMap[$sectionKey];
+                } elseif (! $canCreateSections) {
+                    // Creating a section is a settings change; without that
+                    // ability the row keeps whatever section it already has.
+                    $sectionUnresolved = true;
+                    $errors[] = "Row $rowNum: section '{$sectionRaw}' not found — section left unchanged";
                 } else {
                     $createdSection = Section::create([
                         'company_id' => $companyId,
@@ -549,6 +578,9 @@ class Employees extends Component
                 'phone'         => ($data['phone'] ?? null) ?: null,
                 'is_active'     => true,
             ];
+            if ($sectionUnresolved) {
+                unset($payload['section_id']);
+            }
 
             // New HR fields only overwrite when their column is present in the
             // CSV, so older files don't blank out existing values on update.

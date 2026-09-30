@@ -78,7 +78,9 @@
 
             {{-- Outlet --}}
             <select wire:model.live="outletId" class="rounded-lg border-gray-300 text-sm focus:ring-brand-500 focus:border-brand-500">
-                <option value="">All Outlets</option>
+                @if ($canSeeAllOutlets)
+                    <option value="">All Outlets</option>
+                @endif
                 @foreach ($outlets as $outlet)
                     <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
                 @endforeach

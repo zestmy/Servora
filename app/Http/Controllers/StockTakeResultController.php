@@ -50,6 +50,10 @@ class StockTakeResultController extends Controller
         // again because a URL is not a button.
         abort_unless($stockTake->status === 'completed', 404);
 
+        // Company-scoped by the model; the outlet is checked here, or any
+        // inventory.view holder could pull another outlet's count by id.
+        abort_unless(Auth::user()->canAccessOutlet((int) $stockTake->outlet_id), 404);
+
         $groups = [];
         $totals = ['items' => 0, 'value' => 0.0, 'variance' => 0.0, 'over' => 0, 'short' => 0];
 

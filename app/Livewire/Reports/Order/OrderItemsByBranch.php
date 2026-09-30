@@ -56,11 +56,10 @@ class OrderItemsByBranch extends Component
                 DB::raw('SUM(purchase_order_lines.total_cost) as total_cost'),
             )
             ->whereBetween('po.order_date', [$this->dateFrom, $this->dateTo])
-            ->whereNull('po.deleted_at');
+            ->whereNull('po.deleted_at')
+            ->where('po.company_id', $this->reportCompanyId());
 
-        if ($this->outletFilter) {
-            $query->where('po.outlet_id', $this->outletFilter);
-        }
+        $this->applyReportOutletScope($query, 'po.outlet_id');
 
         if ($this->supplierFilter) {
             $query->where('po.supplier_id', $this->supplierFilter);

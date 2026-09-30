@@ -46,6 +46,7 @@
             'value' => number_format($pendingGrns),
             'color' => $pendingGrns > 0 ? 'amber' : null,
             'href'  => route('purchasing.index', ['tab' => 'grn']),
+            'can'   => 'purchasing.view',
         ],
     ];
 @endphp
@@ -60,7 +61,7 @@
             {{-- Oldest first. The queue used to come back newest first, which
                  is the opposite of the order an approver should work it in. --}}
             <x-card-title :action="$awaitingApproval > 0 ? 'View all (' . $awaitingApproval . ')' : null"
-                          :action-href="route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted'])">
+                          :action-href="auth()->user()?->canDo('purchasing.view') ? route('purchasing.index', ['tab' => 'po', 'statusFilter' => 'submitted']) : null">
                 Approval queue, oldest first
             </x-card-title>
         </div>
@@ -75,10 +76,14 @@
                     <li class="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-gray-50">
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                @canDo('purchasing.view')
                                 <a href="{{ route('purchasing.orders.edit', $po->id) }}"
                                    class="font-mono text-xs font-medium text-brand-700 hover:underline">
                                     {{ $po->po_number }}
                                 </a>
+                                @else
+                                <span class="font-mono text-xs font-medium text-gray-800">{{ $po->po_number }}</span>
+                                @endcanDo
                                 <span class="{{ $isStale ? 'badge-danger' : 'badge-neutral' }} tabular-nums">
                                     {{ $waited === 0 ? 'Today' : $waited . 'd waiting' }}
                                 </span>
@@ -99,10 +104,15 @@
                              accessible name rather than a title attribute a
                              touch user never sees. --}}
                         <div class="ml-4 flex flex-none items-center gap-1">
+                            @canDo('purchasing.view')
                             <a href="{{ route('purchasing.pdf', ['type' => 'po', 'id' => $po->id]) }}" target="_blank"
                                class="icon-btn" aria-label="View PDF for {{ $po->po_number }}">
                                 <x-icon name="document" size="h-4 w-4" stroke="2" />
                             </a>
+                            @endcanDo
+                            {{-- Appointment alone is not enough: approvePo/rejectPo
+                                 also require purchasing.approve. --}}
+                            @canDo('purchasing.approve')
                             <button type="button"
                                     wire:click="approvePo({{ $po->id }})"
                                     wire:confirm="Approve '{{ $po->po_number }}'?"
@@ -117,6 +127,7 @@
                                     aria-label="Reject {{ $po->po_number }}">
                                 <x-icon name="alert" size="h-4 w-4" stroke="2" />
                             </button>
+                            @endcanDo
                         </div>
                     </li>
                 @endforeach
@@ -146,12 +157,14 @@
         ]])
 
         <dl class="mt-6 space-y-2.5 border-t border-gray-200 pt-4 text-sm">
+            @canDo('sales.view')
             <div class="flex items-center justify-between gap-3">
                 <dt class="text-gray-600">Revenue this period</dt>
                 <dd class="font-semibold tabular-nums text-gray-900">
                     RM {{ number_format($revenue['value'], 0) }}
                 </dd>
             </div>
+            @endcanDo
             <div class="flex items-center justify-between gap-3">
                 <dt class="text-gray-600">Purchases</dt>
                 <dd class="font-semibold tabular-nums text-gray-900">
@@ -169,6 +182,8 @@
 </div>
 
 {{-- Revenue vs cost of sales --}}
+@canDo('sales.view')
 <div class="card p-6">
     @include('livewire.dashboard.partials.trend-chart', ['trendMonths' => $trendMonths])
 </div>
+@endcanDo

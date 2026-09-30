@@ -51,9 +51,24 @@ class Expiring extends Component
         $this->setFilter = '';
     }
 
+    /**
+     * An open label at an outlet this user can reach. LabelPrint's CompanyScope
+     * stops other companies; this stops the other outlets of this one.
+     */
+    private function unresolvedPrint(?int $id): ?LabelPrint
+    {
+        if (! $id) {
+            return null;
+        }
+
+        return LabelPrint::unresolved()
+            ->whereIn('outlet_id', Auth::user()->accessibleOutletIds())
+            ->find($id);
+    }
+
     public function markUsed(int $id, LabelExpiryService $service): void
     {
-        $print = LabelPrint::unresolved()->find($id);
+        $print = $this->unresolvedPrint($id);
 
         if ($print) {
             $service->markUsed($print);
@@ -63,7 +78,7 @@ class Expiring extends Component
 
     public function markDiscarded(int $id, LabelExpiryService $service): void
     {
-        $print = LabelPrint::unresolved()->find($id);
+        $print = $this->unresolvedPrint($id);
 
         if ($print) {
             $service->markDiscarded($print);
@@ -86,7 +101,7 @@ class Expiring extends Component
 
     public function confirmWaste(LabelExpiryService $service): void
     {
-        $print = LabelPrint::unresolved()->find($this->wastingId);
+        $print = $this->unresolvedPrint($this->wastingId);
 
         if (! $print) {
             $this->wastingId = null;

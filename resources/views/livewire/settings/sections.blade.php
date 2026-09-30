@@ -33,7 +33,7 @@
             divisions you define. Used for Overtime Claim filtering and the upcoming Duty Roster module.
         </p>
         <p class="text-xs text-gray-500 mt-2">
-            This is separate from <a href="{{ route('settings.departments') }}" class="text-brand-600 hover:underline">Departments</a>,
+            This is separate from @canDo('settings.departments')<a href="{{ route('settings.departments') }}" class="text-brand-600 hover:underline">Departments</a>@else<span>Departments</span>@endcanDo,
             which are PO receiver / cost-tracking units.
         </p>
     </div>

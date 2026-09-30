@@ -571,11 +571,11 @@
                                 <button wire:click="openCodeEdit({{ $code->id }})"
                                         class="text-xs text-brand-600 hover:text-brand-800">Edit</button>
                                 @unless ($code->system_key)
+                                    @canDo('hr.attendance.record')
                                     <button wire:click="toggleCodeActive({{ $code->id }})"
                                             class="text-xs {{ $code->is_active ? 'text-warning-600 hover:text-warning-800' : 'text-success-600 hover:text-success-800' }}">
                                         {{ $code->is_active ? 'Deactivate' : 'Activate' }}
                                     </button>
-                                    @canDo('hr.attendance.record')
                                     <button wire:click="deleteCode({{ $code->id }})"
                                             data-confirm-delete="Delete code {{ $code->code }} ({{ $code->label }})?"
                                             class="text-xs text-danger-500 hover:text-danger-700">Delete</button>

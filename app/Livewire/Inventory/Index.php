@@ -246,9 +246,16 @@ class Index extends Component
     public function deleteStockTake(int $id): void
     {
         $stockTake = StockTake::findOrFail($id);
+        $this->authorizeOutlet($stockTake->outlet_id);
 
-        // Drafts stay freely deletable — nothing has hit stock yet. Reversing a completed
-        // count is the part that needs the ability.
+        // A draft needs only the right to record counts — nothing has hit stock yet. This
+        // page's route asks for inventory.view alone, so without this check a view-only
+        // user could delete anybody's draft over /livewire/update.
+        if ($stockTake->status === 'draft') {
+            abort_unless(auth()->user()?->canDo('inventory.stock_takes.record'), 403);
+        }
+
+        // Reversing a completed count is the part that needs the delete ability.
         if ($stockTake->status !== 'draft' && ! $this->canDeleteType('stock_takes')) {
             session()->flash('error', 'You do not have permission to delete a completed stock take.');
             return;
@@ -265,7 +272,9 @@ class Index extends Component
             return;
         }
 
-        WastageRecord::findOrFail($id)->delete();
+        $record = WastageRecord::findOrFail($id);
+        $this->authorizeOutlet($record->outlet_id);
+        $record->delete();
         session()->flash('success', 'Wastage record deleted.');
     }
 
@@ -276,13 +285,28 @@ class Index extends Component
             return;
         }
 
-        StaffMealRecord::findOrFail($id)->delete();
+        $record = StaffMealRecord::findOrFail($id);
+        $this->authorizeOutlet($record->outlet_id);
+        $record->delete();
         session()->flash('success', 'Staff meal record deleted.');
     }
 
     public function deleteTransfer(int $id): void
     {
         $transfer = OutletTransfer::findOrFail($id);
+
+        // Either end of the transfer is a legitimate owner of it.
+        $user = auth()->user();
+        abort_unless(
+            $user && ($user->canAccessOutlet((int) $transfer->from_outlet_id)
+                || $user->canAccessOutlet((int) $transfer->to_outlet_id)),
+            403
+        );
+
+        if ($transfer->status === 'draft') {
+            abort_unless($user->canDo('inventory.transfers.record'), 403);
+        }
+
         if ($transfer->status !== 'draft' && ! $this->canDeleteType('transfers')) {
             session()->flash('error', 'Only draft transfers can be deleted without the delete permission.');
             return;
@@ -298,7 +322,9 @@ class Index extends Component
             return;
         }
 
-        PurchaseCapture::findOrFail($id)->delete();
+        $record = PurchaseCapture::findOrFail($id);
+        $this->authorizeOutlet($record->outlet_id);
+        $record->delete();
         session()->flash('success', 'Purchase deleted.');
     }
 
@@ -310,10 +336,31 @@ class Index extends Component
         }
 
         $recipe = Recipe::with('ingredient')->findOrFail($recipeId);
+
+        // This action deletes prep items only — a finished recipe is the Recipes page's
+        // to delete, under its own permission.
+        abort_unless($recipe->is_prep, 404);
+
+        // A recipe tagged to outlets belongs to those outlets; an untagged one is shared.
+        $tagged = $recipe->outlets()->pluck('outlets.id');
+        abort_unless(
+            $tagged->isEmpty() || $tagged->contains(fn ($oid) => auth()->user()->canAccessOutlet((int) $oid)),
+            403
+        );
+
         // Also soft-delete the synced ingredient record
         $recipe->ingredient?->delete();
         $recipe->delete();
         session()->flash('success', 'Prep item deleted.');
+    }
+
+    /** Refuse a delete on a record from an outlet the user cannot reach. */
+    private function authorizeOutlet(?int $outletId): void
+    {
+        abort_unless(
+            $outletId === null || auth()->user()?->canAccessOutlet($outletId),
+            403
+        );
     }
 
     /**

@@ -67,7 +67,7 @@ class StockTransferOrderAssetTemplateTest extends TestCase
         $this->user->outlets()->syncWithoutDetaching([$this->outlet->id]);
 
         setPermissionsTeamId($this->company->id);
-        $this->user->givePermissionTo(collect(['purchasing.view', 'purchasing.transfers.create'])
+        $this->user->givePermissionTo(collect(['purchasing.view', 'purchasing.transfers.create', 'purchasing.receive'])
             ->map(fn ($p) => Permission::findOrCreate($p, 'web'))->all());
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 

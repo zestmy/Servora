@@ -91,8 +91,20 @@ class CalendarEvents extends Component
     public function updatedOutletFilter(): void { $this->resetPage(); }
     public function updatedYearFilter(): void   { $this->resetPage(); }
 
+    /**
+     * The page is reachable on reports.view, which is read-only. The calendar is
+     * company-wide configuration (events and public holidays every outlet's reports
+     * are read against), so changing it needs users.manage — "edit company details".
+     * reports.schedule is about emailed report subscriptions, not this.
+     */
+    private function authorizeWrite(): void
+    {
+        abort_unless(Auth::user()?->canDo('users.manage'), 403);
+    }
+
     public function openCreate(): void
     {
+        $this->authorizeWrite();
         $this->resetForm();
         $this->showModal = true;
     }
@@ -105,6 +117,7 @@ class CalendarEvents extends Component
      */
     public function openEditGroup(array $ids): void
     {
+        $this->authorizeWrite();
         $events = CalendarEvent::with('outlet')
             ->whereIn('id', array_map('intval', $ids))
             ->get();
@@ -134,6 +147,7 @@ class CalendarEvents extends Component
 
     public function save(): void
     {
+        $this->authorizeWrite();
         $this->validate();
 
         $companyId = Auth::user()->company_id;
@@ -378,6 +392,7 @@ class CalendarEvents extends Component
 
     public function delete(int $id): void
     {
+        $this->authorizeWrite();
         CalendarEvent::findOrFail($id)->delete();
         session()->flash('success', 'Event deleted.');
     }
@@ -385,12 +400,14 @@ class CalendarEvents extends Component
     /** Delete every event behind a grouped row (one per outlet). */
     public function deleteGroup(array $ids): void
     {
+        $this->authorizeWrite();
         $count = CalendarEvent::whereIn('id', array_map('intval', $ids))->delete();
         session()->flash('success', $count > 1 ? "{$count} events deleted." : 'Event deleted.');
     }
 
     public function openImport(): void
     {
+        $this->authorizeWrite();
         $this->importFile = null;
         $this->importPreview = [];
         $this->importErrors = [];
@@ -428,6 +445,7 @@ class CalendarEvents extends Component
 
     public function updatedImportFile(): void
     {
+        $this->authorizeWrite();
         $this->validate([
             'importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
         ]);
@@ -606,6 +624,7 @@ class CalendarEvents extends Component
 
     public function confirmImport(): void
     {
+        $this->authorizeWrite();
         $companyId = Auth::user()->company_id;
         $userId = Auth::id();
         $created = 0;
@@ -648,6 +667,7 @@ class CalendarEvents extends Component
 
     public function openHolidays(): void
     {
+        $this->authorizeWrite();
         $this->holidayOutletId = null;
         $this->holidayYear = (int) now()->year;
         $this->holidayPreview = [];
@@ -662,6 +682,7 @@ class CalendarEvents extends Component
      */
     public function generateHolidays(\App\Services\PublicHolidayService $service): void
     {
+        $this->authorizeWrite();
         $this->holidayPreview = [];
         $this->holidayErrors = [];
         $this->holidayNotice = '';
@@ -740,12 +761,20 @@ class CalendarEvents extends Component
 
     public function confirmHolidays(): void
     {
+        $this->authorizeWrite();
         $companyId = Auth::user()->company_id;
         $userId = Auth::id();
         $created = 0;
 
+        // holidayPreview round-trips through the browser; only this company's
+        // outlets (or the company-wide null) may be written.
+        $ownOutletIds = Outlet::where('company_id', $companyId)->pluck('id')->map(fn ($i) => (int) $i)->all();
+
         foreach ($this->holidayPreview as $entry) {
             if (empty($entry['selected']) || ! empty($entry['exists'])) {
+                continue;
+            }
+            if ($entry['outlet_id'] !== null && ! in_array((int) $entry['outlet_id'], $ownOutletIds, true)) {
                 continue;
             }
 

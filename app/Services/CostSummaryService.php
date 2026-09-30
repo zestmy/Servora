@@ -262,8 +262,11 @@ class CostSummaryService
 
     private function getRevenueBySalesCategory(Carbon $from, Carbon $to, ?int $outletId): Collection
     {
+        // Line models carry no company scope and a join does not inherit the
+        // parent's, so the company is filtered here explicitly.
         $query = SalesRecordLine::query()
             ->join('sales_records', 'sales_records.id', '=', 'sales_record_lines.sales_record_id')
+            ->where('sales_records.company_id', auth()->user()->company_id)
             ->whereBetween('sales_records.sale_date', [$from, $to])
             ->whereNull('sales_records.deleted_at');
 
@@ -361,6 +364,9 @@ class CostSummaryService
             ->leftJoin('ingredient_categories as parent_cat', 'parent_cat.id', '=', 'ingredient_categories.parent_id')
             ->leftJoin('units_of_measure', 'units_of_measure.id', '=', "{$lineTable}.uom_id")
             ->leftJoin('departments', 'departments.id', '=', "{$masterTable}.department_id")
+            // Line models carry no company scope and a join does not inherit
+            // the parent's: without this, "All outlets" summed every tenant's.
+            ->where("{$masterTable}.company_id", auth()->user()->company_id)
             ->whereBetween("{$masterTable}.{$dateField}", [$from, $to])
             ->whereNull("{$masterTable}.deleted_at")
             ->whereNotNull("{$lineTable}.ingredient_id")
@@ -384,6 +390,9 @@ class CostSummaryService
             ->join($masterTable, "{$masterTable}.id", '=', "{$lineTable}.{$fkField}")
             ->join('recipes', 'recipes.id', '=', "{$lineTable}.recipe_id")
             ->leftJoin('units_of_measure', 'units_of_measure.id', '=', "{$lineTable}.uom_id")
+            // Line models carry no company scope and a join does not inherit
+            // the parent's: without this, "All outlets" summed every tenant's.
+            ->where("{$masterTable}.company_id", auth()->user()->company_id)
             ->whereBetween("{$masterTable}.{$dateField}", [$from, $to])
             ->whereNull("{$masterTable}.deleted_at")
             ->whereNotNull("{$lineTable}.recipe_id")

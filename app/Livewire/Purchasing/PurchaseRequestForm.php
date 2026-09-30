@@ -14,10 +14,12 @@ use App\Services\ProcurementRoutingService;
 use App\Services\PurchaseRequestService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class PurchaseRequestForm extends Component
 {
+    #[Locked]
     public ?int $requestId = null;
 
     /** Raising a request and amending an existing one are separate abilities. */
@@ -29,7 +31,12 @@ class PurchaseRequestForm extends Component
         );
     }
 
+    // Locked: set from the database in mount() and after save, never by the
+    // browser. isEditable() reads $status, so an unlocked one could be posted
+    // back as "draft" to reopen an approved request.
+    #[Locked]
     public string $prNumber = '';
+    #[Locked]
     public string $status   = 'draft';
 
     public ?int   $outlet_id      = null;
@@ -162,10 +169,17 @@ class PurchaseRequestForm extends Component
 
     public ?int $importTemplateId = null;
 
-    /** Only a draft can still be changed — the one place that decides it. */
+    /**
+     * Only a draft can still be changed — the one place that decides it — and
+     * only by someone who may write it. The edit route only asks for
+     * purchasing.view, so a read-only user opens the same page, read-only.
+     */
     public function isEditable(): bool
     {
-        return in_array($this->status, ['draft', ''], true);
+        $ability = $this->requestId ? 'purchasing.requests.edit' : 'purchasing.requests.create';
+
+        return in_array($this->status, ['draft', ''], true)
+            && (bool) Auth::user()?->canDo($ability);
     }
 
     public function openTemplateImport(): void
@@ -458,6 +472,22 @@ class PurchaseRequestForm extends Component
     {
         // Re-checked here, not just on the route: a Livewire action is its own request.
         $this->authorizeWrite();
+
+        /*
+         * An existing request is judged by what the database holds, not by the
+         * component: still in an outlet this user can reach, and still a draft.
+         * Anything past draft is submitted, approved or converted — amending it
+         * here would rewrite a request somebody has already acted on.
+         */
+        if ($this->requestId) {
+            $existing = PurchaseRequest::findOrFail($this->requestId);
+
+            if ($existing->outlet_id && ! Auth::user()->canAccessOutlet($existing->outlet_id)) {
+                abort(403, 'You do not have access to this outlet.');
+            }
+
+            abort_unless($existing->status === 'draft', 403, 'Only a draft purchase request can be changed.');
+        }
 
         $this->validate();
 

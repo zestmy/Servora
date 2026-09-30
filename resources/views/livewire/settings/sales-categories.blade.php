@@ -34,7 +34,7 @@
             <div class="space-y-1.5">
                 <p class="font-semibold text-gray-800">How they connect to P&amp;L:</p>
                 <ol class="list-decimal list-inside space-y-1 ml-1">
-                    <li><strong>Department</strong> &mdash; Operational units (Kitchen, Bar, etc.) mapped to a sales category. Set in <a href="{{ route('settings.departments') }}" class="text-brand-600 underline">Departments</a>.</li>
+                    <li><strong>Department</strong> &mdash; Operational units (Kitchen, Bar, etc.) mapped to a sales category. Set in @canDo('settings.departments')<a href="{{ route('settings.departments') }}" class="text-brand-600 underline">Departments</a>@else<span>Departments</span>@endcanDo.</li>
                     <li><strong>Sales Category</strong> (this page) &mdash; Departments map to a sales category so costs flow into the correct P&amp;L line alongside revenue.</li>
                 </ol>
             </div>

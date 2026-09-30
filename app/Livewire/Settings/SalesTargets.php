@@ -6,11 +6,14 @@ use App\Models\Outlet;
 use App\Models\SalesTarget;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use App\Livewire\Settings\Concerns\ValidatesCompanyRows;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class SalesTargets extends Component
 {
+    use ValidatesCompanyRows;
+
     use WithPagination;
 
     public bool $showModal = false;
@@ -26,7 +29,7 @@ class SalesTargets extends Component
     {
         return [
             'period'         => 'required|string|size:7|regex:/^\d{4}-\d{2}$/',
-            'outlet_id'      => 'nullable|exists:outlets,id',
+            'outlet_id'      => ['nullable', 'integer', $this->companyRowRule('outlets')],
             'target_revenue' => 'required|numeric|min:0',
             'target_pax'     => 'nullable|integer|min:0',
             'notes'          => 'nullable|string|max:500',

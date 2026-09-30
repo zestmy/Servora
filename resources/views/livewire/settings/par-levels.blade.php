@@ -100,6 +100,7 @@
     </div>
 
     {{-- Bulk tools --}}
+    @if ($canEdit)
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
         <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
             <div>
@@ -176,6 +177,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- Table --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -219,18 +221,22 @@
                                 @par-saved.window="if ($event.detail.id == {{ $ingredient->id }}) { saved = true; setTimeout(() => saved = false, 1200) }">
                                 <div class="flex items-center justify-end gap-2">
                                     <span x-show="saved" x-cloak x-transition.opacity class="text-success-600 text-xs font-medium whitespace-nowrap">Saved ✓</span>
-                                    @if ($sug > 0)
+                                    @if ($sug > 0 && $canEdit)
                                         <button type="button" wire:click="applySuggested({{ $ingredient->id }})"
                                                 title="Apply suggested ({{ rtrim(rtrim(number_format($sug, 2), '0'), '.') }} / mo from recent purchases)"
                                                 class="text-xs text-brand-500 hover:text-brand-700 whitespace-nowrap">
                                             ≈ {{ rtrim(rtrim(number_format($sug, 2), '0'), '.') }} ↑
                                         </button>
                                     @endif
+                                    @if (! $canEdit)
+                                        <span class="w-24 text-right tabular-nums text-sm text-gray-700">{{ $par > 0 ? rtrim(rtrim(number_format($par, 2), '0'), '.') : '—' }}</span>
+                                    @else
                                     <input type="number" step="0.01" min="0"
                                            wire:model.blur="parLevels.{{ $ingredient->id }}"
                                            x-on:keydown.enter.prevent="$el.blur(); const a = [...document.querySelectorAll('.par-input')]; const i = a.indexOf($el); if (a[i + 1]) a[i + 1].focus()"
                                            placeholder="0"
                                            class="par-input w-24 text-right rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500" />
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -253,10 +259,12 @@
     </div>
 
     {{-- Footer save (edits already auto-save; this is an explicit fallback) --}}
+    @if ($canEdit)
     <div class="flex justify-end mt-4">
         <button wire:click="saveAll"
                 class="btn-primary">
             Save All
         </button>
     </div>
+    @endif
 </div>

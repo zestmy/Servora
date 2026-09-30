@@ -1,3 +1,11 @@
+@php
+    // The page itself only needs purchasing.view, so every write control here
+    // is gated on its own ability — the actions re-check server-side.
+    $poUser      = auth()->user();
+    $poCanCreate = (bool) $poUser?->canDo('purchasing.orders.create');
+    $poCanEdit   = (bool) $poUser?->canDo('purchasing.orders.edit');
+    $poCanAuthor = $poCanCreate || $poCanEdit;
+@endphp
 <div class="card overflow-hidden">
 
     {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
@@ -40,11 +48,11 @@
                 <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
                     <x-doc-action-menu
                         :pdfUrl="route('purchasing.pdf', ['type' => 'po', 'id' => $po->id])"
-                        :duplicateUrl="route('purchasing.orders.create', ['duplicate' => $po->id])"
+                        :duplicateUrl="$poCanCreate ? route('purchasing.orders.create', ['duplicate' => $po->id]) : null"
                         :docNumber="$po->po_number"
                         docType="Purchase Order"
                     />
-                    @if ($po->status === 'draft')
+                    @if ($po->status === 'draft' && $poCanAuthor)
                         <button wire:click="submitPo({{ $po->id }})" wire:confirm="{{ $requirePoApproval ? "Submit '{$po->po_number}' for approval?" : "Submit & approve '{$po->po_number}'?" }}"
                                 class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">
                             {{ $requirePoApproval ? 'Submit' : 'Submit & Approve' }}
@@ -158,7 +166,7 @@
                             {{-- Action menu (PDF, Print, Duplicate, Share) --}}
                             <x-doc-action-menu
                                 :pdfUrl="route('purchasing.pdf', ['type' => 'po', 'id' => $po->id])"
-                                :duplicateUrl="route('purchasing.orders.create', ['duplicate' => $po->id])"
+                                :duplicateUrl="$poCanCreate ? route('purchasing.orders.create', ['duplicate' => $po->id]) : null"
                                 :docNumber="$po->po_number"
                                 docType="Purchase Order"
                             />
@@ -167,16 +175,20 @@
 
                             {{-- Draft: Edit, Submit, Delete --}}
                             @if ($po->status === 'draft')
+                                @if ($poCanEdit)
                                 <a href="{{ route('purchasing.orders.edit', $po->id) }}" title="Edit"
                                    class="text-brand-500 hover:text-brand-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
+                                @endif
+                                @if ($poCanAuthor)
                                 <button wire:click="submitPo({{ $po->id }})"
                                         wire:confirm="{{ $requirePoApproval ? "Submit '{$po->po_number}' for approval?" : "Submit & approve '{$po->po_number}'?" }}"
                                         title="{{ $requirePoApproval ? 'Submit' : 'Submit & Approve' }}"
                                         class="text-blue-500 hover:text-blue-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
+                                @endif
                                 @if ($canDeleteDraftPo ?? false)
                                 <button wire:click="delete({{ $po->id }})" data-confirm-delete="Delete '{{ $po->po_number }}'?"
                                         title="Delete" class="text-danger-400 hover:text-danger-600 transition p-1">
@@ -199,18 +211,22 @@
                                 @else
                                     <span class="text-xs text-yellow-600">Pending approval</span>
                                 @endif
+                                @if ($poCanAuthor)
                                 <button wire:click="cancel({{ $po->id }})" wire:confirm="Cancel '{{ $po->po_number }}'?"
                                         title="Cancel" class="text-orange-400 hover:text-orange-600 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
+                                @endif
                             @endif
 
                             {{-- Approved: Convert to DO, Send to supplier, Receive directly --}}
                             @if (in_array($po->status, ['approved', 'sent', 'partial']))
+                                @canDo('purchasing.orders.edit')
                                 <a href="{{ route('purchasing.convert-to-do', $po->id) }}" title="Record a delivery for this order — creates a delivery order and a goods received note to confirm against"
                                    class="text-success-500 hover:text-success-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                                 </a>
+                                @endcanDo
                                 <a href="{{ route('purchasing.orders.receive', $po->id) }}" title="Record what arrived — quantities, condition and costs"
                                    class="text-blue-500 hover:text-blue-700 transition p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>

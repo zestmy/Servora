@@ -84,7 +84,9 @@ class EmployeeCompensation extends Component
     public function saveAssignment(): void
     {
         $this->validate([
-            'a_component_id' => 'required|exists:pay_components,id',
+            // Scoped: a bare `exists` would accept another company's component.
+            'a_component_id' => ['required', \Illuminate\Validation\Rule::exists('pay_components', 'id')
+                ->where('company_id', Auth::user()->company_id)],
             'a_amount'       => 'required|numeric|min:0|max:9999999999.99',
             'a_from'         => 'required|date',
             'a_to'           => 'nullable|date',

@@ -102,7 +102,31 @@ class DutyRoster extends Component
 
     public function updatedOutletId(): void
     {
+        // outletId is client-writable: never load a roster for an outlet the
+        // user cannot reach (CompanyScope stops other companies, not other
+        // outlets of this one).
+        if ($this->outletId && ! $this->userCanAccessOutlet($this->outletId)) {
+            $this->outletId = Auth::user()?->activeOutletId();
+        }
+
         $this->loadRoster();
+    }
+
+    protected function userCanAccessOutlet(?int $outletId): bool
+    {
+        return $outletId !== null
+            && in_array((int) $outletId, Auth::user()?->accessibleOutletIds() ?? [], true);
+    }
+
+    /**
+     * A roster entry of THIS roster. RosterEntry has no CompanyScope, so a bare
+     * findOrFail() would reach any company's entry by id.
+     */
+    protected function rosterEntry(int $entryId): RosterEntry
+    {
+        abort_unless($this->roster, 404);
+
+        return RosterEntry::where('roster_id', $this->roster->id)->findOrFail($entryId);
     }
 
     public function updatedSectionId(): void
@@ -176,6 +200,9 @@ class DutyRoster extends Component
             session()->flash('error', 'You do not have permission to create rosters.');
             return;
         }
+
+        abort_unless($this->userCanAccessOutlet($this->outletId), 403);
+        abort_unless(Section::whereKey($this->sectionId)->exists(), 404);
 
         $this->roster = Roster::create([
             'company_id' => Auth::user()->company_id,
@@ -280,6 +307,8 @@ class DutyRoster extends Component
             return;
         }
 
+        abort_unless(Auth::user()?->canDo('roster.edit'), 403);
+
         foreach ($orderedIds as $index => $employeeId) {
             RosterEntry::where('roster_id', $this->roster->id)
                 ->where('employee_id', $employeeId)
@@ -340,7 +369,7 @@ class DutyRoster extends Component
 
     public function openEditEntry(int $entryId): void
     {
-        $entry = RosterEntry::findOrFail($entryId);
+        $entry = $this->rosterEntry($entryId);
 
         // Check if editing approved roster (requires amend permission)
         if ($this->roster && $this->roster->isApproved()) {
@@ -672,10 +701,29 @@ class DutyRoster extends Component
 
     public function saveEntry(): void
     {
-        // Validate fields
+        if (! $this->roster) {
+            return;
+        }
+
+        // A draft is edited under roster.edit; an approved roster is amended
+        // under roster.amend. Anything else (submitted, rejected) is read-only.
+        if ($this->roster->isApproved()) {
+            abort_unless(Auth::user()?->canDo('roster.amend'), 403);
+        } elseif ($this->roster->isDraft()) {
+            abort_unless(Auth::user()?->canDo('roster.edit'), 403);
+        } else {
+            session()->flash('error', 'Cannot edit entries in a submitted roster.');
+            return;
+        }
+
+        // Validate fields — the employee and station must be this company's /
+        // this outlet's, since `exists` alone ignores global scopes.
         $this->validate([
-            'f_employee_id' => 'required|exists:employees,id',
+            'f_employee_id' => ['required', \Illuminate\Validation\Rule::exists('employees', 'id')
+                ->where('company_id', Auth::user()->company_id)],
             'f_day_date' => 'required|date',
+            'f_station_id' => ['nullable', \Illuminate\Validation\Rule::exists('roster_stations', 'id')
+                ->where('outlet_id', $this->roster->outlet_id)],
         ]);
 
         // For approved rosters, require amendment reason
@@ -706,7 +754,7 @@ class DutyRoster extends Component
         ];
 
         if ($this->editingEntryId) {
-            $entry = RosterEntry::findOrFail($this->editingEntryId);
+            $entry = $this->rosterEntry($this->editingEntryId);
             $oldData = $entry->toArray();
             $entry->update($data);
 
@@ -772,6 +820,8 @@ class DutyRoster extends Component
 
     public function confirmAmendment(): void
     {
+        abort_unless(Auth::user()?->canDo('roster.amend'), 403);
+
         if (empty($this->amendment_reason)) {
             $this->addError('amendment_reason', 'Please provide a reason for this amendment.');
             return;
@@ -787,7 +837,9 @@ class DutyRoster extends Component
             return;
         }
 
-        RosterEntry::findOrFail($id)->delete();
+        abort_unless(Auth::user()?->canDo('roster.edit'), 403);
+
+        $this->rosterEntry($id)->delete();
         $this->loadRoster();
         session()->flash('success', 'Entry removed.');
     }
@@ -807,7 +859,7 @@ class DutyRoster extends Component
             return;
         }
 
-        $entry = RosterEntry::findOrFail($entryId);
+        $entry = $this->rosterEntry($entryId);
         $nextDate = Carbon::parse($entry->day_date)->addDay();
         $weekEnd = Carbon::parse($this->weekEnd);
 
@@ -845,7 +897,7 @@ class DutyRoster extends Component
             return;
         }
 
-        $entry = RosterEntry::findOrFail($entryId);
+        $entry = $this->rosterEntry($entryId);
         $entryDate = Carbon::parse($entry->day_date);
         $weekEnd = Carbon::parse($this->weekEnd);
 
@@ -916,6 +968,11 @@ class DutyRoster extends Component
             return;
         }
 
+        if (!Auth::user()?->canDo('roster.edit')) {
+            session()->flash('error', 'You do not have permission to edit rosters.');
+            return;
+        }
+
         $this->remark_date = $date;
         $this->remark_type = 'custom';
         $this->remark_text = '';
@@ -940,6 +997,13 @@ class DutyRoster extends Component
 
     public function saveRemark(): void
     {
+        if (!$this->roster || !$this->roster->isDraft()) {
+            session()->flash('error', 'Day remarks can only be changed while the roster is a draft.');
+            return;
+        }
+
+        abort_unless(Auth::user()?->canDo('roster.edit'), 403);
+
         $this->validate([
             'remark_date' => 'required|date',
             'remark_type' => 'required|in:public_holiday,stocktake,event,custom',
@@ -961,6 +1025,8 @@ class DutyRoster extends Component
         if (!$this->roster || !$this->roster->isDraft()) {
             return;
         }
+
+        abort_unless(Auth::user()?->canDo('roster.edit'), 403);
 
         RosterDayRemark::where('roster_id', $this->roster->id)
             ->where('day_date', $date)
@@ -1053,6 +1119,9 @@ class DutyRoster extends Component
             return;
         }
 
+        $user = Auth::user();
+        abort_unless($user?->canDo('roster.edit') || $user?->canDo('roster.approve'), 403);
+
         $this->roster->revertToDraft();
         $this->loadRoster();
         session()->flash('success', 'Roster reverted to draft.');
@@ -1094,7 +1163,8 @@ class DutyRoster extends Component
         }
 
         // Check if user is an approver for this outlet
-        return RosterApprover::where('outlet_id', $this->outletId)
+        // The roster's own outlet, not the client-writable $outletId.
+        return RosterApprover::where('outlet_id', $this->roster?->outlet_id ?? $this->outletId)
             ->where('user_id', $user->id)
             ->exists();
     }
@@ -1119,6 +1189,11 @@ class DutyRoster extends Component
             return;
         }
 
+        if (!$this->canSendEmail()) {
+            session()->flash('error', 'You do not have permission to email rosters.');
+            return;
+        }
+
         $this->email_to_employees = true;
         $this->email_recipient_ids = [];
         $this->email_additional = '';
@@ -1130,11 +1205,21 @@ class DutyRoster extends Component
         $this->showEmailModal = false;
     }
 
+    /** Emailing a roster goes to staff and outside addresses: editors and approvers only. */
+    public function canSendEmail(): bool
+    {
+        $user = Auth::user();
+
+        return (bool) ($user?->canDo('roster.edit') || $user?->canDo('roster.approve'));
+    }
+
     public function sendEmail(): void
     {
         if (!$this->roster) {
             return;
         }
+
+        abort_unless($this->canSendEmail(), 403);
 
         $additionalEmails = array_filter(
             array_map('trim', explode(',', $this->email_additional))
@@ -1143,7 +1228,11 @@ class DutyRoster extends Component
         $result = RosterEmailService::send(
             roster: $this->roster,
             sendToEmployees: $this->email_to_employees,
-            customRecipientIds: $this->email_recipient_ids,
+            // Only this roster outlet's saved recipients — the ids come from
+            // the browser and RosterEmailRecipient has no CompanyScope.
+            customRecipientIds: RosterEmailRecipient::where('outlet_id', $this->roster->outlet_id)
+                ->whereIn('id', array_map('intval', $this->email_recipient_ids))
+                ->pluck('id')->all(),
             additionalEmails: $additionalEmails
         );
 

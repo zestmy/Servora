@@ -74,7 +74,7 @@ class CreditNoteDisposesAssetTest extends TestCase
 
         setPermissionsTeamId($this->company->id);
         $this->user->givePermissionTo(collect([
-            'purchasing.view', 'purchasing.credit_notes.create', 'purchasing.credit_notes.edit',
+            'purchasing.view', 'purchasing.invoice',
             'assets.view', 'assets.movements.record',
         ])->map(fn ($p) => Permission::findOrCreate($p, 'web'))->all());
         app(PermissionRegistrar::class)->forgetCachedPermissions();

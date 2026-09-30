@@ -18,7 +18,7 @@
      boxes with four separate borders is the layout arguing they are unrelated
      measurements, which is exactly the reading to avoid. --}}
 <div class="card mb-6 p-6">
-    <x-card-title :action="'Full report'" :action-href="route('reports.index')">
+    <x-card-title :action="'Full report'" :action-href="auth()->user()?->canDo('reports.view') ? route('reports.index') : null">
         Profit and loss
     </x-card-title>
 
@@ -104,6 +104,7 @@
         'value' => number_format($pendingPOs),
         'color' => $pendingPOs > 0 ? 'amber' : null,
         'href'  => route('purchasing.index', ['tab' => 'po']),
+        'can'   => 'purchasing.view',
     ];
 @endphp
 
@@ -129,7 +130,7 @@
 {{-- COGS Breakdown --}}
 @if (! empty($costSummary['categories']))
     <div class="card p-6">
-        <x-card-title :action="'View full report'" :action-href="route('reports.index')">
+        <x-card-title :action="'View full report'" :action-href="auth()->user()?->canDo('reports.view') ? route('reports.index') : null">
             Cost of goods sold by category
         </x-card-title>
 

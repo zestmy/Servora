@@ -133,8 +133,16 @@ class StockCard extends Component
     {
         $from = $this->dateFrom;
         $to = $this->dateTo;
-        $ingredientId = $this->ingredientFilter;
-        $outletId = $this->outletFilter;
+
+        // The ingredient id is browser input. Only one the company-scoped
+        // Ingredient lookup finds may be carded; another company's id reads
+        // as nothing at all.
+        $ingredient = $this->stockCardIngredient();
+        if (! $ingredient) {
+            return collect();
+        }
+        $ingredientId = $ingredient->id;
+        $companyId = $this->reportCompanyId();
 
         $movements = collect();
 
@@ -145,7 +153,8 @@ class StockCard extends Component
             ->where('purchase_record_lines.ingredient_id', $ingredientId)
             ->whereBetween('pr.purchase_date', [$from, $to])
             ->whereNull('pr.deleted_at')
-            ->when($outletId, fn ($q) => $q->where('pr.outlet_id', $outletId))
+            ->where('pr.company_id', $companyId)
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'pr.outlet_id'))
             ->get();
 
         foreach ($purchases as $p) {
@@ -167,7 +176,8 @@ class StockCard extends Component
             ->where('wastage_record_lines.ingredient_id', $ingredientId)
             ->whereBetween('wr.wastage_date', [$from, $to])
             ->whereNull('wr.deleted_at')
-            ->when($outletId, fn ($q) => $q->where('wr.outlet_id', $outletId))
+            ->where('wr.company_id', $companyId)
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'wr.outlet_id'))
             ->get();
 
         foreach ($wastage as $w) {
@@ -189,7 +199,8 @@ class StockCard extends Component
             ->where('outlet_transfer_lines.ingredient_id', $ingredientId)
             ->whereBetween('ot.transfer_date', [$from, $to])
             ->whereNull('ot.deleted_at')
-            ->when($outletId, fn ($q) => $q->where('ot.to_outlet_id', $outletId))
+            ->where('ot.company_id', $companyId)
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'ot.to_outlet_id'))
             ->get();
 
         foreach ($transfersIn as $t) {
@@ -211,7 +222,8 @@ class StockCard extends Component
             ->where('outlet_transfer_lines.ingredient_id', $ingredientId)
             ->whereBetween('ot.transfer_date', [$from, $to])
             ->whereNull('ot.deleted_at')
-            ->when($outletId, fn ($q) => $q->where('ot.from_outlet_id', $outletId))
+            ->where('ot.company_id', $companyId)
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'ot.from_outlet_id'))
             ->get();
 
         foreach ($transfersOut as $t) {
@@ -233,7 +245,8 @@ class StockCard extends Component
             ->where('stock_take_lines.ingredient_id', $ingredientId)
             ->whereBetween('st.stock_take_date', [$from, $to])
             ->whereNull('st.deleted_at')
-            ->when($outletId, fn ($q) => $q->where('st.outlet_id', $outletId))
+            ->where('st.company_id', $companyId)
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'st.outlet_id'))
             ->get();
 
         foreach ($stockTakes as $s) {

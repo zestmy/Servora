@@ -352,7 +352,9 @@
                     their employee record.
                 </p>
             </div>
+            @canDo('hr.clock.manage')
             <a href="{{ route('hr.clock-devices') }}" wire:navigate class="btn-secondary">Manage kiosks</a>
+            @endcanDo
         </div>
 
         <div class="mt-4 space-y-3">

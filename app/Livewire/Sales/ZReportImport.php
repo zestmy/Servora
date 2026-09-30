@@ -132,6 +132,10 @@ class ZReportImport extends Component
 
     public function processZReport(): void
     {
+        // Embedded in the Sales page, whose route asks only for sales.view; a Livewire
+        // action is its own request, so importing is authorised here.
+        abort_unless(auth()->user()?->canDo('sales.import'), 403);
+
         $this->validate(['importFile' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480']);
 
         $this->importError      = '';
@@ -272,6 +276,10 @@ class ZReportImport extends Component
 
     public function saveAll(): void
     {
+        // Embedded in the Sales page, whose route asks only for sales.view; a Livewire
+        // action is its own request, so importing is authorised here.
+        abort_unless(auth()->user()?->canDo('sales.import'), 403);
+
         $hasSessions = $this->hasSessionEntries();
 
         $rules = [

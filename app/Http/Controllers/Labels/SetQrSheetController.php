@@ -41,6 +41,7 @@ class SetQrSheetController extends Controller
         // is what stops a manager printing another outlet's stations.
         $outlet = Outlet::where('company_id', Auth::user()->company_id)
             ->findOrFail($outletId);
+        abort_unless(Auth::user()->canAccessOutlet($outlet->id), 404);
 
         $sets = LabelSet::forOutlet($outlet->id)
             ->when($singleId, fn ($q) => $q->where('id', $singleId))

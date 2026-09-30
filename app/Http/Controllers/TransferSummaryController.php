@@ -122,9 +122,9 @@ class TransferSummaryController extends Controller
             ? [$this->selectedOutletId($request->query('outlet'))]
             : $this->availableOutletIds();
 
-        if (! empty($ids)) {
-            $query->where(fn ($q) => $q->whereIn('from_outlet_id', $ids)->orWhereIn('to_outlet_id', $ids));
-        }
+        // Fail closed: an empty list is a restricted user with no outlets.
+        $ids = $ids ?: [0];
+        $query->where(fn ($q) => $q->whereIn('from_outlet_id', $ids)->orWhereIn('to_outlet_id', $ids));
 
         if ($status !== '') {
             $query->where('status', $status);

@@ -74,9 +74,7 @@ class PurchaseAnalysis extends Component
             ])
             ->groupBy('s.name', 'category_name');
 
-        if ($this->outletFilter) {
-            $query->where('purchase_records.outlet_id', $this->outletFilter);
-        }
+        $this->applyReportOutletScope($query, 'purchase_records.outlet_id');
 
         if ($this->supplierFilter) {
             $query->where('purchase_records.supplier_id', $this->supplierFilter);

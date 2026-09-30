@@ -19,7 +19,7 @@
      where everything is 100% fresh by definition. --}}
 <div class="card mb-6 p-6">
     <x-card-title :action="$expiringCount > $expiring->count() ? 'View all (' . $expiringCount . ')' : ($expiringCount > 0 ? 'Open list' : null)"
-                  :action-href="route('labels.expiring')">
+                  :action-href="auth()->user()?->canDo('labels.print') ? route('labels.expiring') : null">
         Expiring within 24 hours
     </x-card-title>
 
@@ -60,12 +60,14 @@
             'color' => $expiringCount > 0 ? 'amber' : null,
             'sub'   => 'Within 24 hours',
             'href'  => route('labels.expiring'),
+            'can'   => 'labels.print',
         ],
         [
             'label' => 'GRN to receive',
             'value' => number_format($pendingGrns),
             'color' => $pendingGrns > 0 ? 'amber' : null,
             'href'  => route('purchasing.index', ['tab' => 'grn']),
+            'can'   => 'purchasing.view',
         ],
         [
             'label'   => 'Wastage',
@@ -83,6 +85,7 @@
             'color' => $overCostCount > 0 ? 'amber' : null,
             'sub'   => 'Above ' . rtrim(rtrim(number_format((float) config('costing.target.over'), 1), '0'), '.') . '% target',
             'href'  => route('recipes.index'),
+            'can'   => 'recipes.view',
         ],
     ];
 @endphp
@@ -98,7 +101,7 @@
          place, so ranking the worst five costs nothing extra. --}}
     <div class="card p-6">
         <x-card-title :action="$overCostCount > count($overCostRecipes) ? 'All ' . $overCostCount : null"
-                      :action-href="route('recipes.index')">
+                      :action-href="auth()->user()?->canDo('recipes.view') ? route('recipes.index') : null">
             Worst food cost
         </x-card-title>
 
@@ -106,7 +109,9 @@
             <ul class="stack -mx-2">
                 @foreach ($overCostRecipes as $recipe)
                     <li class="flex items-center justify-between gap-4 px-2 py-2.5">
-                        <a href="{{ route('recipes.edit', $recipe['id']) }}"
+                        {{-- The read-only view: this card is on a recipes.view dashboard,
+                             and recipes.edit needs recipes.manage. --}}
+                        <a href="{{ route('recipes.show', $recipe['id']) }}"
                            class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 hover:text-brand-700 hover:underline">
                             {{ $recipe['name'] }}
                         </a>
@@ -132,7 +137,8 @@
 
     {{-- Last Stock Take --}}
     <div class="card p-6">
-        <x-card-title :action="'New stock take'" :action-href="route('inventory.stock-takes.create')">
+        <x-card-title :action="'New stock take'"
+                      :action-href="auth()->user()?->canDo('inventory.stock_takes.record') ? route('inventory.stock-takes.create') : null">
             Last stock take
         </x-card-title>
 

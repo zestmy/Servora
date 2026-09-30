@@ -142,7 +142,7 @@ class Sets extends Component
 
     public function openRename(int $id): void
     {
-        $set = LabelSet::findOrFail($id);
+        $set = LabelSet::whereIn('outlet_id', Auth::user()->accessibleOutletIds())->findOrFail($id);
 
         $this->modalSetId    = $set->id;
         $this->name          = $set->name;
@@ -174,7 +174,7 @@ class Sets extends Component
         ];
 
         if ($this->modalSetId) {
-            LabelSet::findOrFail($this->modalSetId)->update([
+            LabelSet::whereIn('outlet_id', Auth::user()->accessibleOutletIds())->findOrFail($this->modalSetId)->update([
                 'name'        => $this->name,
                 'description' => $this->description ?: null,
             ] + $storage);
@@ -394,7 +394,9 @@ class Sets extends Component
 
     public function deleteSet(int $id): void
     {
-        LabelSet::findOrFail($id)->delete();
+        // CompanyScope covers other companies; a set also belongs to ONE
+        // outlet, and deleting it is only for someone who can reach that one.
+        LabelSet::whereIn('outlet_id', Auth::user()->accessibleOutletIds())->findOrFail($id)->delete();
 
         if ($this->editingSetId === $id) {
             $this->editingSetId = null;

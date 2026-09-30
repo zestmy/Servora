@@ -374,7 +374,7 @@
                                 @elseif ($req->isPending())
                                     <span class="text-[11px] text-gray-500">awaiting approval</span>
                                 @endif
-                                @if (in_array($req->status, ['pending', 'approved'], true))
+                                @if (in_array($req->status, ['pending', 'approved'], true) && $this->canCancel($req))
                                     <button wire:click="cancel({{ $req->id }})"
                                             wire:confirm="Cancel this leave? The days go back on the balance."
                                             class="ml-3 text-xs font-medium text-gray-600 hover:text-gray-900">Cancel</button>

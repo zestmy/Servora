@@ -1,3 +1,12 @@
+@php
+    // The page itself only needs purchasing.view, so every write control here
+    // is gated on its own ability — the actions re-check server-side.
+    $prUser      = auth()->user();
+    $prCanCreate = (bool) $prUser?->canDo('purchasing.requests.create');
+    $prCanEdit   = (bool) $prUser?->canDo('purchasing.requests.edit');
+    $prCanAuthor = $prCanCreate || $prCanEdit;
+    $prCanRevert = $prCanEdit || (bool) $prUser?->canDo('purchasing.request');
+@endphp
 <div class="card overflow-hidden">
 
     {{-- ── Mobile cards (md:hidden) ──────────────────────────────────────── --}}
@@ -42,11 +51,11 @@
                 <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
                     <x-doc-action-menu
                         :pdfUrl="route('purchasing.pdf', ['type' => 'pr', 'id' => $pr->id])"
-                        :duplicateUrl="route('purchasing.requests.create', ['duplicate' => $pr->id])"
+                        :duplicateUrl="$prCanCreate ? route('purchasing.requests.create', ['duplicate' => $pr->id]) : null"
                         :docNumber="$pr->pr_number"
                         docType="Purchase Request"
                     />
-                    @if ($pr->status === 'draft')
+                    @if ($pr->status === 'draft' && $prCanAuthor)
                         <button wire:click="submitPr({{ $pr->id }})" wire:confirm="Submit this purchase request?"
                                 class="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">Submit</button>
                     @elseif ($mCanApprove)
@@ -138,7 +147,7 @@
                             {{-- Action menu (PDF, Print, Duplicate, Share) --}}
                             <x-doc-action-menu
                                 :pdfUrl="route('purchasing.pdf', ['type' => 'pr', 'id' => $pr->id])"
-                                :duplicateUrl="route('purchasing.requests.create', ['duplicate' => $pr->id])"
+                                :duplicateUrl="$prCanCreate ? route('purchasing.requests.create', ['duplicate' => $pr->id]) : null"
                                 :docNumber="$pr->pr_number"
                                 docType="Purchase Request"
                             />
@@ -172,14 +181,18 @@
 
                             {{-- Draft: Edit / Submit / Delete --}}
                             @if ($pr->status === 'draft')
+                                @if ($prCanEdit)
                                 <a href="{{ route('purchasing.requests.edit', $pr->id) }}" title="Edit"
                                    class="text-gray-600 hover:text-brand-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
+                                @endif
+                                @if ($prCanAuthor)
                                 <button wire:click="submitPr({{ $pr->id }})" wire:confirm="Submit this purchase request?"
                                         title="Submit for Approval" class="text-gray-600 hover:text-success-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
+                                @endif
                                 @if ($canDeleteDraftPr ?? false)
                                 <button wire:click="deletePr({{ $pr->id }})" data-confirm-delete="Delete this draft?"
                                         title="Delete" class="text-gray-600 hover:text-danger-600 transition p-1">
@@ -196,14 +209,16 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                                 </a>
                                 @endcanDo
+                                @if ($prCanRevert)
                                 <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
                                         title="Revert to Draft" class="text-gray-600 hover:text-warning-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
                                 </button>
+                                @endif
                             @endif
 
                             {{-- Rejected: revert to draft to fix and resubmit --}}
-                            @if ($pr->status === 'rejected')
+                            @if ($pr->status === 'rejected' && $prCanRevert)
                                 <button wire:click="revertPrToDraft({{ $pr->id }})" wire:confirm="Revert this PR to draft for editing?"
                                         title="Revert to Draft" class="text-gray-600 hover:text-warning-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
@@ -219,7 +234,7 @@
                             @endif
 
                             {{-- Cancel (draft or submitted) --}}
-                            @if (in_array($pr->status, ['draft', 'submitted']) && $pr->status !== 'draft')
+                            @if (in_array($pr->status, ['draft', 'submitted']) && $pr->status !== 'draft' && $prCanAuthor)
                                 <button wire:click="cancelPr({{ $pr->id }})" wire:confirm="Cancel this purchase request?"
                                         title="Cancel" class="text-gray-600 hover:text-danger-600 transition p-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

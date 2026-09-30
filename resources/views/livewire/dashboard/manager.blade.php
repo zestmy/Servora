@@ -20,9 +20,15 @@
     $avgCheck        = ($today && $today['pax'] > 0) ? $today['revenue'] / $today['pax'] : null;
     $typicalAvgCheck = ($typical && $typical['pax'] > 0) ? $typical['revenue'] / $typical['pax'] : null;
 
+    // This is also the fallback dashboard for anyone who matches no other
+    // branch, so each figure is shown only to someone allowed to see it:
+    // takings need sales.view, the PO queue needs purchasing.view.
+    $seesSales      = auth()->user()?->canDo('sales.view');
+    $seesPurchasing = auth()->user()?->canDo('purchasing.view');
+
     $leadTiles = [];
 
-    if ($today) {
+    if ($today && $seesSales) {
         /*
          * Compared against the trailing average for the SAME WEEKDAY, not
          * against yesterday and not against the month's daily mean. A Monday
@@ -58,8 +64,8 @@
         ];
     }
 
-    $periodTiles = [
-        [
+    $periodTiles = array_values(array_filter([
+        ! $seesSales ? null : [
             'label'   => $periodLabel . ' revenue',
             'prefix'  => 'RM',
             'value'   => number_format($revenue['value'], 0),
@@ -72,7 +78,7 @@
             // month in the reader's head.
             'sub'     => $runRate !== null ? 'On track for RM ' . number_format($runRate, 0) : null,
         ],
-        [
+        ! $seesPurchasing ? null : [
             'label' => 'Pending POs',
             'value' => number_format($pendingPOs),
             'color' => $pendingPOs > 0 ? 'amber' : null,
@@ -80,27 +86,33 @@
                         ? 'Oldest waiting ' . $oldestPoWait . ' ' . Str::plural('day', $oldestPoWait)
                         : null,
             'href'  => route('purchasing.index', ['tab' => 'po']),
+            'can'   => 'purchasing.view',
         ],
-        [
+        ! $seesPurchasing ? null : [
             'label' => 'GRN to receive',
             'value' => number_format($pendingGrns),
             'color' => $pendingGrns > 0 ? 'amber' : null,
             'href'  => route('purchasing.index', ['tab' => 'grn']),
+            'can'   => 'purchasing.view',
         ],
-    ];
+    ]));
 @endphp
 
 @if ($leadTiles)
     @include('livewire.dashboard.partials.stat-cards', ['stats' => $leadTiles])
 @endif
 
-@include('livewire.dashboard.partials.stat-cards', ['stats' => $periodTiles])
+@if ($periodTiles)
+    @include('livewire.dashboard.partials.stat-cards', ['stats' => $periodTiles])
+@endif
 
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
     {{-- Revenue vs cost of sales --}}
-    <div class="card p-6 lg:col-span-2">
-        @include('livewire.dashboard.partials.trend-chart', ['trendMonths' => $trendMonths])
-    </div>
+    @if ($seesSales)
+        <div class="card p-6 lg:col-span-2">
+            @include('livewire.dashboard.partials.trend-chart', ['trendMonths' => $trendMonths])
+        </div>
+    @endif
 
     {{-- Quick Actions --}}
     <div class="card p-6">

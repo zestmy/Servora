@@ -31,7 +31,12 @@ class ProductionExecute extends Component
             return;
         }
 
+        // Opening a scheduled order STARTS it — a write, and one only somebody
+        // who may run production gets to make. The kitchen routes carry only
+        // `kitchen.user`, so nothing upstream asked.
         if ($this->order->status === 'scheduled') {
+            abort_unless(Auth::user()?->canRunProduction($this->order->kitchen_id), 403);
+
             $this->order->update(['status' => 'in_progress', 'started_at' => now()]);
             $this->order->refresh();
         }
@@ -48,6 +53,8 @@ class ProductionExecute extends Component
      */
     public function saveProgress(): void
     {
+        abort_unless(Auth::user()?->canRunProduction($this->order->kitchen_id), 403);
+
         $this->validate([
             'actuals'   => 'array',
             'actuals.*' => 'nullable|numeric|min:0',

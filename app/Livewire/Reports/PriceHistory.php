@@ -129,6 +129,17 @@ class PriceHistory extends Component
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Price History']);
     }
 
+    private function companyId(): int
+    {
+        return (int) \Illuminate\Support\Facades\Auth::user()->company_id;
+    }
+
+    /** The active company's ingredient ids, as a subquery (soft-deleted included, as the join does). */
+    private function companyIngredientIds()
+    {
+        return DB::table('ingredients')->select('id')->where('company_id', $this->companyId());
+    }
+
     private function applyPeriod(): void
     {
         $now = now();
@@ -142,7 +153,10 @@ class PriceHistory extends Component
 
     private function getStats(Carbon $from, Carbon $to): array
     {
-        $records = IngredientPriceHistory::whereBetween('effective_date', [$from, $to]);
+        // ingredient_price_history has no company column and no global scope:
+        // it belongs to the company that owns the ingredient.
+        $records = IngredientPriceHistory::whereBetween('effective_date', [$from, $to])
+            ->whereIn('ingredient_id', $this->companyIngredientIds());
 
         if ($this->supplierFilter) {
             $records->where('supplier_id', $this->supplierFilter);
@@ -178,6 +192,7 @@ class PriceHistory extends Component
                 ORDER BY iph4.effective_date DESC, iph4.id DESC
                 LIMIT 1) as last_cost', [$from, $to])
             ->whereBetween('effective_date', [$from, $to])
+            ->whereIn('ingredient_id', $this->companyIngredientIds())
             ->groupBy('ingredient_id')
             ->get();
 
@@ -278,6 +293,7 @@ class PriceHistory extends Component
                           LIMIT 1) as last_cost"),
                 DB::raw('MAX(iph.effective_date) as latest_date'),
             ])
+            ->where('i.company_id', $this->companyId())
             ->whereBetween('iph.effective_date', [$from, $to])
             ->groupBy('i.id', 'i.name', 'i.code', 'u.abbreviation', 'ic.name');
 

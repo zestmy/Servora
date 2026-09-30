@@ -12,10 +12,13 @@ use App\Models\IngredientCategory;
 use App\Models\Recipe;
 use App\Models\Supplier;
 use App\Models\UnitOfMeasure;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class FormTemplateEdit extends Component
 {
+    // Set once in mount() from a company-scoped lookup; every line write trusts it.
+    #[Locked]
     public ?int   $templateId  = null;
     public string $name        = '';
     public string $form_type   = '';
@@ -130,6 +133,8 @@ class FormTemplateEdit extends Component
 
     public function addIngredient(int $ingredientId): void
     {
+        $this->ownTemplate();
+
         foreach ($this->lines as $line) {
             if ($line['item_type'] === 'ingredient' && (int) $line['ingredient_id'] === $ingredientId) {
                 $this->itemSearch = '';
@@ -144,6 +149,8 @@ class FormTemplateEdit extends Component
 
     public function loadByCategory(int $categoryId): void
     {
+        $this->ownTemplate();
+
         $category = IngredientCategory::with('children')->find($categoryId);
         if (!$category) return;
 
@@ -181,6 +188,8 @@ class FormTemplateEdit extends Component
 
     public function loadBySupplier(int $supplierId): void
     {
+        $this->ownTemplate();
+
         $supplier = Supplier::find($supplierId);
         if (!$supplier) return;
 
@@ -253,6 +262,8 @@ class FormTemplateEdit extends Component
      */
     public function addAsset(int $assetId): void
     {
+        $this->ownTemplate();
+
         foreach ($this->lines as $line) {
             if ($line['item_type'] === 'asset' && (int) ($line['asset_id'] ?? 0) === $assetId) {
                 $this->itemSearch = '';
@@ -267,6 +278,8 @@ class FormTemplateEdit extends Component
 
     public function loadByAssetCategory(int $categoryId): void
     {
+        $this->ownTemplate();
+
         $category = AssetCategory::find($categoryId);
         if (! $category) return;
 
@@ -320,6 +333,8 @@ class FormTemplateEdit extends Component
 
     public function addRecipe(int $recipeId): void
     {
+        $this->ownTemplate();
+
         foreach ($this->lines as $line) {
             if ($line['item_type'] === 'recipe' && (int) $line['recipe_id'] === $recipeId) {
                 $this->itemSearch = '';
@@ -388,9 +403,27 @@ class FormTemplateEdit extends Component
         ));
     }
 
+    /**
+     * The template being edited, re-read through the company scope. #[Locked] stops
+     * the client swapping templateId; this also refuses a template that has since
+     * been deleted or moved, so no line is ever written against someone else's.
+     */
+    private function ownTemplate(): FormTemplate
+    {
+        return FormTemplate::findOrFail($this->templateId);
+    }
+
+    /** Lines of THIS template only — line ids arrive from the browser. */
+    private function ownLines()
+    {
+        $this->ownTemplate();
+
+        return FormTemplateLine::where('form_template_id', $this->templateId);
+    }
+
     public function removeLine(int $lineId): void
     {
-        FormTemplateLine::destroy($lineId);
+        $this->ownLines()->whereKey($lineId)->delete();
         $this->lines = array_values(array_filter($this->lines, fn ($l) => $l['id'] !== $lineId));
     }
 
@@ -423,9 +456,10 @@ class FormTemplateEdit extends Component
         }
 
         $ids = array_map('intval', $orderedIds);
+        $this->ownTemplate();
 
         foreach ($ids as $idx => $id) {
-            FormTemplateLine::where('id', $id)->update(['sort_order' => $idx]);
+            FormTemplateLine::where('form_template_id', $this->templateId)->whereKey($id)->update(['sort_order' => $idx]);
         }
 
         $byId = collect($this->lines)->keyBy('id');
@@ -443,7 +477,7 @@ class FormTemplateEdit extends Component
     public function updateQty(int $lineId, string $qty): void
     {
         $val = max(0, (int) $qty);
-        FormTemplateLine::where('id', $lineId)->update(['default_quantity' => $val]);
+        $this->ownLines()->whereKey($lineId)->update(['default_quantity' => $val]);
 
         foreach ($this->lines as &$line) {
             if ($line['id'] === $lineId) {

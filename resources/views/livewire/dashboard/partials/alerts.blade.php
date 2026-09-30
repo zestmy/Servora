@@ -72,7 +72,7 @@
                         {{ $alert['message'] }}
                     </p>
 
-                    @if (! empty($alert['href']))
+                    @if (! empty($alert['href']) && (! isset($alert['can']) || auth()->user()?->canDo($alert['can'])))
                         <a href="{{ $alert['href'] }}" class="btn-secondary btn-sm flex-none">
                             {{ $alert['action'] ?? 'Review' }}
                         </a>

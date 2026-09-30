@@ -10,10 +10,13 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Livewire\Settings\Concerns\ValidatesCompanyRows;
 use Livewire\Component;
 
 class PoApprovers extends Component
 {
+    use ValidatesCompanyRows;
+
     // Settings toggles
     public bool $requirePoApproval = true;
     public string $orderingMode = 'direct';
@@ -99,7 +102,11 @@ class PoApprovers extends Component
     public function save(): void
     {
         $this->validate([
-            'selectedUserId' => 'required|exists:users,id',
+            'selectedUserId'          => ['required', 'integer', $this->companyUserRule()],
+            'selectedOutletIds'       => 'array',
+            'selectedOutletIds.*'     => ['integer', $this->companyRowRule('outlets')],
+            'selectedDepartmentIds'   => 'array',
+            'selectedDepartmentIds.*' => ['integer', $this->companyRowRule('departments')],
         ]);
 
         $companyId = Auth::user()->company_id;

@@ -44,9 +44,13 @@ class StockBalanceProduct extends Component
 
     private function buildQuery()
     {
-        $from = $this->dateFrom;
-        $to = $this->dateTo;
-        $outletId = $this->outletFilter;
+        // These subqueries are hand-built SQL, so everything placed in them is
+        // either a validated Y-m-d or an integer. Each is bounded to the active
+        // company on its parent table: the line tables carry no company of
+        // their own and raw SQL applies no global scope.
+        $from = $this->reportDate($this->dateFrom, now()->startOfMonth()->toDateString());
+        $to = $this->reportDate($this->dateTo, now()->toDateString());
+        $companyId = $this->reportCompanyId();
 
         // Opening qty: latest stock take actual_quantity BEFORE dateFrom
         $openingSub = DB::raw("(
@@ -54,7 +58,8 @@ class StockBalanceProduct extends Component
             FROM stock_take_lines stl
             JOIN stock_takes st ON st.id = stl.stock_take_id
             WHERE stl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND st.outlet_id = {$outletId}" : "") . "
+            AND st.company_id = {$companyId}
+            " . $this->reportOutletSql('st.outlet_id') . "
             AND st.stock_take_date < '{$from}'
             ORDER BY st.stock_take_date DESC, stl.id DESC
             LIMIT 1
@@ -66,7 +71,8 @@ class StockBalanceProduct extends Component
             FROM purchase_record_lines prl
             JOIN purchase_records pr ON pr.id = prl.purchase_record_id
             WHERE prl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND pr.outlet_id = {$outletId}" : "") . "
+            AND pr.company_id = {$companyId}
+            " . $this->reportOutletSql('pr.outlet_id') . "
             AND pr.purchase_date BETWEEN '{$from}' AND '{$to}'
             AND pr.deleted_at IS NULL
         )");
@@ -77,7 +83,8 @@ class StockBalanceProduct extends Component
             FROM outlet_transfer_lines otl
             JOIN outlet_transfers ot ON ot.id = otl.outlet_transfer_id
             WHERE otl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND ot.to_outlet_id = {$outletId}" : "") . "
+            AND ot.company_id = {$companyId}
+            " . $this->reportOutletSql('ot.to_outlet_id') . "
             AND ot.transfer_date BETWEEN '{$from}' AND '{$to}'
             AND ot.deleted_at IS NULL
         )");
@@ -88,7 +95,8 @@ class StockBalanceProduct extends Component
             FROM outlet_transfer_lines otl
             JOIN outlet_transfers ot ON ot.id = otl.outlet_transfer_id
             WHERE otl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND ot.from_outlet_id = {$outletId}" : "") . "
+            AND ot.company_id = {$companyId}
+            " . $this->reportOutletSql('ot.from_outlet_id') . "
             AND ot.transfer_date BETWEEN '{$from}' AND '{$to}'
             AND ot.deleted_at IS NULL
         )");
@@ -99,7 +107,8 @@ class StockBalanceProduct extends Component
             FROM wastage_record_lines wrl
             JOIN wastage_records wr ON wr.id = wrl.wastage_record_id
             WHERE wrl.ingredient_id = ingredients.id
-            " . ($outletId ? "AND wr.outlet_id = {$outletId}" : "") . "
+            AND wr.company_id = {$companyId}
+            " . $this->reportOutletSql('wr.outlet_id') . "
             AND wr.wastage_date BETWEEN '{$from}' AND '{$to}'
             AND wr.deleted_at IS NULL
         )");

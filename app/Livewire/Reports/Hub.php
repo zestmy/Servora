@@ -104,10 +104,29 @@ class Hub extends Component
         // heading over nothing.
         $user = \Illuminate\Support\Facades\Auth::user();
 
+        // The plan decides as well as the permission, by the same rule the
+        // sidebar uses (NavMenu::visible): a report whose module the company's
+        // plan does not include is shown LOCKED, pointing at Billing, so the
+        // hub never offers a link that the module middleware then refuses.
+        // Platform switches are simply off, never an upsell.
+        $entitlements = app(\App\Services\Entitlements::class);
+
         $categories = collect($categories)
-            ->map(function (array $cat) use ($user) {
+            ->map(function (array $cat) use ($user, $entitlements) {
                 $cat['reports'] = collect($cat['reports'])
                     ->filter(fn ($r) => ! isset($r['can']) || $user->can($r['can']))
+                    ->map(function (array $r) use ($user, $entitlements) {
+                        $module = $entitlements->moduleForRoute($r['route']);
+                        if ($module !== null && ! $entitlements->allows($user->company, $module)) {
+                            if ($entitlements->isSwitch($module)) {
+                                return null;
+                            }
+                            $r['locked'] = $module;
+                        }
+
+                        return $r;
+                    })
+                    ->filter()
                     ->values()
                     ->all();
 

@@ -1,9 +1,13 @@
 <div x-data="{ preview: null, previewType: null, previewName: null, attachments: [], showAttachments: false }">
+    {{-- Both components are import-only modals, so they are mounted only for someone
+         who may import. --}}
+    @canDo('sales.import')
     {{-- Z-Report Import Component --}}
     @livewire('sales.z-report-import')
 
     {{-- Zeoniq Excel Import Component --}}
     @livewire('sales.zeoniq-excel-import')
+    @endcanDo
 
     {{-- Flash --}}
     @if (session()->has('success'))
@@ -49,6 +53,7 @@
                 <span class="hidden sm:inline">Export CSV</span>
                 <span class="sm:hidden">CSV</span>
             </button>
+            @canDo('sales.import')
             <button wire:click="$dispatch('open-zeoniq-excel-import')"
                     title="Import Zeoniq Excel"
                     class="btn-secondary">
@@ -58,6 +63,7 @@
                 <span class="hidden sm:inline">Zeoniq Excel</span>
                 <span class="sm:hidden">Excel</span>
             </button>
+            @endcanDo
             @canDo('sales.record')
             <a href="{{ route('sales.create') }}"
                class="btn-primary">
@@ -454,7 +460,9 @@
             @else
                 <div class="text-sm text-gray-500">
                     <p>No target set for this period</p>
+                    @canDo('sales.record')
                     <a href="{{ route('settings.sales-targets') }}" class="text-xs text-brand-400 hover:text-brand-600 underline mt-1 inline-block">Set sales target</a>
+                    @endcanDo
                 </div>
             @endif
         </div>
@@ -646,12 +654,14 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
+                                @canDo('sales.record')
                                 <a href="{{ route('sales.edit', $record->id) }}" title="Edit"
                                    class="text-brand-500 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
+                                @endcanDo
                                 @if ($canDelete)
                                     <button wire:click="delete({{ $record->id }})"
                                             data-confirm-delete="Delete this sales record for {{ $record->sale_date->format('d M Y') }}? This cannot be undone."
@@ -778,10 +788,12 @@
                     <div class="px-6 py-3 bg-gray-50 rounded-b-xl flex items-center justify-between">
                         <div>
                             @if ($editingClosureId)
+                                @canDo('sales.delete')
                                 <button wire:click="removeClosure({{ $editingClosureId }})" data-confirm-delete="Remove this closure reason?"
                                         class="text-xs text-danger-500 hover:text-danger-700 transition">
                                     Remove Reason
                                 </button>
+                                @endcanDo
                             @endif
                         </div>
                         <div class="flex items-center gap-2">

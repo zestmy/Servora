@@ -36,12 +36,16 @@ class CountForm extends Component
 {
     use PicksRecordOutlet;
 
+    /** Set by mount()/save() only. */
+    #[Locked]
     public ?int $recordId = null;
 
     public ?int   $department_id    = null;
     public string $count_date       = '';
     public string $reference_number = '';
     public string $notes            = '';
+    /** Display copy; save() decides on the STORED status, not this. */
+    #[Locked]
     public string $status           = 'draft';
 
     /** @var array<int, array<string, mixed>> */
@@ -331,6 +335,15 @@ class CountForm extends Component
         abort_unless(Auth::user()?->canDo('assets.counts.record'), 403);
         abort_unless($this->isEditable(), 403);
 
+        // Editability comes from the record as stored. A completed count is
+        // the outlet's baseline: it has to be reopened (assets.counts.reopen)
+        // before it can be written again, and only by someone at its outlet.
+        if ($this->recordId) {
+            $existing = AssetCount::findOrFail($this->recordId);
+            abort_unless(Auth::user()->canAccessOutlet((int) $existing->outlet_id), 403);
+            abort_if($existing->isCompleted(), 403);
+        }
+
         $this->validate();
 
         $lines = collect($this->lines);
@@ -426,6 +439,7 @@ class CountForm extends Component
         abort_unless(Auth::user()?->canDo('assets.counts.reopen'), 403);
 
         $record = AssetCount::findOrFail($this->recordId);
+        abort_unless(Auth::user()->canAccessOutlet((int) $record->outlet_id), 403);
         abort_unless($record->isCompleted(), 403);
 
         $record->update(['status' => AssetCount::STATUS_DRAFT]);

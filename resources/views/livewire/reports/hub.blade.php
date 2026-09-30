@@ -16,10 +16,20 @@
                 </div>
                 <div class="space-y-1.5">
                     @foreach ($cat['reports'] as $report)
-                        <a href="{{ route($report['route']) }}"
-                           class="block text-sm text-gray-600 hover:text-brand-600 hover:bg-brand-50 px-3 py-2 rounded-lg transition">
-                            {{ $report['label'] }}
-                        </a>
+                        @if (! empty($report['locked']))
+                            {{-- Not on the plan: goes to Billing, as the sidebar's locked items do. --}}
+                            <a href="{{ route('billing.index', ['unlock' => $report['locked']]) }}"
+                               class="flex items-center gap-2 text-sm text-gray-600 hover:text-brand-600 hover:bg-brand-50 px-3 py-2 rounded-lg transition">
+                                <span class="min-w-0 flex-1">{{ $report['label'] }}</span>
+                                <x-icon name="lock" size="h-3.5 w-3.5" stroke="1.8" class="flex-shrink-0 text-gray-500" />
+                                <span class="sr-only">(upgrade to unlock)</span>
+                            </a>
+                        @else
+                            <a href="{{ route($report['route']) }}"
+                               class="block text-sm text-gray-600 hover:text-brand-600 hover:bg-brand-50 px-3 py-2 rounded-lg transition">
+                                {{ $report['label'] }}
+                            </a>
+                        @endif
                     @endforeach
                 </div>
             </div>

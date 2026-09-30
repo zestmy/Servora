@@ -73,6 +73,10 @@ class SubscriptionInvoiceTest extends TestCase
             'company_id' => $this->company->id, 'outlet_id' => $outlet->id,
         ]);
         $this->customer->companies()->syncWithoutDetaching([$this->company->id]);
+        // The company's bill is its admin's: invoices sit behind users.manage,
+        // like the rest of Billing.
+        setPermissionsTeamId($this->company->id);
+        $this->customer->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate('users.manage', 'web'));
 
         $this->admin = User::factory()->create(['company_id' => null]);
         setPermissionsTeamId(null);
@@ -271,6 +275,18 @@ class SubscriptionInvoiceTest extends TestCase
         $this->actingAs($this->customer)
             ->get(route('invoices.pdf', $theirs->id))
             ->assertForbidden();
+    }
+
+    public function test_staff_without_user_management_cannot_download_the_companys_invoice(): void
+    {
+        $invoice = $this->service()->createManual($this->company, [$this->line()], [
+            'status' => Invoice::STATUS_ISSUED,
+        ]);
+
+        $staff = User::factory()->create(['company_id' => $this->company->id]);
+        $staff->companies()->syncWithoutDetaching([$this->company->id]);
+
+        $this->actingAs($staff)->get(route('invoices.pdf', $invoice->id))->assertForbidden();
     }
 
     public function test_a_customer_can_download_their_own_issued_invoice(): void

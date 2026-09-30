@@ -143,9 +143,26 @@ class LivePlay extends Component
 
     private function player(): ?TrainingSessionPlayer
     {
-        return $this->playerId
-            ? TrainingSessionPlayer::where('training_session_id', $this->sessionId)->find($this->playerId)
-            : null;
+        if (! $this->playerId || ! $this->holdsSeat()) {
+            return null;
+        }
+
+        return TrainingSessionPlayer::where('training_session_id', $this->sessionId)->find($this->playerId);
+    }
+
+    /**
+     * Whether the room and seat on the component are the ones THIS browser
+     * joined. The properties round-trip through the browser; the session does
+     * not, so it is the authority (see the class note).
+     */
+    private function holdsSeat(): bool
+    {
+        $stored = session('training_live');
+
+        return is_array($stored)
+            && isset($stored['session'], $stored['player'])
+            && (int) $stored['session'] === (int) $this->sessionId
+            && (int) $stored['player'] === (int) $this->playerId;
     }
 
     /**
@@ -157,6 +174,8 @@ class LivePlay extends Component
      */
     public function pick(int $optionIndex, bool $multi, LiveSessionService $sessions): void
     {
+        // Answering as a colleague by editing playerId is exactly what this stops.
+        abort_unless($this->holdsSeat(), 403);
         if (! $multi) {
             $this->chosen = [$optionIndex];
             $this->send($sessions);
@@ -176,6 +195,8 @@ class LivePlay extends Component
 
     public function send(LiveSessionService $sessions): void
     {
+        abort_unless($this->holdsSeat(), 403);
+
         $session = $this->session();
         $player  = $this->player();
 

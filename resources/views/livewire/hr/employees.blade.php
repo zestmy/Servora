@@ -76,6 +76,7 @@
                 </svg>
                 <span class="hidden sm:inline">Template</span>
             </button>
+            @canDo('hr.employees.manage')
             <button wire:click="openImport"
                     title="Import CSV"
                     class="btn-secondary">
@@ -84,6 +85,7 @@
                 </svg>
                 <span class="hidden sm:inline">Import CSV</span>
             </button>
+            @endcanDo
             @canDo('hr.employees.manage')
             <a href="{{ route('hr.employees.create', $returnFilters) }}" class="btn-primary">
                 <span class="sm:hidden">+ Add</span>
@@ -137,10 +139,12 @@
                      keep saying the same word. --}}
                 <option value="deleted">Deleted</option>
             </select>
+            @canDo('settings.sections')
             <a href="{{ route('settings.sections') }}"
                class="text-xs text-brand-600 hover:text-brand-800 underline self-center">
                 Manage Sections
             </a>
+            @endcanDo
         </div>
     </div>
 
@@ -200,6 +204,9 @@
                 </p>
                 <div class="flex flex-wrap gap-1.5">
                     @foreach ($foodHandlerStats['missing'] as $fhEmp)
+                        {{-- A link only for someone who may open the employee
+                             form; for a viewer the same chip, as text. --}}
+                        @canDo('hr.employees.manage')
                         <a href="{{ route('hr.employees.edit', ['id' => $fhEmp->id] + $returnFilters) }}"
                            wire:key="fh-{{ $fhEmp->id }}"
                            title="{{ collect([$fhEmp->outlet?->name, $fhEmp->section?->name])->filter()->join(' · ') ?: 'Open employee' }}"
@@ -211,6 +218,18 @@
                                 <span class="font-mono text-[10px] text-danger-500">{{ $fhEmp->staff_id }}</span>
                             @endif
                         </a>
+                        @else
+                        <span wire:key="fh-{{ $fhEmp->id }}"
+                              title="{{ collect([$fhEmp->outlet?->name, $fhEmp->section?->name])->filter()->join(' · ') }}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                                     bg-danger-50 text-danger-700 border border-danger-200">
+                            <x-employee-avatar :employee="$fhEmp" size="h-5 w-5" textSize="text-[9px]" />
+                            {{ $fhEmp->name }}
+                            @if ($fhEmp->staff_id)
+                                <span class="font-mono text-[10px] text-danger-500">{{ $fhEmp->staff_id }}</span>
+                            @endif
+                        </span>
+                        @endcanDo
                     @endforeach
                 </div>
                 @if ($fhMore > 0)
@@ -243,7 +262,9 @@
         @if ($showCompliance && $compliance)
             <p class="text-xs text-gray-500 mt-1">
                 Active staff in this view ({{ $compliance['employees'] }}), expiring within {{ $compliance['warning_days'] }} days.
+                @canDo('settings.certifications')
                 <a href="{{ route('settings.certifications') }}" class="text-brand-600 hover:underline">Manage courses</a>
+                @endcanDo
             </p>
 
             {{-- Per-document tallies --}}
@@ -307,10 +328,14 @@
                                 <x-employee-avatar :id="$row['employee_id']" :name="$row['name']"
                                                    :photo="$row['photo_path'] ?? null"
                                                    size="h-7 w-7" textSize="text-[10px]" />
+                                @canDo('hr.employees.manage')
                                 <a href="{{ route('hr.employees.edit', ['id' => $row['employee_id']] + $returnFilters) }}"
                                    class="text-sm font-medium text-gray-800 hover:text-brand-600 hover:underline">
                                     {{ $row['name'] }}
                                 </a>
+                                @else
+                                <span class="text-sm font-medium text-gray-800">{{ $row['name'] }}</span>
+                                @endcanDo
                                 @if ($row['outlet'])
                                     <span class="text-[11px] text-gray-500">{{ $row['outlet'] }}</span>
                                 @endif
@@ -395,20 +420,27 @@
                     <tr wire:key="emp-row-{{ $emp->id }}" data-employee-id="{{ $emp->id }}"
                         class="group hover:bg-gray-50 {{ ! $emp->is_active ? 'opacity-60' : '' }}">
                         <td class="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">
+                            {{-- No handle, no drag: reordering writes the shared staff order. --}}
+                            @canDo('hr.employees.manage')
                             <span class="row-drag-handle inline-flex align-middle cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-900"
                                   title="Drag to reorder">
                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16"/></svg>
                             </span>
+                            @endcanDo
                             <span class="align-middle">{{ $employees->firstItem() + $loop->index }}</span>
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-3">
                                 <x-employee-avatar :employee="$emp" />
                                 <div class="min-w-0">
+                            @canDo('hr.employees.manage')
                             <a href="{{ route('hr.employees.edit', ['id' => $emp->id] + $returnFilters) }}" title="Edit employee"
                                class="font-medium text-gray-800 text-left hover:text-brand-600 hover:underline">
                                 {{ $emp->name }}
                             </a>
+                            @else
+                            <span class="font-medium text-gray-800">{{ $emp->name }}</span>
+                            @endcanDo
                             {{-- Straight to allowances, bank and statutory details.
                                  They are a screen away from the employee record, so
                                  without this the only route is knowing to start at
@@ -531,11 +563,13 @@
                         </td>
                         <td class="px-4 py-3 sticky right-0 z-10 bg-white group-hover:bg-gray-50 border-l border-gray-100">
                             <div class="flex items-center justify-center gap-1">
+                                @canDo('hr.employees.manage')
                                 <a href="{{ route('hr.employees.edit', ['id' => $emp->id] + $returnFilters) }}"
                                    title="Edit"
                                    class="px-2 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 hover:bg-brand-100">
                                     Edit
                                 </a>
+                                @endcanDo
                                 @if ($emp->trashed())
                                     {{-- A deleted row offers the way back and
                                          nothing else. Edit and Deactivate on a
@@ -548,11 +582,13 @@
                                     </button>
                                     @endcanDo
                                 @else
+                                @canDo('hr.employment')
                                 <button wire:click="toggleActive({{ $emp->id }})"
                                         title="{{ $emp->is_active ? 'Deactivate' : 'Activate' }}"
                                         class="text-warning-500 hover:text-warning-700 p-1">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                                 </button>
+                                @endcanDo
                                 @canDo('hr.employees.delete')
                                 {{-- The message names the person and what
                                      leaves with them. "Delete this employee?"

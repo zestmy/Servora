@@ -184,10 +184,18 @@ class Paths extends Component
         $b->update(['sort_order' => $aOrder]);
     }
 
-    /** Scoped by the open path, so an item id from elsewhere 404s. */
+    /**
+     * Scoped by the open path, so an item id from elsewhere 404s.
+     *
+     * The path is loaded first: TrainingPathItem has no CompanyScope and
+     * editingPathId is whatever the browser sent, so it has to be proven to
+     * be one of THIS company's paths before its id means anything.
+     */
     private function item(int $id): TrainingPathItem
     {
-        return TrainingPathItem::where('training_path_id', $this->editingPathId)->findOrFail($id);
+        $path = TrainingPath::findOrFail($this->editingPathId);
+
+        return TrainingPathItem::where('training_path_id', $path->id)->findOrFail($id);
     }
 
     public function render()

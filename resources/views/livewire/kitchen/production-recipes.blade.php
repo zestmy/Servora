@@ -20,10 +20,12 @@
                class="btn-secondary">
                 &larr; Back
             </a>
+            @if ($canCreate)
             <a href="{{ route('kitchen.recipes.create') }}"
                class="btn-primary">
                 + New Production Recipe
             </a>
+            @endif
         </div>
     </div>
 
@@ -116,6 +118,8 @@
                                         @endif
                                         <a href="{{ route('kitchen.recipes.edit', $recipe->id) }}"
                                            class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-brand-600 border border-brand-200 text-xs font-semibold rounded-lg hover:bg-brand-50 transition">Edit</a>
+                                        {{-- Changing the recipe book is a kitchen manager's call. --}}
+                                        @if ($manageable[(int) $recipe->kitchen_id] ?? false)
                                         <button wire:click="toggleActive({{ $recipe->id }})"
                                                 class="inline-flex items-center min-h-[40px] px-3.5 py-2 border text-xs font-semibold rounded-lg transition {{ $recipe->is_active ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' : 'text-success-600 border-success-200 hover:bg-success-50' }}">
                                             {{ $recipe->is_active ? 'Deactivate' : 'Activate' }}
@@ -123,6 +127,7 @@
                                         <button wire:click="deleteRecipe({{ $recipe->id }})"
                                                 data-confirm-delete="Delete this recipe? This cannot be undone."
                                                 class="inline-flex items-center min-h-[40px] px-3.5 py-2 text-danger-500 border border-danger-200 text-xs font-semibold rounded-lg hover:bg-danger-50 transition ml-3">Delete</button>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

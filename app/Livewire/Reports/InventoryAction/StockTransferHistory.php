@@ -56,13 +56,19 @@ class StockTransferHistory extends Component
     {
         $from = $this->dateFrom;
         $to = $this->dateTo;
-        $outletId = $this->outletFilter;
+        // Validated: an outlet the user cannot see reads as no filter.
+        $outletId = $this->reportOutletId();
+        $restricted = $this->reportRestrictedOutletIds();
 
         // Outlet Transfers
         $outletTransfers = OutletTransfer::query()
             ->with(['fromOutlet', 'toOutlet'])
             ->withCount('lines')
             ->whereBetween('transfer_date', [$from, $to])
+            // A restricted user sees transfers that touch one of their outlets.
+            ->when($restricted !== null, fn ($q) => $q->where(function ($q2) use ($restricted) {
+                $q2->whereIn('from_outlet_id', $restricted)->orWhereIn('to_outlet_id', $restricted);
+            }))
             ->when($outletId, fn ($q) => $q->where(function ($q2) use ($outletId) {
                 $q2->where('from_outlet_id', $outletId)->orWhere('to_outlet_id', $outletId);
             }))
@@ -83,6 +89,7 @@ class StockTransferHistory extends Component
             ->with(['cpu', 'toOutlet'])
             ->withCount('lines')
             ->whereBetween('transfer_date', [$from, $to])
+            ->when($restricted !== null, fn ($q) => $q->whereIn('to_outlet_id', $restricted))
             ->when($outletId, fn ($q) => $q->where('to_outlet_id', $outletId))
             ->get()
             ->map(fn ($t) => [

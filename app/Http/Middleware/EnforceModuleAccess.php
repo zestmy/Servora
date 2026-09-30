@@ -52,10 +52,17 @@ class EnforceModuleAccess
             return response()->json(['message' => $message, 'module' => $module], 403);
         }
 
-        // A manager on a page: take them to where it can be switched on.
+        // A manager on a page: take them to where it can be switched on. Billing
+        // is users.manage-only, so anyone else would land on a 403 there — send
+        // them to the dashboard with a message they can act on instead.
         if (! $request->hasHeader('X-Livewire') && Auth::guard('web')->check()) {
-            return redirect()->route('billing.index')
-                ->with('error', $message.' Upgrade to use it.');
+            if (Auth::guard('web')->user()->canDo('users.manage')) {
+                return redirect()->route('billing.index')
+                    ->with('error', $message.' Upgrade to use it.');
+            }
+
+            return redirect()->route('dashboard')
+                ->with('error', $message.' Ask your manager.');
         }
 
         // Staff apps and Livewire calls: nothing here they can buy.

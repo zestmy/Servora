@@ -315,14 +315,14 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription', 
     Route::get('/recipes/{id}/cost-pdf', [RecipeCostPdfController::class, 'single'])->name('recipes.cost-pdf')->middleware('can:recipes.view');
     Route::get('/purchasing', PurchasingIndex::class)->name('purchasing.index')->middleware('can:purchasing.view');
     Route::get('/purchasing/orders/create', PurchasingOrderForm::class)->name('purchasing.orders.create')->middleware('can:purchasing.orders.create');
-    Route::get('/purchasing/orders/{id}/edit', PurchasingOrderForm::class)->name('purchasing.orders.edit')->middleware('can:purchasing.orders.edit');
+    Route::get('/purchasing/orders/{id}/edit', PurchasingOrderForm::class)->name('purchasing.orders.edit')->middleware('can:purchasing.view');
     Route::get('/purchasing/orders/{id}/receive', PurchasingReceiveForm::class)->name('purchasing.orders.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/receive', PurchasingReceiveForm::class)->name('purchasing.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/orders/{id}/convert-to-do', PurchasingConvertToDoForm::class)->name('purchasing.convert-to-do')->middleware('can:purchasing.orders.edit');
     Route::get('/purchasing/grn/{id}/receive', PurchasingGrnReceiveForm::class)->name('purchasing.grn.receive')->middleware('can:purchasing.view');
     Route::get('/purchasing/pdf/{type}/{id}', PurchaseDocumentPdfController::class)->name('purchasing.pdf')->middleware('can:purchasing.view');
     Route::get('/purchasing/requests/create', PurchasingRequestForm::class)->name('purchasing.requests.create')->middleware('can:purchasing.requests.create');
-    Route::get('/purchasing/requests/{id}/edit', PurchasingRequestForm::class)->name('purchasing.requests.edit')->middleware('can:purchasing.requests.edit');
+    Route::get('/purchasing/requests/{id}/edit', PurchasingRequestForm::class)->name('purchasing.requests.edit')->middleware('can:purchasing.view');
     Route::get('/purchasing/consolidate', PurchasingConsolidateForm::class)->name('purchasing.consolidate')->middleware('can:purchasing.consolidate');
     Route::get('/purchasing/transfers/create', PurchasingStockTransferForm::class)->name('purchasing.transfers.create')->middleware('can:purchasing.transfers.create');
     Route::get('/purchasing/invoices', PurchasingInvoiceIndex::class)->name('purchasing.invoices.index')->middleware('can:purchasing.view');
@@ -657,8 +657,10 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription', 
     Route::get('/audit-logs/export/pdf', [\App\Http\Controllers\AuditLogExportController::class, 'pdf'])->name('audit-logs.export.pdf')->middleware('can:audit.view');
 
     // Billing routes (Business Manager, Company Admin, Super Admin)
+    // Open to everyone: it is where every upgrade link lands. The component
+    // shows plan, invoices and checkout only to users.manage — see render().
     Route::get('/billing', BillingIndex::class)->name('billing.index');
-    Route::get('/billing/checkout/{planSlug}', BillingCheckout::class)->name('billing.checkout');
+    Route::get('/billing/checkout/{planSlug}', BillingCheckout::class)->name('billing.checkout')->middleware('can:users.manage');
 
     // One PDF route for both audiences. The controller decides what each may
     // pull — a system admin any invoice, a customer only their own company's

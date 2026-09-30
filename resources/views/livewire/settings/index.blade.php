@@ -102,9 +102,18 @@
                         $ink = ($tile['tone'] ?? 'brand') === 'gray' ? 'text-gray-600' : 'text-brand-600';
                     @endphp
 
-                    <a href="{{ route($tile['route']) }}"
+                    @php
+                        // Not on the plan: point at Billing for someone who can buy
+                        // it, otherwise a plain card — never the blocked screen.
+                        $locked   = ! empty($tile['locked']);
+                        $tileHref = ! $locked
+                            ? route($tile['route'])
+                            : (auth()->user()?->canDo('users.manage') ? route('billing.index', ['unlock' => $tile['locked']]) : null);
+                    @endphp
+
+                    <{{ $tileHref ? 'a' : 'div' }} @if ($tileHref) href="{{ $tileHref }}" @endif
                        x-show="matches(@js($haystackFor($tile, $group)))"
-                       class="group card p-6 hover:border-brand-300 hover:shadow-md transition flex items-start gap-4">
+                       class="group card p-6 transition flex items-start gap-4 {{ $locked ? 'opacity-75' : '' }} {{ $tileHref ? 'hover:border-brand-300 hover:shadow-md' : '' }}">
                         <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition {{ $chip }}">
                             {{-- An icon may hold more than one path; they are stored
                                  separated by " M" and split back out here. --}}
@@ -119,13 +128,17 @@
                             @if (! empty($tile['note']))
                                 <p class="text-sm text-gray-500 mt-0.5">{{ $tile['note'] }}</p>
                             @endif
-                            @if (! empty($tile['count']))
+                            @if ($locked)
+                                <p class="text-xs text-gray-600 font-medium mt-2 inline-flex items-center gap-1">
+                                    <x-icon name="lock" class="w-3.5 h-3.5" /> Not on your plan
+                                </p>
+                            @elseif (! empty($tile['count']))
                                 <p class="text-xs text-brand-500 font-medium mt-2">
                                     {{ number_format($tile['count'][0]) }} {{ Str::plural($tile['count'][1], $tile['count'][0]) }}
                                 </p>
                             @endif
                         </div>
-                    </a>
+                    </{{ $tileHref ? 'a' : 'div' }}>
                 @endforeach
             </div>
         </section>

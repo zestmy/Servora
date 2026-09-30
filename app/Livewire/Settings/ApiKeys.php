@@ -25,6 +25,10 @@ class ApiKeys extends Component
 
     public function saveOpenRouter(): void
     {
+        // Platform-wide secrets. SystemAdminOnly guards the page, but route middleware
+        // other than can: is not re-applied to Livewire actions, so check again here.
+        abort_unless(auth()->user()?->isSystemRole(), 403);
+
         $this->validate([
             'openrouter_key'   => 'nullable|string|max:500',
             'openrouter_model' => 'nullable|string|max:255',
@@ -38,6 +42,10 @@ class ApiKeys extends Component
 
     public function saveEngineMailer(): void
     {
+        // Platform-wide secrets. SystemAdminOnly guards the page, but route middleware
+        // other than can: is not re-applied to Livewire actions, so check again here.
+        abort_unless(auth()->user()?->isSystemRole(), 403);
+
         $this->validate([
             'enginemailer_key'          => 'nullable|string|max:500',
             'enginemailer_sender_email' => 'nullable|email|max:200',
@@ -51,6 +59,10 @@ class ApiKeys extends Component
 
     public function testEngineMailer(): void
     {
+        // Platform-wide secrets. SystemAdminOnly guards the page, but route middleware
+        // other than can: is not re-applied to Livewire actions, so check again here.
+        abort_unless(auth()->user()?->isSystemRole(), 403);
+
         $this->testResult = '';
         $this->testSuccess = false;
 

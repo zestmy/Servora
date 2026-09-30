@@ -19,6 +19,7 @@ use Livewire\Component;
  */
 class ReviewDocument extends Component
 {
+    #[\Livewire\Attributes\Locked]
     public int $documentId;
 
     // Hydrated from the scanned document on mount
@@ -483,6 +484,9 @@ class ReviewDocument extends Component
 
     public function import(): void
     {
+        // Re-checked here, not just on the route: a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('ingredients.import'), 403);
+
         $doc = ScannedDocument::findOrFail($this->documentId);
         if ($doc->status === 'imported') {
             $this->imported = true;
@@ -491,6 +495,10 @@ class ReviewDocument extends Component
 
         $user      = Auth::user();
         $companyId = $user->company_id;
+        // Supplier prices and price history are what this screen is for, and they stay
+        // import-level. Setting a NEW product's own purchase price / current cost is a
+        // cost write, so without ingredients.cost the product is created at zero cost.
+        $canSetCost = (bool) $user->canDo('ingredients.cost');
 
         if (! $this->supplierId && $this->supplierMode === 'new' && trim($this->newSupplierName) !== '') {
             $supplier = Supplier::create([
@@ -601,7 +609,7 @@ class ReviewDocument extends Component
                 }
                 $linked++;
             } elseif ($item['action'] === 'create') {
-                DB::transaction(function () use ($item, $companyId, $effectiveDate, &$created) {
+                DB::transaction(function () use ($item, $companyId, $effectiveDate, $canSetCost, &$created) {
                     $baseUomId   = $item['uom_id'] ?? UnitOfMeasure::first()?->id;
                     $recipeUomId = $item['recipe_uom_id'] ?? $baseUomId;
                     $pack        = max($item['pack_size'], 0.0001) ?: 1;
@@ -614,8 +622,8 @@ class ReviewDocument extends Component
                         'code'           => $item['code'],
                         'base_uom_id'    => $baseUomId,
                         'recipe_uom_id'  => $recipeUomId,
-                        'purchase_price' => $price,
-                        'current_cost'   => $currentCost,
+                        'purchase_price' => $canSetCost ? $price : 0,
+                        'current_cost'   => $canSetCost ? $currentCost : 0,
                         'yield_percent'  => 100,
                         'is_active'      => true,
                         'is_prep'        => false,

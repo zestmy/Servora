@@ -41,14 +41,17 @@ class InventoryVariance extends Component
 
     private function buildQuery()
     {
-        $from = $this->dateFrom;
-        $to = $this->dateTo;
-        $outletId = $this->outletFilter;
+        // Hand-built SQL: everything placed in it is a validated Y-m-d or an
+        // integer, and each subquery is bounded to the active company on its
+        // parent table (line tables have no company, raw SQL no global scope).
+        $from = $this->reportDate($this->dateFrom, now()->startOfMonth()->toDateString());
+        $to = $this->reportDate($this->dateTo, now()->toDateString());
+        $companyId = $this->reportCompanyId();
 
-        $outletWhere = $outletId ? "AND pr.outlet_id = {$outletId}" : "";
-        $outletWhereWr = $outletId ? "AND wr.outlet_id = {$outletId}" : "";
-        $outletWhereSt = $outletId ? "AND st.outlet_id = {$outletId}" : "";
-        $outletWhereSt2 = $outletId ? "AND st2.outlet_id = {$outletId}" : "";
+        $outletWhere = "AND pr.company_id = {$companyId}" . $this->reportOutletSql('pr.outlet_id');
+        $outletWhereWr = "AND wr.company_id = {$companyId}" . $this->reportOutletSql('wr.outlet_id');
+        $outletWhereSt = "AND st.company_id = {$companyId}" . $this->reportOutletSql('st.outlet_id');
+        $outletWhereSt2 = "AND st2.company_id = {$companyId}" . $this->reportOutletSql('st2.outlet_id');
 
         $purchasesSub = "(SELECT COALESCE(SUM(prl.quantity), 0) FROM purchase_record_lines prl JOIN purchase_records pr ON pr.id = prl.purchase_record_id WHERE prl.ingredient_id = ingredients.id {$outletWhere} AND pr.purchase_date BETWEEN '{$from}' AND '{$to}' AND pr.deleted_at IS NULL)";
 

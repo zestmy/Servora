@@ -7,6 +7,7 @@ use App\Models\Outlet;
 use App\Models\Section;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Livewire\Settings\Concerns\ValidatesCompanyRows;
 use Livewire\Component;
 
 /**
@@ -22,6 +23,8 @@ use Livewire\Component;
  */
 class LeaveApprovers extends Component
 {
+    use ValidatesCompanyRows;
+
     public ?int $user_id    = null;
     public ?int $outlet_id  = null;
     public ?int $section_id = null;
@@ -29,9 +32,9 @@ class LeaveApprovers extends Component
     public function add(): void
     {
         $this->validate([
-            'user_id'    => 'required|exists:users,id',
-            'outlet_id'  => 'nullable|exists:outlets,id',
-            'section_id' => 'nullable|exists:sections,id',
+            'user_id'    => ['required', 'integer', $this->companyUserRule()],
+            'outlet_id'  => ['nullable', 'integer', $this->companyRowRule('outlets')],
+            'section_id' => ['nullable', 'integer', $this->companyRowRule('sections')],
         ], [], ['user_id' => 'user', 'outlet_id' => 'outlet', 'section_id' => 'section']);
 
         $exists = LeaveApprover::where('user_id', $this->user_id)

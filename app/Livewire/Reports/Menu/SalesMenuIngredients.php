@@ -59,7 +59,8 @@ class SalesMenuIngredients extends Component
             ->leftJoin('ingredient_categories as ic', 'ic.id', '=', 'sales_record_lines.ingredient_category_id')
             ->whereBetween('sr.sale_date', [$this->dateFrom, $this->dateTo])
             ->whereNull('sr.deleted_at')
-            ->when($this->outletFilter, fn ($q) => $q->where('sr.outlet_id', $this->outletFilter))
+            ->where('sr.company_id', $this->reportCompanyId())
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'sr.outlet_id'))
             ->groupBy(DB::raw("COALESCE(sales_record_lines.item_name, r.name)"))
             ->orderByDesc('revenue');
     }

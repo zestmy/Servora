@@ -93,6 +93,9 @@ class Index extends Component
 
     public function updatedOutletId(): void
     {
+        // Snap a tampered or out-of-reach choice back to what will be shown.
+        $resolved = $this->resolveOutletId();
+        $this->outletId = ($resolved !== null && $resolved > 0) ? $resolved : null;
         $this->loadData();
     }
 
@@ -150,7 +153,10 @@ class Index extends Component
     public function exportPdf()
     {
         $company = Company::find(Auth::user()->company_id);
-        $outlet = $this->outletId ? Outlet::find($this->outletId) : null;
+        // Outlet has no company scope: look it up through the user's own
+        // accessible outlets, never by a bare id from the browser.
+        $outletId = $this->resolveOutletId();
+        $outlet = $outletId ? Auth::user()->accessibleOutlets()->where('outlets.id', $outletId)->first() : null;
         $periodLabel = $this->periodLabel();
 
         switch ($this->activeTab) {
@@ -243,11 +249,13 @@ class Index extends Component
 
     public function render()
     {
-        $outlets = Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
+        $user = Auth::user();
+        $outlets = $user->accessibleOutlets()->orderBy('outlets.name')->get();
 
         return view('livewire.reports.index', [
             'periodLabel' => $this->periodLabel(),
             'outlets' => $outlets,
+            'canSeeAllOutlets' => $user->coversEveryOutlet(),
         ])->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Reports']);
     }
 
@@ -271,7 +279,7 @@ class Index extends Component
     private function loadSummary(): void
     {
         $service = new CostSummaryService();
-        $outletId = $this->outletId ?: null;
+        $outletId = $this->resolveOutletId();
 
         if ($this->mode === 'weekly' && $this->weekStart) {
             $start = Carbon::parse($this->weekStart)->startOfWeek();
@@ -292,7 +300,7 @@ class Index extends Component
     private function loadDashboardData(): void
     {
         $costService = new CostSummaryService();
-        $outletId = $this->outletId ?: null;
+        $outletId = $this->resolveOutletId();
         $costSummary = $costService->generate($this->period, $outletId);
 
         $prevPeriod = Carbon::createFromFormat('!Y-m', $this->period)->subMonth()->format('Y-m');
@@ -425,7 +433,7 @@ class Index extends Component
         }
 
         $service = new CostSummaryService();
-        $outletId = $this->outletId ?: null;
+        $outletId = $this->resolveOutletId();
 
         $currentDate = Carbon::createFromFormat('!Y-m', $this->period);
 
@@ -531,7 +539,7 @@ class Index extends Component
     private function loadWeeklyComparisonData(): void
     {
         $service = new CostSummaryService();
-        $outletId = $this->outletId ?: null;
+        $outletId = $this->resolveOutletId();
 
         // Current week
         $curStart = Carbon::parse($this->weekStart)->startOfWeek();
@@ -616,7 +624,7 @@ class Index extends Component
 
     private function loadMonthlySalesByYear(): void
     {
-        $outletId = $this->outletId ?: null;
+        $outletId = $this->resolveOutletId();
 
         $query = SalesRecord::selectRaw('YEAR(sale_date) as yr, MONTH(sale_date) as mo, SUM(total_revenue) as revenue, SUM(pax) as pax')
             ->groupByRaw('YEAR(sale_date), MONTH(sale_date)')
@@ -659,7 +667,7 @@ class Index extends Component
     private function loadLabourData(): void
     {
         $month = Carbon::createFromFormat('!Y-m', $this->period)->startOfMonth()->toDateString();
-        $outletId = $this->outletId ?: null;
+        $outletId = $this->resolveOutletId();
 
         $query = LabourCost::where('month', $month)->with('allowances');
         if ($outletId) {
@@ -782,9 +790,28 @@ class Index extends Component
         $this->weekStart = $date->format('Y-m-d');
     }
 
+    /**
+     * The chosen outlet, only when this user may see it. outletId is browser
+     * input: an id from another company (or a sibling outlet the user is not
+     * assigned) reads as "no outlet", never as a reach past their access.
+     */
     private function resolveOutletId(): ?int
     {
-        return $this->outletId ?: null;
+        $user = Auth::user();
+        $ids  = $user->accessibleOutletIds();
+
+        if ($this->outletId && in_array((int) $this->outletId, $ids, true)) {
+            return (int) $this->outletId;
+        }
+
+        // "All outlets" means the whole company, which only somebody who can
+        // see every outlet may read. Anyone narrower gets their first outlet;
+        // with none at all, an id that matches nothing (0 would read as "all").
+        if (! $user->coversEveryOutlet()) {
+            return $ids[0] ?? -1;
+        }
+
+        return null;
     }
 
     private function exportCostSummaryPdf($company, $outlet, $periodLabel)

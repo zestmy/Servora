@@ -45,6 +45,10 @@ class ParLevels extends Component
 
     public function updatedOutletId(): void
     {
+        // outletId is client-writable: an outlet the user cannot reach reads as none.
+        if ($this->outletId && ! Auth::user()->canAccessOutlet((int) $this->outletId)) {
+            $this->outletId = null;
+        }
         $this->resetPage();
         $this->loadParLevels();
     }
@@ -53,9 +57,44 @@ class ParLevels extends Component
     public function updatedCategoryFilter(): void { $this->resetPage(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
 
+    /**
+     * Whether this user may change par levels. The page itself is reachable on
+     * inventory.view (read-only), and there is no dedicated par-level ability, so
+     * writes sit with ingredients.manage - par levels are per-ingredient stock
+     * settings, maintained by whoever maintains the ingredient catalogue.
+     */
+    public function canEdit(): bool
+    {
+        return (bool) Auth::user()?->canDo('ingredients.manage');
+    }
+
+    /** Every write: the ability, plus an outlet this user can actually reach. */
+    private function authorizeWrite(?int $outletId = null): void
+    {
+        abort_unless($this->canEdit(), 403);
+
+        $outletId ??= $this->outletId;
+        abort_unless($outletId && Auth::user()->canAccessOutlet((int) $outletId), 403);
+    }
+
+    /** Ingredient ids from the browser, cut down to the active company's own. */
+    private function ownIngredientIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) return [];
+
+        return Ingredient::whereIn('id', $ids)->pluck('id')->map(fn ($i) => (int) $i)->all();
+    }
+
     /** Quick edit: persist a single ingredient's par level the moment its field changes. */
     public function updatedParLevels($value, $key): void
     {
+        $this->authorizeWrite();
+        if (! $this->ownIngredientIds([(int) $key])) {
+            unset($this->parLevels[$key]);
+            return;
+        }
+
         $this->persistOne((int) $key, $value);
         $this->dispatch('par-saved', id: (int) $key);
     }
@@ -63,7 +102,11 @@ class ParLevels extends Component
     /** Explicit bulk save of everything currently held in state. */
     public function saveAll(): void
     {
+        $this->authorizeWrite();
+        $own = array_flip($this->ownIngredientIds(array_keys($this->parLevels)));
+
         foreach ($this->parLevels as $ingredientId => $value) {
+            if (! isset($own[(int) $ingredientId])) continue;
             $this->persistOne((int) $ingredientId, $value);
         }
         session()->flash('success', 'Par levels saved.');
@@ -75,12 +118,13 @@ class ParLevels extends Component
         if ($this->bulkValue === '' || ! $this->outletId) {
             return;
         }
+        $this->authorizeWrite();
 
         $value = floatval($this->bulkValue);
         $ids   = $this->filteredIngredientQuery()->pluck('id');
 
         $outletIds = $this->bulkAllOutlets
-            ? Outlet::where('company_id', Auth::user()->company_id)->pluck('id')->all()
+            ? Auth::user()->accessibleOutletIds()
             : [$this->outletId];
 
         foreach ($outletIds as $oid) {
@@ -101,6 +145,7 @@ class ParLevels extends Component
         if (! $this->outletId) {
             return;
         }
+        $this->authorizeWrite();
 
         $ids = $this->filteredIngredientQuery()->pluck('id')->map(fn ($i) => (int) $i)->all();
         $suggested = StockOnHandService::monthlyPurchaseAverage($ids, $this->outletId, 3);
@@ -130,6 +175,10 @@ class ParLevels extends Component
         if (! $this->outletId) {
             return;
         }
+        $this->authorizeWrite();
+        if (! $this->ownIngredientIds([$ingredientId])) {
+            return;
+        }
 
         $suggested = StockOnHandService::monthlyPurchaseAverage([$ingredientId], $this->outletId, 3);
         $value = $suggested[$ingredientId] ?? 0;
@@ -148,6 +197,8 @@ class ParLevels extends Component
         if (! $sourceOutletId || ! $this->outletId || $sourceOutletId === $this->outletId) {
             return;
         }
+        $this->authorizeWrite();
+        abort_unless(Auth::user()->canAccessOutlet($sourceOutletId), 403);
 
         $companyId = Auth::user()->company_id;
         $source = IngredientParLevel::where('outlet_id', $sourceOutletId)->get();
@@ -191,12 +242,14 @@ class ParLevels extends Component
     /** Import par levels from an uploaded CSV/XLSX, matching ingredients by code then name. */
     public function importParLevels(): void
     {
+        abort_unless($this->canEdit(), 403);
         $this->validate(['importFile' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120']);
 
         if (! $this->outletId) {
             session()->flash('error', 'Select an outlet before importing.');
             return;
         }
+        $this->authorizeWrite();
 
         $path = $this->importFile->getRealPath();
         $ext  = strtolower($this->importFile->getClientOriginalExtension());
@@ -274,8 +327,10 @@ class ParLevels extends Component
             ? IngredientParLevel::where('outlet_id', $this->outletId)->where('par_level', '>', 0)->count()
             : 0;
 
+        $canEdit = $this->canEdit();
+
         return view('livewire.settings.par-levels', compact(
-            'outlets', 'categories', 'ingredients', 'onHand', 'suggested', 'totalIngredients', 'setCount'
+            'outlets', 'categories', 'ingredients', 'onHand', 'suggested', 'totalIngredients', 'setCount', 'canEdit'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Par Levels']);
     }
 

@@ -257,12 +257,44 @@ class Users extends Component
         $this->showModal = true;
     }
 
-    public function openEdit(int $id): void
+    /**
+     * The user behind an id the browser sent, if this admin may manage them.
+     *
+     * editingId is bound to ?edit= and every action takes a raw id, so all of
+     * them arrive from the client. User has no company scope — findOrFail()
+     * alone would load, edit (password included) or delete ANY account in ANY
+     * company. A company admin may only manage members of their own active
+     * company, and never a platform (system-role) account. Platform admins
+     * operate across companies by design.
+     */
+    private function managedUser(int $id): ?User
     {
-        $user = User::with('outlets')->findOrFail($id);
+        $user = User::with('outlets')->find($id);
         $currentUser = Auth::user();
 
-        if (! $currentUser->isSystemRole() && $user->isSystemRole()) {
+        if (! $user) {
+            return null;
+        }
+
+        if ($currentUser->isSystemRole()) {
+            return $user;
+        }
+
+        if ($user->isSystemRole()
+            || ! $user->companies()->where('companies.id', $currentUser->company_id)->exists()) {
+            return null;
+        }
+
+        return $user;
+    }
+
+    public function openEdit(int $id): void
+    {
+        $user = $this->managedUser($id);
+        $currentUser = Auth::user();
+
+        if (! $user) {
+            $this->editingId = null;
             session()->flash('error', 'You cannot edit this user.');
             return;
         }
@@ -411,7 +443,10 @@ class Users extends Component
         }
 
         if ($this->editingId) {
-            $user = User::findOrFail($this->editingId);
+            $user = $this->managedUser($this->editingId);
+            if (! $user) {
+                abort(403);
+            }
             $user->update($data);
             session()->flash('success', 'User updated.');
         } else {
@@ -704,10 +739,10 @@ class Users extends Component
             return;
         }
 
-        $user = User::findOrFail($id);
+        $user = $this->managedUser($id);
         $currentUser = Auth::user();
 
-        if (! $currentUser->isSystemRole() && $user->isSystemRole()) {
+        if (! $user) {
             session()->flash('error', 'You cannot delete this user.');
             return;
         }

@@ -13,15 +13,21 @@ use App\Traits\ValidatesCompanyOutlet;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class ProductionOrderForm extends Component
 {
     use ValidatesCompanyOutlet, LocksLineUnitCost;
 
+    // Locked: all three come from the database in mount(). save() writes to
+    // whichever order $orderId names and decides status for itself.
+    #[Locked]
     public ?int $orderId = null;
 
+    #[Locked]
     public string $orderNumber = '';
+    #[Locked]
     public string $status = 'draft';
 
     public ?int   $kitchen_id      = null;
@@ -232,9 +238,33 @@ class ProductionOrderForm extends Component
 
     public function save(string $action = 'draft'): void
     {
-        $this->validate();
-
         $user = Auth::user();
+
+        /*
+         * The kitchen routes carry only `kitchen.user`, which Livewire does not
+         * re-apply on an action — so this checks for itself.
+         *
+         * An existing order is judged by the database copy: once it is under
+         * way, completed or cancelled it is history, and a scheduled one is
+         * already a commitment only somebody who runs production may change.
+         * Scheduling is likewise production work, in the kitchen it lands in.
+         */
+        if ($this->orderId) {
+            $existing = ProductionOrder::findOrFail($this->orderId);
+
+            abort_unless(in_array($existing->status, ['draft', 'scheduled'], true), 403,
+                'This production order can no longer be changed.');
+
+            if ($existing->status === 'scheduled') {
+                abort_unless($user->canRunProduction($existing->kitchen_id), 403);
+            }
+        }
+
+        if ($action === 'schedule') {
+            abort_unless($user->canRunProduction($this->kitchen_id), 403);
+        }
+
+        $this->validate();
 
         DB::transaction(function () use ($user, $action) {
             $status = $action === 'schedule' ? 'scheduled' : 'draft';
@@ -351,12 +381,15 @@ class ProductionOrderForm extends Component
 
         $isEditable = ! $this->orderId || in_array($this->status, ['draft']);
 
+        // Scheduling commits the kitchen; only managers and chefs may.
+        $canSchedule = Auth::user()->canRunProduction($this->kitchen_id);
+
         $pageTitle = $this->orderId
             ? ($isEditable ? 'Edit: ' : 'View: ') . $this->orderNumber
             : 'New Production Order';
 
         return view('livewire.kitchen.production-order-form', compact(
-            'kitchens', 'outlets', 'uoms', 'searchResults', 'productionResults', 'isEditable'
+            'kitchens', 'outlets', 'uoms', 'searchResults', 'productionResults', 'isEditable', 'canSchedule'
         ))->layout('layouts.kitchen', ['title' => $pageTitle]);
     }
 }

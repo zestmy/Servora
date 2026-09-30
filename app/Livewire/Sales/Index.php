@@ -39,6 +39,10 @@ class Index extends Component
 
     public array $selected   = [];
     public bool  $selectAll  = false;
+    // Display only. Set once in mount() and locked so the browser cannot flip it; the
+    // delete actions still ask canDo() themselves, since a public property is state the
+    // client round-trips, not an authorisation.
+    #[\Livewire\Attributes\Locked]
     public bool  $canDelete  = false;
 
     // Closure form
@@ -132,31 +136,30 @@ class Index extends Component
 
     public function delete(int $id): void
     {
-        if (! $this->canDelete) {
-            session()->flash('error', 'You do not have permission to delete sales records.');
-            return;
-        }
+        abort_unless(auth()->user()?->canDo('sales.delete'), 403);
 
-        SalesRecord::findOrFail($id)->delete();
+        $record = SalesRecord::findOrFail($id);
+        abort_unless(auth()->user()->canAccessOutlet((int) $record->outlet_id), 403);
+
+        $record->delete();
         session()->flash('success', 'Sales record deleted.');
     }
 
     public function bulkDelete(): void
     {
-        if (! $this->canDelete) {
-            session()->flash('error', 'You do not have permission to delete sales records.');
-            return;
-        }
+        abort_unless(auth()->user()?->canDo('sales.delete'), 403);
 
         if (empty($this->selected)) {
             return;
         }
 
-        $toDelete = SalesRecord::whereIn('id', $this->selected)->get();
+        // Only records at outlets this user can reach; ids come from the browser.
+        $outletIds = auth()->user()->accessibleOutletIds() ?: [0];
+        $toDelete = SalesRecord::whereIn('id', $this->selected)->whereIn('outlet_id', $outletIds)->get();
         foreach ($toDelete as $record) {
             \App\Services\AuditLogService::logDeletion($record);
         }
-        $count = SalesRecord::whereIn('id', $this->selected)->delete();
+        $count = SalesRecord::whereIn('id', $toDelete->pluck('id'))->delete();
         $this->selected  = [];
         $this->selectAll = false;
         session()->flash('success', $count . ' sales record(s) deleted.');
@@ -248,6 +251,8 @@ class Index extends Component
 
     public function removeClosure(int $id): void
     {
+        abort_unless(auth()->user()?->canDo('sales.delete'), 403);
+
         SalesClosure::findOrFail($id)->delete();
     }
 

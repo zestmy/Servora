@@ -22,6 +22,18 @@
         ]])
 --}}
 
+@php
+    /*
+     * A shortcut is only offered to someone who can open it. An explicit 'can'
+     * key wins; otherwise the target route's own can: middleware decides, so a
+     * route whose permission changes cannot drift out of step with this list.
+     */
+    $actions = array_values(array_filter($actions, fn (array $action) => isset($action['can'])
+        ? (bool) auth()->user()?->canDo($action['can'])
+        : \App\Livewire\Dashboard::canOpenRoute($action['route'])));
+@endphp
+
+@if ($actions)
 <x-card-title>{{ $title }}</x-card-title>
 
 <ul class="space-y-2">
@@ -49,3 +61,4 @@
         </li>
     @endforeach
 </ul>
+@endif

@@ -40,7 +40,7 @@ class TaxRates extends Component
 
     public function openEdit(int $id): void
     {
-        $tax = TaxRate::findOrFail($id);
+        $tax = $this->ownRate($id);
         $this->editId       = $tax->id;
         $this->country_code = $tax->country_code;
         $this->name         = $tax->name;
@@ -77,7 +77,7 @@ class TaxRates extends Component
         ];
 
         if ($this->editId) {
-            TaxRate::findOrFail($this->editId)->update($data);
+            $this->ownRate($this->editId)->update($data);
         } else {
             TaxRate::create($data);
         }
@@ -89,8 +89,21 @@ class TaxRates extends Component
 
     public function delete(int $id): void
     {
-        TaxRate::findOrFail($id)->delete();
+        $this->ownRate($id)->delete();
         session()->flash('success', 'Tax rate deleted.');
+    }
+
+    /**
+     * The model's global scope deliberately includes system rows (company_id NULL) so
+     * they can be listed and applied — but they belong to every tenant, so no tenant
+     * may edit or delete them. Only the active company's own rows are writable here.
+     */
+    private function ownRate(int $id): TaxRate
+    {
+        $companyId = Auth::user()?->company_id;
+        abort_unless($companyId, 403);
+
+        return TaxRate::where('company_id', $companyId)->whereKey($id)->first() ?? abort(404);
     }
 
     private function resetForm(): void

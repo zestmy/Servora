@@ -13,10 +13,12 @@
             </a>
             <h2 class="page-title">Credit & Debit Notes</h2>
         </div>
+        @canDo('purchasing.invoice')
         <a href="{{ route('purchasing.credit-notes.create') }}"
            class="btn-primary">
             + New
         </a>
+        @endcanDo
     </div>
 
     {{-- Stats --}}

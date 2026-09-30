@@ -85,9 +85,7 @@ class PoSummary extends Component
         $query = PurchaseOrder::query()
             ->whereBetween('order_date', [$this->dateFrom, $this->dateTo]);
 
-        if ($this->outletFilter) {
-            $query->where('outlet_id', $this->outletFilter);
-        }
+        $this->applyReportOutletScope($query, 'purchase_orders.outlet_id');
 
         if ($this->supplierFilter) {
             $query->where('supplier_id', $this->supplierFilter);

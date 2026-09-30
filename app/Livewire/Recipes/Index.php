@@ -124,6 +124,8 @@ class Index extends Component
         $recipe = Recipe::findOrFail($id);
 
         if ($recipe->is_prep) {
+            // Same rule as bulkDelete(): a prep item is inventory as well.
+            abort_unless(auth()->user()?->canDo('inventory.prep_items.delete'), 403);
             $error = $this->deletePrepRecipe($recipe);
             if ($error) {
                 session()->flash('error', $error);
@@ -173,6 +175,9 @@ class Index extends Component
 
     public function duplicate(int $id): void
     {
+        // The page's route only asks for recipes.view; a Livewire action is its own request.
+        abort_unless(auth()->user()?->canDo('recipes.manage'), 403);
+
         if (! $this->assertUnlocked()) return;
 
         $original = Recipe::with(['lines', 'images', 'steps', 'prices', 'outlets'])->findOrFail($id);
@@ -239,8 +244,16 @@ class Index extends Component
 
     public function bulkDelete(): void
     {
+        $user = auth()->user();
+        abort_unless($user?->canDo('recipes.delete'), 403);
+
         if (! $this->assertUnlocked()) return;
         if (count($this->selectedIds) === 0) return;
+
+        // A prep item is also a stock item, deleted under the inventory ability too.
+        if (Recipe::whereIn('id', $this->selectedIds)->where('is_prep', true)->exists()) {
+            abort_unless($user->canDo('inventory.prep_items.delete'), 403);
+        }
 
         $deleted = 0;
         $blocked = [];
@@ -277,6 +290,8 @@ class Index extends Component
 
     public function toggleActive(int $id): void
     {
+        abort_unless(auth()->user()?->canDo('recipes.manage'), 403);
+
         if (! $this->assertUnlocked()) return;
         $r = Recipe::findOrFail($id);
         $r->update(['is_active' => ! $r->is_active]);
@@ -436,6 +451,8 @@ class Index extends Component
      */
     public function reorder(array $orderedIds): void
     {
+        abort_unless(auth()->user()?->canDo('recipes.manage'), 403);
+
         if (! $this->assertUnlocked()) return;
         $ids = array_map('intval', array_values($orderedIds));
         if (count($ids) < 2) return;

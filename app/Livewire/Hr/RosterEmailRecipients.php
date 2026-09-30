@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Hr;
 
+use App\Livewire\Hr\Concerns\ScopesRosterOutlet;
 use App\Models\Outlet;
 use App\Models\RosterEmailRecipient;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,7 @@ use Livewire\Component;
 
 class RosterEmailRecipients extends Component
 {
+    use ScopesRosterOutlet;
     public ?int $outletId = null;
 
     // Form
@@ -36,18 +38,26 @@ class RosterEmailRecipients extends Component
 
     public function updatedOutletId(): void
     {
+        $this->normaliseRosterOutlet();
         $this->closeForm();
+    }
+
+    /** A recipient at an outlet this user can reach; the model has no CompanyScope. */
+    protected function recipient(int $id): RosterEmailRecipient
+    {
+        return RosterEmailRecipient::whereIn('outlet_id', $this->rosterOutletIds())->findOrFail($id);
     }
 
     public function openCreate(): void
     {
+        $this->assertRosterOutlet($this->outletId);
         $this->resetForm();
         $this->showForm = true;
     }
 
     public function openEdit(int $id): void
     {
-        $recipient = RosterEmailRecipient::findOrFail($id);
+        $recipient = $this->recipient($id);
         $this->editingId = $recipient->id;
         $this->f_email = $recipient->email;
         $this->f_name = $recipient->name ?? '';
@@ -77,7 +87,7 @@ class RosterEmailRecipients extends Component
         $this->validate();
 
         if ($this->editingId) {
-            $recipient = RosterEmailRecipient::findOrFail($this->editingId);
+            $recipient = $this->recipient($this->editingId);
             $recipient->update([
                 'email' => $this->f_email,
                 'name' => $this->f_name ?: null,
@@ -86,6 +96,7 @@ class RosterEmailRecipients extends Component
             ]);
             session()->flash('success', 'Recipient updated.');
         } else {
+            $this->assertRosterOutlet($this->outletId);
             RosterEmailRecipient::create([
                 'outlet_id' => $this->outletId,
                 'email' => $this->f_email,
@@ -101,13 +112,13 @@ class RosterEmailRecipients extends Component
 
     public function toggleActive(int $id): void
     {
-        $recipient = RosterEmailRecipient::findOrFail($id);
+        $recipient = $this->recipient($id);
         $recipient->update(['is_active' => !$recipient->is_active]);
     }
 
     public function delete(int $id): void
     {
-        RosterEmailRecipient::findOrFail($id)->delete();
+        $this->recipient($id)->delete();
         session()->flash('success', 'Recipient deleted.');
     }
 
@@ -118,6 +129,8 @@ class RosterEmailRecipients extends Component
 
     public function render()
     {
+        $this->normaliseRosterOutlet();
+
         $recipients = collect();
         if ($this->outletId) {
             $recipients = RosterEmailRecipient::where('outlet_id', $this->outletId)

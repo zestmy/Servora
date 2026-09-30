@@ -54,7 +54,8 @@ class StockCountAnalysis extends Component
             ->join('stock_takes as st', 'st.id', '=', 'stock_take_lines.stock_take_id')
             ->join('ingredients as i', 'i.id', '=', 'stock_take_lines.ingredient_id')
             ->leftJoin('units_of_measure as u', 'u.id', '=', 'stock_take_lines.uom_id')
-            ->when($this->outletFilter, fn ($q) => $q->where('st.outlet_id', $this->outletFilter))
+            ->where('st.company_id', $this->reportCompanyId())
+            ->tap(fn ($q) => $this->applyReportOutletScope($q, 'st.outlet_id'))
             ->whereBetween('st.stock_take_date', [$this->dateFrom, $this->dateTo])
             ->whereNull('st.deleted_at')
             ->orderBy('i.name');

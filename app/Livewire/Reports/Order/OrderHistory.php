@@ -59,10 +59,7 @@ class OrderHistory extends Component
             ->whereBetween('order_date', [$this->dateFrom, $this->dateTo]);
 
         $this->scopeByOutlet($query);
-
-        if ($this->outletFilter) {
-            $query->where('outlet_id', $this->outletFilter);
-        }
+        $this->applyReportOutletScope($query, $query->getModel()->getTable() . '.outlet_id');
 
         if ($this->supplierFilter) {
             $query->where('supplier_id', $this->supplierFilter);

@@ -310,8 +310,29 @@ class OvertimeClaims extends Component
         $this->validate();
 
         $user     = Auth::user();
+        // Employee is company-scoped, so a forged id from another company
+        // resolves to null here even though `exists` let it through.
         $employee = Employee::find($this->employee_id);
-        $outletId = $employee?->outlet_id ?? $user->activeOutletId();
+        if (! $employee) {
+            $this->addError('employee_id', 'Choose an employee from the list.');
+            return;
+        }
+        $accessibleOutletIds = $user->accessibleOutletIds();
+        abort_unless(in_array((int) $employee->outlet_id, $accessibleOutletIds, true), 403);
+        $outletId = $employee->outlet_id;
+
+        // Editing: trust the stored claim, not the modal. Only a draft may be
+        // rewritten here, and only one in an outlet this user can reach.
+        if ($this->editingId) {
+            $existingClaim = OvertimeClaim::findOrFail($this->editingId);
+            abort_unless(in_array((int) $existingClaim->outlet_id, $accessibleOutletIds, true), 403);
+            if ($existingClaim->status !== 'draft') {
+                $this->showModal = false;
+                $this->resetForm();
+                session()->flash('error', 'Only a draft claim can be edited.');
+                return;
+            }
+        }
 
         // A leaver stays claimable for the shifts they actually worked, but not
         // for days after they left — which is the whole reason they are still
@@ -995,6 +1016,7 @@ class OvertimeClaims extends Component
 
     public function openAddEmployee(): void
     {
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
         $this->editingEmployeeId  = null;
         $this->emp_name           = '';
         $this->emp_designation    = '';
@@ -1004,6 +1026,8 @@ class OvertimeClaims extends Component
 
     public function openEditEmployee(int $id): void
     {
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
+
         $emp = Employee::findOrFail($id);
         $this->editingEmployeeId  = $emp->id;
         $this->emp_name           = $emp->name;
@@ -1014,13 +1038,18 @@ class OvertimeClaims extends Component
 
     public function saveEmployee(): void
     {
+        // hr.claims is the route's ability; writing staff records is not part of it.
+        abort_unless(Auth::user()?->canDo('hr.employees.manage'), 403);
+
+        $user = Auth::user();
+
         $this->validate([
             'emp_name'          => 'required|string|max:255',
             'emp_designation'   => 'nullable|string|max:255',
-            'emp_section_id' => 'nullable|integer|exists:sections,id',
+            'emp_section_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('sections', 'id')
+                ->where('company_id', $user->company_id)],
         ]);
 
-        $user     = Auth::user();
         $outletId = $user->activeOutletId();
 
         $data = [
@@ -1032,7 +1061,13 @@ class OvertimeClaims extends Component
         ];
 
         if ($this->editingEmployeeId) {
-            Employee::findOrFail($this->editingEmployeeId)->update($data);
+            $emp = Employee::findOrFail($this->editingEmployeeId);
+            $accessible = $user->accessibleOutletIds();
+            abort_unless(in_array((int) $emp->outlet_id, $accessible, true), 403);
+            // Editing a name here must not quietly move someone to the editor's
+            // own outlet (it used to): an edit from this modal never relocates.
+            unset($data['outlet_id'], $data['company_id']);
+            $emp->update($data);
             session()->flash('success', 'Employee updated.');
         } else {
             Employee::create($data);
@@ -1044,13 +1079,19 @@ class OvertimeClaims extends Component
 
     public function toggleEmployee(int $id): void
     {
+        abort_unless(Auth::user()?->canDo('hr.employment'), 403);
+
         $emp = Employee::findOrFail($id);
+        abort_unless(in_array((int) $emp->outlet_id, Auth::user()->accessibleOutletIds(), true), 403);
         $emp->update(['is_active' => ! $emp->is_active]);
     }
 
     public function deleteEmployee(int $id): void
     {
+        abort_unless(Auth::user()?->canDo('hr.employees.delete'), 403);
+
         $emp = Employee::findOrFail($id);
+        abort_unless(in_array((int) $emp->outlet_id, Auth::user()->accessibleOutletIds(), true), 403);
 
         if (OvertimeClaim::where('employee_id', $id)->exists()) {
             session()->flash('error', 'Cannot delete employee with existing OT claims. Deactivate instead.');

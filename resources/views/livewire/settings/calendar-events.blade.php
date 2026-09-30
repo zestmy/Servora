@@ -8,6 +8,7 @@
         <div class="flex-1">
             <p class="text-xs text-gray-600"><a href="{{ route('settings.index') }}" class="hover:underline">Settings</a> / Calendar Events</p>
         </div>
+        @canDo('users.manage')
         <div class="flex items-center gap-2">
             <button wire:click="openHolidays"
                     class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition flex items-center gap-1.5">
@@ -24,6 +25,7 @@
                 + Add Event
             </button>
         </div>
+        @endcanDo
     </div>
 
     @if (session()->has('success'))
@@ -131,10 +133,12 @@
                             </div>
                         </td>
                         <td class="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                            @canDo('users.manage')
                             <button wire:click="openEditGroup({{ \Illuminate\Support\Js::from($row['ids']) }})" class="text-brand-600 hover:text-brand-800 text-xs font-medium">Edit</button>
                             <button wire:click="deleteGroup({{ \Illuminate\Support\Js::from($row['ids']) }})"
                                     data-confirm-delete="Delete this event{{ $row['count'] > 1 ? ' for all ' . $row['count'] . ' outlets' : '' }}?"
                                     class="text-danger-500 hover:text-danger-700 text-xs font-medium">Delete</button>
+                            @endcanDo
                         </td>
                     </tr>
                 @empty
