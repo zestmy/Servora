@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Lms;
 
 use App\Http\Controllers\Controller;
+use App\Models\Outlet;
 use App\Services\Pdf\SopExportBuilder;
 use Illuminate\Support\Facades\Auth;
 
@@ -47,6 +48,16 @@ class SopPdfController extends Controller
 
         [$user, $traineeOutletIds] = $this->viewer();
 
+        // The Training Portal's outlet filter: export what that outlet's staff
+        // would see. Staff users only — a trainee is already held to their own
+        // outlets and must not be able to widen or swap them from the URL.
+        $outlet = null;
+        if (! Auth::guard('lms')->check() && ($outletId = (int) request('outlet'))) {
+            $outlet = Outlet::where('company_id', $user->company_id)->find($outletId);
+            abort_unless($outlet, 404);
+            $traineeOutletIds = [$outlet->id];
+        }
+
         $built = $this->builder->bulk($user, [
             'prep'           => request()->boolean('prep'),
             'prep_category'  => (int) request('prep_category') ?: null,
@@ -54,7 +65,11 @@ class SopPdfController extends Controller
             'category_group' => (int) request('category_group') ?: null,
         ], $traineeOutletIds);
 
-        return $built['pdf']->download($built['filename']);
+        $filename = $outlet
+            ? preg_replace('/\.pdf$/i', '', $built['filename']) . '-' . str_replace(['/', '\\'], '-', $outlet->name) . '.pdf'
+            : $built['filename'];
+
+        return $built['pdf']->download($filename);
     }
 
     /**

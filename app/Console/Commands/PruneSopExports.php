@@ -17,6 +17,10 @@ use Illuminate\Console\Command;
  * finished" via SopExport::isDownloadable(), so a pruned export reads as an
  * offer to rebuild rather than an error.
  *
+ * Each company's newest completed file is never pruned, however old: the
+ * Training Portal offers it as the current handbook until a newer one
+ * replaces it, so it has to outlive the retention window.
+ *
  * Also fails off any run that died without reporting — a worker killed by a
  * deploy restart or the OOM killer never gets to write its own status, and
  * without this the row would sit "processing" forever and keep the panel's
@@ -34,9 +38,16 @@ class PruneSopExports extends Command
         $hours  = (int) ($this->option('hours') ?: SopExport::KEEP_FILE_HOURS);
         $cutoff = now()->subHours($hours);
 
+        $current = SopExport::where('status', SopExport::STATUS_COMPLETED)
+            ->whereNotNull('file_path')
+            ->groupBy('company_id')
+            ->selectRaw('MAX(id) as id')
+            ->pluck('id');
+
         $files = 0;
         SopExport::whereNotNull('file_path')
             ->where('created_at', '<', $cutoff)
+            ->whereNotIn('id', $current)
             ->each(function (SopExport $export) use (&$files) {
                 $export->forgetFile();
                 $files++;

@@ -23,6 +23,9 @@ class LmsUsers extends Component
     public string $accessUserName  = '';
     public array  $accessOutletIds = [];
 
+    // "Export SOPs by Category" outlet filter — '' means every outlet.
+    public string $sopOutletId = '';
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -137,8 +140,23 @@ class LmsUsers extends Component
         $totalRecipes    = Recipe::where('is_active', true)->where('is_prep', false)->count();
         $recipesWithVideo = Recipe::where('is_active', true)->where('is_prep', false)->whereNotNull('video_url')->count();
 
+        // Outlets for the SOP-access editor and the export outlet filter;
+        // central kitchen outlets are included (badged "CK") so CK SOP
+        // visibility can be granted/revoked.
+        $accessOutlets = \App\Models\Outlet::where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        // The export filter narrows the category chips to what that outlet's
+        // staff would actually get, so no chip exports an empty PDF. An id
+        // that is not one of this company's outlets is dropped, not trusted.
+        $exportOutletId = $accessOutlets->firstWhere('id', (int) $this->sopOutletId)?->id;
+        $exportOutletIds = $exportOutletId ? [$exportOutletId] : [];
+
         // SOP categories
         $sopCategories = Recipe::where('is_active', true)
+            ->visibleToOutlets($exportOutletIds)
             ->where('is_prep', false)
             ->where('exclude_from_lms', false)
             ->whereNotNull('category')
@@ -149,6 +167,7 @@ class LmsUsers extends Component
 
         // Prep-item SOPs get their own export links.
         $hasPrepSops = Recipe::where('is_active', true)
+            ->visibleToOutlets($exportOutletIds)
             ->where('is_prep', true)
             ->where('exclude_from_lms', false)
             ->exists();
@@ -158,6 +177,7 @@ class LmsUsers extends Component
         // (recipes.category stores the category name), preferring sub-categories
         // when the same name exists at both levels.
         $prepCategoryNames = Recipe::where('is_active', true)
+            ->visibleToOutlets($exportOutletIds)
             ->where('is_prep', true)
             ->where('exclude_from_lms', false)
             ->whereNotNull('category')
@@ -210,13 +230,6 @@ class LmsUsers extends Component
             $lmsRegisterUrl = null;
         }
 
-        // Outlets for the SOP-access editor; central kitchen outlets are
-        // included (badged "CK") so CK SOP visibility can be granted/revoked.
-        $accessOutlets = \App\Models\Outlet::where('company_id', $companyId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
         $centralKitchenOutletIds = \App\Models\CentralKitchen::whereNotNull('outlet_id')
             ->pluck('outlet_id')
             ->filter()
@@ -226,7 +239,7 @@ class LmsUsers extends Component
         return view('livewire.settings.lms-users', compact(
             'users', 'totalLmsUsers', 'pendingCount', 'approvedCount', 'rejectedCount',
             'totalSops', 'totalRecipes', 'recipesWithVideo', 'sopCategories', 'sopCategoryGroups', 'hasPrepSops', 'prepSopCategories',
-            'lmsUrl', 'lmsRegisterUrl', 'company', 'accessOutlets', 'centralKitchenOutletIds'
+            'lmsUrl', 'lmsRegisterUrl', 'company', 'accessOutlets', 'centralKitchenOutletIds', 'exportOutletId'
         ))->layout(\App\Helpers\WorkspaceLayout::get(), ['title' => 'Training Portal']);
     }
 }

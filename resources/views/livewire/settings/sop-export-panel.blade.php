@@ -73,6 +73,7 @@
                     @elseif ($isFailed)
                         <p class="progress-meta mt-0.5 text-warning-700">
                             {{ $export->isStale() ? 'The export stopped before it finished.' : ($export->error ?: 'The export failed.') }}
+                            @if ($latest) The previous version is still available. @endif
                         </p>
                     @else
                         <p class="progress-meta mt-0.5">
@@ -82,28 +83,27 @@
                 </div>
             </div>
 
-            <div class="flex flex-shrink-0 items-center gap-2">
-                @if ($isDone)
-                    <a href="{{ route('training.sop.export.download', $export) }}"
-                       class="btn-primary">
-                        <x-icon name="download" size="h-4 w-4" />
-                        Download PDF
-                    </a>
+            <div class="flex flex-shrink-0 flex-wrap items-center gap-2">
+                @if (! $isRunning)
                     <button type="button" wire:click="start" wire:loading.attr="disabled"
-                            title="Build a fresh copy"
-                            class="btn-secondary">
-                        Rebuild
-                    </button>
-                @elseif ($isFailed)
-                    <button type="button" wire:click="start" wire:loading.attr="disabled" class="btn-primary">
-                        Try again
-                    </button>
-                @elseif (! $isRunning)
-                    <button type="button" wire:click="start" wire:loading.attr="disabled" class="btn-primary">
+                            @if ($latest) title="Build a fresh copy — the current one stays available until it is ready" @endif
+                            class="{{ $latest ? 'btn-secondary' : 'btn-primary' }}">
                         <x-icon name="document" size="h-4 w-4" />
-                        <span wire:loading.remove wire:target="start">Generate PDF</span>
+                        <span wire:loading.remove wire:target="start">{{ $isFailed ? 'Try again' : ($latest ? 'Generate new PDF' : 'Generate PDF') }}</span>
                         <span wire:loading wire:target="start">Starting…</span>
                     </button>
+                @endif
+
+                {{-- The newest finished copy, dated so it is clear which version
+                     this is. It stays through a rebuild or a failed one, and is
+                     only replaced once a newer file exists. --}}
+                @if ($latest)
+                    <a href="{{ route('training.sop.export.download', $latest) }}"
+                       title="{{ $latest->humanSize() }}{{ $latest->recipe_count ? ' · ' . $latest->recipe_count . ' recipes' : '' }} · generated {{ $latest->finished_at?->format('d M Y, g:i A') }}"
+                       class="btn-primary">
+                        <x-icon name="download" size="h-4 w-4" />
+                        Download · {{ $latest->finished_at?->format('d M Y') }}
+                    </a>
                 @endif
             </div>
         </div>

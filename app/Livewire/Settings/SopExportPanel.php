@@ -97,6 +97,28 @@ class SopExportPanel extends Component
         return $seconds > 0 ? (int) $seconds : null;
     }
 
+    /**
+     * The newest handbook that can actually be handed over.
+     *
+     * Separate from the export being watched: while a rebuild runs, or after
+     * one fails, the previous good copy is still the current version, so the
+     * panel keeps offering it until a newer one replaces it. The pruner
+     * spares this row's file for the same reason.
+     */
+    private function latestDownloadable(?SopExport $current): ?SopExport
+    {
+        if ($current?->isDownloadable()) {
+            return $current;
+        }
+
+        return SopExport::forCompany($this->requireActiveCompany())
+            ->where('status', SopExport::STATUS_COMPLETED)
+            ->whereNotNull('file_path')
+            ->latest('id')
+            ->get()
+            ->first(fn (SopExport $e) => $e->isDownloadable());
+    }
+
     public function render()
     {
         $export = $this->exportId
@@ -105,6 +127,7 @@ class SopExportPanel extends Component
 
         return view('livewire.settings.sop-export-panel', [
             'export'   => $export,
+            'latest'   => $this->latestDownloadable($export),
             'running'  => (bool) $export?->isRunning(),
             'pollMs'   => self::POLL_MS,
             'typicalSeconds' => $this->typicalSeconds($export),

@@ -32,7 +32,19 @@ class SopExportController extends Controller
 
         return Storage::disk('local')->download(
             $export->file_path,
-            $export->filename ?: 'SOPs.pdf'
+            self::datedFilename($export)
         );
+    }
+
+    /**
+     * "Brand-Training-SOPs-2026-09-30.pdf" — the build date in the name, so
+     * copies saved on different days are distinguishable as versions.
+     */
+    public static function datedFilename(SopExport $export): string
+    {
+        $name = $export->filename ?: 'SOPs.pdf';
+        $date = ($export->finished_at ?? $export->created_at)?->format('Y-m-d');
+
+        return $date ? preg_replace('/(\.pdf)?$/i', "-{$date}.pdf", $name, 1) : $name;
     }
 }

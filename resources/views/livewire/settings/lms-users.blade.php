@@ -1,4 +1,5 @@
 <div>
+    @php $exportOutletParam = $exportOutletId ? ['outlet' => $exportOutletId] : []; @endphp
     @if (session()->has('success'))
         <div wire:key="flash-{{ microtime(true) }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
              class="mb-4 px-4 py-3 bg-success-50 border border-success-200 text-success-700 text-sm rounded-lg">
@@ -29,7 +30,7 @@
                         @if ($sopCategoryGroups->count())
                             <p class="px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-100">Top-tier</p>
                             @foreach ($sopCategoryGroups as $group)
-                                <x-download-link href="{{ route('training.sop.pdf-all', ['category_group' => $group['id']]) }}"
+                                <x-download-link href="{{ route('training.sop.pdf-all', ['category_group' => $group['id']] + $exportOutletParam) }}"
                                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -39,7 +40,7 @@
                             @endforeach
                         @endif
                         @if ($hasPrepSops)
-                            <x-download-link href="{{ route('training.sop.pdf-all', ['prep' => 1]) }}"
+                            <x-download-link href="{{ route('training.sop.pdf-all', ['prep' => 1] + $exportOutletParam) }}"
                                class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-warning-50 hover:text-warning-700 transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -49,7 +50,7 @@
                         @endif
                         <p class="px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-100">Single category</p>
                         @foreach ($sopCategories as $cat)
-                            <x-download-link href="{{ route('training.sop.pdf-all', ['category' => $cat]) }}"
+                            <x-download-link href="{{ route('training.sop.pdf-all', ['category' => $cat] + $exportOutletParam) }}"
                                class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -60,7 +61,7 @@
                         @if ($prepSopCategories->count())
                             <p class="px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-100">Prep items</p>
                             @foreach ($prepSopCategories as $prepCat)
-                                <x-download-link href="{{ route('training.sop.pdf-all', ['prep_category' => $prepCat->id]) }}"
+                                <x-download-link href="{{ route('training.sop.pdf-all', ['prep_category' => $prepCat->id] + $exportOutletParam) }}"
                                    class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-warning-50 hover:text-warning-700 transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0 text-warning-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -75,11 +76,38 @@
         </div>
     </div>
 
-    {{-- The whole catalogue renders too heavy for a request (~500 MB, ~100 s),
-         so it is queued and collected from this panel rather than being a
-         download link like the category exports above. --}}
-    <div class="mb-6">
-        @livewire('settings.sop-export-panel')
+    {{-- ── Stats Cards ── --}}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div class="card p-4">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Available SOPs</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $totalSops }}</p>
+            <p class="text-xs text-gray-600 mt-0.5">of {{ $totalRecipes }} recipes</p>
+        </div>
+        <div class="card p-4">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">With Video</p>
+            <p class="text-2xl font-bold text-brand-600 mt-1">{{ $recipesWithVideo }}</p>
+            <p class="text-xs text-gray-600 mt-0.5">training videos</p>
+        </div>
+        <div class="card p-4">
+            <p class="text-xs text-gray-600 uppercase tracking-wider">Total Users</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $totalLmsUsers }}</p>
+            <p class="text-xs text-gray-600 mt-0.5">LMS accounts</p>
+        </div>
+        <div class="card p-4">
+            <p class="text-xs text-warning-500 uppercase tracking-wider">Pending</p>
+            <p class="text-2xl font-bold text-warning-600 mt-1">{{ $pendingCount }}</p>
+            <p class="text-xs text-gray-600 mt-0.5">awaiting approval</p>
+        </div>
+        <div class="card p-4">
+            <p class="text-xs text-success-500 uppercase tracking-wider">Approved</p>
+            <p class="text-2xl font-bold text-success-600 mt-1">{{ $approvedCount }}</p>
+            <p class="text-xs text-gray-600 mt-0.5">active learners</p>
+        </div>
+        <div class="card p-4">
+            <p class="text-xs text-danger-500 uppercase tracking-wider">Rejected</p>
+            <p class="text-2xl font-bold text-danger-600 mt-1">{{ $rejectedCount }}</p>
+            <p class="text-xs text-gray-600 mt-0.5">denied</p>
+        </div>
     </div>
 
     {{-- ── Public LMS URL ── --}}
@@ -124,114 +152,6 @@
         </div>
     @endif
 
-    {{-- ── Stats Cards ── --}}
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <div class="card p-4">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Available SOPs</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $totalSops }}</p>
-            <p class="text-xs text-gray-600 mt-0.5">of {{ $totalRecipes }} recipes</p>
-        </div>
-        <div class="card p-4">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">With Video</p>
-            <p class="text-2xl font-bold text-brand-600 mt-1">{{ $recipesWithVideo }}</p>
-            <p class="text-xs text-gray-600 mt-0.5">training videos</p>
-        </div>
-        <div class="card p-4">
-            <p class="text-xs text-gray-600 uppercase tracking-wider">Total Users</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $totalLmsUsers }}</p>
-            <p class="text-xs text-gray-600 mt-0.5">LMS accounts</p>
-        </div>
-        <div class="card p-4">
-            <p class="text-xs text-warning-500 uppercase tracking-wider">Pending</p>
-            <p class="text-2xl font-bold text-warning-600 mt-1">{{ $pendingCount }}</p>
-            <p class="text-xs text-gray-600 mt-0.5">awaiting approval</p>
-        </div>
-        <div class="card p-4">
-            <p class="text-xs text-success-500 uppercase tracking-wider">Approved</p>
-            <p class="text-2xl font-bold text-success-600 mt-1">{{ $approvedCount }}</p>
-            <p class="text-xs text-gray-600 mt-0.5">active learners</p>
-        </div>
-        <div class="card p-4">
-            <p class="text-xs text-danger-500 uppercase tracking-wider">Rejected</p>
-            <p class="text-2xl font-bold text-danger-600 mt-1">{{ $rejectedCount }}</p>
-            <p class="text-xs text-gray-600 mt-0.5">denied</p>
-        </div>
-    </div>
-
-    {{-- ── SOP Categories ── --}}
-    @if ($sopCategories->count())
-        <div class="card p-5 mb-6">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Export SOPs by Category</h3>
-            @if ($sopCategoryGroups->count() || $hasPrepSops)
-                <div class="flex flex-wrap gap-2 mb-3">
-                    @foreach ($sopCategoryGroups as $group)
-                        <a href="{{ route('training.sop.pdf-all', ['category_group' => $group['id']]) }}" target="_blank"
-                           title="Export all SOPs under “{{ $group['name'] }}” as PDF"
-                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-600 text-white text-xs font-semibold rounded-full hover:bg-brand-700 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            All {{ $group['name'] }}
-                        </a>
-                    @endforeach
-                    @if ($hasPrepSops)
-                        <a href="{{ route('training.sop.pdf-all', ['prep' => 1]) }}" target="_blank"
-                           title="Export all prep-item SOPs as PDF"
-                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-warning-500 text-white text-xs font-semibold rounded-full hover:bg-warning-600 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            All Prep Items
-                        </a>
-                    @endif
-                </div>
-            @endif
-            <div class="flex flex-wrap gap-2">
-                @foreach ($sopCategories as $cat)
-                    <a href="{{ route('training.sop.pdf-all', ['category' => $cat]) }}" target="_blank"
-                       title="Export SOPs in “{{ $cat }}” as PDF"
-                       class="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 text-brand-700 text-xs font-medium rounded-full hover:bg-brand-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        {{ $cat }}
-                    </a>
-                @endforeach
-            </div>
-            @if ($prepSopCategories->count())
-                <div class="flex flex-wrap gap-2 mt-3">
-                    @foreach ($prepSopCategories as $prepCat)
-                        <a href="{{ route('training.sop.pdf-all', ['prep_category' => $prepCat->id]) }}" target="_blank"
-                           title="Export prep-item SOPs in “{{ $prepCat->name }}” as PDF"
-                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-warning-50 text-warning-700 text-xs font-medium rounded-full hover:bg-warning-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Prep — {{ $prepCat->name }}
-                        </a>
-                    @endforeach
-                </div>
-            @endif
-            <p class="text-xs text-gray-600 mt-3">
-                Click a category to export its SOPs as a PDF, or use <span class="font-medium text-gray-500">Full SOP Handbook</span> above for everything.
-                Only recipes with preparation steps appear in the LMS.
-                @canDo('recipes.view')
-                <a href="{{ route('recipes.index') }}" class="text-brand-500 hover:underline">Manage recipes</a>
-                @endcanDo
-            </p>
-        </div>
-    @else
-        <div class="bg-warning-50 border border-warning-200 rounded-xl p-5 mb-6">
-            <p class="text-sm text-warning-700 font-medium">No SOPs available yet</p>
-            <p class="text-xs text-warning-600 mt-1">
-                Add preparation steps to recipes to make them available in the Training Portal.
-                @canDo('recipes.view')
-                <a href="{{ route('recipes.index') }}" class="underline hover:no-underline">Go to Recipes</a>
-                @endcanDo
-            </p>
-        </div>
-    @endif
-
     {{-- ── LMS Users Table ── --}}
     <div class="flex items-center justify-between mb-4">
         <h3 class="text-sm font-semibold text-gray-700">LMS Users</h3>
@@ -254,7 +174,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden mb-6">
         @if ($users->count())
             <div class="overflow-x-auto">
                 <table class="table-surface min-w-full">
@@ -350,6 +270,108 @@
                 <p class="font-medium">No {{ $statusFilter }} LMS users found.</p>
             </div>
         @endif
+    </div>
+
+    {{-- ── SOP Categories ── --}}
+    {{-- Kept on screen while an outlet is picked, even one with nothing to
+         export, so the filter that emptied it can be changed back. --}}
+    @if ($sopCategories->count() || $exportOutletId)
+        <div class="card p-5 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Export SOPs by Category</h3>
+                @if ($accessOutlets->count() > 1)
+                    <label class="flex items-center gap-2 text-xs text-gray-600">
+                        Outlet
+                        <select wire:model.live="sopOutletId" class="input py-1.5 text-sm w-auto">
+                            <option value="">All outlets</option>
+                            @foreach ($accessOutlets as $outlet)
+                                <option value="{{ $outlet->id }}">{{ $outlet->name }}{{ in_array($outlet->id, $centralKitchenOutletIds) ? ' (CK)' : '' }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                @endif
+            </div>
+            @if (! $sopCategories->count() && ! $prepSopCategories->count() && ! $hasPrepSops)
+                <p class="text-sm text-gray-600">No SOPs are visible at this outlet.</p>
+            @endif
+            @if ($sopCategoryGroups->count() || $hasPrepSops)
+                <div class="flex flex-wrap gap-2 mb-3">
+                    @foreach ($sopCategoryGroups as $group)
+                        <a href="{{ route('training.sop.pdf-all', ['category_group' => $group['id']] + $exportOutletParam) }}" target="_blank"
+                           title="Export all SOPs under “{{ $group['name'] }}” as PDF"
+                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-600 text-white text-xs font-semibold rounded-full hover:bg-brand-700 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            All {{ $group['name'] }}
+                        </a>
+                    @endforeach
+                    @if ($hasPrepSops)
+                        <a href="{{ route('training.sop.pdf-all', ['prep' => 1] + $exportOutletParam) }}" target="_blank"
+                           title="Export all prep-item SOPs as PDF"
+                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-warning-500 text-white text-xs font-semibold rounded-full hover:bg-warning-600 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            All Prep Items
+                        </a>
+                    @endif
+                </div>
+            @endif
+            <div class="flex flex-wrap gap-2">
+                @foreach ($sopCategories as $cat)
+                    <a href="{{ route('training.sop.pdf-all', ['category' => $cat] + $exportOutletParam) }}" target="_blank"
+                       title="Export SOPs in “{{ $cat }}” as PDF"
+                       class="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-50 text-brand-700 text-xs font-medium rounded-full hover:bg-brand-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        {{ $cat }}
+                    </a>
+                @endforeach
+            </div>
+            @if ($prepSopCategories->count())
+                <div class="flex flex-wrap gap-2 mt-3">
+                    @foreach ($prepSopCategories as $prepCat)
+                        <a href="{{ route('training.sop.pdf-all', ['prep_category' => $prepCat->id] + $exportOutletParam) }}" target="_blank"
+                           title="Export prep-item SOPs in “{{ $prepCat->name }}” as PDF"
+                           class="inline-flex items-center gap-1.5 px-3 py-1 bg-warning-50 text-warning-700 text-xs font-medium rounded-full hover:bg-warning-100 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Prep — {{ $prepCat->name }}
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+            <p class="text-xs text-gray-600 mt-3">
+                @if ($exportOutletId)
+                    Showing what staff at <span class="font-medium text-gray-700">{{ $accessOutlets->firstWhere('id', $exportOutletId)->name }}</span> see — SOPs assigned to that outlet plus those available at all outlets.
+                @endif
+                Click a category to export its SOPs as a PDF, or use <span class="font-medium text-gray-500">Full SOP Handbook</span> below for everything.
+                Only recipes with preparation steps appear in the LMS.
+                @canDo('recipes.view')
+                <a href="{{ route('recipes.index') }}" class="text-brand-500 hover:underline">Manage recipes</a>
+                @endcanDo
+            </p>
+        </div>
+    @else
+        <div class="bg-warning-50 border border-warning-200 rounded-xl p-5 mb-6">
+            <p class="text-sm text-warning-700 font-medium">No SOPs available yet</p>
+            <p class="text-xs text-warning-600 mt-1">
+                Add preparation steps to recipes to make them available in the Training Portal.
+                @canDo('recipes.view')
+                <a href="{{ route('recipes.index') }}" class="underline hover:no-underline">Go to Recipes</a>
+                @endcanDo
+            </p>
+        </div>
+    @endif
+
+    {{-- The whole catalogue renders too heavy for a request (~500 MB, ~100 s),
+         so it is queued and collected from this panel rather than being a
+         download link like the category exports above it. --}}
+    <div class="mb-6">
+        @livewire('settings.sop-export-panel')
     </div>
 
     {{-- ── SOP Access modal ── --}}
