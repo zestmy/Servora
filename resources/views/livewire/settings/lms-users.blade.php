@@ -284,7 +284,7 @@
             @endif
             <p class="text-xs text-gray-600 mt-3">
                 @if ($exportOutletId)
-                    Showing what staff at <span class="font-medium text-gray-700">{{ $accessOutlets->firstWhere('id', $exportOutletId)->name }}</span> see — SOPs assigned to that outlet plus those available at all outlets.
+                    Showing <span class="font-medium text-gray-700">{{ $accessOutlets->firstWhere('id', $exportOutletId)->name }}</span> — only SOPs tagged to this outlet; recipes set to "All Outlets" are left out.
                 @endif
                 Click a category to export its SOPs as a PDF, or use <span class="font-medium text-gray-500">Full SOP Handbook</span> below for everything.
                 Only recipes with preparation steps appear in the LMS.

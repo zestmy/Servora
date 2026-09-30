@@ -178,6 +178,15 @@ class Recipe extends Model
         });
     }
 
+    /**
+     * Only recipes explicitly tagged to this outlet — "All Outlets" recipes
+     * excluded. Narrower than visibleToOutlets(), for per-outlet exports.
+     */
+    public function scopeTaggedToOutlet($query, int $outletId)
+    {
+        return $query->whereHas('outlets', fn ($o) => $o->where('outlets.id', $outletId));
+    }
+
     public function getTotalCostAttribute(): float
     {
         return $this->lines->sum(fn ($line) => $line->cost_per_recipe_uom * $line->quantity);

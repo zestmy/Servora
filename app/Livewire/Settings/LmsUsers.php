@@ -148,15 +148,16 @@ class LmsUsers extends Component
             ->orderBy('name')
             ->get();
 
-        // The export filter narrows the category chips to what that outlet's
-        // staff would actually get, so no chip exports an empty PDF. An id
-        // that is not one of this company's outlets is dropped, not trusted.
+        // The export filter narrows the category chips to recipes tagged to
+        // that outlet ("All Outlets" recipes excluded — same rule as the PDF),
+        // so no chip exports an empty PDF. An id that is not one of this
+        // company's outlets is dropped, not trusted.
         $exportOutletId = $accessOutlets->firstWhere('id', (int) $this->sopOutletId)?->id;
-        $exportOutletIds = $exportOutletId ? [$exportOutletId] : [];
+        $forOutlet = fn ($q) => $q->when($exportOutletId, fn ($q) => $q->taggedToOutlet($exportOutletId));
 
         // SOP categories
         $sopCategories = Recipe::where('is_active', true)
-            ->visibleToOutlets($exportOutletIds)
+            ->tap($forOutlet)
             ->where('is_prep', false)
             ->where('exclude_from_lms', false)
             ->whereNotNull('category')
@@ -167,7 +168,7 @@ class LmsUsers extends Component
 
         // Prep-item SOPs get their own export links.
         $hasPrepSops = Recipe::where('is_active', true)
-            ->visibleToOutlets($exportOutletIds)
+            ->tap($forOutlet)
             ->where('is_prep', true)
             ->where('exclude_from_lms', false)
             ->exists();
@@ -177,7 +178,7 @@ class LmsUsers extends Component
         // (recipes.category stores the category name), preferring sub-categories
         // when the same name exists at both levels.
         $prepCategoryNames = Recipe::where('is_active', true)
-            ->visibleToOutlets($exportOutletIds)
+            ->tap($forOutlet)
             ->where('is_prep', true)
             ->where('exclude_from_lms', false)
             ->whereNotNull('category')

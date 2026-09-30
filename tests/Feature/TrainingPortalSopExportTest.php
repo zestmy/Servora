@@ -110,16 +110,25 @@ class TrainingPortalSopExportTest extends TestCase
             'category' => $category, 'is_active' => true, 'is_prep' => false, 'exclude_from_lms' => false,
         ]);
 
-        $recipe('Nasi Lemak', 'Rice');                                   // every outlet
+        $recipe('Nasi Lemak', 'Rice');                                   // "All Outlets"
         $recipe('Iced Latte', 'Coffee')->outlets()->sync([$ioi->id]);   // IOI only
+        $recipe('Kaya Toast', 'Toast')->outlets()->sync([$klcc->id, $ioi->id]);
+        $recipe('Butter Toast', 'Toast');                                // "All Outlets"
 
         $page = Livewire::actingAs($this->user)->test(LmsUsers::class);
 
-        $page->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Coffee', 'Rice']);
+        $page->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Coffee', 'Rice', 'Toast']);
 
+        // Tagged only: "All Outlets" recipes would make every outlet's export
+        // look unfiltered, so Rice (untagged) drops out for KLCC.
         $page->set('sopOutletId', (string) $klcc->id)
-            ->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Rice'])
-            ->assertSee(route('training.sop.pdf-all', ['category' => 'Rice', 'outlet' => $klcc->id]));
+            ->assertViewHas('sopCategories', fn ($c) => $c->values()->all() === ['Toast'])
+            ->assertSee(route('training.sop.pdf-all', ['category' => 'Toast', 'outlet' => $klcc->id]));
+
+        // The PDF applies the same rule: Kaya Toast, not Butter Toast.
+        $built = app(\App\Services\Pdf\SopExportBuilder::class)
+            ->bulk($this->user, ['category' => 'Toast', 'outlet' => $klcc->id]);
+        $this->assertSame(1, $built['recipeCount']);
 
         // Another company's outlet id is ignored rather than trusted.
         $foreign = Outlet::create(['company_id' => Company::create([

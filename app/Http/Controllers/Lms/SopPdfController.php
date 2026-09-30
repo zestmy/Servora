@@ -48,14 +48,13 @@ class SopPdfController extends Controller
 
         [$user, $traineeOutletIds] = $this->viewer();
 
-        // The Training Portal's outlet filter: export what that outlet's staff
-        // would see. Staff users only — a trainee is already held to their own
-        // outlets and must not be able to widen or swap them from the URL.
+        // The Training Portal's outlet filter: only recipes tagged to that
+        // outlet. Staff users only — a trainee is already held to their own
+        // outlets by $traineeOutletIds.
         $outlet = null;
         if (! Auth::guard('lms')->check() && ($outletId = (int) request('outlet'))) {
             $outlet = Outlet::where('company_id', $user->company_id)->find($outletId);
             abort_unless($outlet, 404);
-            $traineeOutletIds = [$outlet->id];
         }
 
         $built = $this->builder->bulk($user, [
@@ -63,6 +62,7 @@ class SopPdfController extends Controller
             'prep_category'  => (int) request('prep_category') ?: null,
             'category'       => trim((string) request('category')) ?: null,
             'category_group' => (int) request('category_group') ?: null,
+            'outlet'         => $outlet?->id,
         ], $traineeOutletIds);
 
         $filename = $outlet
