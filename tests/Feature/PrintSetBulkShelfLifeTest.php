@@ -219,6 +219,66 @@ class PrintSetBulkShelfLifeTest extends TestCase
     }
 
     /**
+     * Lines carry no company scope of their own, so the per-line actions must
+     * be pinned to the open set — otherwise a crafted request could change the
+     * printed use-by on, or delete, another outlet's (or company's) line.
+     */
+    public function test_a_line_from_another_set_cannot_be_updated_or_removed_from_here(): void
+    {
+        $theirLine = $this->otherOutletLine();
+
+        $this->screen()
+            ->call('updateLine', $theirLine->id, 'storage_state', 'frozen')
+            ->call('updateLine', $theirLine->id, 'label_type', 'prep')
+            ->call('updateLine', $theirLine->id, 'shelf_life_value', '30')
+            ->call('removeLine', $theirLine->id);
+
+        $theirs = $theirLine->fresh();
+        $this->assertNotNull($theirs, 'A line outside the open set was removed.');
+        $this->assertSame('chill', $theirs->storage_state);
+        $this->assertSame('use_by', $theirs->label_type);
+        $this->assertNull($theirs->shelf_life_value);
+    }
+
+    public function test_an_unknown_storage_state_or_label_type_is_refused(): void
+    {
+        $this->screen()
+            ->call('updateLine', $this->lines[0]->id, 'storage_state', 'sunbathing')
+            ->call('updateLine', $this->lines[0]->id, 'label_type', 'bogus');
+
+        $line = $this->lines[0]->fresh();
+        $this->assertSame('chill', $line->storage_state);
+        $this->assertSame('use_by', $line->label_type);
+    }
+
+    public function test_a_line_in_the_open_set_can_still_be_updated_and_removed(): void
+    {
+        $this->screen()
+            ->call('updateLine', $this->lines[0]->id, 'storage_state', 'frozen')
+            ->call('removeLine', $this->lines[1]->id);
+
+        $this->assertSame('frozen', $this->lines[0]->fresh()->storage_state);
+        $this->assertNull($this->lines[1]->fresh());
+    }
+
+    private function otherOutletLine(): LabelSetLine
+    {
+        $otherOutlet = Outlet::create([
+            'company_id' => $this->company->id, 'name' => 'Third', 'code' => 'THI', 'is_active' => true,
+        ]);
+        $otherSet = LabelSet::create([
+            'company_id' => $this->company->id, 'outlet_id' => $otherOutlet->id,
+            'name' => 'Pastry', 'is_active' => true, 'created_by' => $this->user->id,
+        ]);
+
+        return LabelSetLine::create([
+            'label_set_id' => $otherSet->id, 'custom_name' => 'NOT MINE',
+            'sort_order' => 0, 'label_type' => 'use_by', 'storage_state' => 'chill',
+            'copies' => 1, 'is_active' => true,
+        ]);
+    }
+
+    /**
      * The bar is conditional markup — it only exists once something is ticked
      * — so a passing behaviour test proves nothing about whether anybody can
      * reach it.

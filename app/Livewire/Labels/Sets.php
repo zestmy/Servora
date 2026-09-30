@@ -612,7 +612,13 @@ class Sets extends Component
 
     public function removeLine(int $lineId): void
     {
-        LabelSetLine::findOrFail($lineId)->delete();
+        $line = $this->lineInEditingSet($lineId);
+
+        if (! $line) {
+            return;
+        }
+
+        $line->delete();
     }
 
     /** Swap this line with its neighbour — order is how labels come off the roll. */
@@ -647,7 +653,19 @@ class Sets extends Component
             return;
         }
 
-        $line = LabelSetLine::findOrFail($lineId);
+        $line = $this->lineInEditingSet($lineId);
+
+        if (! $line) {
+            return;
+        }
+
+        if ($field === 'label_type' && ! array_key_exists($value, LabelTemplate::LABEL_TYPES)) {
+            return;
+        }
+
+        if ($field === 'storage_state' && ! array_key_exists($value, ShelfLifeRule::STORAGE_STATES)) {
+            return;
+        }
 
         if ($field === 'copies') {
             $value = max(1, (int) $value);
@@ -738,6 +756,18 @@ class Sets extends Component
     private function editingSet(): ?LabelSet
     {
         return $this->editingSetId ? LabelSet::find($this->editingSetId) : null;
+    }
+
+    /**
+     * A line of the open set only. Lines carry no company scope of their own
+     * (they are reached through their set), so a bare find() on a client-sent
+     * id would reach any company's line.
+     */
+    private function lineInEditingSet(int $lineId): ?LabelSetLine
+    {
+        $set = $this->editingSet();
+
+        return $set ? LabelSetLine::where('label_set_id', $set->id)->find($lineId) : null;
     }
 
     private function createLine(LabelSet $set, ?string $type, ?int $id, ?string $customName): void
