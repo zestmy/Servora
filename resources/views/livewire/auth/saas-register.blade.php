@@ -1,10 +1,10 @@
-<div class="max-w-lg mx-auto px-4 py-12">
-    <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-gray-900">Start Your Free Trial</h1>
-        <p class="text-sm text-gray-500 mt-2">No credit card required. Get started in under 2 minutes.</p>
+<div>
+    <div class="mb-7">
+        <h1 class="font-display text-2xl font-semibold tracking-tight text-gray-900">Start your free trial</h1>
+        <p class="mt-1.5 text-sm text-gray-600">No credit card required. Get started in under 2 minutes.</p>
     </div>
 
-    <form wire:submit="register" class="card p-6 space-y-5">
+    <form wire:submit="register" class="space-y-5">
 
         {{-- Company Name --}}
         <div>
@@ -31,7 +31,7 @@
         </div>
 
         {{-- Password --}}
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid gap-4 sm:grid-cols-2">
             <div>
                 <x-input-label for="reg_pass" value="Password *" />
                 <x-text-input id="reg_pass" wire:model="password" type="password" class="mt-1 block w-full" />
@@ -69,13 +69,14 @@
         {{-- Submit --}}
         <button type="submit"
                 wire:loading.attr="disabled"
-                class="btn-primary w-full py-3">
+                class="btn-primary btn-lg w-full">
             <span wire:loading.remove>Start Free Trial</span>
             <span wire:loading>Creating your account…</span>
         </button>
-
-        <p class="text-xs text-center text-gray-600">
-            Already have an account? <a href="{{ route('login') }}" class="text-brand-600 hover:underline">Log in</a>
-        </p>
     </form>
+
+    <div class="mt-8 border-t border-gray-100 pt-6 text-center">
+        <p class="text-sm text-gray-600">Already have an account?</p>
+        <a href="{{ route('login') }}" class="btn-secondary mt-3 w-full">Log in</a>
+    </div>
 </div>

@@ -1,8 +1,54 @@
 <!DOCTYPE html>
-{{-- The sign-in page. It wears the marketing site's header and footer, so a
-     visitor who lands on /login from a bookmark or a search result can still
+{{-- Sign-in, the free trial signup, the forgot/reset password pages and email
+     verification. They
+     wear the marketing site's header and footer, so a visitor who lands on
+     one from a bookmark or a search result can still
      find Pricing, Help or the free trial, with the form in a split card in
      between: a brand panel on the left from lg up, the form on the right. --}}
+@php
+    // What the brand panel says, by page: sign-in (the default), the free
+    // trial signup, and the forgot/reset password pair. A page picks one with
+    // ['panel' => '...'] in its layout params.
+    $panels = [
+        'signin' => [
+            'kicker' => 'Back on the pass',
+            'headline' => 'Your kitchen&rsquo;s numbers, ready before service.',
+            'points' => [
+                'AI reads your supplier invoices, so nobody keys them in.',
+                'Recipe costs that move when your prices do.',
+                'Purchasing, stock counts and staff training in one place.',
+            ],
+        ],
+        'signup' => [
+            'kicker' => 'Free trial',
+            'headline' => 'Run a tighter kitchen from day one.',
+            'points' => [
+                'Every module unlocked while you try it.',
+                'No credit card needed to start.',
+                'Set up in a couple of minutes, not a couple of weeks.',
+            ],
+        ],
+        'reset' => [
+            'kicker' => 'Locked out?',
+            'headline' => 'Happens to the best chefs. Let&rsquo;s get you back in.',
+            'points' => [
+                'Enter the email you sign in with.',
+                'Open the reset link we send you.',
+                'Pick a new password and you&rsquo;re back on the line.',
+            ],
+        ],
+        'verify' => [
+            'kicker' => 'One last step',
+            'headline' => 'Check your inbox, then we&rsquo;re open for service.',
+            'points' => [
+                'We&rsquo;ve emailed you a verification link.',
+                'Click it to confirm the address is yours.',
+                'Then you&rsquo;re straight into your dashboard.',
+            ],
+        ],
+    ];
+    $panel = $panels[$panel ?? 'signin'] ?? $panels['signin'];
+@endphp
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
@@ -37,21 +83,17 @@
                 <div aria-hidden="true" class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-500/25 blur-3xl"></div>
 
                 <div class="relative">
-                    <p class="mk-kicker mk-kicker-dark">Back on the pass</p>
+                    <p class="mk-kicker mk-kicker-dark">{{ $panel['kicker'] }}</p>
                     <h2 class="mt-3 font-display text-3xl font-semibold leading-tight">
-                        Your kitchen&rsquo;s numbers, ready before service.
+                        {!! $panel['headline'] !!}
                     </h2>
                     <ul class="mt-8 space-y-4 text-sm text-gray-300">
-                        @foreach ([
-                            'AI reads your supplier invoices, so nobody keys them in.',
-                            'Recipe costs that move when your prices do.',
-                            'Purchasing, stock counts and staff training in one place.',
-                        ] as $point)
+                        @foreach ($panel['points'] as $point)
                             <li class="flex gap-3">
                                 <svg class="mt-0.5 h-5 w-5 flex-none text-brand-300" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
                                 </svg>
-                                <span>{{ $point }}</span>
+                                <span>{!! $point !!}</span>
                             </li>
                         @endforeach
                     </ul>
