@@ -102,6 +102,6 @@ class SaasRegister extends Component
         $trialDays = Plan::find($this->plan_id)?->trial_days ?? 14;
 
         return view('livewire.auth.saas-register', compact('trialDays'))
-            ->layout('layouts.marketing', ['title' => 'Start Your Free Trial']);
+            ->layout('layouts.auth', ['title' => 'Start Your Free Trial', 'panel' => 'signup']);
     }
 }
