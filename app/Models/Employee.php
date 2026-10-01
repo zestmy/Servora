@@ -380,6 +380,31 @@ class Employee extends Model
     }
 
     /**
+     * applyEmploymentFilters() for one employee already in memory — the same
+     * two filters and the same rules, for a list built before it is shown
+     * (the service charge table hides rows without changing who is paid).
+     */
+    public function matchesEmploymentFilters(?string $status, ?string $type): bool
+    {
+        [$status, $type] = static::normaliseEmploymentFilters($status, $type);
+
+        $statusOk = match (true) {
+            $status === null   => true,
+            $status === 'none' => $this->employment_status === null,
+            default            => $this->employment_status === $status,
+        };
+
+        $typeOk = match (true) {
+            $type === null   => true,
+            $type === 'none' => $this->employment_type === null,
+            $type === 'exclude_outsourcing' => $this->employment_type !== static::TYPE_OUTSOURCING,
+            default          => $this->employment_type === $type,
+        };
+
+        return $statusOk && $typeOk;
+    }
+
+    /**
      * The two filters in words, for the header of an export — each null when
      * it was not narrowed.
      *

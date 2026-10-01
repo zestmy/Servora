@@ -477,6 +477,38 @@
                     $showDays  = $scMinDays > 0;
                     $scLeadSpan = 5 + ($showLate ? 1 : 0) + ($showDays ? 1 : 0);
                 @endphp
+
+                {{-- Display filters, as on Attendance Records. They only hide
+                     names from this list — everyone stays in the pool, and the
+                     RM/point and the totals below are always the whole pool's. --}}
+                <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-gray-100">
+                    <select wire:model.live="sectionFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                        <option value="">All Sections</option>
+                        @foreach ($sections as $s)
+                            <option value="{{ $s->id }}">{{ $s->name }}</option>
+                        @endforeach
+                    </select>
+                    <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                        <option value="">All Employment Status</option>
+                        @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
+                            <option value="{{ $esValue }}">{{ $esLabel }}</option>
+                        @endforeach
+                        <option value="none">No Status</option>
+                    </select>
+                    <select wire:model.live="employmentTypeFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
+                        <option value="">All Employment Types</option>
+                        @foreach (\App\Models\Employee::EMPLOYMENT_TYPE_FILTERS as $etValue => $etLabel)
+                            <option value="{{ $etValue }}">{{ $etLabel }}</option>
+                        @endforeach
+                    </select>
+                    @if ($scHiddenCount > 0)
+                        <span class="text-xs text-gray-600">
+                            Showing {{ $scVisibleRows->count() }} of {{ $scVisibleRows->count() + $scHiddenCount }} —
+                            hidden staff are still in the pool and still paid.
+                        </span>
+                    @endif
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="table-surface">
                         <thead>
@@ -512,7 +544,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($serviceCharge['rows'] as $scRow)
+                            @forelse ($scVisibleRows as $scRow)
                                 <tr wire:key="sc-{{ $scRow['employee']->id }}" class="hover:bg-gray-50/70 {{ $scRow['points'] <= 0 ? 'opacity-50' : '' }}">
                                     <td class="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap">
                                         {{ $scRow['employee']->name }}
@@ -645,11 +677,18 @@
                                     </td>
                                     <td class="px-2 py-1.5 text-right font-semibold text-teal-700 tabular-nums">{{ $scRow['points'] > 0 ? number_format($scRow['net'], 2) : '—' }}</td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr>
+                                    <td colspan="{{ $scLeadSpan + 4 + ($showLate ? 1 : 0) }}" class="px-3 py-6 text-center text-sm text-gray-600">
+                                        No staff match these filters. Everyone is still in the pool.
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                         <tfoot class="bg-gray-50 border-t-2 border-gray-200 text-sm font-semibold">
                             <tr>
-                                <td class="px-3 py-2 text-gray-700" colspan="{{ $scLeadSpan }}">Total</td>
+                                {{-- Always the whole pool, filters or not. --}}
+                                <td class="px-3 py-2 text-gray-700" colspan="{{ $scLeadSpan }}">{{ $scHiddenCount > 0 ? 'Total (whole pool)' : 'Total' }}</td>
                                 <td class="px-2 py-2 text-right text-gray-700 tabular-nums">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                                 <td class="px-2 py-2 text-right text-danger-600 tabular-nums">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
                                 @if ($showLate)

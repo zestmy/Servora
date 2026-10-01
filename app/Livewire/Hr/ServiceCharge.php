@@ -32,6 +32,16 @@ class ServiceCharge extends Component
 
     public string $outletFilter = '';
 
+    /*
+     * Display filters for the employee table — as on Attendance Records.
+     * They HIDE rows, nothing more: the pool, its RM/point and every total are
+     * worked out over everyone it pays, filtered or not, so narrowing the list
+     * to check one section can never move anybody's money.
+     */
+    public string $sectionFilter          = '';
+    public string $employmentStatusFilter = ''; // '' all | status key | 'none'
+    public string $employmentTypeFilter   = ''; // '' all | Employee::EMPLOYMENT_TYPE_FILTERS key
+
     // Pool amount + per-day deduction percentages for the current period;
     // scLoadedKey tracks which period/outlet the inputs were hydrated for so
     // switching periods reloads the stored values.
@@ -757,7 +767,17 @@ class ServiceCharge extends Component
         $savedPools    = $this->savedPools();
         $canDeletePool = $this->canDeletePool();
 
+        // Which rows to SHOW. Applied to the finished distribution, after every
+        // figure is worked out, so a hidden row is still in the pool and paid.
+        $sections = \App\Models\Section::active()->ordered()->get();
+        $scVisibleRows = collect($serviceCharge['rows'] ?? [])
+            ->filter(fn ($r) => $this->sectionFilter === '' || (int) $r['employee']->section_id === (int) $this->sectionFilter)
+            ->filter(fn ($r) => $r['employee']->matchesEmploymentFilters($this->employmentStatusFilter, $this->employmentTypeFilter))
+            ->values();
+        $scHiddenCount = count($serviceCharge['rows'] ?? []) - $scVisibleRows->count();
+
         return view('livewire.hr.service-charge', compact(
+            'sections', 'scVisibleRows', 'scHiddenCount',
             'lateRatePerMinute', 'serviceCharge', 'savedPools', 'canDeletePool',
             'outlets', 'canViewAll', 'from', 'to',
             'scPendingExclusions', 'scPendingMinDays', 'scPendingRedistribute', 'scPendingLate', 'scPendingSpecial', 'scPendingFunds', 'scPendingSettings',
