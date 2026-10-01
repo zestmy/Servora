@@ -308,6 +308,10 @@
                     <x-download-link :href="route('hr.attendance.payout-pdf', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter,
+                                // The list filters: slips for the staff on screen.
+                                'section' => $sectionFilter,
+                                'employment_status' => $employmentStatusFilter,
+                                'employment_type' => $employmentTypeFilter,
                             ])"
                             title="One payout slip per employee"
                             class="px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">

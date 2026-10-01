@@ -106,13 +106,19 @@ class AttendanceExportController extends Controller
         abort_if($data['serviceCharge'] === null, 404,
             'No service charge has been saved for this period and outlet.');
 
+        // The page's list filters decide WHOSE slips print — each slip is one
+        // person's own share, so there is no total for a filter to distort.
+        $data = $this->filterDistributionRows($request, $data);
+
         // Only people with a share get a slip: a page reading RM0.00 because
         // someone has no service points is not a payout, it is confusing.
         $rows = collect($data['serviceCharge']['rows'])
             ->filter(fn ($r) => $r['points'] > 0)
             ->values();
 
-        abort_if($rows->isEmpty(), 404, 'Nobody in this view has service points for this period.');
+        abort_if($rows->isEmpty(), 404, ($data['scHiddenCount'] ?? 0) > 0
+            ? 'Nobody matching these filters has service points for this period.'
+            : 'Nobody in this view has service points for this period.');
 
         $pdf = Pdf::loadView('pdf.service-charge-payout', [
             'rows'          => $rows,

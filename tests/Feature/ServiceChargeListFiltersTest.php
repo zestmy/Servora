@@ -215,4 +215,31 @@ class ServiceChargeListFiltersTest extends TestCase
         $this->assertStringContainsString('1 staff not listed are still in the pool', $cells);
         $this->assertStringContainsString('LISTED STAFF TOTAL', $cells);
     }
+
+    public function test_payout_slips_print_only_for_the_filtered_staff(): void
+    {
+        $this->staff('ALI COOK', $this->kitchen);
+        $this->staff('SITI WAITER', $this->floor);
+
+        $page = $this->panel()->call('saveServiceCharge');
+        [$from, $to] = [$page->viewData('from'), $page->viewData('to')];
+
+        $captured = null;
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()
+            ->andReturnUsing(function ($view, $data) use (&$captured) {
+                $captured = $data;
+                $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+                $pdf->shouldReceive('setPaper')->andReturnSelf();
+                $pdf->shouldReceive('download')->andReturn(response('pdf'));
+                return $pdf;
+            });
+
+        $this->get(route('hr.attendance.payout-pdf', [
+            'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
+            'outlet' => $this->outlet->id, 'section' => $this->kitchen->id,
+        ]))->assertOk();
+
+        $this->assertSame(['ALI COOK'], $captured['rows']->map(fn ($r) => $r['employee']->name)->all());
+        $this->assertEquals(1000.0, (float) $captured['rows'][0]['net'], 'Each slip is still the share from the whole pool.');
+    }
 }
