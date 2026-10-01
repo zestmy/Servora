@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-{{-- Sign-in, the free trial signup and the forgot/reset password pages. They
+{{-- Sign-in, the free trial signup, the forgot/reset password pages and email
+     verification. They
      wear the marketing site's header and footer, so a visitor who lands on
      one from a bookmark or a search result can still
      find Pricing, Help or the free trial, with the form in a split card in
@@ -34,6 +35,15 @@
                 'Enter the email you sign in with.',
                 'Open the reset link we send you.',
                 'Pick a new password and you&rsquo;re back on the line.',
+            ],
+        ],
+        'verify' => [
+            'kicker' => 'One last step',
+            'headline' => 'Check your inbox, then we&rsquo;re open for service.',
+            'points' => [
+                'We&rsquo;ve emailed you a verification link.',
+                'Click it to confirm the address is yours.',
+                'Then you&rsquo;re straight into your dashboard.',
             ],
         ],
     ];
