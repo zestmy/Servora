@@ -48,6 +48,19 @@ class MarketingPagesTest extends TestCase
         }
     }
 
+    public function test_the_header_offers_the_dashboard_only_when_signed_in(): void
+    {
+        $this->get('/pricing')
+            ->assertOk()
+            ->assertDontSee('Go to dashboard');
+
+        $this->actingAs(\App\Models\User::factory()->create())
+            ->get('/pricing')
+            ->assertOk()
+            ->assertSee('Go to dashboard')
+            ->assertSee(route('dashboard'), escape: false);
+    }
+
     public function test_the_footer_carries_the_product_pages(): void
     {
         $response = $this->get('/');

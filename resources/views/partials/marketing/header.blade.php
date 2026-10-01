@@ -74,13 +74,21 @@
                     {{ $nav('nav.english', 'View in English') }}
                 </a>
             @endif
-            <a href="{{ route('login') }}"
-               class="text-[13px] font-medium text-gray-600 transition-colors hover:text-gray-900">
-                {{ $nav('nav.login', 'Log In') }}
-            </a>
-            <a href="{{ route('saas.register') }}" class="btn-primary btn-sm">
-                {{ $nav('nav.cta', 'Start Free Trial') }}
-            </a>
+            {{-- Signed in already: the only useful door is back into the app. --}}
+            @auth
+                <a href="{{ route('dashboard') }}" class="btn-primary btn-sm">
+                    {{ $nav('nav.dashboard', 'Go to dashboard') }}
+                    <span aria-hidden="true">&rarr;</span>
+                </a>
+            @else
+                <a href="{{ route('login') }}"
+                   class="text-[13px] font-medium text-gray-600 transition-colors hover:text-gray-900">
+                    {{ $nav('nav.login', 'Log In') }}
+                </a>
+                <a href="{{ route('saas.register') }}" class="btn-primary btn-sm">
+                    {{ $nav('nav.cta', 'Start Free Trial') }}
+                </a>
+            @endauth
         </div>
 
         {{-- Mobile trigger --}}
@@ -122,14 +130,23 @@
                         {{ $nav('nav.english', 'View in English') }}
                     </a>
                 @endif
-                <a href="{{ route('login') }}"
-                   class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
-                    {{ $nav('nav.login', 'Log In') }}
-                </a>
+                @guest
+                    <a href="{{ route('login') }}"
+                       class="block py-3 text-sm font-medium text-gray-700 hover:text-brand-700">
+                        {{ $nav('nav.login', 'Log In') }}
+                    </a>
+                @endguest
             </div>
-            <a href="{{ route('saas.register') }}" class="btn-primary mt-4 w-full">
-                {{ $nav('nav.cta', 'Start Free Trial') }}
-            </a>
+            @auth
+                <a href="{{ route('dashboard') }}" class="btn-primary mt-4 w-full">
+                    {{ $nav('nav.dashboard', 'Go to dashboard') }}
+                    <span aria-hidden="true">&rarr;</span>
+                </a>
+            @else
+                <a href="{{ route('saas.register') }}" class="btn-primary mt-4 w-full">
+                    {{ $nav('nav.cta', 'Start Free Trial') }}
+                </a>
+            @endauth
         </div>
     </div>
 </header>
