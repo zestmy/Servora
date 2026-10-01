@@ -888,9 +888,10 @@ class Employees extends Component
 
         $complianceSettings = ComplianceSetting::forCompany($companyId);
 
-        // Food handler is a held/not-held question, not an expiry one — it is
-        // one-off for most kitchens, so it is not in the expiry card at all.
-        // Counted over the same scope: active staff in the outlet and section
+        // Food handler is a held/not-held question for most kitchens. The
+        // Documents & Training card shows it as certified / pending (see
+        // DocumentExpiry::ALWAYS_REPORTED); this panel lists who has not taken
+        // it. Counted over the same scope: active staff in the outlet and section
         // being viewed, ignoring the search box and the status filters.
         $foodHandler = (clone $complianceQuery)
             ->where('is_active', true)

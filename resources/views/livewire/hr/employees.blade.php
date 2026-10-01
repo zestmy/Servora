@@ -273,6 +273,10 @@
                 @foreach ($compliance['documents'] as $doc)
                     @php
                         $needs = $doc[$ds::EXPIRED] + $doc[$ds::EXPIRING];
+                        // A one-off document's finding is the pending count.
+                        if (! ($doc['has_expiry'] ?? true)) {
+                            $needs = $doc[$ds::MISSING];
+                        }
                         $tone  = $doc[$ds::EXPIRED] > 0
                             ? 'bg-danger-50 border-danger-200'
                             : ($needs > 0 ? 'bg-warning-50 border-warning-200' : 'bg-gray-50 border-gray-200');
@@ -284,6 +288,21 @@
                                 <span class="text-[10px] text-gray-500 whitespace-nowrap">optional</span>
                             @endunless
                         </div>
+                        @if (! ($doc['has_expiry'] ?? true))
+                            {{-- One-off (food handler, unless the company tracks its
+                                 expiry): the only question is who has not got one. --}}
+                            <div class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                <span class="text-lg font-semibold tabular-nums {{ $doc[$ds::MISSING] > 0 ? 'text-warning-600' : 'text-gray-400' }}">
+                                    {{ $doc[$ds::MISSING] }}<span class="text-[11px] font-normal text-gray-500"> pending</span>
+                                </span>
+                                <span class="text-lg font-semibold tabular-nums text-success-600">
+                                    {{ $doc[$ds::VALID] }}<span class="text-[11px] font-normal text-gray-500"> certified</span>
+                                </span>
+                            </div>
+                            <p class="mt-1 text-[11px] text-gray-600">
+                                {{ $doc[$ds::MISSING] > 0 ? 'Not taken yet — listed below' : 'Everyone certified' }} · no expiry tracked
+                            </p>
+                        @else
                         <div class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
                             <span class="text-lg font-semibold tabular-nums {{ $doc[$ds::EXPIRED] > 0 ? 'text-danger-600' : 'text-gray-400' }}">
                                 {{ $doc[$ds::EXPIRED] }}<span class="text-[11px] font-normal text-gray-500"> expired</span>
@@ -302,6 +321,7 @@
                                  that follows a word character, and it silently renders as text. --}}
                             @if ($doc[$ds::MISSING] === 0 && $doc[$ds::UNDATED] === 0) All recorded @endif
                         </p>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -348,6 +368,8 @@
                                         {{ $row['days'] === 0 ? 'expires today' : 'in ' . $row['days'] . 'd' }}
                                     @elseif ($row['state'] === $ds::UNDATED)
                                         no expiry date
+                                    @elseif (! ($row['has_expiry'] ?? true))
+                                        not taken
                                     @else
                                         not recorded
                                     @endif

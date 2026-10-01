@@ -101,6 +101,8 @@
                                     {{ $row['days'] === 0 ? 'expires today' : 'in ' . $row['days'] . ' days' }}
                                 @elseif ($row['state'] === DE::UNDATED)
                                     no expiry date
+                                @elseif (! ($row['has_expiry'] ?? true))
+                                    not taken
                                 @else
                                     not recorded
                                 @endif
@@ -125,9 +127,15 @@
                                 @endunless
                             </td>
                             <td align="right" style="padding: 6px 6px; border-bottom: 1px solid #f3f4f6; color: #6b7280; white-space: nowrap;">
+                                @if (! ($doc['has_expiry'] ?? true))
+                                    {{-- One-off certificate: who has not got one yet. --}}
+                                    <span style="color: #b45309;">{{ $doc[DE::MISSING] }}</span> pending &middot;
+                                    <span style="color: #15803d;">{{ $doc[DE::VALID] }}</span> certified
+                                @else
                                 <span style="color: #b91c1c;">{{ $doc[DE::EXPIRED] }}</span> expired &middot;
                                 <span style="color: #b45309;">{{ $doc[DE::EXPIRING] }}</span> soon &middot;
                                 <span style="color: #15803d;">{{ $doc[DE::VALID] }}</span> valid
+                                @endif
                             </td>
                         </tr>
                     @endforeach

@@ -48,6 +48,15 @@ class DocumentExpiry
     /** States that put someone on the needs-attention list, most urgent first. */
     public const ACTIONABLE = [self::EXPIRED, self::EXPIRING, self::UNDATED, self::MISSING];
 
+    /**
+     * Built-in documents that stay on this report even when the company does
+     * not track their expiry. Food handler is a certificate every kitchen
+     * hand must hold, and for most companies a one-off — but who has not got
+     * one yet is exactly the reminder HR wants, so it reports certified /
+     * pending instead of dropping out.
+     */
+    public const ALWAYS_REPORTED = ['food_handler'];
+
     public function __construct(
         public readonly int $warningDays = self::WARNING_DAYS,
     ) {}
@@ -130,6 +139,7 @@ class DocumentExpiry
                     'outlet'       => $employee->outlet?->name,
                     'document'     => $def['label'],
                     'document_key' => $def['key'],
+                    'has_expiry'   => $def['has_expiry'],
                     'state'        => $state,
                     'expires_on'   => $expiresOn,
                     // Negative = already lapsed by that many days.
@@ -138,9 +148,10 @@ class DocumentExpiry
             }
 
             $documents[] = [
-                'key'      => $def['key'],
-                'label'    => $def['label'],
-                'required' => $def['required'],
+                'key'        => $def['key'],
+                'label'      => $def['label'],
+                'required'   => $def['required'],
+                'has_expiry' => $def['has_expiry'],
                 'holders'  => $holders,
             ] + $tally;
 
@@ -175,7 +186,9 @@ class DocumentExpiry
             // A one-off document has nothing to expire, so it has no place in
             // an expiry report at all — its held/not-held state is on the
             // Employees list, which is where that question belongs.
-            if (! $compliance->expires($key)) {
+            $tracksExpiry = $compliance->expires($key);
+
+            if (! $tracksExpiry && ! in_array($key, self::ALWAYS_REPORTED, true)) {
                 continue;
             }
 
@@ -185,7 +198,8 @@ class DocumentExpiry
                 'source'     => 'column',
                 'held'       => $doc['held'],
                 'expires'    => $doc['expires'],
-                'has_expiry' => true,
+                // One-off: holding it is enough, not holding it is the finding.
+                'has_expiry' => $tracksExpiry,
                 /*
                  * Of the documents asked of everybody, not holding one at all
                  * is itself the finding. A passport is not asked of everybody
