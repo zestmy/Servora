@@ -168,6 +168,7 @@
 
             <select wire:model.live="employmentStatusFilter" class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">All Employment Status</option>
+                <option value="{{ \App\Models\Employee::STATUS_EXCLUDE_RESIGNED }}">All except Resigned</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                 @endforeach
@@ -964,7 +965,9 @@
                 /* Mirrors Employee::applyEmploymentFilters(). */
                 matchesEmployment(e) {
                     const status = ! this.employment
-                        || (this.employment === 'none' ? ! e.employment : e.employment === this.employment);
+                        || (this.employment === 'none' ? ! e.employment
+                            : this.employment === 'exclude_resigned' ? e.employment !== 'resigned'
+                            : e.employment === this.employment);
                     const type = ! this.employmentType
                         || (this.employmentType === 'none' ? ! e.type
                             : this.employmentType === 'exclude_outsourcing' ? e.type !== 'foreign_outsourcing'
@@ -1005,6 +1008,7 @@
                             <select id="pdf_employment" x-model="employment" x-on:change="syncEmployee()"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="">All Employment Status</option>
+                                <option value="{{ \App\Models\Employee::STATUS_EXCLUDE_RESIGNED }}">All except Resigned</option>
                                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                                 @endforeach

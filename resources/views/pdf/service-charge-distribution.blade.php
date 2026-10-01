@@ -39,6 +39,18 @@
                     · Minimum {{ (int) $serviceCharge['minDays'] }} working days
                 @endif
             </div>
+            {{-- Filtered copy: say so, so it cannot pass for the full sheet.
+                 The rate and totals are still the whole pool's. --}}
+            @if (($scHiddenCount ?? 0) > 0)
+                <div class="sc-meta" style="color: #92400e;">
+                    Filtered list
+                    @if (! empty($scSectionName))
+                        · Section: {{ $scSectionName }}
+                    @endif
+                    · showing {{ count($serviceCharge['rows']) }} of {{ count($serviceCharge['rows']) + $scHiddenCount }} staff
+                    · {{ $scHiddenCount }} not shown are still in the pool and still paid; totals are the whole pool's.
+                </div>
+            @endif
             <table class="sc-table">
                 @php
                     // Optional column pairs only appear when they have something
@@ -129,7 +141,7 @@
                         </tr>
                     @endforeach
                     <tr class="sc-total">
-                        <td class="l" colspan="{{ $leadSpan }}">Total</td>
+                        <td class="l" colspan="{{ $leadSpan }}">{{ ($scHiddenCount ?? 0) > 0 ? 'Total (whole pool)' : 'Total' }}</td>
                         <td class="r">{{ number_format($serviceCharge['totals']['gross'], 2) }}</td>
                         <td class="r" style="color: #b91c1c;">-{{ number_format($serviceCharge['totals']['deduction'], 2) }}</td>
                         @if ($hasLate)

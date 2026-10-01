@@ -304,6 +304,13 @@ class Employee extends Model
         'AE' => '+971', 'SA' => '+966', 'QA' => '+974',
     ];
 
+    /**
+     * Synthetic Employment Status filter value: everyone still on the books.
+     * Staff with no status recorded count as not resigned, the same way a
+     * missing status is treated everywhere else.
+     */
+    public const STATUS_EXCLUDE_RESIGNED = 'exclude_resigned';
+
     public const EMPLOYMENT_STATUSES = [
         'probation'          => 'Probation',
         'confirmed'          => 'Confirmed',
@@ -366,6 +373,9 @@ class Employee extends Model
         match (true) {
             $status === null   => null,
             $status === 'none' => $query->whereNull($statusCol),
+            $status === static::STATUS_EXCLUDE_RESIGNED => $query->where(
+                fn ($q) => $q->whereNull($statusCol)->orWhere($statusCol, '!=', 'resigned')
+            ),
             default            => $query->where($statusCol, $status),
         };
 
@@ -391,6 +401,7 @@ class Employee extends Model
         $statusOk = match (true) {
             $status === null   => true,
             $status === 'none' => $this->employment_status === null,
+            $status === static::STATUS_EXCLUDE_RESIGNED => $this->employment_status !== 'resigned',
             default            => $this->employment_status === $status,
         };
 
@@ -418,6 +429,7 @@ class Employee extends Model
             'status' => match (true) {
                 $status === null   => null,
                 $status === 'none' => 'No Employment Status',
+                $status === static::STATUS_EXCLUDE_RESIGNED => 'All except Resigned',
                 default            => static::EMPLOYMENT_STATUSES[$status] ?? ucfirst($status),
             },
             'type' => $type === null ? null : (static::EMPLOYMENT_TYPE_FILTERS[$type] ?? ucfirst($type)),
@@ -441,7 +453,8 @@ class Employee extends Model
             [$status, $type] = [null, $type ?? 'exclude_outsourcing'];
         }
 
-        if ($status !== null && $status !== 'none' && ! isset(static::EMPLOYMENT_STATUSES[$status])) {
+        if ($status !== null && $status !== 'none' && $status !== static::STATUS_EXCLUDE_RESIGNED
+            && ! isset(static::EMPLOYMENT_STATUSES[$status])) {
             $status = null;
         }
         if ($type !== null && ! isset(static::EMPLOYMENT_TYPE_FILTERS[$type])) {

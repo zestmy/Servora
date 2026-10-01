@@ -270,6 +270,10 @@
                     <x-download-link :href="route('hr.attendance.distribution-pdf', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter,
+                                // The list filters, so the sheet matches the screen.
+                                'section' => $sectionFilter,
+                                'employment_status' => $employmentStatusFilter,
+                                'employment_type' => $employmentTypeFilter,
                             ])"
                             title="The distribution table on its own sheet"
                             class="px-3 py-2 text-sm font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 transition flex items-center gap-1.5">
@@ -286,6 +290,10 @@
                     <x-download-link :href="route('hr.attendance.distribution-excel', [
                                 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
                                 'outlet' => $outletFilter,
+                                // The list filters, so the sheet matches the screen.
+                                'section' => $sectionFilter,
+                                'employment_status' => $employmentStatusFilter,
+                                'employment_type' => $employmentTypeFilter,
                             ])"
                             title="The distribution as a spreadsheet, with a status column and the pool's arithmetic"
                             class="px-3 py-2 text-sm font-medium text-success-700 border border-success-200 rounded-lg hover:bg-success-50 transition flex items-center gap-1.5">
@@ -490,6 +498,7 @@
                     </select>
                     <select wire:model.live="employmentStatusFilter" class="text-sm rounded-lg border-gray-300 shadow-sm">
                         <option value="">All Employment Status</option>
+                        <option value="{{ \App\Models\Employee::STATUS_EXCLUDE_RESIGNED }}">All except Resigned</option>
                         @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                             <option value="{{ $esValue }}">{{ $esLabel }}</option>
                         @endforeach

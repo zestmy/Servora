@@ -119,6 +119,7 @@
             </select>
             <select wire:model.live="employmentStatusFilter" autocomplete="off" class="text-sm rounded-lg border-gray-300 shadow-sm">
                 <option value="">All Employment Status</option>
+                <option value="{{ \App\Models\Employee::STATUS_EXCLUDE_RESIGNED }}">All except Resigned</option>
                 @foreach (\App\Models\Employee::EMPLOYMENT_STATUSES as $esValue => $esLabel)
                     <option value="{{ $esValue }}">{{ $esLabel }}</option>
                 @endforeach

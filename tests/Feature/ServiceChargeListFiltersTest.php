@@ -131,4 +131,88 @@ class ServiceChargeListFiltersTest extends TestCase
             'A filtered-out name is still in the pool and still paid its share.');
         $this->assertSame([], $pool->excludedEmployeeIds());
     }
+
+    /**
+     * The PDF takes the same filters and prints only the matching rows — but
+     * with the whole pool's totals, and a note saying what was left out.
+     */
+    public function test_the_pdf_export_takes_the_same_filters_and_keeps_pool_totals(): void
+    {
+        $this->staff('ALI COOK', $this->kitchen);
+        $this->staff('SITI WAITER', $this->floor);
+
+        $page = $this->panel()->call('saveServiceCharge');
+        [$from, $to] = [$page->viewData('from'), $page->viewData('to')];
+
+        $captured = null;
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()
+            ->andReturnUsing(function ($view, $data) use (&$captured) {
+                $captured = $data;
+                $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+                $pdf->shouldReceive('setPaper')->andReturnSelf();
+                $pdf->shouldReceive('stream')->andReturn(response('pdf'));
+                return $pdf;
+            });
+
+        $this->get(route('hr.attendance.distribution-pdf', [
+            'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
+            'outlet' => $this->outlet->id, 'section' => $this->kitchen->id,
+        ]))->assertOk();
+
+        $names = collect($captured['serviceCharge']['rows'])->map(fn ($r) => $r['employee']->name)->all();
+        $this->assertSame(['ALI COOK'], $names);
+        $this->assertSame(1, $captured['scHiddenCount']);
+        $this->assertSame('Kitchen', $captured['scSectionName']);
+        $this->assertEquals(2000.0, (float) $captured['serviceCharge']['totals']['net'],
+            'Totals stay those of the whole pool, not of the filtered rows.');
+    }
+
+    public function test_all_except_resigned_hides_only_the_resigned(): void
+    {
+        $this->staff('STILL HERE', $this->kitchen, 'confirmed');
+        $this->staff('ON PROBATION', $this->kitchen, 'probation');
+        $this->staff('NO STATUS YET', $this->kitchen, 'confirmed')->update(['employment_status' => null]);
+        // Resigned during the period, so still in the pool and still paid.
+        Employee::create([
+            'company_id' => $this->company->id, 'outlet_id' => $this->outlet->id, 'section_id' => $this->kitchen->id,
+            'name' => 'LEFT US', 'is_active' => true, 'join_date' => '2025-01-01',
+            'employment_status' => 'resigned', 'employment_status_date' => now()->endOfMonth()->toDateString(),
+            'service_points_entitlement' => 10, 'basic_salary' => 2000, 'pay_type' => 'monthly',
+        ]);
+
+        $page = $this->panel()->set('employmentStatusFilter', Employee::STATUS_EXCLUDE_RESIGNED);
+        $names = $this->visibleNames($page);
+
+        $this->assertEqualsCanonicalizing(['STILL HERE', 'ON PROBATION', 'NO STATUS YET'], $names);
+
+        // The same rule as a query, which the grid, the employee list and
+        // the PDF/Excel exports use.
+        $query = Employee::query()->where('company_id', $this->company->id);
+        Employee::applyEmploymentFilters($query, Employee::STATUS_EXCLUDE_RESIGNED, null);
+        $this->assertEqualsCanonicalizing(['STILL HERE', 'ON PROBATION', 'NO STATUS YET'], $query->pluck('name')->all());
+
+        $this->assertSame('All except Resigned', Employee::employmentFilterLabels(Employee::STATUS_EXCLUDE_RESIGNED, null)['status']);
+    }
+
+    public function test_the_excel_export_lists_only_the_filtered_staff_and_says_so(): void
+    {
+        $this->staff('ALI COOK', $this->kitchen);
+        $this->staff('SITI WAITER', $this->floor);
+
+        $page = $this->panel()->call('saveServiceCharge');
+        [$from, $to] = [$page->viewData('from'), $page->viewData('to')];
+
+        $response = $this->get(route('hr.attendance.distribution-excel', [
+            'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'),
+            'outlet' => $this->outlet->id, 'section' => $this->kitchen->id,
+        ]))->assertOk();
+
+        $cells = collect(\PhpOffice\PhpSpreadsheet\IOFactory::load($response->baseResponse->getFile()->getPathname())
+            ->getActiveSheet()->toArray(null, false, false, true))->flatten()->filter()->implode('|');
+
+        $this->assertStringContainsString('ALI COOK', $cells);
+        $this->assertStringNotContainsString('SITI WAITER', $cells);
+        $this->assertStringContainsString('1 staff not listed are still in the pool', $cells);
+        $this->assertStringContainsString('LISTED STAFF TOTAL', $cells);
+    }
 }

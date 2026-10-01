@@ -129,6 +129,13 @@ class ServiceChargeDistributionSheet
         $sheet->setCellValueExplicit('A2', implode(' · ', array_filter([
             $data['from']->format('d M Y') . ' – ' . $data['to']->format('d M Y'),
             $data['outletName'] ?? 'All outlets',
+            // Say what the page's list filters left out, so a filtered sheet
+            // cannot pass for the full distribution.
+            ($data['scHiddenCount'] ?? 0) > 0
+                ? 'Filtered' . (! empty($data['scSectionName']) ? ': ' . $data['scSectionName'] : '')
+                    . (! empty($data['employmentLabel']) ? ' · ' . $data['employmentLabel'] : '')
+                    . ' — ' . $data['scHiddenCount'] . ' staff not listed are still in the pool and still paid'
+                : null,
             ($sc['minDays'] ?? 0) > 0 ? 'Minimum ' . $sc['minDays'] . ' working days' : null,
             ($sc['frozen'] ?? false) && ($sc['calculatedAt'] ?? null)
                 ? 'Calculated ' . $sc['calculatedAt']->format('d M Y, h:i A')
@@ -211,7 +218,9 @@ class ServiceChargeDistributionSheet
         // ── Staff total ──────────────────────────────────────────────────
         if ($rows->isNotEmpty()) {
             $row++;
-            $sheet->setCellValueExplicit('A' . $row, 'STAFF TOTAL', DataType::TYPE_STRING);
+            // A filtered export lists some of the pool's staff; its total is
+            // theirs, and says so. The pool summary below is always whole.
+            $sheet->setCellValueExplicit('A' . $row, ($data['scHiddenCount'] ?? 0) > 0 ? 'LISTED STAFF TOTAL' : 'STAFF TOTAL', DataType::TYPE_STRING);
 
             foreach ($columns as $c => [$label, $kind, $read]) {
                 // Not the percentage: a column of per-person rates has no

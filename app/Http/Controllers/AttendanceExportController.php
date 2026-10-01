@@ -54,6 +54,8 @@ class AttendanceExportController extends Controller
         abort_if($data['serviceCharge'] === null, 404,
             'No service charge has been saved for this period and outlet.');
 
+        $data = $this->filterDistributionRows($request, $data);
+
         $pdf = Pdf::loadView('pdf.service-charge-distribution', $data)->setPaper('a4', 'landscape');
 
         return $pdf->stream('Service-Charge-Distribution-' . $data['from']->format('Y-m-d') . '-to-' . $data['to']->format('Y-m-d') . '.pdf');
@@ -75,6 +77,8 @@ class AttendanceExportController extends Controller
         abort_unless($data['canManageServiceCharge'], 403);
         abort_if($data['serviceCharge'] === null, 404,
             'No service charge has been saved for this period and outlet.');
+
+        $data = $this->filterDistributionRows($request, $data);
 
         $sheet = app(\App\Services\Hr\ServiceChargeDistributionSheet::class);
 
@@ -133,6 +137,38 @@ class AttendanceExportController extends Controller
      *         sheet are ABOUT the pool, so they ask for it; the grid never
      *         does, since it no longer carries the section.
      */
+    /**
+     * The Service Charge page's list filters — section, employment status and
+     * type — applied to the printed rows, and to nothing else.
+     *
+     * Like on screen they only HIDE names: the pool, its RM/point and the
+     * totals stay the whole pool's, worked out over everyone it pays. The
+     * sheet says what was left out so a filtered copy cannot pass for the
+     * complete distribution.
+     */
+    private function filterDistributionRows(Request $request, array $data): array
+    {
+        $section = (string) $request->input('section', '');
+        $status  = (string) $request->input('employment_status', '');
+        $type    = (string) $request->input('employment_type', '');
+
+        $rows = collect($data['serviceCharge']['rows'] ?? []);
+        $all  = $rows->count();
+
+        $visible = $rows
+            ->filter(fn ($r) => $section === '' || (int) $r['employee']->section_id === (int) $section)
+            ->filter(fn ($r) => $r['employee']->matchesEmploymentFilters($status, $type))
+            ->values();
+
+        $data['serviceCharge']['rows'] = $visible->all();
+        $data['scHiddenCount']  = $all - $visible->count();
+        $data['scSectionName']  = $section !== ''
+            ? \App\Models\Section::whereKey((int) $section)->value('name')   // company-scoped
+            : null;
+
+        return $data;
+    }
+
     private function gather(Request $request, bool $forceServiceCharge = false): array
     {
         $user = Auth::user();
