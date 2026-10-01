@@ -43,9 +43,16 @@ class CorrectiveActionPhoto extends Model
         return $this->belongsTo(Employee::class, 'uploaded_by_employee_id');
     }
 
+    /** Behind login — see App\Http\Controllers\PrivateFileController. */
     public function url(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        return route('files.action-photo', $this->id);
+    }
+
+    /** The same photo for the staff app, which signs in with a PIN, not a login. */
+    public function staffUrl(): string
+    {
+        return route('clock.staff.action-photo', ['photo' => $this->id]);
     }
 
     public function isVerification(): bool

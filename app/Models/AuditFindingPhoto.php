@@ -30,8 +30,9 @@ class AuditFindingPhoto extends Model
         return $this->belongsTo(AuditFinding::class, 'audit_finding_id');
     }
 
+    /** Behind login — see App\Http\Controllers\PrivateFileController. */
     public function url(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        return route('files.audit-photo', $this->id);
     }
 }

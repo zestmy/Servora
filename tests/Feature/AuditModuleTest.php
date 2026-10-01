@@ -254,11 +254,11 @@ class AuditModuleTest extends TestCase
         $finding = AuditFinding::where('audit_line_id', $line->id)->firstOrFail();
         $photo   = $finding->photos()->firstOrFail();
 
-        Storage::disk('public')->assertExists($photo->file_path);
+        Storage::disk('local')->assertExists($photo->file_path);
 
         Livewire::test(Conduct::class, ['id' => $audit->id])->call('answer', $line->id, 'ok');
 
-        Storage::disk('public')->assertMissing($photo->file_path);
+        Storage::disk('local')->assertMissing($photo->file_path);
         $this->assertDatabaseCount('audit_finding_photos', 0);
     }
 

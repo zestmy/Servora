@@ -79,7 +79,12 @@ class PdfImage
             return null;
         }
 
+        // Most images are public (recipes, logos); audit photos are on the
+        // private disk since they stopped being public URLs. Either serves.
         $absolute = Storage::disk('public')->path($path);
+        if (! is_file($absolute)) {
+            $absolute = Storage::disk('local')->path($path);
+        }
 
         if (! is_file($absolute)) {
             return null;

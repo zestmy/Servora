@@ -94,7 +94,9 @@ class InvoiceReceive extends Component
         $this->errorMessage = '';
 
         try {
-            $path = $this->invoiceFile->store('invoices', 'public');
+            // Private disk: a supplier's invoice is shown through
+            // PrivateFileController after a login check, never a public URL.
+            $path = $this->invoiceFile->store('invoices', \App\Support\PrivateFiles::DISK);
             $this->uploadedFilePath = $path;
 
             $companyId = Auth::user()->company_id;

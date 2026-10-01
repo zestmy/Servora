@@ -225,8 +225,10 @@ class SalesForm extends Component
 
         // Save new attachments — images are compressed; PDFs stored as-is.
         foreach ($this->newAttachments as $file) {
-            $path = \App\Services\ImageStorageService::storeCompressed($file, 'sales-attachments');
-            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+            // Private disk: served by PrivateFileController after a login and
+            // outlet check, not by the web server to anyone with the URL.
+            $path = \App\Services\ImageStorageService::storeCompressed($file, 'sales-attachments', \App\Support\PrivateFiles::DISK);
+            $disk = \Illuminate\Support\Facades\Storage::disk(\App\Support\PrivateFiles::DISK);
 
             $record->attachments()->create([
                 'file_name' => $file->getClientOriginalName(),
@@ -253,7 +255,9 @@ class SalesForm extends Component
             ->whereHas('salesRecord')
             ->first();
         if ($attachment) {
-            Storage::disk('public')->delete($attachment->file_path);
+            if ($disk = \App\Support\PrivateFiles::diskFor($attachment->file_path)) {
+                Storage::disk($disk)->delete($attachment->file_path);
+            }
             $attachment->delete();
             $this->existingAttachments = array_values(
                 array_filter($this->existingAttachments, fn ($a) => $a['id'] !== $id)

@@ -44,6 +44,8 @@ class CorrectiveActionPhotosTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
+        // Audit photos live on the private disk; see PrivateFileController.
+        Storage::fake('local');
 
         $this->company = Company::create(['name' => 'Photo Co', 'slug' => Str::slug('Photo Co') . '-' . uniqid(), 'currency' => 'MYR', 'is_active' => true]);
         $this->outlet  = Outlet::create(['company_id' => $this->company->id, 'name' => 'IOI City Mall', 'code' => 'IOI', 'is_active' => true]);
@@ -98,7 +100,7 @@ class CorrectiveActionPhotosTest extends TestCase
         $this->assertTrue($this->action->isVerified());
 
         foreach ($this->action->photos as $photo) {
-            Storage::disk('public')->assertExists($photo->file_path);
+            Storage::disk('local')->assertExists($photo->file_path);
         }
     }
 
@@ -165,14 +167,14 @@ class CorrectiveActionPhotosTest extends TestCase
         Livewire::test(FindingActions::class, ['findingId' => $this->action->audit_finding_id])
             ->call('removePhoto', $first->id);
 
-        Storage::disk('public')->assertMissing($path);
+        Storage::disk('local')->assertMissing($path);
         $this->assertSame(6, $this->action->photos()->count());
 
         // Deleting the action takes every remaining file with it.
         $paths = $this->action->photos()->pluck('file_path');
         $svc->delete($this->action);
         foreach ($paths as $p) {
-            Storage::disk('public')->assertMissing($p);
+            Storage::disk('local')->assertMissing($p);
         }
         $this->assertDatabaseCount('corrective_action_photos', 0);
     }

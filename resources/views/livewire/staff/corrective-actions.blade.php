@@ -77,8 +77,8 @@
                         <div class="flex flex-wrap gap-2">
                             @foreach ($evidence as $photo)
                                 <div wire:key="sp-{{ $photo->id }}" class="relative">
-                                    <a href="{{ $photo->url() }}" target="_blank" class="block h-20 w-20 overflow-hidden rounded-control border border-gray-200">
-                                        <img src="{{ $photo->url() }}" alt="Photo of the fix" class="h-full w-full object-cover" loading="lazy" />
+                                    <a href="{{ $photo->staffUrl() }}" target="_blank" class="block h-20 w-20 overflow-hidden rounded-control border border-gray-200">
+                                        <img src="{{ $photo->staffUrl() }}" alt="Photo of the fix" class="h-full w-full object-cover" loading="lazy" />
                                     </a>
                                     @if ($isMine)
                                         <button type="button" wire:click="removePhoto({{ $photo->id }})"
@@ -97,8 +97,8 @@
                         <p class="mb-1 text-[11px] font-medium uppercase tracking-wider text-success-700">Auditor's verification photos</p>
                         <div class="flex flex-wrap gap-2">
                             @foreach ($verification as $photo)
-                                <a href="{{ $photo->url() }}" target="_blank" class="block h-20 w-20 overflow-hidden rounded-control border border-success-300">
-                                    <img src="{{ $photo->url() }}" alt="Verification photo" class="h-full w-full object-cover" loading="lazy" />
+                                <a href="{{ $photo->staffUrl() }}" target="_blank" class="block h-20 w-20 overflow-hidden rounded-control border border-success-300">
+                                    <img src="{{ $photo->staffUrl() }}" alt="Verification photo" class="h-full w-full object-cover" loading="lazy" />
                                 </a>
                             @endforeach
                         </div>

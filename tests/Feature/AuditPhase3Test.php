@@ -270,7 +270,7 @@ class AuditPhase3Test extends TestCase
         $this->assertSame('done', $mine->status);
         $this->assertSame('New seal fitted, reading 3°C', $mine->completion_note);
         $photo = $mine->photos()->where('kind', 'evidence')->firstOrFail();
-        Storage::disk('public')->assertExists($photo->file_path);
+        Storage::disk('local')->assertExists($photo->file_path);
         $this->assertSame($chef->id, $photo->uploaded_by_employee_id);
         $this->assertSame('open', $chillerFinding->fresh()->status, 'Done is a claim; only the auditor resolves it.');
 

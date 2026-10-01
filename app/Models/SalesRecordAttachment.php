@@ -25,9 +25,10 @@ class SalesRecordAttachment extends Model
         return $this->belongsTo(SalesRecord::class);
     }
 
+    /** Behind login — see App\Http\Controllers\PrivateFileController. */
     public function url(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        return route('files.sales-attachment', $this->id);
     }
 
     public function isImage(): bool

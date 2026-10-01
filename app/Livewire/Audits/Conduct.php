@@ -298,7 +298,7 @@ class Conduct extends Component
 
         AuditFindingPhoto::create([
             'audit_finding_id' => $finding->id,
-            'file_path'        => ImageStorageService::storeCompressed($file, 'audit-photos/' . $audit->company_id, 'public'),
+            'file_path'        => ImageStorageService::storeCompressed($file, 'audit-photos/' . $audit->company_id, \App\Support\PrivateFiles::DISK),
             'uploaded_by'      => Auth::id(),
         ]);
     }

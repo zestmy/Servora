@@ -637,6 +637,20 @@ Route::middleware(['auth', 'verified', 'company.scope', 'enforce.subscription', 
     // The MC behind a request. Private disk, so it is served rather than linked.
     Route::get('/hr/leave/{leaveRequest}/attachment', [\App\Http\Controllers\Hr\LeaveAttachmentController::class, 'show'])
         ->name('hr.leave.attachment')->middleware('can:hr.leave');
+
+    // Uploads that used to be public-disk URLs anyone could open. Streamed
+    // from the private disk after a login, permission, company and outlet
+    // check — see App\Http\Controllers\PrivateFileController.
+    Route::get('/files/sales-attachments/{attachment}', [\App\Http\Controllers\PrivateFileController::class, 'salesAttachment'])
+        ->whereNumber('attachment')->name('files.sales-attachment')->middleware('can:sales.view');
+    Route::get('/files/invoice-scans/{scan}', [\App\Http\Controllers\PrivateFileController::class, 'invoiceScan'])
+        ->whereNumber('scan')->name('files.invoice-scan')->middleware('can:purchasing.invoice');
+    Route::get('/files/purchase-invoices/{invoice}', [\App\Http\Controllers\PrivateFileController::class, 'procurementInvoice'])
+        ->whereNumber('invoice')->name('files.procurement-invoice')->middleware('can:purchasing.invoice');
+    Route::get('/files/audit-photos/{photo}', [\App\Http\Controllers\PrivateFileController::class, 'auditPhoto'])
+        ->whereNumber('photo')->name('files.audit-photo')->middleware('can:audits.view');
+    Route::get('/files/action-photos/{photo}', [\App\Http\Controllers\PrivateFileController::class, 'actionPhoto'])
+        ->whereNumber('photo')->name('files.action-photo')->middleware('can:audits.view');
     Route::get('/hr/documents', \App\Livewire\Hr\Documents::class)->name('hr.documents')->middleware('can:hr.documents.view');
     Route::get('/hr/duty-roster', \App\Livewire\Hr\DutyRoster::class)->name('hr.duty-roster'); // Viewable by all authenticated users
     Route::get('/hr/shifts', \App\Livewire\Hr\Shifts::class)->name('hr.shifts')->middleware('can:roster.settings');

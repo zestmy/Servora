@@ -25,9 +25,10 @@ class AiInvoiceExtractionService
 
         // Vision extraction requires a vision-capable model — always use Claude
         $model = \App\Support\AiModels::for('invoice_scan');
-        $fullPath = Storage::disk('public')->path($filePath);
+        // Private disk for new uploads, public for any not yet moved.
+        $fullPath = \App\Support\PrivateFiles::absolutePath($filePath);
 
-        if (! file_exists($fullPath)) {
+        if (! $fullPath || ! file_exists($fullPath)) {
             throw new \RuntimeException('Uploaded file not found.');
         }
 

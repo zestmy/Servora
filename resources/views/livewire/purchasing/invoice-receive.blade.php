@@ -293,19 +293,21 @@
             {{-- RIGHT: Reference Panel (40%) --}}
             <div class="lg:col-span-2 space-y-4">
                 {{-- Uploaded Invoice Preview --}}
-                @if ($uploadedFilePath)
+                @if ($uploadedFilePath && $scanId)
+                    {{-- Streamed from the private disk after a login check. --}}
+                    @php $scanUrl = route('files.invoice-scan', $scanId); @endphp
                     <div class="card p-4">
                         <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Uploaded Invoice</h4>
                         @if (str_contains($uploadedFilePath, '.pdf'))
-                            <a href="{{ asset('storage/' . $uploadedFilePath) }}" target="_blank"
+                            <a href="{{ $scanUrl }}" target="_blank"
                                class="text-sm text-brand-600 hover:underline inline-flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                                 Open PDF in new tab
                             </a>
                         @else
-                            <img src="{{ asset('storage/' . $uploadedFilePath) }}" alt="Uploaded invoice"
+                            <img src="{{ $scanUrl }}" alt="Uploaded invoice"
                                  class="w-full rounded-lg border border-gray-200 cursor-pointer"
-                                 x-on:click="window.open('{{ asset('storage/' . $uploadedFilePath) }}', '_blank')" />
+                                 x-on:click="window.open('{{ $scanUrl }}', '_blank')" />
                         @endif
                     </div>
                 @endif

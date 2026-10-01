@@ -124,13 +124,13 @@
         <div class="card p-4 mb-4">
             <p class="text-xs text-gray-600 mb-2">Uploaded Invoice</p>
             @if (str_contains($invoice->original_file_path, '.pdf'))
-                <a href="{{ asset('storage/' . $invoice->original_file_path) }}" target="_blank"
+                <a href="{{ route('files.procurement-invoice', $invoice->id) }}" target="_blank"
                    class="text-sm text-brand-600 hover:underline inline-flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                     View PDF
                 </a>
             @else
-                <img src="{{ asset('storage/' . $invoice->original_file_path) }}" alt="Invoice scan"
+                <img src="{{ route('files.procurement-invoice', $invoice->id) }}" alt="Invoice scan"
                      class="max-w-md rounded-lg border border-gray-200" />
             @endif
         </div>

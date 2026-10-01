@@ -148,7 +148,7 @@ class CorrectiveActionService
         return $action->photos()->create([
             'kind'                    => $kind,
             'file_path'               => ImageStorageService::storeCompressed(
-                $upload, 'audit-photos/' . $action->company_id . '/' . $kind, 'public'
+                $upload, 'audit-photos/' . $action->company_id . '/' . $kind, \App\Support\PrivateFiles::DISK
             ),
             'uploaded_by'             => $by instanceof User ? $by->id : null,
             'uploaded_by_employee_id' => $by instanceof Employee ? $by->id : null,
