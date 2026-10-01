@@ -118,7 +118,6 @@ class Employees extends Component
         }
 
         $this->showCompliance  = (bool) session('hr.employees.compliance_open', true);
-        $this->showFoodHandler = (bool) session('hr.employees.food_handler_open', true);
     }
 
     /**
@@ -151,17 +150,6 @@ class Employees extends Component
         session(['hr.employees.compliance_open' => $this->showCompliance]);
     }
 
-    /** Most uncertified names listed on the card before it says "and N more". */
-    public const FOOD_HANDLER_NAME_LIMIT = 50;
-
-    /** Food handler name list open/closed, remembered per user across visits. */
-    public bool $showFoodHandler = true;
-
-    public function toggleFoodHandler(): void
-    {
-        $this->showFoodHandler = ! $this->showFoodHandler;
-        session(['hr.employees.food_handler_open' => $this->showFoodHandler]);
-    }
 
     public function updatingSearch(): void         { $this->resetPage(); }
     public function updatingOutletFilter(): void   { $this->resetPage(); }
@@ -888,44 +876,10 @@ class Employees extends Component
 
         $complianceSettings = ComplianceSetting::forCompany($companyId);
 
-        // Food handler is a held/not-held question for most kitchens. The
-        // Documents & Training card shows it as certified / pending (see
-        // DocumentExpiry::ALWAYS_REPORTED); this panel lists who has not taken
-        // it. Counted over the same scope: active staff in the outlet and section
-        // being viewed, ignoring the search box and the status filters.
-        $foodHandler = (clone $complianceQuery)
-            ->where('is_active', true)
-            ->selectRaw('SUM(food_handler_certified = 1) as taken, SUM(food_handler_certified = 0 OR food_handler_certified IS NULL) as not_taken')
-            ->first();
-
-        $foodHandlerStats = [
-            'taken'     => (int) ($foodHandler->taken ?? 0),
-            'not_taken' => (int) ($foodHandler->not_taken ?? 0),
-        ];
-        $foodHandlerStats['total'] = $foodHandlerStats['taken'] + $foodHandlerStats['not_taken'];
-
-        // Who is missing it, in the same order every staff list uses. A count
-        // tells you there is a problem; the names are what someone acts on, so
-        // they load with the card rather than behind a second screen. Capped
-        // at 50 with the shortfall stated — a kitchen where nobody is
-        // certified would otherwise render the entire roster above the table.
-        $foodHandlerStats['missing'] = ($this->showFoodHandler && $foodHandlerStats['not_taken'] > 0)
-            ? (clone $complianceQuery)
-                ->where('is_active', true)
-                ->where(fn ($q) => $q->where('food_handler_certified', false)
-                                     ->orWhereNull('food_handler_certified'))
-                ->with(['outlet:id,name', 'section:id,name'])
-                ->inListOrder()
-                ->limit(self::FOOD_HANDLER_NAME_LIMIT)
-                // photo_path included or the chip's avatar can never show a
-                // face — the component quietly falls back to initials when
-                // the attribute simply wasn't selected.
-                ->get(['id', 'name', 'staff_id', 'outlet_id', 'section_id', 'photo_path'])
-            : collect();
 
         return view('livewire.hr.employees', compact(
             'employees', 'outlets', 'sections', 'canViewAll', 'canViewPay',
-            'compliance', 'complianceSettings', 'foodHandlerStats'
+            'compliance', 'complianceSettings'
         ))->layout('layouts.app', ['title' => 'Employees']);
     }
 }

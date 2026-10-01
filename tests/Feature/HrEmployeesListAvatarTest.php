@@ -71,7 +71,7 @@ class HrEmployeesListAvatarTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
-    public function test_the_list_row_and_the_food_handler_chip_both_carry_the_photo(): void
+    public function test_the_list_row_and_the_pending_food_handler_row_both_carry_the_photo(): void
     {
         $html = Livewire::actingAs($this->user)->test(Employees::class)
             ->assertSee('AISYAH RAHMAN')
@@ -86,17 +86,17 @@ class HrEmployeesListAvatarTest extends TestCase
         );
 
         /*
-         * The chip is asserted INSIDE its own markup, not by counting: the
-         * list row and the compliance card also carry the photo, so a global
-         * count stays green while the chip quietly renders initials — which
-         * is exactly the bug (a select() without photo_path) this pins.
+         * The pending row is asserted INSIDE its own markup, not by counting:
+         * the list row also carries the photo, so a global count stays green
+         * while the row quietly renders initials — which is exactly the bug
+         * (a select() without photo_path) this pins.
          */
-        $chipAt = strpos($html, 'wire:key="fh-' . $this->withPhoto->id . '"');
-        $this->assertNotFalse($chipAt, 'The food-handler chip renders for uncertified staff.');
+        $rowAt = strpos($html, 'wire:key="comp-' . $this->withPhoto->id . '-food_handler"');
+        $this->assertNotFalse($rowAt, 'The pending food handler row renders for uncertified staff.');
         $this->assertStringContainsString(
             $photoUrl,
-            substr($html, $chipAt, 800),
-            'The chip itself wears the face — its query must select photo_path.'
+            substr($html, $rowAt, 1200),
+            'The row itself wears the face — its query must select photo_path.'
         );
     }
 

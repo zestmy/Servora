@@ -149,18 +149,22 @@ class EmployeeListAvatarTest extends TestCase
     }
 
     /** The food-handler chips carry models, so they take the model directly. */
-    public function test_the_food_handler_panel_shows_photos(): void
+    /**
+     * Pending food handlers are listed on the Documents & Training card (the
+     * old separate panel is gone), and that row wears the face too.
+     */
+    public function test_a_pending_food_handler_row_shows_the_photo(): void
     {
         $missing = $this->employee('CHONG NOCARD', 'employees/photos/chong.jpg');
         $missing->update(['food_handler_certified' => false]);
 
         $html = $this->listHtml();
 
-        // The chip is a small circle, and h-5 w-5 is used nowhere else on this
-        // screen — asserting the photo URL alone would match the main list row
-        // and pass whether or not the panel ever rendered one.
-        $this->assertStringContainsString('fh-' . $missing->id, $html, 'The chip should be in the panel.');
-        $this->assertStringContainsString('h-5 w-5 flex-shrink-0 rounded-full', $html);
+        // Asserted inside the row itself: the main list also carries the photo,
+        // so a page-wide match would pass whether or not this row rendered one.
+        $rowAt = strpos($html, 'wire:key="comp-' . $missing->id . '-food_handler"');
+        $this->assertNotFalse($rowAt, 'The pending food handler should be on the Documents & Training list.');
+        $this->assertStringContainsString(route('hr.employees.photo', $missing->id), substr($html, $rowAt, 1200));
     }
 
     /** And Compensation, whose rows are arrays built by CompensationSummary. */
