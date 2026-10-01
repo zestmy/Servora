@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-{{-- Sign-in, the free trial signup, the forgot/reset password pages and email
-     verification. They
-     wear the marketing site's header and footer, so a visitor who lands on
-     one from a bookmark or a search result can still
-     find Pricing, Help or the free trial, with the form in a split card in
-     between: a brand panel on the left from lg up, the form on the right. --}}
+{{-- Every sign-in page: login, the free trial signup, forgot/reset password,
+     email verification and password confirmation. They wear the marketing
+     site's header and footer, so a visitor who lands on one from a bookmark
+     or a search result can still find Pricing, Help or the free trial, with
+     the form in a split card in between: a brand panel on the left from lg
+     up, the form on the right. --}}
 @php
     // What the brand panel says, by page: sign-in (the default), the free
-    // trial signup, and the forgot/reset password pair. A page picks one with
-    // ['panel' => '...'] in its layout params.
+    // trial signup, the forgot/reset password pair, email verification and
+    // password confirmation. A page picks one with ['panel' => '...'] in its
+    // layout params.
     $panels = [
         'signin' => [
             'kicker' => 'Back on the pass',
@@ -44,6 +45,15 @@
                 'We&rsquo;ve emailed you a verification link.',
                 'Click it to confirm the address is yours.',
                 'Then you&rsquo;re straight into your dashboard.',
+            ],
+        ],
+        'confirm' => [
+            'kicker' => 'Staff only',
+            'headline' => 'Quick check before you head into the back office.',
+            'points' => [
+                'This part of Servora holds sensitive settings.',
+                'Re-enter your password to carry on.',
+                'We won&rsquo;t ask again for a while.',
             ],
         ],
     ];
