@@ -240,58 +240,75 @@
                     Everything is in date. Nothing expires in the next {{ $compliance['warning_days'] }} days.
                 </p>
             @else
+                @php
+                    /*
+                     * One line per person, a tag per document. The rows arrive
+                     * most urgent first, and groupBy keeps first-seen order, so
+                     * each person sits where their most urgent item would have
+                     * — and their tags keep that same order inside the line.
+                     */
+                    $people = $rows->groupBy('employee_id');
+                    $stateTone = [
+                        $ds::EXPIRED  => 'bg-danger-50 text-danger-700 border-danger-200',
+                        $ds::EXPIRING => 'bg-warning-50 text-warning-700 border-warning-200',
+                        $ds::UNDATED  => 'bg-gray-50 text-gray-600 border-gray-200',
+                        $ds::MISSING  => 'bg-gray-50 text-gray-600 border-gray-200',
+                    ];
+                @endphp
                 <div class="mt-4 border border-gray-100 rounded-lg overflow-hidden">
                     <div class="divide-y divide-gray-50">
-                        @foreach ($rows->take(12) as $row)
-                            @php
-                                $stateTone = [
-                                    $ds::EXPIRED  => 'bg-danger-100 text-danger-700',
-                                    $ds::EXPIRING => 'bg-warning-100 text-warning-700',
-                                    $ds::UNDATED  => 'bg-gray-100 text-gray-600',
-                                    $ds::MISSING  => 'bg-gray-100 text-gray-600',
-                                ][$row['state']];
-                            @endphp
-                            <div wire:key="comp-{{ $row['employee_id'] }}-{{ $row['document_key'] }}"
-                                 class="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50">
-                                <x-employee-avatar :id="$row['employee_id']" :name="$row['name']"
-                                                   :photo="$row['photo_path'] ?? null"
+                        @foreach ($people->take(12) as $employeeId => $items)
+                            @php $person = $items->first(); @endphp
+                            <div wire:key="comp-{{ $employeeId }}"
+                                 class="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 hover:bg-gray-50">
+                                <x-employee-avatar :id="$employeeId" :name="$person['name']"
+                                                   :photo="$person['photo_path'] ?? null"
                                                    size="h-7 w-7" textSize="text-[10px]" />
-                                @canDo('hr.employees.manage')
-                                <a href="{{ route('hr.employees.edit', ['id' => $row['employee_id']] + $returnFilters) }}"
-                                   class="text-sm font-medium text-gray-800 hover:text-brand-600 hover:underline">
-                                    {{ $row['name'] }}
-                                </a>
-                                @else
-                                <span class="text-sm font-medium text-gray-800">{{ $row['name'] }}</span>
-                                @endcanDo
-                                @if ($row['outlet'])
-                                    <span class="text-[11px] text-gray-500">{{ $row['outlet'] }}</span>
-                                @endif
-                                <span class="text-xs text-gray-600">{{ $row['document'] }}</span>
-                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap {{ $stateTone }}">
-                                    @if ($row['state'] === $ds::EXPIRED)
-                                        expired {{ abs($row['days']) }}d ago
-                                    @elseif ($row['state'] === $ds::EXPIRING)
-                                        {{ $row['days'] === 0 ? 'expires today' : 'in ' . $row['days'] . 'd' }}
-                                    @elseif ($row['state'] === $ds::UNDATED)
-                                        no expiry date
-                                    @elseif (! ($row['has_expiry'] ?? true))
-                                        not taken
+                                <div class="min-w-0">
+                                    @canDo('hr.employees.manage')
+                                    <a href="{{ route('hr.employees.edit', ['id' => $employeeId] + $returnFilters) }}"
+                                       class="text-sm font-medium text-gray-800 hover:text-brand-600 hover:underline">
+                                        {{ $person['name'] }}
+                                    </a>
                                     @else
-                                        not recorded
+                                    <span class="text-sm font-medium text-gray-800">{{ $person['name'] }}</span>
+                                    @endcanDo
+                                    @if ($person['outlet'])
+                                        <span class="ml-1 text-[11px] text-gray-500">{{ $person['outlet'] }}</span>
                                     @endif
-                                </span>
-                                @if ($row['expires_on'])
-                                    <span class="text-[11px] text-gray-500 whitespace-nowrap w-20 text-right">{{ $row['expires_on']->format('d M Y') }}</span>
-                                @endif
+                                </div>
+                                {{-- What this person needs, one tag each: the document
+                                     and its state, coloured by urgency. --}}
+                                <div class="ml-auto flex flex-wrap justify-end gap-1.5">
+                                    @foreach ($items as $row)
+                                        <span data-doc="{{ $row['document_key'] }}"
+                                              title="{{ $row['expires_on'] ? 'Expires ' . $row['expires_on']->format('d M Y') : '' }}"
+                                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs whitespace-nowrap {{ $stateTone[$row['state']] }}">
+                                            <span class="font-medium">{{ $row['document'] }}</span>
+                                            <span class="opacity-80">·
+                                                @if ($row['state'] === $ds::EXPIRED)
+                                                    expired {{ abs($row['days']) }}d ago
+                                                @elseif ($row['state'] === $ds::EXPIRING)
+                                                    {{ $row['days'] === 0 ? 'expires today' : 'due in ' . $row['days'] . 'd' }}
+                                                @elseif ($row['state'] === $ds::UNDATED)
+                                                    no expiry date
+                                                @elseif (! ($row['has_expiry'] ?? true))
+                                                    not taken
+                                                @else
+                                                    not recorded
+                                                @endif
+                                            </span>
+                                        </span>
+                                    @endforeach
+                                </div>
                             </div>
                         @endforeach
                     </div>
-                    @if ($rows->count() > 12)
+                    @if ($people->count() > 12)
                         {{-- Say what was left out rather than letting the list
                              read as the whole story. --}}
                         <div class="px-3 py-2 bg-gray-50 text-xs text-gray-600 border-t border-gray-100">
-                            Showing the 12 most urgent of {{ $rows->count() }}. The rest are in the scheduled reminder email.
+                            Showing the 12 most urgent of {{ $people->count() }} staff ({{ $rows->count() }} items). The rest are in the scheduled reminder email.
                         </div>
                     @endif
                 </div>

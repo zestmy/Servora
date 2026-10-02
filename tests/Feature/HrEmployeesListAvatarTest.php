@@ -91,11 +91,11 @@ class HrEmployeesListAvatarTest extends TestCase
          * while the row quietly renders initials — which is exactly the bug
          * (a select() without photo_path) this pins.
          */
-        $rowAt = strpos($html, 'wire:key="comp-' . $this->withPhoto->id . '-food_handler"');
+        $rowAt = strpos($html, 'wire:key="comp-' . $this->withPhoto->id . '"');
         $this->assertNotFalse($rowAt, 'The pending food handler row renders for uncertified staff.');
         $this->assertStringContainsString(
             $photoUrl,
-            substr($html, $rowAt, 1200),
+            substr($html, $rowAt, 2500),
             'The row itself wears the face — its query must select photo_path.'
         );
     }

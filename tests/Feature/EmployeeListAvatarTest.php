@@ -162,9 +162,11 @@ class EmployeeListAvatarTest extends TestCase
 
         // Asserted inside the row itself: the main list also carries the photo,
         // so a page-wide match would pass whether or not this row rendered one.
-        $rowAt = strpos($html, 'wire:key="comp-' . $missing->id . '-food_handler"');
+        $rowAt = strpos($html, 'wire:key="comp-' . $missing->id . '"');
         $this->assertNotFalse($rowAt, 'The pending food handler should be on the Documents & Training list.');
-        $this->assertStringContainsString(route('hr.employees.photo', $missing->id), substr($html, $rowAt, 1200));
+        $row = substr($html, $rowAt, 2500);
+        $this->assertStringContainsString(route('hr.employees.photo', $missing->id), $row);
+        $this->assertStringContainsString('data-doc="food_handler"', $row);
     }
 
     /** And Compensation, whose rows are arrays built by CompensationSummary. */

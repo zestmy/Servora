@@ -103,4 +103,26 @@ class FoodHandlerReminderTest extends TestCase
             ->assertSee('certified')
             ->assertSee('not taken');
     }
+
+    /** Someone missing two things is one line with two tags, not two lines. */
+    public function test_one_person_with_several_items_is_one_line(): void
+    {
+        $both = $this->employee('NEW STARTER', ['food_handler_certified' => false, 'typhoid_card' => false]);
+
+        $user = User::factory()->create(['company_id' => $this->company->id, 'can_view_all_outlets' => true]);
+        $user->companies()->syncWithoutDetaching([$this->company->id]);
+        $user->outlets()->sync([$this->outlet->id]);
+        setPermissionsTeamId($this->company->id);
+        $user->givePermissionTo(Permission::findOrCreate('hr.view', 'web'));
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        ComplianceSetting::create(['company_id' => $this->company->id, 'typhoid_expires' => true]);
+
+        $html = Livewire::actingAs($user)->test(Employees::class)->html();
+
+        $this->assertSame(1, substr_count($html, 'wire:key="comp-' . $both->id . '"'), 'One line for the person.');
+        $row = substr($html, strpos($html, 'wire:key="comp-' . $both->id . '"'), 3000);
+        $this->assertStringContainsString('data-doc="food_handler"', $row);
+        $this->assertStringContainsString('data-doc="typhoid"', $row);
+    }
 }
