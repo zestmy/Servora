@@ -229,7 +229,7 @@ class ParLevels extends Component
                 $this->parLevels[$ing->id] ?? '',
             ]);
 
-        $outletName = Outlet::find($this->outletId)?->name ?? 'outlet';
+        $outletName = Outlet::where('company_id', Auth::user()->company_id)->find($this->outletId)?->name ?? 'outlet';
         $slug = \Illuminate\Support\Str::slug($outletName);
 
         return CsvExportService::download(

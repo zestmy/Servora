@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Inventory\StockTakeForm;
 use App\Livewire\Settings\FormTemplateEdit;
 use App\Livewire\Settings\LabourCosts;
 use App\Livewire\Settings\ParLevels;
@@ -258,5 +259,21 @@ class SettingsTenantIsolationTest extends TestCase
             ->assertForbidden();
 
         $this->assertSame(0, DB::table('ingredient_par_levels')->count());
+    }
+
+    // ── Outlet names ──────────────────────────────────────────────────────
+
+    /**
+     * outlet_id is client-writable and Outlet has no company scope, so the
+     * read-only outlet label must not look a crafted id up across companies.
+     */
+    public function test_a_stock_take_form_does_not_show_another_companys_outlet_name(): void
+    {
+        $user = $this->user(['inventory.stock_takes.record']);
+
+        Livewire::actingAs($user)->test(StockTakeForm::class)
+            ->assertSee('Main')
+            ->set('outlet_id', $this->otherOutlet->id)
+            ->assertDontSee('Theirs');
     }
 }

@@ -409,7 +409,7 @@ class WastageForm extends Component
 
         $outletOptions      = $this->outletOptions();
         $canChooseOutlet    = ! $this->recordId && $this->hasOutletChoice();
-        $selectedOutletName = Outlet::find($this->outlet_id)?->name;
+        $selectedOutletName = Outlet::where('company_id', Auth::user()->company_id)->find($this->outlet_id)?->name;
 
         return view('livewire.inventory.wastage-form', compact(
             'ingredientResults', 'recipeResults', 'totalCost', 'availableTemplates', 'departments',

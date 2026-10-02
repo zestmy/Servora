@@ -193,7 +193,7 @@ class Index extends Component
         }
 
         $company = Company::find(Auth::user()->company_id);
-        $outlet = $this->outletId ? Outlet::find($this->outletId) : null;
+        $outlet = $this->outletId ? Outlet::where('company_id', Auth::user()->company_id)->find($this->outletId) : null;
         $periodLabel = Carbon::createFromFormat('!Y-m', $this->period)->format('F Y');
         $outletName = $outlet?->name ?? 'All Outlets';
         $analysisType = $this->analysisType;
