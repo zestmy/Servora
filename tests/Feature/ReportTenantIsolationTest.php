@@ -314,4 +314,18 @@ class ReportTenantIsolationTest extends TestCase
 
         $this->assertTrue($reports->every(fn ($r) => empty($r['locked'])));
     }
+
+    /** The hub's kitchen dressing renders, and the daily quip holds through a re-render. */
+    public function test_the_reports_hub_wears_its_kitchen_dressing(): void
+    {
+        $hub = Livewire::actingAs($this->a['user'])->test(Hub::class)
+            ->assertSee('The numbers pass')
+            ->assertSee('Reports');
+
+        $quip = fn (string $html) => preg_match('/<p class="page-subtitle">(.+?)<\/p>/s', $html, $m) ? $m[1] : null;
+        $first = $quip($hub->html());
+
+        $this->assertNotNull($first);
+        $this->assertSame($first, $quip($hub->call('$refresh')->html()));
+    }
 }
