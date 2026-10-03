@@ -54,4 +54,21 @@ class ErrorPagesTest extends TestCase
             // Never the exception message: that is for the log, not the page.
             ->assertDontSee('secret internals');
     }
+
+    public function test_maintenance_mode_shows_the_kitchen_503(): void
+    {
+        // The same command deploy/update.sh runs, snapshot and all.
+        $this->artisan('down', ['--refresh' => 15, '--render' => 'errors::503'])->assertExitCode(0);
+
+        try {
+            $this->get('/')
+                ->assertStatus(503)
+                ->assertSee('86&rsquo;d for a moment', escape: false)
+                ->assertSee('http-equiv="refresh" content="15"', escape: false)
+                // Served while the build is being replaced: nothing from it.
+                ->assertDontSee('/build/', escape: false);
+        } finally {
+            $this->artisan('up');
+        }
+    }
 }
