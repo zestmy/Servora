@@ -8,7 +8,10 @@
     </x-download-link>
 --}}
 @props(['href'])
-<a href="{{ $href }}" target="_blank" rel="noopener"
+{{-- Blade has already escaped href="{{ … }}" on the way in (sanitizeComponentAttribute),
+     so escape without double-encoding: a second pass turns "&amp;" into "&amp;amp;"
+     and the browser reads every query parameter after the first as "amp;name". --}}
+<a href="{!! e($href, false) !!}" target="_blank" rel="noopener"
    x-data="{ busy: false }"
    @click="busy = true; setTimeout(() => busy = false, 6000)"
    {{ $attributes }}>

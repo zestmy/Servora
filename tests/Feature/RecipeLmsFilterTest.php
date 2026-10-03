@@ -111,8 +111,15 @@ class RecipeLmsFilterTest extends TestCase
 
     public function test_export_links_carry_the_lms_filter(): void
     {
-        Livewire::test(RecipesIndex::class)
-            ->set('lmsFilter', 'out')
-            ->assertSee('lms=out', false);
+        $category = \App\Models\RecipeCategory::create([
+            'company_id' => $this->company->id, 'name' => 'Mains', 'is_active' => true,
+        ]);
+
+        $html = Livewire::test(RecipesIndex::class)->set('lmsFilter', 'out')->html();
+
+        $this->assertStringContainsString('lms=out', $html);
+        // The By Category links carry it as well, escaped once (not "&amp;amp;").
+        $this->assertStringNotContainsString('&amp;amp;', $html);
+        $this->assertStringContainsString(e(route('recipes.cost-pdf-all', ['category' => $category->id, 'lms' => 'out'])), $html);
     }
 }
