@@ -210,4 +210,38 @@ class OutletFallbackAndGreetingTest extends TestCase
         $this->assertMatchesRegularExpression('/^Good (morning|afternoon|evening)$/',
             Livewire::actingAs($user->fresh())->test(Dashboard::class)->viewData('greeting'));
     }
+
+    // ── The kitchen moment under the greeting ─────────────────────────────
+
+    /** The strip follows the clock: lunchtime reads as the lunch rush. */
+    public function test_the_kitchen_moment_follows_the_time_of_day(): void
+    {
+        $user = $this->buyer([$this->second->id]);
+
+        $this->travelTo(now()->setTime(12, 30));
+        Livewire::actingAs($user->fresh())->test(Dashboard::class)
+            ->assertSee('Lunch rush')
+            ->assertSee('Chef&rsquo;s tip:', escape: false);
+
+        $this->travelTo(now()->setTime(8, 0));
+        Livewire::actingAs($user->fresh())->test(Dashboard::class)
+            ->assertSee('Prep time')
+            ->assertDontSee('Lunch rush');
+    }
+
+    /** The tip is picked by the date, so a filter re-render never swaps it. */
+    public function test_the_chefs_tip_holds_steady_through_a_rerender(): void
+    {
+        $user = $this->buyer([$this->second->id]);
+        $this->travelTo(now()->setTime(10, 0));
+
+        $tip = fn (string $html) => preg_match('/Chef&rsquo;s tip:<\/span>\s*(.+?)\s*<\/p>/s', $html, $m) ? $m[1] : null;
+
+        $page = Livewire::actingAs($user->fresh())->test(Dashboard::class);
+        $first = $tip($page->html());
+        $again = $tip($page->set('period', $page->get('period'))->html());
+
+        $this->assertNotNull($first);
+        $this->assertSame($first, $again);
+    }
 }

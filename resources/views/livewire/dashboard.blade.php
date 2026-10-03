@@ -37,6 +37,8 @@
     <x-page-header title="Dashboard" :eyebrow="$greeting"
                    :subtitle="trim($roleName . ($roleName ? ' · ' : '') . $periodCaption)" />
 
+    @include('livewire.dashboard.partials.kitchen-moment')
+
     {{-- Filter strip. Lower elevation than a card on purpose — it is chrome
          for the content below, not a peer of it.
 
