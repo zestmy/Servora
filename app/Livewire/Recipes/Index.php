@@ -21,6 +21,7 @@ class Index extends Component
     public string $statusFilter = 'all';
     public string $outletFilter = '';
     public string $costFilter = '';
+    public string $lmsFilter = ''; // '' | in | out
     public int $perPage = 15;
 
     public const PER_PAGE_OPTIONS = [15, 25, 50, 100];
@@ -52,6 +53,7 @@ class Index extends Component
             $this->statusFilter   = $saved['statusFilter']   ?? $this->statusFilter;
             $this->outletFilter   = $saved['outletFilter']   ?? $this->outletFilter;
             $this->costFilter     = $saved['costFilter']     ?? $this->costFilter;
+            $this->lmsFilter      = in_array($saved['lmsFilter'] ?? '', ['', 'in', 'out'], true) ? ($saved['lmsFilter'] ?? '') : '';
             $this->perPage        = in_array($saved['perPage'] ?? null, self::PER_PAGE_OPTIONS, true) ? $saved['perPage'] : $this->perPage;
         }
     }
@@ -69,6 +71,7 @@ class Index extends Component
             'statusFilter'   => $this->statusFilter,
             'outletFilter'   => $this->outletFilter,
             'costFilter'     => $this->costFilter,
+            'lmsFilter'      => $this->lmsFilter,
             'perPage'        => $this->perPage,
         ]);
     }
@@ -78,6 +81,7 @@ class Index extends Component
     public function updatedStatusFilter(): void   { $this->resetPage(); $this->clearSelection(); }
     public function updatedOutletFilter(): void   { $this->resetPage(); $this->clearSelection(); }
     public function updatedCostFilter(): void     { $this->resetPage(); $this->clearSelection(); }
+    public function updatedLmsFilter(): void      { $this->resetPage(); $this->clearSelection(); }
     public function updatedTab(): void            { $this->resetPage(); $this->clearSelection(); }
 
     public function updatedPerPage($value): void
@@ -539,6 +543,14 @@ class Index extends Component
             $query->where('recipes.is_active', true);
         } elseif ($this->statusFilter === 'inactive') {
             $query->where('recipes.is_active', false);
+        }
+
+        // "In LMS" means what trainees actually see: the LMS only lists active
+        // items not excluded from it, so an inactive item counts as not in LMS.
+        if ($this->lmsFilter === 'in') {
+            $query->where('recipes.is_active', true)->where('recipes.exclude_from_lms', false);
+        } elseif ($this->lmsFilter === 'out') {
+            $query->where(fn ($q) => $q->where('recipes.is_active', false)->orWhere('recipes.exclude_from_lms', true));
         }
 
         if ($this->outletFilter) {

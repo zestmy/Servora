@@ -287,6 +287,15 @@
                 </select>
             </div>
             <div>
+                <select wire:model.live="lmsFilter"
+                        title="In LMS = active and not excluded from LMS, i.e. visible to trainees"
+                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">All (LMS)</option>
+                    <option value="in">In LMS</option>
+                    <option value="out">Not in LMS</option>
+                </select>
+            </div>
+            <div>
                 <select wire:model.live="perPage"
                         class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
                     @foreach (\App\Livewire\Recipes\Index::PER_PAGE_OPTIONS as $n)
