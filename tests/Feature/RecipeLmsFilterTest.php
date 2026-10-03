@@ -122,4 +122,30 @@ class RecipeLmsFilterTest extends TestCase
         $this->assertStringNotContainsString('&amp;amp;', $html);
         $this->assertStringContainsString(e(route('recipes.cost-pdf-all', ['category' => $category->id, 'lms' => 'out'])), $html);
     }
+
+    public function test_by_category_links_carry_every_list_filter(): void
+    {
+        $category = \App\Models\RecipeCategory::create([
+            'company_id' => $this->company->id, 'name' => 'Mains', 'is_active' => true,
+        ]);
+        $other = \App\Models\RecipeCategory::create([
+            'company_id' => $this->company->id, 'name' => 'Drinks', 'is_active' => true,
+        ]);
+        $outlet = Outlet::where('company_id', $this->company->id)->first();
+
+        $html = Livewire::test(RecipesIndex::class)
+            ->set('search', 'nasi')
+            ->set('categoryFilter', (string) $other->id)
+            ->set('statusFilter', 'active')
+            ->set('outletFilter', (string) $outlet->id)
+            ->set('costFilter', 'over45')
+            ->set('lmsFilter', 'in')
+            ->html();
+
+        // The link's own category wins over the list's.
+        $this->assertStringContainsString(e(route('recipes.cost-pdf-all', [
+            'category' => $category->id, 'search' => 'nasi', 'status' => 'active',
+            'lms' => 'in', 'outlet' => $outlet->id, 'cost' => 'over45',
+        ])), $html);
+    }
 }
