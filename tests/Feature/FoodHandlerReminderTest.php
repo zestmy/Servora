@@ -125,4 +125,30 @@ class FoodHandlerReminderTest extends TestCase
         $this->assertStringContainsString('data-doc="food_handler"', $row);
         $this->assertStringContainsString('data-doc="typhoid"', $row);
     }
+
+    /**
+     * The reminder email groups the same way, and a pending food handler reads
+     * "not taken" there too — the stored report data used to drop the flag
+     * that says a document is one-off, so the email said "not recorded".
+     */
+    public function test_the_reminder_email_is_one_row_per_person_and_says_not_taken(): void
+    {
+        ComplianceSetting::create(['company_id' => $this->company->id, 'typhoid_expires' => true]);
+        $both = $this->employee('NEW STARTER', ['food_handler_certified' => false, 'typhoid_card' => false]);
+
+        $companyId = $this->company->id;
+        $data = (fn () => $this->documentExpiryData($companyId, null, now()))
+            ->call(app(\App\Services\ReportGeneratorService::class));
+
+        $html = view('emails.reports.hr-document-expiry', [
+            'reportData' => $data, 'company' => $this->company, 'outlet' => null, 'outletName' => 'All outlets', 'companyName' => 'Food Co', 'subject' => 'Reminder',
+            'reportDate' => now(), 'periodLabel' => 'test', 'aiInsights' => null, 'charts' => [],
+        ])->render();
+
+        $this->assertSame(1, substr_count($html, '>NEW STARTER') + substr_count($html, "NEW STARTER
+"), 'One row for the person.');
+        $this->assertStringContainsString('not taken', $html);
+        $this->assertStringContainsString('<strong>Food Handler</strong>', $html);
+        $this->assertStringContainsString('<strong>Typhoid Card</strong>', $html);
+    }
 }

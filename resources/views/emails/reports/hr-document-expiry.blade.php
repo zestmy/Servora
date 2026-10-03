@@ -6,7 +6,8 @@
     Built from the same DocumentExpiry summary as the Employees screen card, so
     this list and that one can never disagree. Read on a phone by someone about
     to chase a clinic appointment, so it leads with what is already lapsed and
-    keeps every row to one line: who, what, when.
+    keeps each person to one row: who, then a tag per document saying what and
+    when — the same grouping as the Employees screen.
 
     All styling is inline — the layout's classes exist, but mail clients treat
     a <style> block as optional and this table has to survive Outlook.
@@ -70,43 +71,46 @@
                 Everything is in date. Nothing needs chasing this period.
             </div>
         @else
-            {{-- Who needs chasing, most urgent first --}}
+            {{-- Who needs chasing, most urgent first — one row per person,
+                 a tag per document, the same as the Employees screen. Rows
+                 arrive most urgent first and groupBy keeps first-seen order. --}}
+            @php $people = $rows->groupBy(fn ($r) => $r['employee_id'] ?? $r['name']); @endphp
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                    style="border-collapse: collapse; font-size: 13px;">
                 <tr>
                     <th align="left" style="padding: 8px 6px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;">Employee</th>
-                    <th align="left" style="padding: 8px 6px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;">Document</th>
-                    <th align="right" style="padding: 8px 6px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;">Status</th>
+                    <th align="left" style="padding: 8px 6px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;">Needs</th>
                 </tr>
-                @foreach ($rows as $row)
-                    @php [$fg, $bg] = $tone[$row['state']] ?? ['#4b5563', '#f3f4f6']; @endphp
+                @foreach ($people as $items)
+                    @php $person = $items->first(); @endphp
                     <tr>
-                        <td style="padding: 10px 6px; border-bottom: 1px solid #f3f4f6; color: #1f2937; font-weight: 600;">
-                            {{ $row['name'] }}
-                            @if ($row['outlet'])
-                                <span style="display: block; font-weight: 400; font-size: 11px; color: #6b7280;">{{ $row['outlet'] }}</span>
+                        <td valign="top" style="padding: 10px 6px; border-bottom: 1px solid #f3f4f6; color: #1f2937; font-weight: 600;">
+                            {{ $person['name'] }}
+                            @if ($person['outlet'])
+                                <span style="display: block; font-weight: 400; font-size: 11px; color: #6b7280;">{{ $person['outlet'] }}</span>
                             @endif
                         </td>
-                        <td style="padding: 10px 6px; border-bottom: 1px solid #f3f4f6; color: #4b5563;">
-                            {{ $row['document'] }}
-                            @if ($row['expires_on'])
-                                <span style="display: block; font-size: 11px; color: #6b7280;">{{ \Carbon\Carbon::parse($row['expires_on'])->format('j M Y') }}</span>
-                            @endif
-                        </td>
-                        <td align="right" style="padding: 10px 6px; border-bottom: 1px solid #f3f4f6;">
-                            <span style="display: inline-block; padding: 3px 8px; border-radius: 999px; background: {{ $bg }}; color: {{ $fg }}; font-size: 11px; font-weight: 600; white-space: nowrap;">
-                                @if ($row['state'] === DE::EXPIRED)
-                                    expired {{ abs($row['days']) }}d ago
-                                @elseif ($row['state'] === DE::EXPIRING)
-                                    {{ $row['days'] === 0 ? 'expires today' : 'in ' . $row['days'] . ' days' }}
-                                @elseif ($row['state'] === DE::UNDATED)
-                                    no expiry date
-                                @elseif (! ($row['has_expiry'] ?? true))
-                                    not taken
-                                @else
-                                    not recorded
-                                @endif
-                            </span>
+                        <td valign="top" style="padding: 8px 6px; border-bottom: 1px solid #f3f4f6;">
+                            @foreach ($items as $row)
+                                @php [$fg, $bg] = $tone[$row['state']] ?? ['#4b5563', '#f3f4f6']; @endphp
+                                <span style="display: inline-block; margin: 2px 4px 2px 0; padding: 3px 8px; border-radius: 999px; background: {{ $bg }}; color: {{ $fg }}; font-size: 11px; white-space: nowrap;">
+                                    <strong>{{ $row['document'] }}</strong> &middot;
+                                    @if ($row['state'] === DE::EXPIRED)
+                                        expired {{ abs($row['days']) }}d ago
+                                    @elseif ($row['state'] === DE::EXPIRING)
+                                        {{ $row['days'] === 0 ? 'expires today' : 'due in ' . $row['days'] . ' days' }}
+                                    @elseif ($row['state'] === DE::UNDATED)
+                                        no expiry date
+                                    @elseif (! ($row['has_expiry'] ?? true))
+                                        not taken
+                                    @else
+                                        not recorded
+                                    @endif
+                                    @if ($row['expires_on'])
+                                        ({{ \Carbon\Carbon::parse($row['expires_on'])->format('j M Y') }})
+                                    @endif
+                                </span>
+                            @endforeach
                         </td>
                     </tr>
                 @endforeach

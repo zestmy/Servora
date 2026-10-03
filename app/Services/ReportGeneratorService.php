@@ -462,6 +462,10 @@ class ReportGeneratorService
                 'staff_id'    => $r['staff_id'],
                 'outlet'      => $r['outlet'],
                 'document'    => $r['document'],
+                'document_key' => $r['document_key'],
+                // One-off documents (food handler) read "not taken", not
+                // "not recorded" — the email needs to know which kind it is.
+                'has_expiry'  => $r['has_expiry'] ?? true,
                 'state'       => $r['state'],
                 'expires_on'  => $r['expires_on']?->toDateString(),
                 'days'        => $r['days'],
