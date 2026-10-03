@@ -39,7 +39,13 @@ class EaFormGenerator extends Component
     /** 'annual' | 'monthly' */
     public string $mode = 'annual';
 
-    public int $year;
+    /**
+     * Untyped, like the salary calculator's number fields and for the same
+     * reason: clearing the box sends "", and a typed property is UNSET by
+     * Livewire rather than assigned, so the next read throws. Read it through
+     * taxYear(), never directly.
+     */
+    public $year;
 
     // ---- Employer -----------------------------------------------------------
     public string $employerName = '';
@@ -142,6 +148,13 @@ class EaFormGenerator extends Component
      */
     public function updatedYear($value): void
     {
+        // Every keystroke arrives: retyping "2025" sends "2", "20", "202"
+        // first, and following those would leave "2-01-01" behind, which the
+        // pattern below then never matches again.
+        if (! preg_match('/^\d{4}$/', (string) $value)) {
+            return;
+        }
+
         $year = (int) $value;
 
         foreach ([['employedFrom', '-01-01'], ['employedTo', '-12-31']] as [$field, $suffix]) {
@@ -161,6 +174,12 @@ class EaFormGenerator extends Component
      *
      * @return array<string, mixed>
      */
+    /** The year as typed when it is a year, null while the box is blank or half-typed. */
+    private function taxYear(): ?int
+    {
+        return preg_match('/^\d{4}$/', trim((string) $this->year)) ? (int) $this->year : null;
+    }
+
     public function figures(): array
     {
         $income        = array_map(fn ($v) => max(0.0, (float) $v), $this->income);
@@ -219,6 +238,12 @@ class EaFormGenerator extends Component
     {
         $this->downloadError = '';
 
+        if ($this->taxYear() === null) {
+            $this->downloadError = 'Enter the year of remuneration.';
+
+            return null;
+        }
+
         $figures = $this->figures();
 
         if (! $figures['ready']) {
@@ -248,7 +273,7 @@ class EaFormGenerator extends Component
 
         $pdf = Pdf::loadView('pdf.marketing.ea-form', [
             'figures'  => $figures,
-            'year'     => $this->year,
+            'year'     => $this->taxYear(),
             'employer' => [
                 'name'    => trim($this->employerName),
                 'reg_no'  => trim($this->employerRegNo),
@@ -272,7 +297,7 @@ class EaFormGenerator extends Component
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
-            'ea-form-' . $this->year . '-' . Str::slug($this->employeeName) . '.pdf',
+            'ea-form-' . $this->taxYear() . '-' . Str::slug($this->employeeName) . '.pdf',
             ['Content-Type' => 'application/pdf']
         );
     }

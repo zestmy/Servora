@@ -71,10 +71,10 @@ class SalaryCalculator extends Component
      * __get and throws PropertyNotFoundException. A 500, in the middle of
      * filling in a form, from the most ordinary edit there is.
      *
-     * Reported on the salary calculator on 2026-08-11 and reproduced on every
-     * float field in these tools. Ints survive it (Livewire casts "" to 0);
-     * floats do not. Every read below already casts with (float), so the type
-     * was buying nothing that the casts were not already providing.
+     * Reported on the salary calculator on 2026-08-11 for the float fields,
+     * and again on 2026-10-02 for $children: ints do NOT survive it either,
+     * whatever this note used to say. Every read below casts, so the type was
+     * buying nothing that the casts were not already providing.
      */
 
     public $basic = 0;
@@ -155,7 +155,7 @@ class SalaryCalculator extends Component
     /** 'single' | 'spouse_not_working' | 'spouse_working' */
     public string $category = 'single';
 
-    public int $children = 0;
+    public $children = 0;
 
     /** Optional, for the heading of a downloaded copy. */
     public string $employeeName = '';
@@ -347,7 +347,7 @@ class SalaryCalculator extends Component
         $reliefs = (float) $d['pcb_relief_individual']
             + min($epfEmployee * 12, (float) $d['pcb_relief_epf_cap'])
             + ($this->category === 'spouse_not_working' ? (float) $d['pcb_relief_spouse'] : 0)
-            + max(0, $this->children) * (float) $d['pcb_relief_child'];
+            + max(0, (int) $this->children) * (float) $d['pcb_relief_child'];
 
         $chargeable = max(0.0, $annual - $reliefs);
         $annualTax  = max(0.0, $this->taxOn($chargeable) - (float) $d['pcb_rebate_amount']);

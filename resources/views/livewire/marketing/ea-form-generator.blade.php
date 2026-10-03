@@ -139,11 +139,11 @@
                         @foreach ($months as $i => $row)
                             <tr wire:key="month-{{ $i }}" class="border-b border-gray-100">
                                 <td class="py-1.5 pr-2 text-gray-700">
-                                    {{ \Carbon\Carbon::create($year, $i + 1, 1)->format('M') }}
+                                    {{ \Carbon\Carbon::create(2000, $i + 1, 1)->format('M') }}
                                 </td>
                                 @foreach ($monthColumns as $key => $col)
                                     <td class="px-1 py-1.5">
-                                        <input type="number" min="0" step="0.01" aria-label="{{ $col['label'] }} {{ \Carbon\Carbon::create($year, $i + 1, 1)->format('F') }}"
+                                        <input type="number" min="0" step="0.01" aria-label="{{ $col['label'] }} {{ \Carbon\Carbon::create(2000, $i + 1, 1)->format('F') }}"
                                                wire:model.live.debounce.500ms="months.{{ $i }}.{{ $key }}"
                                                class="input w-full min-w-[5.5rem] px-2 py-1.5 text-right tabular-nums" />
                                     </td>
