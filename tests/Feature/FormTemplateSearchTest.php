@@ -121,6 +121,28 @@ class FormTemplateSearchTest extends TestCase
         $this->assertSame('purchase_order', $screen->viewData('templates')->first()->form_type);
     }
 
+    /** Every template type gets a tab: Asset Count was missing from a hand-written list. */
+    public function test_every_template_type_has_a_tab_including_asset_count(): void
+    {
+        $screen = Livewire::actingAs($this->user)->test(FormTemplates::class);
+
+        foreach (FormTemplate::formTypeOptions() as $type => $label) {
+            $screen->assertSee("\$set('typeFilter', '{$type}')", escape: false)
+                   ->assertSee($label);
+        }
+    }
+
+    public function test_the_asset_count_tab_shows_only_asset_count_templates(): void
+    {
+        $this->template('Crockery Count', 'asset_count');
+        $this->template('Bar Section', 'stock_take');
+
+        $screen = Livewire::actingAs($this->user)->test(FormTemplates::class)
+            ->set('typeFilter', 'asset_count');
+
+        $this->assertSame(['Crockery Count'], $this->names($screen));
+    }
+
     public function test_search_does_not_reach_into_another_company(): void
     {
         $other = $this->makeCompany('Rival Co');

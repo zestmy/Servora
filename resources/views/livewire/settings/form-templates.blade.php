@@ -32,16 +32,20 @@
 
     {{-- Info banner --}}
     <div class="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg">
-        Templates let you pre-define item lists for <strong>Stock Takes</strong>, <strong>Purchase Orders</strong>, and <strong>Wastage</strong> entries.
+        Templates let you pre-define item lists for <strong>Stock Takes</strong>, <strong>Purchase Orders</strong>, <strong>Wastage</strong> and <strong>Asset Counts</strong>.
         Each section (Bar, Kitchen, Pastry, etc.) can have its own template for faster data entry.
     </div>
 
     {{-- Filter strip: type tabs + name/description search --}}
     <div class="toolbar mb-4">
-        <div class="seg">
-            @foreach (['' => 'All', 'stock_take' => 'Stock Take', 'purchase_order' => 'Purchase Order', 'wastage' => 'Wastage'] as $val => $label)
+        {{-- One tab per template type, read from the model, so a new type gets
+             its tab automatically. Asset Count was missing from a hand-written
+             list here. The strip scrolls sideways on a phone rather than
+             pushing the page wider. --}}
+        <div class="seg max-w-full overflow-x-auto">
+            @foreach (['' => 'All'] + \App\Models\FormTemplate::formTypeOptions() as $val => $label)
                 <button wire:click="$set('typeFilter', '{{ $val }}')"
-                        class="seg-item {{ $typeFilter === $val ? 'seg-item-on' : '' }}">
+                        class="seg-item whitespace-nowrap {{ $typeFilter === $val ? 'seg-item-on' : '' }}">
                     {{ $label }}
                 </button>
             @endforeach
@@ -152,7 +156,7 @@
                     </button>
                 @else
                     <p class="font-medium text-gray-500">No templates yet</p>
-                    <p class="text-xs mt-1">Create a template to pre-define item lists for stock takes, orders, or wastage entries.</p>
+                    <p class="text-xs mt-1">Create a template to pre-define item lists for stock takes, orders, wastage or asset counts.</p>
                     <button wire:click="openCreate"
                             class="btn-primary mt-4">
                         Create First Template
