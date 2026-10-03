@@ -1,10 +1,65 @@
 <div class="max-w-2xl mx-auto px-4 py-8">
+    {{-- The first screen a new customer sees after signing up, so it gets a
+         little ceremony: a chef's hat that bounces in, kitchen names for
+         each step, and confetti on the last one. Looks only; the forms and
+         their wire: bindings are unchanged. Motion stops under
+         prefers-reduced-motion. --}}
+    <style>
+        .ob-hat { animation: ob-bob 2.8s ease-in-out infinite; transform-origin: 50% 100%; }
+        @keyframes ob-bob {
+            0%, 100% { transform: translateY(0) rotate(0); }
+            25% { transform: translateY(-4px) rotate(-5deg); }
+            50% { transform: translateY(0) rotate(0); }
+            75% { transform: translateY(-3px) rotate(4deg); }
+        }
+        .ob-spark { animation: ob-twinkle 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+        .ob-spark:nth-of-type(2) { animation-delay: .7s; }
+        .ob-spark:nth-of-type(3) { animation-delay: 1.4s; }
+        @keyframes ob-twinkle { 0%, 100% { opacity: .2; transform: scale(.6); } 50% { opacity: 1; transform: scale(1); } }
+        .ob-current { animation: ob-pulse 2s ease-out infinite; }
+        @keyframes ob-pulse { 0% { box-shadow: 0 0 0 0 rgb(9 98 239 / .45); } 100% { box-shadow: 0 0 0 10px rgb(9 98 239 / 0); } }
+        .ob-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .ob-confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; opacity: 0; animation: ob-fall 2.6s ease-in forwards; }
+        @keyframes ob-fall {
+            0% { opacity: 1; transform: translateY(0) rotate(0); }
+            100% { opacity: 0; transform: translateY(260px) rotate(540deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .ob-hat, .ob-spark, .ob-current { animation: none; }
+            .ob-confetti { display: none; }
+        }
+    </style>
+
+    @php
+        // A kitchen name for each step, shown above its heading.
+        $stepFlavour = [
+            'company_details'  => 'Mise en place',
+            'first_outlet'     => 'Fire up the stove',
+            'invite_team'      => 'Call in the brigade',
+            'explore_features' => 'Service!',
+        ];
+        $stepNumber = array_search($currentStep, \App\Models\OnboardingStep::STEPS, true);
+    @endphp
+
     {{-- Header --}}
     <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-gray-900">Welcome to Servora!</h1>
-        <p class="text-sm text-gray-500 mt-1">Let's get your account set up. This only takes a couple of minutes.</p>
+        <svg class="mx-auto mb-3 h-16 w-16" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <g class="ob-hat">
+                <path d="M20 40 C10 40 8 26 18 24 C18 14 30 10 34 18 C40 10 54 14 50 26 C58 28 56 40 46 40 Z" fill="white" stroke="#0962ef" stroke-width="2.5" stroke-linejoin="round" />
+                <rect x="20" y="40" width="26" height="12" rx="3" fill="#0962ef" />
+                <path d="M26 44 v4 M33 44 v4 M40 44 v4" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".6" />
+            </g>
+            <path class="ob-spark" d="M8 12 l2 -5 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 z" fill="#f59e0b" />
+            <path class="ob-spark" d="M54 6 l1.5 -3.5 l1.5 3.5 l3.5 1.5 l-3.5 1.5 l-1.5 3.5 l-1.5 -3.5 l-3.5 -1.5 z" fill="#f59e0b" />
+            <path class="ob-spark" d="M56 46 l1.2 -3 l1.2 3 l3 1.2 l-3 1.2 l-1.2 3 l-1.2 -3 l-3 -1.2 z" fill="#0962ef" />
+        </svg>
+        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-600">The doors are open</p>
+        <h1 class="mt-1 text-2xl font-bold text-gray-900">Welcome to Servora!</h1>
+        <p class="text-sm text-gray-600 mt-1">Let&rsquo;s get your kitchen set up. Four quick steps, a couple of minutes, then you&rsquo;re on the pass.</p>
         @if ($plan)
-            <p class="text-xs text-brand-600 font-medium mt-2">{{ $plan->name }} Plan — {{ $plan->trial_days }}-day free trial</p>
+            <p class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+                {{ $plan->name }} Plan &middot; {{ $plan->trial_days }}-day free trial
+            </p>
         @endif
     </div>
 
@@ -18,7 +73,8 @@
             @endphp
             <div class="flex items-center gap-2">
                 <div class="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition
-                    {{ $isComplete ? 'bg-success-500 text-white' : ($isCurrent ? 'bg-brand-600 text-white' : 'bg-gray-200 text-gray-500') }}">
+                    {{ $isComplete ? 'bg-success-500 text-white' : ($isCurrent ? 'bg-brand-600 text-white ob-current' : 'bg-gray-200 text-gray-500') }}"
+                     title="{{ \App\Models\OnboardingStep::LABELS[$step] }}">
                     @if ($isComplete)
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -35,7 +91,12 @@
     </div>
 
     {{-- Step Content --}}
-    <div class="card p-6">
+    <div class="card relative p-6">
+        @if ($stepNumber !== false)
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-brand-600">
+                Step {{ $stepNumber + 1 }} of {{ count(\App\Models\OnboardingStep::STEPS) }} &middot; {{ $stepFlavour[$currentStep] ?? '' }}
+            </p>
+        @endif
 
         {{-- Step 1: Company Details --}}
         @if ($currentStep === 'company_details')
@@ -166,7 +227,13 @@
 
         {{-- Step 4: Explore Features --}}
         @if ($currentStep === 'explore_features')
-            <h2 class="text-base font-semibold text-gray-800 mb-1">You're All Set!</h2>
+            {{-- A short burst of confetti when the last step opens. --}}
+            <div class="ob-confetti" aria-hidden="true">
+                @foreach ([['8%','#0962ef',0],['18%','#f59e0b',.15],['30%','#10b981',.05],['42%','#ef4444',.25],['55%','#0962ef',.1],['66%','#f59e0b',.3],['78%','#10b981',.2],['90%','#ef4444',.05]] as [$left, $colour, $delay])
+                    <i style="left: {{ $left }}; background: {{ $colour }}; animation-delay: {{ $delay }}s"></i>
+                @endforeach
+            </div>
+            <h2 class="text-base font-semibold text-gray-800 mb-1">You're All Set! 🎉</h2>
             <p class="text-xs text-gray-600 mb-5">Here's what you can do with Servora:</p>
 
             <div class="grid grid-cols-2 gap-3 mb-6">
@@ -191,7 +258,7 @@
 
             <button wire:click="finishOnboarding"
                     class="btn-primary w-full py-3">
-                Go to Dashboard
+                Open the kitchen: go to Dashboard &rarr;
             </button>
         @endif
     </div>
