@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\RecipeCostPdfController;
 use App\Livewire\Recipes\Index as RecipesIndex;
 use App\Models\Company;
 use App\Models\Outlet;
@@ -9,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -81,5 +83,36 @@ class RecipeLmsFilterTest extends TestCase
             ->set('lmsFilter', 'out')
             ->assertDontSee('SHOWN PREP')
             ->assertSee('EXCLUDED PREP');
+    }
+
+    /** @return array<int, string> names the cost PDF / Excel exports would include */
+    private function exported(array $params): array
+    {
+        $controller = app(RecipeCostPdfController::class);
+        $apply = new \ReflectionMethod($controller, 'applyFilters');
+
+        return $apply->invoke($controller, Recipe::where('is_prep', false), Request::create('/', 'GET', $params), false)
+            ->orderBy('name')->pluck('name')->all();
+    }
+
+    public function test_exports_apply_the_lms_filter(): void
+    {
+        $this->recipe('Shown Recipe', false, true, false);
+        $this->recipe('Excluded Recipe', false, true, true);
+        $this->recipe('Inactive Recipe', false, false, false);
+
+        $this->assertSame(['SHOWN RECIPE'], $this->exported(['lms' => 'in']));
+        // Not overridden by the exports' implicit "active only" default.
+        $this->assertSame(['EXCLUDED RECIPE', 'INACTIVE RECIPE'], $this->exported(['lms' => 'out']));
+        $this->assertSame(['EXCLUDED RECIPE'], $this->exported(['lms' => 'out', 'status' => 'active']));
+        // No LMS filter: the old default (active only) is unchanged.
+        $this->assertSame(['EXCLUDED RECIPE', 'SHOWN RECIPE'], $this->exported([]));
+    }
+
+    public function test_export_links_carry_the_lms_filter(): void
+    {
+        Livewire::test(RecipesIndex::class)
+            ->set('lmsFilter', 'out')
+            ->assertSee('lms=out', false);
     }
 }

@@ -45,6 +45,7 @@
                                 'search'   => $search,
                                 'category' => $categoryFilter,
                                 'status'   => $statusFilter !== 'all' ? $statusFilter : null,
+                                'lms'      => $lmsFilter,
                                 'outlet'   => $outletFilter,
                                 'cost'     => $costFilter,
                             ]);
@@ -105,6 +106,7 @@
                                 'search'   => $search,
                                 'category' => $categoryFilter,
                                 'status'   => $statusFilter !== 'all' ? $statusFilter : null,
+                                'lms'      => $lmsFilter,
                                 'outlet'   => $outletFilter,
                             ]);
                         @endphp

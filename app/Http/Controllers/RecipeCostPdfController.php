@@ -79,7 +79,7 @@ class RecipeCostPdfController extends Controller
     }
 
     /**
-     * Apply UI filters (search, category, status, outlet, cost) to a recipe query.
+     * Apply UI filters (search, category, status, LMS, outlet, cost) to a recipe query.
      * Mirrors the logic in App\Livewire\Recipes\Index@render.
      */
     protected function applyFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request, bool $isPrep): \Illuminate\Database\Eloquent\Builder
@@ -88,6 +88,7 @@ class RecipeCostPdfController extends Controller
         $category = trim((string) $request->input('category', ''));
         $status   = (string) $request->input('status', 'all');
         $outletId = (int)    $request->input('outlet', 0);
+        $lms      = (string) $request->input('lms', '');
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -113,10 +114,19 @@ class RecipeCostPdfController extends Controller
         } elseif ($status === 'inactive') {
             $query->where('recipes.is_active', false);
         } else {
-            // Default behavior: only active items in PDFs (matches old behavior)
-            if ($status === 'all' && ! $request->has('status')) {
+            // Default behavior: only active items in PDFs (matches old behavior).
+            // Not with an LMS filter: it decides activity itself, and "Not in
+            // LMS" has to keep the inactive items the list shows.
+            if ($status === 'all' && ! $request->has('status') && ! in_array($lms, ['in', 'out'], true)) {
                 $query->where('recipes.is_active', true);
             }
+        }
+
+        // Same definition as the list: the LMS only shows active items not excluded from it.
+        if ($lms === 'in') {
+            $query->where('recipes.is_active', true)->where('recipes.exclude_from_lms', false);
+        } elseif ($lms === 'out') {
+            $query->where(fn ($q) => $q->where('recipes.is_active', false)->orWhere('recipes.exclude_from_lms', true));
         }
 
         if ($outletId > 0) {
@@ -311,6 +321,10 @@ class RecipeCostPdfController extends Controller
         if ($status = $request->input('status')) {
             if ($status === 'active') $filters[] = 'Status: Active only';
             elseif ($status === 'inactive') $filters[] = 'Status: Inactive only';
+        }
+        if ($lms = $request->input('lms')) {
+            if ($lms === 'in') $filters[] = 'In LMS only';
+            elseif ($lms === 'out') $filters[] = 'Not in LMS only';
         }
         if ($outletId = (int) $request->input('outlet', 0)) {
             // Outlet has no company scope; keep the caption to this company.
