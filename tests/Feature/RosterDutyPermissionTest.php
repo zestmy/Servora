@@ -188,4 +188,21 @@ class RosterDutyPermissionTest extends TestCase
 
         $this->assertNotNull(RosterEntry::find($theirEntry->id));
     }
+
+    public function test_approving_a_roster_with_planned_ot_raises_a_submitted_claim(): void
+    {
+        $this->entry->update([
+            'is_off_day' => false, 'leave_type' => null,
+            'shift_start' => '09:00', 'shift_end' => '21:00',
+            'planned_ot' => 3.5, 'planned_ot_manual' => true,
+        ]);
+        $this->roster->update(['status' => Roster::STATUS_SUBMITTED]);
+
+        $this->roster->approve($this->user([])->id);
+
+        $claim = \App\Models\OvertimeClaim::withoutGlobalScopes()->where('roster_entry_id', $this->entry->id)->first();
+        $this->assertNotNull($claim);
+        $this->assertSame('submitted', $claim->status);
+        $this->assertSame(Roster::STATUS_APPROVED, $this->roster->fresh()->status);
+    }
 }

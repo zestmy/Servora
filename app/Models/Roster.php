@@ -6,6 +6,7 @@ use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Roster extends Model
 {
@@ -108,15 +109,19 @@ class Roster extends Model
 
     public function approve(int $userId): void
     {
-        $this->update([
-            'status' => self::STATUS_APPROVED,
-            'approved_by' => $userId,
-            'approved_at' => now(),
-            'rejection_reason' => null,
-        ]);
+        // One transaction, so a claim that fails to insert cannot leave the
+        // roster approved with no claims behind it — there is no second
+        // Approve button to try again from.
+        DB::transaction(function () use ($userId) {
+            $this->update([
+                'status' => self::STATUS_APPROVED,
+                'approved_by' => $userId,
+                'approved_at' => now(),
+                'rejection_reason' => null,
+            ]);
 
-        // Create pending OT claims for approved roster
-        $this->createPendingOtClaims();
+            $this->createPendingOtClaims($userId);
+        });
     }
 
     public function reject(int $userId, string $reason): void
@@ -162,7 +167,7 @@ class Roster extends Model
      * shift, and approving the roster afterwards would silently double the
      * hours. Same rule as the one the claims screen enforces on entry.
      */
-    public function createPendingOtClaims(): void
+    public function createPendingOtClaims(int $approverId): void
     {
         foreach ($this->entries()->where('planned_ot', '>', 0)->get() as $entry) {
             // Check if an OT claim already exists for this entry
@@ -178,6 +183,9 @@ class Roster extends Model
             OvertimeClaim::create([
                 'company_id' => $this->company_id,
                 'outlet_id' => $this->outlet_id,
+                // The claim is raised by whoever put the roster forward;
+                // the approver stands in when nobody is recorded.
+                'submitted_by' => $this->submitted_by ?: $approverId,
                 'employee_id' => $entry->employee_id,
                 'claim_date' => $entry->day_date,
                 'ot_time_start' => $entry->shift_start,
@@ -185,7 +193,9 @@ class Roster extends Model
                 'total_ot_hours' => $entry->planned_ot,
                 'ot_type' => 'normal_day',
                 'reason' => 'Planned OT from roster',
-                'status' => 'pending',
+                // Awaiting approval in the claims workflow. 'pending' is not
+                // a value the column's enum accepts, and MySQL refused it.
+                'status' => 'submitted',
                 'source' => 'roster',
                 'roster_entry_id' => $entry->id,
             ]);
