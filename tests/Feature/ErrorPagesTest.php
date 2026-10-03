@@ -29,6 +29,19 @@ class ErrorPagesTest extends TestCase
             ->assertSee('Kitchen crew only past this door');
     }
 
+    public function test_an_expired_page_shows_the_kitchen_419_and_sends_the_user_back(): void
+    {
+        // Laravel skips CSRF checks in tests, so raise the 419 directly.
+        Route::get('/__test/expired', fn () => abort(419));
+
+        $this->get('/__test/expired')
+            ->assertStatus(419)
+            ->assertSee('Your order went cold')
+            ->assertSee('Take me back now')
+            // The redirect back is the point of this page: keep it.
+            ->assertSee('window.location.replace(back)', escape: false);
+    }
+
     public function test_a_server_error_shows_the_kitchen_500(): void
     {
         config(['app.debug' => false]);
